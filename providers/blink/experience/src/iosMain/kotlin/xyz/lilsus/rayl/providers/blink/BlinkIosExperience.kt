@@ -233,10 +233,7 @@ class BlinkIosExperience(
                     required = pending || removed,
                     isWorking = removing || removed,
                     title = nativeString(
-                        NativeStringResource(
-                            "BlinkWalletSettings",
-                            "settings_blink_connection_remove_title"
-                        )
+                        NativeStringResource("WalletManagement", "settings_manage_wallet_remove")
                     ),
                     message = nativeString(
                         NativeStringResource("WalletManagement", "wallet_removal_failed")

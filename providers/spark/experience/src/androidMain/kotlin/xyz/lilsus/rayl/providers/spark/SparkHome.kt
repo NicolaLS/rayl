@@ -4,14 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 import xyz.lilsus.rayl.providers.spark.feature.payment.rememberPaymentFlowState
 import xyz.lilsus.rayl.providers.spark.feature.payment.rememberPaymentMessages
-import xyz.lilsus.rayl.providers.spark.feature.walletconnection.R as SparkWalletR
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletAction
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletViewModel
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
@@ -20,7 +18,6 @@ import xyz.lilsus.raylsuite.feature.appshell.AppTabScaffold
 import xyz.lilsus.raylsuite.feature.paymenthub.PaymentHubTab
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentScanFlow
 import xyz.lilsus.raylsuite.feature.settings.SettingsFlow
-import xyz.lilsus.raylsuite.feature.walletmanagement.R as WalletR
 import xyz.lilsus.raylsuite.feature.walletmanagement.WalletRemovalAction
 
 internal fun NavGraphBuilder.sparkHome(
@@ -135,12 +132,6 @@ private fun SparkSettingsTab(
         overviewBottomContent = {
             WalletRemovalAction(
                 canRemove = !isSubmitting && walletState.access == WalletAccessState.Connected,
-                removalMessage = if (isSubmitting) {
-                    stringResource(WalletR.string.wallet_removal_payment_active)
-                } else {
-                    stringResource(SparkWalletR.string.spark_wallet_remove_body) + "\n\n" +
-                        stringResource(WalletR.string.wallet_removal_payment_warning)
-                },
                 onRemoveWallet = {
                     if (!runtime.paymentCoordinator.isSubmitting.value) {
                         walletViewModel.dispatch(WalletAction.ConfirmRemoval)

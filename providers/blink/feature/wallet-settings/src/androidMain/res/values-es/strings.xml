@@ -7,9 +7,4 @@
     <string name="settings_blink_funding_wallet_loading">Cargando saldos…</string>
     <string name="settings_blink_funding_wallet_unavailable">El saldo de pago seleccionado no está disponible. Elige otro saldo.</string>
     <string name="settings_blink_funding_wallet_close">Cerrar</string>
-    <string name="settings_blink_connection_remove">Eliminar billetera</string>
-    <string name="settings_blink_connection_remove_title">¿Eliminar la billetera Blink?</string>
-    <string name="settings_blink_connection_remove_description">%1$s eliminará la clave API guardada en este dispositivo. Tendrás que volver a conectarla antes de realizar pagos.</string>
-    <string name="settings_blink_connection_remove_confirm">Eliminar billetera</string>
-    <string name="settings_blink_connection_remove_cancel">Cancelar</string>
 </resources>

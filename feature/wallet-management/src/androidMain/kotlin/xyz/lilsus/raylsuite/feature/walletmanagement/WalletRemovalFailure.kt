@@ -23,7 +23,7 @@ fun WalletRemovalFailure(isWorking: Boolean, onRetry: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Text(
-                text = stringResource(R.string.settings_manage_wallet_remove_confirmation_title),
+                text = stringResource(R.string.settings_manage_wallet_remove),
                 style = MaterialTheme.typography.headlineMedium
             )
             Text(stringResource(R.string.wallet_removal_failed))

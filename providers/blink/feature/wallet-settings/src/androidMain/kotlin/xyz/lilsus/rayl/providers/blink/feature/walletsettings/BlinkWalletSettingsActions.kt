@@ -43,8 +43,7 @@ fun BlinkWalletSettingsActions(
     onSelectFundingWallet: (String) -> Unit,
     onRemoveWallet: () -> Unit,
     modifier: Modifier = Modifier,
-    canRemove: Boolean = true,
-    removalMessage: String? = null
+    canRemove: Boolean = true
 ) {
     var showFundingWallets by remember { mutableStateOf(false) }
 
@@ -74,7 +73,6 @@ fun BlinkWalletSettingsActions(
         WalletRemovalAction(
             onRemoveWallet = onRemoveWallet,
             canRemove = canRemove,
-            removalMessage = removalMessage,
             testTag = BlinkWalletSettingsTestTags.REMOVE_BUTTON
         )
     }

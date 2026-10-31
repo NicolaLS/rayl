@@ -101,10 +101,7 @@ private struct SparkWalletSettingsActions: View {
                 VStack(alignment: .leading, spacing: 12) {
                     NativeWalletRemovalAction(
                         title: snapshot.removeTitle,
-                        confirmationTitle: snapshot.removeConfirmationTitle,
-                        message: snapshot.removeConfirmationBody,
-                        cancelTitle: snapshot.cancelTitle,
-                        confirmTitle: snapshot.removeTitle,
+                        busyMessage: snapshot.removeBusyMessage,
                         canRemove: !snapshot.isWorking,
                         onRemove: model.controller.removeWallet
                     )

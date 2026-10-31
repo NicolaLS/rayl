@@ -140,10 +140,7 @@ private struct NwcWalletSettingsActions: View {
                     Divider()
                     NativeWalletRemovalAction(
                         title: snapshot.removeTitle,
-                        confirmationTitle: snapshot.removeConfirmationTitle,
-                        message: snapshot.removeConfirmationBody,
-                        cancelTitle: snapshot.cancelTitle,
-                        confirmTitle: snapshot.removeTitle,
+                        busyMessage: snapshot.removeBusyMessage,
                         canRemove: !snapshot.isWorking,
                         onRemove: model.controller.removeWallet
                     )

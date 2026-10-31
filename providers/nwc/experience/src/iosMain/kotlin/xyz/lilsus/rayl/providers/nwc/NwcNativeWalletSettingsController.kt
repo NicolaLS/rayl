@@ -12,13 +12,10 @@ import xyz.lilsus.rayl.providers.nwc.feature.walletdetails.nativeNwcWalletDetail
 import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
 import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 import xyz.lilsus.raylsuite.feature.walletmanagement.nativeWalletManagementText
-import xyz.lilsus.raylsuite.feature.walletmanagement.nativeWalletRemovalMessage
 
 data class NwcNativeWalletSettingsSnapshot(
     val removeTitle: String,
-    val removeConfirmationTitle: String,
-    val removeConfirmationBody: String,
-    val cancelTitle: String,
+    val removeBusyMessage: String,
     val walletId: String?,
     val walletTitle: String?,
     val detailsTitle: String,
@@ -102,11 +99,7 @@ class NwcNativeWalletSettingsController internal constructor(
         snapshot.value =
             NwcNativeWalletSettingsSnapshot(
                 removeTitle = management.removeTitle,
-                removeConfirmationTitle = management.removeConfirmationTitle,
-                removeConfirmationBody = nativeWalletRemovalMessage(
-                    runtime.paymentCoordinator.isSubmitting.value
-                ),
-                cancelTitle = management.cancelTitle,
+                removeBusyMessage = management.removeBusyMessage,
                 walletId = connection?.walletPublicKey,
                 walletTitle =
                     connection?.alias?.takeIf(String::isNotBlank)

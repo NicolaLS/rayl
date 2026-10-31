@@ -14,7 +14,7 @@ import xyz.lilsus.rayl.providers.blink.feature.walletsettings.nativeBlinkWalletS
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWallet
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWalletCurrency
 import xyz.lilsus.raylsuite.feature.languagesettings.LanguageRepository
-import xyz.lilsus.raylsuite.feature.walletmanagement.nativeWalletRemovalMessage
+import xyz.lilsus.raylsuite.feature.walletmanagement.nativeWalletManagementText
 
 data class BlinkNativeWalletSettingsSnapshot(
     val fundingWalletTitle: String,
@@ -28,10 +28,7 @@ data class BlinkNativeWalletSettingsSnapshot(
     val fundingWalletCloseTitle: String,
     val canRemove: Boolean,
     val removeTitle: String,
-    val removeDialogTitle: String,
-    val removeDialogDescription: String,
-    val removeConfirmTitle: String,
-    val removeCancelTitle: String
+    val removeBusyMessage: String
 )
 
 data class BlinkNativeFundingWalletOption(val id: String, val title: String, val selected: Boolean)
@@ -63,6 +60,7 @@ class BlinkNativeSettingsController internal constructor(
                 }
                     .collect { state ->
                         val text = nativeBlinkWalletSettingsText(state, appName)
+                        val management = nativeWalletManagementText()
                         onChange(
                             BlinkNativeWalletSettingsSnapshot(
                                 fundingWalletTitle = text.fundingWalletTitle,
@@ -88,13 +86,8 @@ class BlinkNativeSettingsController internal constructor(
                                 fundingWalletLoadingTitle = text.loadingTitle,
                                 fundingWalletCloseTitle = text.closeTitle,
                                 canRemove = !isSubmitting.value,
-                                removeTitle = text.removeTitle,
-                                removeDialogTitle = text.removeDialogTitle,
-                                removeDialogDescription = nativeWalletRemovalMessage(
-                                    isSubmitting.value
-                                ),
-                                removeConfirmTitle = text.removeConfirmTitle,
-                                removeCancelTitle = text.removeCancelTitle
+                                removeTitle = management.removeTitle,
+                                removeBusyMessage = management.removeBusyMessage
                             )
                         )
                     }

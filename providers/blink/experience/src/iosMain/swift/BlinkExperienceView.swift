@@ -161,10 +161,7 @@ private struct BlinkWalletSettingsActionsView: View {
 
                     NativeWalletRemovalAction(
                         title: snapshot.removeTitle,
-                        confirmationTitle: snapshot.removeDialogTitle,
-                        message: snapshot.removeDialogDescription,
-                        cancelTitle: snapshot.removeCancelTitle,
-                        confirmTitle: snapshot.removeConfirmTitle,
+                        busyMessage: snapshot.removeBusyMessage,
                         canRemove: snapshot.canRemove,
                         onRemove: model.controller.removeWallet
                     )

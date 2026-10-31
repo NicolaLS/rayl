@@ -5,11 +5,8 @@
     <string name="settings_manage_wallet_placeholder">Noch keine Wallet verbunden. Jetzt hinzufügen, um Zahlungen zu senden.</string>
     <string name="settings_manage_wallet_add">Wallet hinzufügen</string>
     <string name="settings_manage_wallet_remove">Zurück zu Rayl</string>
-    <string name="settings_manage_wallet_remove_confirmation_title">Zurück zu Rayl?</string>
-    <string name="settings_manage_wallet_remove_confirmation_body">Diese Wallet wird getrennt. Du kannst sie später in den Einstellungen erneut verbinden.</string>
     <string name="settings_manage_wallet_cancel">Abbrechen</string>
-    <string name="wallet_removal_payment_warning">Dadurch wird diese Wallet getrennt und ihre lokalen Zahlungsdaten werden gelöscht. Um sie wieder zu verwenden, verbinde sie erneut. Prüfe bei ausstehenden Zahlungen oder unbekanntem Ergebnis zuerst diese Wallet; das Trennen storniert keine Zahlung. Kontakte, Einstellungen und Hub-Verknüpfungen bleiben erhalten.</string>
-    <string name="wallet_removal_payment_active">Eine Zahlung wird gesendet. Warte auf die Antwort, bevor du die Wallet wechselst.</string>
+    <string name="wallet_removal_payment_active">Warte, bis die aktuelle Zahlung abgeschlossen ist.</string>
     <string name="wallet_removal_failed">Diese Wallet konnte nicht vollständig getrennt werden. Versuche es erneut, um zu Rayl zurückzukehren.</string>
     <string name="wallet_removal_retry">Erneut versuchen</string>
 </resources>

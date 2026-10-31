@@ -5,8 +5,8 @@ import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 
 data class NativeWalletManagementText(
     val removeTitle: String,
-    val removeConfirmationTitle: String,
-    val removeConfirmationBody: String,
+    /** Why going back to Rayl is unavailable while a payment is submitted. */
+    val removeBusyMessage: String,
     val cancelTitle: String
 )
 
@@ -14,20 +14,9 @@ suspend fun nativeWalletManagementText(): NativeWalletManagementText = NativeWal
     removeTitle = nativeString(
         NativeStringResource(table = "WalletManagement", key = "settings_manage_wallet_remove")
     ),
-    removeConfirmationTitle =
-        nativeString(
-            NativeStringResource(
-                table = "WalletManagement",
-                key = "settings_manage_wallet_remove_confirmation_title"
-            )
-        ),
-    removeConfirmationBody =
-        nativeString(
-            NativeStringResource(
-                table = "WalletManagement",
-                key = "settings_manage_wallet_remove_confirmation_body"
-            )
-        ),
+    removeBusyMessage = nativeString(
+        NativeStringResource(table = "WalletManagement", key = "wallet_removal_payment_active")
+    ),
     cancelTitle = nativeString(
         NativeStringResource(table = "WalletManagement", key = "settings_manage_wallet_cancel")
     )

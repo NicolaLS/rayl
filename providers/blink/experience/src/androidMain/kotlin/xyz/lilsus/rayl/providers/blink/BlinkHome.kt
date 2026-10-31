@@ -21,7 +21,6 @@ import xyz.lilsus.raylsuite.feature.paymentflow.rememberPaymentMessages
 import xyz.lilsus.raylsuite.feature.paymenthub.PaymentHubTab
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentScanFlow
 import xyz.lilsus.raylsuite.feature.settings.SettingsFlow
-import xyz.lilsus.raylsuite.feature.walletmanagement.R as WalletManagementR
 
 internal fun NavGraphBuilder.blinkHome(runtime: BlinkRuntime, onRemoveWallet: () -> Unit) {
     composable<BlinkDestination.Home> {
@@ -104,13 +103,6 @@ private fun BlinkHubTab(runtime: BlinkRuntime, currencyCode: String) {
 @Composable
 private fun BlinkSettingsTab(runtime: BlinkRuntime, onRemoveWallet: () -> Unit) {
     val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
-    val removalMessage = stringResource(
-        if (isSubmitting) {
-            WalletManagementR.string.wallet_removal_payment_active
-        } else {
-            WalletManagementR.string.wallet_removal_payment_warning
-        }
-    )
     val walletSettingsViewModel =
         remember(runtime.blinkWallet) {
             BlinkWalletSettingsViewModel(runtime.blinkWallet)
@@ -131,7 +123,6 @@ private fun BlinkSettingsTab(runtime: BlinkRuntime, onRemoveWallet: () -> Unit) 
             BlinkWalletSettingsActions(
                 state = walletSettingsState,
                 canRemove = !isSubmitting,
-                removalMessage = removalMessage,
                 onLoadFundingWallets = walletSettingsViewModel::loadFundingWallets,
                 onSelectFundingWallet = walletSettingsViewModel::selectFundingWallet,
                 onRemoveWallet = onRemoveWallet

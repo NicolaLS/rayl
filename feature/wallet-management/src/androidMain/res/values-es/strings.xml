@@ -5,11 +5,8 @@
     <string name="settings_manage_wallet_placeholder">Aún no hay una billetera conectada. Añade una para comenzar a pagar.</string>
     <string name="settings_manage_wallet_add">Añadir billetera</string>
     <string name="settings_manage_wallet_remove">Volver a Rayl</string>
-    <string name="settings_manage_wallet_remove_confirmation_title">¿Volver a Rayl?</string>
-    <string name="settings_manage_wallet_remove_confirmation_body">Esta billetera se desconectará. Puedes volver a conectarla más tarde en Ajustes.</string>
     <string name="settings_manage_wallet_cancel">Cancelar</string>
-    <string name="wallet_removal_payment_warning">Esto desconecta esta billetera y borra sus registros de pago locales. Para volver a usarla, conéctala de nuevo. Si un pago está pendiente o su resultado es desconocido, revisa esta billetera antes de volver a intentarlo; desconectarla no cancela ningún pago. Tus contactos, preferencias y accesos directos del Hub se conservan.</string>
-    <string name="wallet_removal_payment_active">Se está enviando un pago. Espera la respuesta antes de cambiar de billetera.</string>
+    <string name="wallet_removal_payment_active">Espera a que termine el pago actual.</string>
     <string name="wallet_removal_failed">Esta billetera no se pudo desconectar por completo. Vuelve a intentarlo para volver a Rayl.</string>
     <string name="wallet_removal_retry">Intentar de nuevo</string>
 </resources>

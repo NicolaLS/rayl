@@ -13,12 +13,7 @@ data class NativeBlinkWalletSettingsText(
     val loadingTitle: String,
     val unavailableMessage: String,
     val closeTitle: String,
-    val errorMessage: String?,
-    val removeTitle: String,
-    val removeDialogTitle: String,
-    val removeDialogDescription: String,
-    val removeConfirmTitle: String,
-    val removeCancelTitle: String
+    val errorMessage: String?
 )
 
 /** Resolves Blink-owned wallet Settings presentation without leaking generated resources. */
@@ -74,37 +69,5 @@ suspend fun nativeBlinkWalletSettingsText(
             key = "settings_blink_funding_wallet_close"
         )
     ),
-    errorMessage = state.error?.let { nativeBlinkErrorMessageFor(it) },
-    removeTitle = nativeString(
-        NativeStringResource(
-            table = "BlinkWalletSettings",
-            key = "settings_blink_connection_remove"
-        )
-    ),
-    removeDialogTitle = nativeString(
-        NativeStringResource(
-            table = "BlinkWalletSettings",
-            key = "settings_blink_connection_remove_title"
-        )
-    ),
-    removeDialogDescription =
-        nativeString(
-            NativeStringResource(
-                table = "BlinkWalletSettings",
-                key = "settings_blink_connection_remove_description"
-            ),
-            appName
-        ),
-    removeConfirmTitle = nativeString(
-        NativeStringResource(
-            table = "BlinkWalletSettings",
-            key = "settings_blink_connection_remove_confirm"
-        )
-    ),
-    removeCancelTitle = nativeString(
-        NativeStringResource(
-            table = "BlinkWalletSettings",
-            key = "settings_blink_connection_remove_cancel"
-        )
-    )
+    errorMessage = state.error?.let { nativeBlinkErrorMessageFor(it) }
 )

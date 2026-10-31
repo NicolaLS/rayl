@@ -7,9 +7,4 @@
     <string name="settings_blink_funding_wallet_loading">Guthaben werden geladen…</string>
     <string name="settings_blink_funding_wallet_unavailable">Das ausgewählte Zahlungsguthaben ist nicht verfügbar. Wähle ein anderes Guthaben.</string>
     <string name="settings_blink_funding_wallet_close">Schließen</string>
-    <string name="settings_blink_connection_remove">Wallet entfernen</string>
-    <string name="settings_blink_connection_remove_title">Blink-Wallet entfernen?</string>
-    <string name="settings_blink_connection_remove_description">%1$s entfernt den gespeicherten API-Schlüssel von diesem Gerät. Du musst die Wallet erneut verbinden, bevor du Zahlungen senden kannst.</string>
-    <string name="settings_blink_connection_remove_confirm">Wallet entfernen</string>
-    <string name="settings_blink_connection_remove_cancel">Abbrechen</string>
 </resources>

@@ -116,52 +116,6 @@
         }
       }
     },
-    "settings_manage_wallet_remove_confirmation_body" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diese Wallet wird getrennt. Du kannst sie später in den Einstellungen erneut verbinden."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This wallet will be disconnected. You can connect it again later in Settings."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Esta billetera se desconectará. Puedes volver a conectarla más tarde en Ajustes."
-          }
-        }
-      }
-    },
-    "settings_manage_wallet_remove_confirmation_title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zurück zu Rayl?"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Go back to Rayl?"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "¿Volver a Rayl?"
-          }
-        }
-      }
-    },
     "settings_manage_wallet_subtitle" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -237,42 +191,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eine Zahlung wird gesendet. Warte auf die Antwort, bevor du die Wallet wechselst."
+            "value" : "Warte, bis die aktuelle Zahlung abgeschlossen ist."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A payment is being submitted. Wait for the response before switching wallets."
+            "value" : "Wait for the current payment to finish."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se está enviando un pago. Espera la respuesta antes de cambiar de billetera."
-          }
-        }
-      }
-    },
-    "wallet_removal_payment_warning" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dadurch wird diese Wallet getrennt und ihre lokalen Zahlungsdaten werden gelöscht. Um sie wieder zu verwenden, verbinde sie erneut. Prüfe bei ausstehenden Zahlungen oder unbekanntem Ergebnis zuerst diese Wallet; das Trennen storniert keine Zahlung. Kontakte, Einstellungen und Hub-Verknüpfungen bleiben erhalten."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This disconnects this wallet and erases its local payment records. To use it again, connect it again. If a payment is pending or its outcome is unknown, check this wallet before trying again; disconnecting does not cancel a payment. Your contacts, preferences and Hub shortcuts are kept."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Esto desconecta esta billetera y borra sus registros de pago locales. Para volver a usarla, conéctala de nuevo. Si un pago está pendiente o su resultado es desconocido, revisa esta billetera antes de volver a intentarlo; desconectarla no cancela ningún pago. Tus contactos, preferencias y accesos directos del Hub se conservan."
+            "value" : "Espera a que termine el pago actual."
           }
         }
       }

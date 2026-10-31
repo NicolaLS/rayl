@@ -1,305 +1,190 @@
 {
-  "sourceLanguage": "en",
-  "strings": {
-    "settings_blink_connection_remove": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wallet entfernen"
+  "sourceLanguage" : "en",
+  "strings" : {
+    "settings_blink_funding_wallet" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bezahlen mit"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove wallet"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pay from"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eliminar billetera"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pagar con"
           }
         }
       }
     },
-    "settings_blink_connection_remove_cancel": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abbrechen"
+    "settings_blink_funding_wallet_bitcoin" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitcoin"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitcoin"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancelar"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitcoin"
           }
         }
       }
     },
-    "settings_blink_connection_remove_confirm": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wallet entfernen"
+    "settings_blink_funding_wallet_choose" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guthaben auswählen"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove wallet"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a balance"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eliminar billetera"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige un saldo"
           }
         }
       }
     },
-    "settings_blink_connection_remove_description": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ entfernt den gespeicherten API-Schlüssel von diesem Gerät. Du musst die Wallet erneut verbinden, bevor du Zahlungen senden kannst."
+    "settings_blink_funding_wallet_close" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schließen"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ will remove the saved API key from this device. You will need to connect again before making payments."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ eliminará la clave API guardada en este dispositivo. Tendrás que volver a conectarla antes de realizar pagos."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar"
           }
         }
       }
     },
-    "settings_blink_connection_remove_title": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Blink-Wallet entfernen?"
+    "settings_blink_funding_wallet_loading" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guthaben werden geladen…"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove Blink wallet?"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading balances…"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "¿Eliminar la billetera Blink?"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cargando saldos…"
           }
         }
       }
     },
-    "settings_blink_funding_wallet": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bezahlen mit"
+    "settings_blink_funding_wallet_stablesats" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stablesats (USD)"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pay from"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stablesats (USD)"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pagar con"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stablesats (USD)"
           }
         }
       }
     },
-    "settings_blink_funding_wallet_bitcoin": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bitcoin"
+    "settings_blink_funding_wallet_title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zahlungsguthaben"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bitcoin"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Funding balance"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bitcoin"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saldo de pago"
           }
         }
       }
     },
-    "settings_blink_funding_wallet_choose": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Guthaben auswählen"
+    "settings_blink_funding_wallet_unavailable" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ausgewählte Zahlungsguthaben ist nicht verfügbar. Wähle ein anderes Guthaben."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose a balance"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your selected funding balance is unavailable. Choose another balance."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Elige un saldo"
-          }
-        }
-      }
-    },
-    "settings_blink_funding_wallet_close": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Schließen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cerrar"
-          }
-        }
-      }
-    },
-    "settings_blink_funding_wallet_loading": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Guthaben werden geladen…"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading balances…"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cargando saldos…"
-          }
-        }
-      }
-    },
-    "settings_blink_funding_wallet_stablesats": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stablesats (USD)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stablesats (USD)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stablesats (USD)"
-          }
-        }
-      }
-    },
-    "settings_blink_funding_wallet_title": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zahlungsguthaben"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Funding balance"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saldo de pago"
-          }
-        }
-      }
-    },
-    "settings_blink_funding_wallet_unavailable": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Das ausgewählte Zahlungsguthaben ist nicht verfügbar. Wähle ein anderes Guthaben."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your selected funding balance is unavailable. Choose another balance."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El saldo de pago seleccionado no está disponible. Elige otro saldo."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El saldo de pago seleccionado no está disponible. Elige otro saldo."
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }
