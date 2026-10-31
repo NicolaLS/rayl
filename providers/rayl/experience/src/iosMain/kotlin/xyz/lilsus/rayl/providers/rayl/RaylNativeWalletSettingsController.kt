@@ -30,6 +30,9 @@ data class RaylNativeWalletSettingsSnapshot(
     val invoice: String?,
     val useAnotherWalletTitle: String,
     val useAnotherWalletBody: String,
+    val useAnotherWalletInfo: String,
+    /** External wallets the host offers; choosing one closes Rayl's wallet. */
+    val otherWallets: List<RaylWalletOption>,
     val cancelTitle: String,
     val canErase: Boolean,
     val eraseTitle: String,
@@ -38,8 +41,11 @@ data class RaylNativeWalletSettingsSnapshot(
     val isSubmitting: Boolean
 )
 
-/** Rayl's settings rows on iOS: spending power, adding funds, and leaving Rayl. */
-class RaylNativeWalletSettingsController internal constructor(private val runtime: RaylRuntime) {
+/** Rayl's settings rows on iOS: the balance, adding funds, and using another wallet. */
+class RaylNativeWalletSettingsController internal constructor(
+    private val runtime: RaylRuntime,
+    private val otherWallets: () -> List<RaylWalletOption>
+) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     fun observe(onChange: (RaylNativeWalletSettingsSnapshot) -> Unit): () -> Unit {
@@ -63,9 +69,11 @@ class RaylNativeWalletSettingsController internal constructor(private val runtim
 
     fun retryPocket() = runtime.retryPocket()
 
-    fun useAnotherWallet() = runtime.leave()
+    fun useWallet(id: String) {
+        runtime.useWallet(id)
+    }
 
-    fun erasePocket() = runtime.leave(erase = true)
+    fun erasePocket() = runtime.erase()
 
     fun clear() {
         scope.coroutineContext[Job]?.cancel()
@@ -106,6 +114,8 @@ class RaylNativeWalletSettingsController internal constructor(private val runtim
         invoice = (funding as? FundingState.Awaiting)?.invoice,
         useAnotherWalletTitle = text("rayl_use_another_wallet"),
         useAnotherWalletBody = text("rayl_use_another_wallet_body"),
+        useAnotherWalletInfo = text("rayl_use_another_wallet_info"),
+        otherWallets = otherWallets(),
         cancelTitle = text("rayl_cancel"),
         canErase = runtime.canErase,
         eraseTitle = text("rayl_erase_pocket"),

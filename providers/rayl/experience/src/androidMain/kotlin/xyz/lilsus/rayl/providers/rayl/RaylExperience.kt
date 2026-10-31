@@ -36,15 +36,18 @@ import xyz.lilsus.raylsuite.core.ui.platform.rememberRetainedInstance
 import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
 
 /**
- * The Compose host used on Android. Rayl needs no credentials: mounting it starts the pocket.
- * [onLeft] runs once the pocket session has closed, so the host can return to the chooser.
+ * The Compose host of Rayl's built-in wallet on Android. It needs no credentials: mounting it
+ * starts the pocket. [onUseWallet] runs with one of [otherWallets] once the pocket session has
+ * closed, so the host can set up that wallet; [onErased] after a debug build erased the pocket.
  */
 @Composable
 fun RaylExperience(
     configuration: RaylExperienceConfiguration,
     environment: RaylEnvironment,
     breezApiKey: String?,
-    onLeft: () -> Unit,
+    otherWallets: List<RaylWalletOption>,
+    onUseWallet: (String) -> Unit,
+    onErased: () -> Unit,
     onConnectionChanged: (Boolean) -> Unit
 ) {
     val appSettings = rememberAppSettings(configuration.preferencesName)
@@ -79,7 +82,13 @@ fun RaylExperience(
     val exit by runtime.exit.collectAsStateWithLifecycle()
     LaunchedEffect(runtime, status, exit) {
         onConnectionChanged(status == PocketStatus.Ready && exit == RaylExit.None)
-        if (exit == RaylExit.Done) onLeft()
+        if (exit == RaylExit.Done) {
+            when (val target = runtime.exitTarget) {
+                is RaylExitTarget.Wallet -> onUseWallet(target.id)
+                RaylExitTarget.Erased -> onErased()
+                null -> Unit
+            }
+        }
     }
     CompositionLocalProvider(LocalProductName provides configuration.appName) {
         RaylSuiteTheme(themePreference = themePreference) {
@@ -93,7 +102,7 @@ fun RaylExperience(
                 exit != RaylExit.None -> RaylStatusScreen(message = null)
 
                 // The pocket connects in the background: the camera must not wait for it.
-                else -> RaylTabs(runtime)
+                else -> RaylTabs(runtime, otherWallets)
             }
         }
     }
@@ -122,7 +131,7 @@ private fun RaylStatusScreen(message: String?, action: String? = null, onAction:
 
 private const val REGTEST_LOG_TAG = "RaylRegtest"
 
-/** Call from `Application.onCreate` when Rayl is the configured wallet. */
+/** Call from `Application.onCreate` when Rayl's wallet is in use. */
 fun startRaylPocketEarly(context: Context, environment: RaylEnvironment, breezApiKey: String?) {
     RaylEarlyStart.start {
         createAndroidRaylPocket(context.applicationContext, environment.pocketConfig(breezApiKey))

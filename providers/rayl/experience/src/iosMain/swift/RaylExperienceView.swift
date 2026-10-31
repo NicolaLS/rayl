@@ -117,16 +117,9 @@ private final class RaylWalletSettingsModel: ObservableObject {
     deinit { cancel?() }
 }
 
-private enum RaylLeaveConfirmation: Identifiable {
-    case leave
-    case erase
-
-    var id: Self { self }
-}
-
 private struct RaylWalletSettingsActions: View {
     @StateObject private var model: RaylWalletSettingsModel
-    @State private var confirmation: RaylLeaveConfirmation?
+    @State private var confirmsErase = false
 
     init(controller: RaylNativeWalletSettingsController) {
         _model = StateObject(wrappedValue: RaylWalletSettingsModel(controller: controller))
@@ -141,45 +134,33 @@ private struct RaylWalletSettingsActions: View {
                     NavigationLink { RaylAddFundsView(model: model) } label: { spendingPower(snapshot) }
                 }
                 Divider()
-                Button {
-                    confirmation = .leave
+                NavigationLink {
+                    RaylUseAnotherWalletView(model: model)
                 } label: {
                     detail(
                         snapshot.useAnotherWalletTitle,
                         snapshot.useAnotherWalletBody,
-                        systemImage: "rectangle.portrait.and.arrow.right"
+                        systemImage: "arrow.left.arrow.right"
                     )
                 }
                 .disabled(snapshot.isSubmitting)
                 if snapshot.canErase {
                     Divider()
                     Button(role: .destructive) {
-                        confirmation = .erase
+                        confirmsErase = true
                     } label: {
                         detail(snapshot.eraseTitle, snapshot.eraseBody, systemImage: "trash")
                     }
                     .disabled(snapshot.isSubmitting)
                 }
             }
-            .alert(
-                confirmation == .erase ? snapshot.eraseTitle : snapshot.useAnotherWalletTitle,
-                isPresented: Binding(
-                    get: { confirmation != nil },
-                    set: { if !$0 { confirmation = nil } }
-                ),
-                presenting: confirmation
-            ) { pending in
+            .alert(snapshot.eraseTitle, isPresented: $confirmsErase) {
                 Button(snapshot.cancelTitle, role: .cancel) {}
-                switch pending {
-                case .leave:
-                    Button(snapshot.useAnotherWalletTitle) { model.controller.useAnotherWallet() }
-                case .erase:
-                    Button(snapshot.eraseConfirmTitle, role: .destructive) {
-                        model.controller.erasePocket()
-                    }
+                Button(snapshot.eraseConfirmTitle, role: .destructive) {
+                    model.controller.erasePocket()
                 }
-            } message: { pending in
-                Text(pending == .erase ? snapshot.eraseBody : snapshot.useAnotherWalletBody)
+            } message: {
+                Text(snapshot.eraseBody)
             }
         } else {
             ProgressView()
@@ -202,6 +183,47 @@ private struct RaylWalletSettingsActions: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+/// The entry point to external wallets; choosing one closes Rayl's wallet and starts its setup.
+private struct RaylUseAnotherWalletView: View {
+    @ObservedObject var model: RaylWalletSettingsModel
+
+    var body: some View {
+        List {
+            if let snapshot = model.snapshot {
+                Section {
+                    ForEach(snapshot.otherWallets, id: \.id) { wallet in
+                        Button {
+                            model.controller.useWallet(id: wallet.id)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(wallet.title)
+                                        .foregroundStyle(.primary)
+                                    Text(wallet.subtitle)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(snapshot.isSubmitting)
+                        .accessibilityIdentifier("rayl_use_wallet_\(wallet.id)")
+                    }
+                } footer: {
+                    Text(snapshot.useAnotherWalletInfo)
+                }
+            }
+        }
+        .navigationTitle(model.snapshot?.useAnotherWalletTitle ?? "")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

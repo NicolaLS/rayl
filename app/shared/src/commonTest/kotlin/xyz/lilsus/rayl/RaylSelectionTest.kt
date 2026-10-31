@@ -4,6 +4,7 @@ import com.russhwolf.settings.MapSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -14,7 +15,7 @@ import xyz.lilsus.raylsuite.core.model.WalletStartMode
 class RaylSelectionTest {
     @Test
     fun abandonedSetupIsNotRestoredAndOrphanCredentialsAreErasedBeforeChoosing() = runTest {
-        RaylWallet.entries.forEach { wallet ->
+        ExternalWallet.entries.forEach { wallet ->
             val settings = MapSettings()
             val selection = RaylSelection(settings)
             selection.prepare { true }
@@ -25,14 +26,14 @@ class RaylSelectionTest {
             // The process can die after a provider writes credentials but before success is observed.
             val restarted = RaylSelection(settings)
             assertNotEquals(selection.sessionId, restarted.sessionId)
-            val erased = mutableListOf<RaylWallet>()
-            assertNull(restarted.wallet.value)
+            val erased = mutableListOf<ExternalWallet>()
+            assertNull(restarted.external.value)
             assertFailsWith<IllegalStateException> { restarted.choose(wallet) }
             restarted.prepare {
                 erased.add(it)
                 true
             }
-            assertEquals(RaylWallet.entries.toList(), erased)
+            assertEquals(ExternalWallet.entries.toList(), erased)
             restarted.choose(wallet)
             assertEquals(WalletStartMode.Fresh, restarted.startMode)
         }
@@ -40,29 +41,29 @@ class RaylSelectionTest {
 
     @Test
     fun onlyTheConfiguredWalletIsRestoredAndOtherCredentialsAreErased() = runTest {
-        RaylWallet.entries.forEach { wallet ->
+        ExternalWallet.entries.forEach { wallet ->
             val settings = MapSettings()
             val selection = RaylSelection(settings)
             selection.prepare { true }
             selection.choose(wallet)
             selection.connected(wallet)
             val restarted = RaylSelection(settings)
-            val erased = mutableListOf<RaylWallet>()
+            val erased = mutableListOf<ExternalWallet>()
             restarted.prepare {
                 erased.add(it)
                 true
             }
-            assertEquals(wallet, restarted.wallet.value)
+            assertEquals(wallet, restarted.external.value)
             assertEquals(WalletStartMode.Restore, restarted.startMode)
-            assertEquals(RaylWallet.entries.filter { it != wallet }, erased)
+            assertEquals(ExternalWallet.entries.filter { it != wallet }, erased)
             assertFailsWith<IllegalStateException> { restarted.choose(wallet) }
         }
     }
 
     @Test
     fun removalAndSwitchingRequireCleanupAndAlwaysStartFresh() = runTest {
-        RaylWallet.entries.forEach { current ->
-            RaylWallet.entries.forEach { next ->
+        ExternalWallet.entries.forEach { current ->
+            ExternalWallet.entries.forEach { next ->
                 val settings = MapSettings()
                 val selection = RaylSelection(settings)
                 selection.prepare { true }
@@ -70,19 +71,18 @@ class RaylSelectionTest {
                 selection.connected(current)
                 val previousSession = selection.sessionId
                 selection.clear()
-                assertNull(RaylSelection(settings).wallet.value)
+                assertNull(RaylSelection(settings).external.value)
                 assertFailsWith<IllegalStateException> { selection.choose(next) }
-                val erased = mutableListOf<RaylWallet>()
+                val erased = mutableListOf<ExternalWallet>()
                 selection.prepare {
                     erased.add(it)
                     true
                 }
-                assertEquals(RaylWallet.entries.toList(), erased)
+                assertEquals(ExternalWallet.entries.toList(), erased)
                 selection.choose(next)
                 assertNotEquals(previousSession, selection.sessionId)
                 assertEquals(WalletStartMode.Fresh, selection.startMode)
                 assertNull(settings.getStringOrNull("rayl.wallet"))
-                assertTrue(selection.welcomeCompleted.value)
             }
         }
     }
@@ -91,15 +91,15 @@ class RaylSelectionTest {
     fun failedCleanupBlocksTheChooserAndCanBeRetriedAfterRestart() = runTest {
         val settings = MapSettings()
         val selection = RaylSelection(settings)
-        selection.prepare { it != RaylWallet.Spark }
+        selection.prepare { it != ExternalWallet.Spark }
         assertEquals(WalletPreparation.Failed, selection.preparation.value)
-        assertFailsWith<IllegalStateException> { selection.choose(RaylWallet.Blink) }
+        assertFailsWith<IllegalStateException> { selection.choose(ExternalWallet.Blink) }
         selection.prepare { throw IllegalStateException("secure storage unavailable") }
         assertEquals(WalletPreparation.Failed, selection.preparation.value)
         val restarted = RaylSelection(settings)
         restarted.prepare { true }
         assertEquals(WalletPreparation.Ready, restarted.preparation.value)
-        restarted.choose(RaylWallet.Spark)
+        restarted.choose(ExternalWallet.Spark)
     }
 
     @Test
@@ -118,9 +118,9 @@ class RaylSelectionTest {
         val settings = MapSettings()
         val selection = RaylSelection(settings)
         selection.prepare { true }
-        selection.choose(RaylWallet.Spark)
+        selection.choose(ExternalWallet.Spark)
         selection.clear()
-        selection.connected(RaylWallet.Spark)
+        selection.connected(ExternalWallet.Spark)
         assertNull(settings.getStringOrNull("rayl.wallet"))
     }
 
@@ -129,12 +129,52 @@ class RaylSelectionTest {
         val settings = MapSettings()
         settings.putString("rayl.wallet", "unknown-wallet")
         val selection = RaylSelection(settings)
-        val erased = mutableListOf<RaylWallet>()
+        val erased = mutableListOf<ExternalWallet>()
         selection.prepare {
             erased.add(it)
             true
         }
-        assertNull(selection.wallet.value)
-        assertEquals(RaylWallet.entries.toList(), erased)
+        assertNull(selection.external.value)
+        assertEquals(ExternalWallet.entries.toList(), erased)
+    }
+
+    @Test
+    fun raylsWalletIsInUseAfterTheWelcomeUntilAnExternalWalletConnects() = runTest {
+        val settings = MapSettings()
+        val selection = RaylSelection(settings)
+        assertFalse(usesRaylWallet(settings))
+        selection.completeWelcome()
+        assertNull(selection.external.value)
+        assertTrue(usesRaylWallet(settings))
+
+        selection.prepare { true }
+        selection.choose(ExternalWallet.Blink)
+        // Rayl's wallet stays in use until the external setup succeeds.
+        assertTrue(usesRaylWallet(settings))
+        selection.connected(ExternalWallet.Blink)
+        assertFalse(usesRaylWallet(settings))
+
+        selection.clear()
+        assertTrue(usesRaylWallet(settings))
+    }
+
+    @Test
+    fun restartingRaylsWalletStartsANewSessionOnlyWhileItIsInUse() = runTest {
+        val selection = RaylSelection(MapSettings())
+        val first = selection.sessionId
+        selection.restartRaylWallet()
+        assertNotEquals(first, selection.sessionId)
+
+        selection.prepare { true }
+        selection.choose(ExternalWallet.Nwc)
+        val external = selection.sessionId
+        selection.restartRaylWallet()
+        assertEquals(external, selection.sessionId)
+    }
+
+    @Test
+    fun externalWalletIdsRoundTrip() {
+        ExternalWallet.entries.forEach { assertEquals(it, ExternalWallet.fromId(it.id)) }
+        assertNull(ExternalWallet.fromId("rayl"))
     }
 }

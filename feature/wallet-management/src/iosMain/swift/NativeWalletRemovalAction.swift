@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The common top-level wallet removal action. Provider text carries credential-specific warnings.
+/// The common top-level action that disconnects an external wallet and returns to Rayl's own wallet.
+/// Provider text carries credential-specific warnings.
 struct NativeWalletRemovalAction: View {
     let title: String
     let confirmationTitle: String
@@ -13,10 +14,10 @@ struct NativeWalletRemovalAction: View {
     @State private var confirmsRemoval = false
 
     var body: some View {
-        Button(role: .destructive) {
+        Button {
             confirmsRemoval = true
         } label: {
-            Label(title, systemImage: "trash")
+            Label(title, systemImage: "arrow.uturn.backward")
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
         }
@@ -24,7 +25,7 @@ struct NativeWalletRemovalAction: View {
         .accessibilityIdentifier("settings_remove_wallet")
         .alert(confirmationTitle, isPresented: $confirmsRemoval) {
             Button(cancelTitle, role: .cancel) {}
-            Button(confirmTitle, role: .destructive, action: onRemove)
+            Button(confirmTitle, action: onRemove)
                 .disabled(!canRemove)
         } message: {
             Text(message)

@@ -1,7 +1,11 @@
 # REQ-provider-experience: One experience across wallet providers
 
-The product owner's requirement is that Rayl feels identical when switching
-between providers. All providers have equal standing in the shared UI and UX.
+The product owner's requirement is that Rayl feels identical whichever wallet
+pays: its built-in wallet or a connected external provider. Rayl's built-in
+wallet is the default; external providers are connected from its Settings and
+have equal standing with one another in the shared UI and UX. Capabilities only
+Rayl's wallet has, such as its balance and adding funds, appear only while it is
+in use.
 
 On each platform, providers must share navigation, presentation, interaction
 patterns, and behavior for the capabilities they have in common. A difference

@@ -1,10 +1,8 @@
 package xyz.lilsus.raylsuite.feature.walletmanagement
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -15,7 +13,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import xyz.lilsus.raylsuite.core.ui.components.AppSettingsRow
 
-/** A top-level settings action; providers supply only their removal operation and warnings. */
+/**
+ * The top-level settings action that disconnects an external wallet and returns to Rayl's own
+ * wallet. Providers supply only their removal operation and warnings.
+ */
 @Composable
 fun WalletRemovalAction(
     onRemoveWallet: () -> Unit,
@@ -27,9 +28,7 @@ fun WalletRemovalAction(
     AppSettingsRow(
         title = stringResource(R.string.settings_manage_wallet_remove),
         onClick = { confirmsRemoval = true },
-        icon = Icons.Filled.Delete,
-        iconTint = MaterialTheme.colorScheme.error,
-        contentColor = MaterialTheme.colorScheme.error,
+        icon = Icons.AutoMirrored.Filled.Undo,
         testTag = testTag
     )
     if (confirmsRemoval) {
@@ -52,9 +51,6 @@ fun WalletRemovalAction(
             confirmButton = {
                 TextButton(
                     enabled = canRemove,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    ),
                     onClick = {
                         confirmsRemoval = false
                         onRemoveWallet()

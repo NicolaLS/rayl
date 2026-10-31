@@ -13,10 +13,11 @@
     <string name="rayl_done">Done</string>
     <string name="rayl_cancel">Cancel</string>
     <string name="rayl_use_another_wallet">Use another wallet</string>
-    <string name="rayl_use_another_wallet_body">Your Rayl spending power stays on this device. Choose Rayl again to use it.</string>
+    <string name="rayl_use_another_wallet_body">Pay with a wallet you already have.</string>
     <string name="rayl_erase_pocket">Erase Rayl pocket</string>
     <string name="rayl_erase_pocket_body">Debug builds only. Permanently deletes this device\'s Rayl key and any funds on it.</string>
     <string name="rayl_erase">Erase</string>
     <string name="rayl_leave_failed">Rayl couldn\'t close its session. Retry to continue.</string>
     <string name="rayl_balance_unavailable">Not connected. Tap to retry.</string>
+    <string name="rayl_use_another_wallet_info">Connect a wallet you already have and pay with it. Your Rayl balance stays on this device, and you can go back to Rayl in Settings at any time.</string>
 </resources>

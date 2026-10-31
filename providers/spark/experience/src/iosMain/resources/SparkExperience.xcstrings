@@ -7,19 +7,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Andere Wallet wählen"
+            "value" : "Abbrechen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose another wallet"
+            "value" : "Cancel"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elegir otra billetera"
+            "value" : "Cancelar"
           }
         }
       }

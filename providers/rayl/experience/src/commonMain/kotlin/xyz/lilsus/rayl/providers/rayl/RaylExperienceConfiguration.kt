@@ -24,3 +24,6 @@ internal fun RaylEnvironment.pocketConfig(breezApiKey: String?): PocketConfig = 
     },
     breezApiKey = breezApiKey
 )
+
+/** An external wallet the host offers under "Use another wallet", in the host's language. */
+data class RaylWalletOption(val id: String, val title: String, val subtitle: String)

@@ -13,10 +13,11 @@
     <string name="rayl_done">Listo</string>
     <string name="rayl_cancel">Cancelar</string>
     <string name="rayl_use_another_wallet">Usar otra billetera</string>
-    <string name="rayl_use_another_wallet_body">Tu saldo de Rayl se queda en este dispositivo. Elige Rayl de nuevo para usarlo.</string>
+    <string name="rayl_use_another_wallet_body">Paga con una billetera que ya tienes.</string>
     <string name="rayl_erase_pocket">Borrar el bolsillo de Rayl</string>
     <string name="rayl_erase_pocket_body">Solo en compilaciones de depuración. Borra de forma permanente la clave de Rayl de este dispositivo y todos sus fondos.</string>
     <string name="rayl_erase">Borrar</string>
     <string name="rayl_leave_failed">Rayl no pudo cerrar la sesión. Reintenta para continuar.</string>
     <string name="rayl_balance_unavailable">Sin conexión. Toca para reintentar.</string>
+    <string name="rayl_use_another_wallet_info">Conecta una billetera que ya tienes y paga con ella. Tu saldo de Rayl se queda en este dispositivo y puedes volver a Rayl en Ajustes cuando quieras.</string>
 </resources>

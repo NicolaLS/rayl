@@ -32,13 +32,15 @@ import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
 data class RaylProblemSnapshot(val message: String, val retryTitle: String)
 
 /**
- * The Kotlin side of Rayl's native iOS shell. Swift owns the `TabView`; this owns the app scope so
- * every tab's view controller shares one runtime.
+ * The Kotlin side of the native iOS shell of Rayl's built-in wallet. Swift owns the `TabView`; this
+ * owns the app scope so every tab's view controller shares one runtime. [otherWallets] lists the
+ * external wallets offered under "Use another wallet", in the current language.
  */
 class RaylIosExperience(
     configuration: RaylExperienceConfiguration,
     environment: RaylEnvironment,
-    breezApiKey: String?
+    breezApiKey: String?,
+    private val otherWallets: () -> List<RaylWalletOption>
 ) {
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val runtime = RaylRuntime(
@@ -70,7 +72,9 @@ class RaylIosExperience(
             currencyCodes = runtime.currencyPreferences.code
         )
     }
-    private val walletSettingsController = lazy { RaylNativeWalletSettingsController(runtime) }
+    private val walletSettingsController = lazy {
+        RaylNativeWalletSettingsController(runtime, otherWallets)
+    }
 
     /** `tabs` at once: the pocket connects in the background, so the camera never waits for it. */
     fun stage(): String = stageOf(runtime.exit.value)
@@ -92,9 +96,16 @@ class RaylIosExperience(
         combine(runtime.pocket.status, runtime.exit, ::connected)
     ) { onChange(it) }
 
-    /** True once the pocket session has closed after the user chose to leave Rayl. */
-    fun observeLeft(onChange: (Boolean) -> Unit): () -> Unit =
-        observe(runtime.exit) { onChange(it == RaylExit.Done) }
+    /** The external wallet to set up, once the pocket session has closed for it. */
+    fun observeUseWallet(onChange: (String) -> Unit): () -> Unit = observe(runtime.exit) {
+        val target = runtime.exitTarget
+        if (it == RaylExit.Done && target is RaylExitTarget.Wallet) onChange(target.id)
+    }
+
+    /** Called once a debug build erased the pocket, so the host mounts a new one. */
+    fun observeErased(onErased: () -> Unit): () -> Unit = observe(runtime.exit) {
+        if (it == RaylExit.Done && runtime.exitTarget == RaylExitTarget.Erased) onErased()
+    }
 
     fun selectedTab(): String = runtime.tabState.selectedTab.value.storedValue
 
@@ -218,7 +229,7 @@ private fun connected(status: PocketStatus, exit: RaylExit): Boolean =
 
 internal fun text(key: String): String = nativeString(NativeStringResource("RaylExperience", key))
 
-/** Call at app launch when Rayl is the configured wallet. */
+/** Call at app launch when Rayl's wallet is in use. */
 fun startRaylPocketEarly(environment: RaylEnvironment, breezApiKey: String?) {
     RaylEarlyStart.start { createIosRaylPocket(environment.pocketConfig(breezApiKey)) }
 }

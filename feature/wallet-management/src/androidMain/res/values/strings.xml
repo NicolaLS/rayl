@@ -4,12 +4,12 @@
     <string name="settings_manage_wallet_title">Wallet</string>
     <string name="settings_manage_wallet_placeholder">No wallet connected yet. Add one to start paying.</string>
     <string name="settings_manage_wallet_add">Add Wallet</string>
-    <string name="settings_manage_wallet_remove">Remove wallet</string>
-    <string name="settings_manage_wallet_remove_confirmation_title">Remove wallet?</string>
-    <string name="settings_manage_wallet_remove_confirmation_body">You will need to connect a wallet again before you can send payments.</string>
+    <string name="settings_manage_wallet_remove">Back to Rayl</string>
+    <string name="settings_manage_wallet_remove_confirmation_title">Go back to Rayl?</string>
+    <string name="settings_manage_wallet_remove_confirmation_body">This wallet will be disconnected. You can connect it again later in Settings.</string>
     <string name="settings_manage_wallet_cancel">Cancel</string>
-    <string name="wallet_removal_payment_warning">Removing this connection erases its local payment records. If a payment is pending or its outcome is unknown, check the original wallet before trying again. Removing the connection does not cancel a payment. Your contacts, preferences and Hub shortcuts are kept.</string>
-    <string name="wallet_removal_payment_active">A payment is being submitted. Wait for the response before removing or changing your wallet.</string>
-    <string name="wallet_removal_failed">The connection could not be completely removed. Try removing it again before connecting another wallet.</string>
+    <string name="wallet_removal_payment_warning">This disconnects this wallet and erases its local payment records. To use it again, connect it again. If a payment is pending or its outcome is unknown, check this wallet before trying again; disconnecting does not cancel a payment. Your contacts, preferences and Hub shortcuts are kept.</string>
+    <string name="wallet_removal_payment_active">A payment is being submitted. Wait for the response before switching wallets.</string>
+    <string name="wallet_removal_failed">This wallet could not be completely disconnected. Try again to go back to Rayl.</string>
     <string name="wallet_removal_retry">Try again</string>
 </resources>

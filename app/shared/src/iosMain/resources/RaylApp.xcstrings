@@ -70,75 +70,6 @@
         }
       }
     },
-    "choose_another" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Andere Wallet wählen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose another wallet"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elegir otra billetera"
-          }
-        }
-      }
-    },
-    "choose_body" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wähle deinen Wallet-Anbieter. Rayl verwendet jeweils eine Wallet."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose your wallet provider. Rayl uses one wallet at a time."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elige el proveedor de tu billetera. Rayl usa una billetera a la vez."
-          }
-        }
-      }
-    },
-    "choose_wallet" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wallet verbinden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connect your wallet"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conecta tu billetera"
-          }
-        }
-      }
-    },
     "close" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -168,19 +99,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbinde deine Wallet und öffne danach die Zahlungsanfrage erneut."
+            "value" : "Schließe die Verbindung deiner Wallet ab und öffne danach die Zahlungsanfrage erneut."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connect your wallet, then reopen the payment request."
+            "value" : "Finish connecting your wallet, then reopen the payment request."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Conecta tu billetera y vuelve a abrir la solicitud de pago."
+            "value" : "Termina de conectar tu billetera y vuelve a abrir la solicitud de pago."
           }
         }
       }
@@ -191,19 +122,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entferne zuerst deine aktuelle Wallet in den Einstellungen, bevor du eine andere verbindest."
+            "value" : "Wechsle in den Einstellungen zurück zu Rayl, bevor du eine andere Wallet verbindest."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove your current wallet in Settings before connecting another wallet."
+            "value" : "Go back to Rayl in Settings before connecting another wallet."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elimina tu billetera actual en Ajustes antes de conectar otra."
+            "value" : "Vuelve a Rayl en Ajustes antes de conectar otra billetera."
           }
         }
       }
@@ -273,52 +204,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nostr Wallet Connect"
-          }
-        }
-      }
-    },
-    "rayl_body" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sofort bezahlen. Keine Schlüssel oder Verbindungslinks nötig."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start paying right away. No keys or connection links needed."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Empieza a pagar de inmediato. Sin claves ni enlaces de conexión."
-          }
-        }
-      }
-    },
-    "rayl_title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rayl"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rayl"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rayl"
           }
         }
       }
@@ -415,25 +300,48 @@
         }
       }
     },
+    "wallet_switch_busy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warte, bis die aktuelle Zahlung abgeschlossen ist, und öffne den Link dann erneut."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait for the current payment to finish, then open the link again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espera a que termine el pago actual y vuelve a abrir el enlace."
+          }
+        }
+      }
+    },
     "welcome_body" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Schnelle Zahlungen, passend zu deiner Wallet."
+            "value" : "Schnelle Lightning-Zahlungen, sofort startklar. Keine Einrichtung nötig."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fast payments, tailored to your wallet."
+            "value" : "Fast Lightning payments, ready when you are. No setup needed."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pagos rápidos, adaptados a tu billetera."
+            "value" : "Pagos Lightning rápidos, listos cuando tú lo estés. Sin configuración."
           }
         }
       }

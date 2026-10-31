@@ -1,7 +1,7 @@
 <resources>
     <string name="spark_settings_wallet_title">Spark wallet</string>
     <string name="spark_settings_wallet_subtitle">Recovery phrase stored securely on this device</string>
-    <string name="spark_choose_another_wallet">Choose another wallet</string>
+    <string name="spark_choose_another_wallet">Cancel</string>
     <string name="spark_session_close_failed">Could not close the wallet session. Retry before choosing another wallet.</string>
     <string name="spark_session_close_retry">Retry</string>
 </resources>

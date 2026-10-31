@@ -7,17 +7,13 @@ import xyz.lilsus.rayl.providers.blink.clearSavedBlinkWallet
 import xyz.lilsus.rayl.providers.nwc.clearSavedNwcWallet
 import xyz.lilsus.rayl.providers.spark.clearSavedSparkWallet
 
-internal suspend fun clearSavedWallet(context: Context, wallet: RaylWallet): Boolean =
+/** Rayl's own wallet is never cleared here; it survives external wallets. See SPEC-wallet-lifecycle. */
+internal suspend fun clearSavedWallet(context: Context, wallet: ExternalWallet): Boolean =
     withContext(Dispatchers.Default) {
         when (wallet) {
-            // The Rayl pocket is app-owned and survives switching wallets. See SPEC-wallet-lifecycle.
-            RaylWallet.Rayl -> Unit
-
-            RaylWallet.Blink -> clearSavedBlinkWallet(context, RAYL_BLINK)
-
-            RaylWallet.Nwc -> clearSavedNwcWallet(context, RAYL_NWC)
-
-            RaylWallet.Spark -> return@withContext clearSavedSparkWallet(context)
+            ExternalWallet.Blink -> clearSavedBlinkWallet(context, RAYL_BLINK)
+            ExternalWallet.Nwc -> clearSavedNwcWallet(context, RAYL_NWC)
+            ExternalWallet.Spark -> return@withContext clearSavedSparkWallet(context)
         }
         true
     }

@@ -1,22 +1,18 @@
 <resources>
     <string name="app_name">Rayl</string>
     <string name="welcome_title">Welcome to Rayl</string>
-    <string name="welcome_body">Fast payments, tailored to your wallet.</string>
+    <string name="welcome_body">Fast Lightning payments, ready when you are. No setup needed.</string>
     <string name="get_started">Get started</string>
-    <string name="choose_wallet">Connect your wallet</string>
-    <string name="choose_body">Choose your wallet provider. Rayl uses one wallet at a time.</string>
     <string name="blink_title">Blink</string>
     <string name="blink_body">Connect your Blink account with an API key.</string>
     <string name="nwc_title">Nostr Wallet Connect</string>
     <string name="nwc_body">Connect a compatible wallet using its NWC connection link.</string>
     <string name="spark_title">Spark</string>
     <string name="spark_body">Import your Spark wallet with its recovery phrase.</string>
-    <string name="choose_another">Choose another wallet</string>
-    <string name="connection_exists">Remove your current wallet in Settings before connecting another wallet.</string>
-    <string name="connect_to_pay">Connect your wallet, then reopen the payment request.</string>
+    <string name="connection_exists">Go back to Rayl in Settings before connecting another wallet.</string>
+    <string name="connect_to_pay">Finish connecting your wallet, then reopen the payment request.</string>
     <string name="close">Close</string>
     <string name="wallet_cleanup_failed">Rayl could not finish clearing the previous wallet connection. Retry to continue.</string>
     <string name="wallet_cleanup_retry">Retry</string>
-    <string name="rayl_title">Rayl</string>
-    <string name="rayl_body">Start paying right away. No keys or connection links needed.</string>
+    <string name="wallet_switch_busy">Wait for the current payment to finish, then open the link again.</string>
 </resources>

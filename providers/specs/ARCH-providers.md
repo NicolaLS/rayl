@@ -28,7 +28,9 @@ runtime creation, so Rayl can enforce
 [SPEC-wallet-lifecycle](../../specs/SPEC-wallet-lifecycle.md) before mounting an
 experience.
 
-Rayl also runs on `feature/payment-flow`. Its
+The Rayl provider is Rayl's built-in wallet rather than a connection: hosts mount
+it whenever no external wallet is configured, and its Settings offer the external
+wallets the host supplies. It also runs on `feature/payment-flow`. Its
 [`integration/pocket`](../rayl/integration/pocket) owns an app-owned Spark wallet
 through the Breez SDK: it generates the pocket key on first use, keeps it in
 device-only platform storage, quotes and pays invoices, and creates funding

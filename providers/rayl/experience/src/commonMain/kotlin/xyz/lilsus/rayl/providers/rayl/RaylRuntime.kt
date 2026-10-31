@@ -31,9 +31,18 @@ import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
 
 internal enum class RaylExit { None, Working, Failed, Done }
 
+internal sealed interface RaylExitTarget {
+    /** The user chose an external wallet offered by the host. */
+    data class Wallet(val id: String) : RaylExitTarget
+
+    /** A debug build erased the wallet; the host mounts a new one. */
+    data object Erased : RaylExitTarget
+}
+
 /**
- * Rayl experience objects, held outside composition so both the Compose host and the native iOS
- * shell share one instance. There is no setup step: the pocket starts as soon as Rayl mounts.
+ * Objects of Rayl's built-in wallet experience, held outside composition so both the Compose host
+ * and the native iOS shell share one instance. There is no setup step: the pocket starts as soon as
+ * it mounts.
  */
 internal class RaylRuntime(
     appSettings: Settings,
@@ -46,7 +55,10 @@ internal class RaylRuntime(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val networkConnectivity by lazy { createNetworkConnectivity() }
     private var closed = false
-    private var exitErases = false
+
+    /** Where the host goes once [exit] is [RaylExit.Done]. */
+    var exitTarget: RaylExitTarget? = null
+        private set
 
     val canErase = environment == RaylEnvironment.DEBUG
 
@@ -87,6 +99,12 @@ internal class RaylRuntime(
             }
         }
         scope.launch {
+            // E.g. a wallet connection link opened while Rayl's wallet is in use.
+            RaylWalletRequests.events.collect { walletId ->
+                if (!useWallet(walletId)) RaylWalletRequests.rejected(walletId)
+            }
+        }
+        scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.
             paymentCoordinator.uiState.collect { state ->
                 if (state != PaymentUiState.Active) tabState.requestScan()
@@ -99,19 +117,31 @@ internal class RaylRuntime(
     }
 
     /**
-     * Returns to the wallet chooser. The pocket only closes; its key and funds stay on this device
-     * for the next time Rayl is chosen. [erase] deletes them and is limited to debug builds.
+     * Closes Rayl's wallet so the host can set up the external wallet [walletId]. Its key and funds
+     * stay on this device, and the host returns here when the external wallet is removed.
+     * Returns false while a payment is being submitted.
      */
-    fun leave(erase: Boolean = false) {
-        if (closed || paymentCoordinator.isSubmitting.value || (erase && !canErase)) return
-        if (mutableExit.value == RaylExit.Working || mutableExit.value == RaylExit.Done) return
-        exitErases = erase
+    fun useWallet(walletId: String): Boolean = leave(RaylExitTarget.Wallet(walletId))
+
+    /** Debug builds only: deletes the wallet key and its funds, then starts a new wallet. */
+    fun erase() {
+        if (canErase) leave(RaylExitTarget.Erased)
+    }
+
+    private fun leave(target: RaylExitTarget): Boolean {
+        if (closed || paymentCoordinator.isSubmitting.value) return false
+        if (mutableExit.value == RaylExit.Working ||
+            mutableExit.value == RaylExit.Done
+        ) {
+            return false
+        }
+        exitTarget = target
         mutableExit.value = RaylExit.Working
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             mutableExit.value = try {
                 paymentCoordinator.resetSession()
                 funding.reset()
-                val finished = if (erase) {
+                val finished = if (target == RaylExitTarget.Erased) {
                     pocket.erase()
                 } else {
                     pocket.close()
@@ -124,12 +154,14 @@ internal class RaylRuntime(
                 RaylExit.Failed
             }
         }
+        return true
     }
 
     fun retryLeave() {
-        if (mutableExit.value == RaylExit.Failed) {
+        val target = exitTarget
+        if (mutableExit.value == RaylExit.Failed && target != null) {
             mutableExit.value = RaylExit.None
-            leave(exitErases)
+            leave(target)
         }
     }
 
@@ -143,6 +175,7 @@ internal class RaylRuntime(
         lnurlPayClient.close()
         languageRepository.close()
         RaylPaymentLinks.clear()
+        RaylWalletRequests.clear()
         CoroutineScope(SupervisorJob() + Dispatchers.Main).launch(
             start = CoroutineStart.UNDISPATCHED
         ) {

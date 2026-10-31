@@ -3,14 +3,18 @@
 The [Gradle project](../settings.gradle.kts) builds Rayl for Android and iOS.
 Rayl is the only distributed app. Product composition lives in `app/`;
 independent Rayl, Blink, Nostr Wallet Connect (NWC), and Spark implementations
-live in `providers/`; only the Rayl provider needs no credentials.
+live in `providers/`; only the Rayl provider, Rayl's built-in wallet, needs no
+credentials.
 
-Rayl offers every integrated provider during setup, with no release availability
-gates. [RaylSelection](../app/shared/src/commonMain/kotlin/xyz/lilsus/rayl/RaylSelection.kt)
-keeps setup selection transient and remembers only the configured provider; it
-does not combine wallets into one payment engine. Before mounting an experience,
-the platform host clears unowned provider storage. Returning to the chooser also
-requires cleanup, as defined by [SPEC-wallet-lifecycle](SPEC-wallet-lifecycle.md).
+Rayl pays with its built-in wallet, the Rayl provider's pocket, by default: after
+the welcome it mounts without setup. Its Settings offer every external provider
+under "Use another wallet", with no release availability gates, and an external
+wallet's Settings offer "Back to Rayl".
+[RaylSelection](../app/shared/src/commonMain/kotlin/xyz/lilsus/rayl/RaylSelection.kt)
+keeps external setup transient and remembers only a connected external wallet;
+it does not combine wallets into one payment engine. Before mounting any wallet,
+the platform host clears unowned external provider storage. Going back to Rayl
+also requires cleanup, as defined by [SPEC-wallet-lifecycle](SPEC-wallet-lifecycle.md).
 
 ## Shared boundaries
 

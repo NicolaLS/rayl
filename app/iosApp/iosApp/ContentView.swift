@@ -18,7 +18,7 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     if snapshot.canCancelSetup {
                         HStack {
-                            Button(snapshot.text["choose_another"] ?? "") { RaylIosApp.shared.cancelSetup() }
+                            Button(snapshot.text["cancel_setup"] ?? "") { RaylIosApp.shared.cancelSetup() }
                             Spacer()
                         }.padding()
                     }
@@ -60,8 +60,17 @@ struct ContentView: View {
                     } else if let experience = snapshot.sparkExperience {
                         SparkExperienceView(experience: experience)
                             .id(ObjectIdentifier(experience))
+                    } else if !snapshot.welcomeCompleted {
+                        NativeOnboardingWelcomeView(
+                            title: snapshot.text["welcome_title"] ?? "",
+                            subtitle: "",
+                            description: snapshot.text["welcome_body"] ?? "",
+                            actionTitle: snapshot.text["get_started"] ?? "",
+                            action: { RaylIosApp.shared.completeWelcome() }
+                        )
                     } else {
-                        selection(snapshot)
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
                 .id(snapshot.wallet)
@@ -91,69 +100,5 @@ struct ContentView: View {
         case "dark": return .dark
         default: return nil
         }
-    }
-
-    @ViewBuilder
-    private func selection(_ snapshot: RaylSnapshot) -> some View {
-        if !snapshot.welcomeCompleted {
-            NativeOnboardingWelcomeView(
-                title: snapshot.text["welcome_title"] ?? "",
-                subtitle: "",
-                description: snapshot.text["welcome_body"] ?? "",
-                actionTitle: snapshot.text["get_started"] ?? "",
-                action: { RaylIosApp.shared.completeWelcome() }
-            )
-        } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    Image(systemName: "wallet.bifold")
-                        .font(.system(size: 36, weight: .medium))
-                        .foregroundStyle(.tint)
-                        .frame(width: 80, height: 80)
-                        .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 24))
-                        .accessibilityHidden(true)
-                    Text(snapshot.text["choose_wallet"] ?? "")
-                        .font(.largeTitle.bold())
-                    Text(snapshot.text["choose_body"] ?? "")
-                        .foregroundStyle(.secondary)
-                    ForEach(snapshot.wallets, id: \.self) { wallet in
-                        choice(wallet, snapshot)
-                    }
-                }
-                .padding(24)
-                .frame(maxWidth: 608, alignment: .leading)
-                .frame(maxWidth: .infinity)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(uiColor: .systemGroupedBackground))
-        }
-    }
-
-    private func choice(_ wallet: String, _ snapshot: RaylSnapshot) -> some View {
-        Button {
-            RaylIosApp.shared.choose(wallet: wallet)
-        } label: {
-            HStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(snapshot.text[wallet + "_title"] ?? "")
-                        .font(.title2.bold())
-                        .foregroundStyle(.primary)
-                    Text(snapshot.text[wallet + "_body"] ?? "")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "arrow.right")
-                    .font(.headline)
-                    .foregroundStyle(.tint)
-            }
-            .multilineTextAlignment(.leading)
-            .padding(24)
-            .background(
-                Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 24))
-        }
-        .buttonStyle(.plain)
     }
 }

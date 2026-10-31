@@ -4,15 +4,10 @@ import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +35,8 @@ import xyz.lilsus.rayl.providers.nwc.NwcDeepLinks
 import xyz.lilsus.rayl.providers.nwc.NwcExperience
 import xyz.lilsus.rayl.providers.rayl.RaylExperience
 import xyz.lilsus.rayl.providers.rayl.RaylPaymentLinks
+import xyz.lilsus.rayl.providers.rayl.RaylWalletOption
+import xyz.lilsus.rayl.providers.rayl.RaylWalletRequests
 import xyz.lilsus.rayl.providers.rayl.startRaylPocketEarly
 import xyz.lilsus.rayl.providers.spark.SparkDeepLinks
 import xyz.lilsus.rayl.providers.spark.SparkEnvironment
@@ -61,21 +58,25 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
         factory = { RaylSelection(settings) },
         onDispose = {}
     )
-    val wallet by selection.wallet.collectAsStateWithLifecycle()
+    val external by selection.external.collectAsStateWithLifecycle()
+    val session by selection.session.collectAsStateWithLifecycle()
     val preparation by selection.preparation.collectAsStateWithLifecycle()
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
-    LaunchedEffect(selection, wallet) {
+    LaunchedEffect(selection, external) {
         selection.prepare { clearSavedWallet(context, it) }
     }
     val welcomeCompleted by selection.welcomeCompleted.collectAsStateWithLifecycle()
+    // Whether the external wallet in use is connected; Rayl's wallet queues links itself.
     var connected by remember { mutableStateOf<Boolean?>(null) }
-    val theme = remember(wallet) { DefaultThemePreferences(settings) }
+    // A connection link that waits for Rayl's wallet to close before its setup starts.
+    var pendingNwcLink by remember { mutableStateOf<String?>(null) }
+    val theme = remember(external, session) { DefaultThemePreferences(settings) }
     val preference by theme.preference.collectAsStateWithLifecycle(
         initialValue = ThemePreference.System
     )
     var message by remember { mutableStateOf<Int?>(null) }
-    val leave = {
+    val backToRayl = {
         RaylDeepLinks.clear()
         BlinkDeepLinks.clear()
         NwcDeepLinks.clear()
@@ -85,15 +86,32 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
         connected = null
         selection.clear()
     }
-    LaunchedEffect(selection, wallet) {
+    val useWallet = { id: String ->
+        val wallet = ExternalWallet.fromId(id)
+        if (wallet != null && selection.external.value == null) {
+            connected = null
+            RaylPaymentLinks.clear()
+            selection.choose(wallet)
+            if (wallet == ExternalWallet.Nwc) pendingNwcLink?.let(NwcDeepLinks::emit)
+        }
+        pendingNwcLink = null
+    }
+    LaunchedEffect(selection) {
+        RaylWalletRequests.rejections.collect {
+            pendingNwcLink = null
+            message = R.string.wallet_switch_busy
+        }
+    }
+    LaunchedEffect(selection, external) {
         RaylDeepLinks.events.collect { uri ->
             selection.preparation.first { it == WalletPreparation.Ready }
-            val selected = selection.wallet.value
+            val selected = selection.external.value
             if (uri.substringBefore(':').equals("nostr+walletconnect", true)) {
                 if (selected == null) {
-                    selection.choose(RaylWallet.Nwc)
-                    NwcDeepLinks.emit(uri)
-                } else if (selected == RaylWallet.Nwc &&
+                    selection.completeWelcome()
+                    pendingNwcLink = uri
+                    RaylWalletRequests.request(ExternalWallet.Nwc.id)
+                } else if (selected == ExternalWallet.Nwc &&
                     !snapshotFlow { connected }.filterNotNull().first()
                 ) {
                     NwcDeepLinks.emit(uri)
@@ -101,19 +119,17 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
                     message = R.string.connection_exists
                 }
             } else if (selected == null) {
-                message = R.string.connect_to_pay
-            } else if (selected != RaylWallet.Rayl && // Rayl queues links while it connects.
-                !snapshotFlow { connected }.filterNotNull().first()
-            ) {
+                // Rayl's wallet queues links while it connects, or until the welcome is done.
+                RaylPaymentLinks.emit(uri)
+            } else if (!snapshotFlow { connected }.filterNotNull().first()) {
                 // FIXME: Spark cold-start reports Loading -> false before async restore finishes,
                 // which can reject a cold-start payment deep link as disconnected.
                 message = R.string.connect_to_pay
             } else {
                 when (selected) {
-                    RaylWallet.Rayl -> RaylPaymentLinks.emit(uri)
-                    RaylWallet.Blink -> BlinkDeepLinks.emit(uri)
-                    RaylWallet.Nwc -> NwcDeepLinks.emit(uri)
-                    RaylWallet.Spark -> SparkDeepLinks.emit(uri)
+                    ExternalWallet.Blink -> BlinkDeepLinks.emit(uri)
+                    ExternalWallet.Nwc -> NwcDeepLinks.emit(uri)
+                    ExternalWallet.Spark -> SparkDeepLinks.emit(uri)
                 }
             }
         }
@@ -138,62 +154,10 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
             }
             return@RaylSuiteTheme
         }
-        key(wallet, selection.sessionId) {
-            when (wallet) {
-                RaylWallet.Rayl -> RaylExperience(
-                    configuration = RAYL_POCKET,
-                    environment = sparkEnvironment.toRaylEnvironment(),
-                    breezApiKey = breezApiKey,
-                    onLeft = leave,
-                    onConnectionChanged = {
-                        if (selection.wallet.value == RaylWallet.Rayl) {
-                            connected = it
-                            if (it) selection.connected(RaylWallet.Rayl)
-                        }
-                    }
-                )
-
-                RaylWallet.Blink -> BlinkExperience(
-                    configuration = RAYL_BLINK,
-                    startMode = selection.startMode,
-                    onRemoved = leave,
-                    onConnectionChanged = {
-                        if (selection.wallet.value == RaylWallet.Blink) {
-                            connected = it
-                            if (it) selection.connected(RaylWallet.Blink)
-                        }
-                    }
-                )
-
-                RaylWallet.Nwc -> NwcExperience(
-                    configuration = RAYL_NWC,
-                    startMode = selection.startMode,
-                    onRemoved = leave,
-                    onConnectionChanged = {
-                        if (selection.wallet.value == RaylWallet.Nwc) {
-                            connected = it
-                            if (it) selection.connected(RaylWallet.Nwc)
-                        }
-                    }
-                )
-
-                RaylWallet.Spark -> SparkExperience(
-                    configuration = RAYL_SPARK,
-                    startMode = selection.startMode,
-                    environment = sparkEnvironment,
-                    breezApiKey = breezApiKey,
-                    onRemoved = leave,
-                    onChooseWallet = leave,
-                    onConnectionChanged = {
-                        if (selection.wallet.value == RaylWallet.Spark) {
-                            connected = it
-                            if (it) selection.connected(RaylWallet.Spark)
-                        }
-                    }
-                )
-
-                null -> Surface(modifier = Modifier.fillMaxSize()) {
-                    if (!welcomeCompleted) {
+        key(external, session) {
+            when (external) {
+                null -> if (!welcomeCompleted) {
+                    Surface(modifier = Modifier.fillMaxSize()) {
                         WelcomeScreen(
                             title = stringResource(R.string.welcome_title),
                             subtitle = "",
@@ -201,41 +165,57 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
                             actionTitle = stringResource(R.string.get_started),
                             onGetStarted = selection::completeWelcome
                         )
-                    } else {
-                        Column(
-                            modifier = Modifier.safeDrawingPadding().verticalScroll(
-                                rememberScrollState()
-                            ).padding(24.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.choose_wallet),
-                                style = MaterialTheme.typography.headlineLarge
-                            )
-                            Text(stringResource(R.string.choose_body))
-                            RaylWallet.entries.forEach { provider ->
-                                val (title, body) = when (provider) {
-                                    RaylWallet.Rayl -> R.string.rayl_title to R.string.rayl_body
+                    }
+                } else {
+                    RaylExperience(
+                        configuration = RAYL_POCKET,
+                        environment = sparkEnvironment.toRaylEnvironment(),
+                        breezApiKey = breezApiKey,
+                        otherWallets = externalWalletOptions(),
+                        onUseWallet = useWallet,
+                        onErased = selection::restartRaylWallet,
+                        onConnectionChanged = {}
+                    )
+                }
 
-                                    RaylWallet.Blink ->
-                                        R.string.blink_title to
-                                            R.string.blink_body
-
-                                    RaylWallet.Nwc -> R.string.nwc_title to R.string.nwc_body
-
-                                    RaylWallet.Spark -> R.string.spark_title to R.string.spark_body
-                                }
-                                WalletChoice(title, body) {
-                                    if (selection.wallet.value == null &&
-                                        selection.preparation.value == WalletPreparation.Ready
-                                    ) {
-                                        selection.choose(provider)
-                                    }
-                                }
-                            }
+                ExternalWallet.Blink -> BlinkExperience(
+                    configuration = RAYL_BLINK,
+                    startMode = selection.startMode,
+                    onRemoved = backToRayl,
+                    onConnectionChanged = {
+                        if (selection.external.value == ExternalWallet.Blink) {
+                            connected = it
+                            if (it) selection.connected(ExternalWallet.Blink)
                         }
                     }
-                }
+                )
+
+                ExternalWallet.Nwc -> NwcExperience(
+                    configuration = RAYL_NWC,
+                    startMode = selection.startMode,
+                    onRemoved = backToRayl,
+                    onConnectionChanged = {
+                        if (selection.external.value == ExternalWallet.Nwc) {
+                            connected = it
+                            if (it) selection.connected(ExternalWallet.Nwc)
+                        }
+                    }
+                )
+
+                ExternalWallet.Spark -> SparkExperience(
+                    configuration = RAYL_SPARK,
+                    startMode = selection.startMode,
+                    environment = sparkEnvironment,
+                    breezApiKey = breezApiKey,
+                    onRemoved = backToRayl,
+                    onChooseWallet = backToRayl,
+                    onConnectionChanged = {
+                        if (selection.external.value == ExternalWallet.Spark) {
+                            connected = it
+                            if (it) selection.connected(ExternalWallet.Spark)
+                        }
+                    }
+                )
             }
         }
         message?.let { resource ->
@@ -249,25 +229,22 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
 }
 
 @Composable
-private fun WalletChoice(title: Int, description: Int, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(stringResource(title), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(description), style = MaterialTheme.typography.bodyMedium)
-        }
+private fun externalWalletOptions(): List<RaylWalletOption> = ExternalWallet.entries.map { wallet ->
+    val (title, description) = when (wallet) {
+        ExternalWallet.Blink -> R.string.blink_title to R.string.blink_body
+        ExternalWallet.Nwc -> R.string.nwc_title to R.string.nwc_body
+        ExternalWallet.Spark -> R.string.spark_title to R.string.spark_body
     }
+    RaylWalletOption(wallet.id, stringResource(title), stringResource(description))
 }
 
-/** Starts the configured wallet before any UI, so it connects while the app launches. */
+/** Starts Rayl's wallet before any UI when it is in use, so it connects while the app launches. */
 fun startConfiguredWalletEarly(
     context: Context,
     sparkEnvironment: SparkEnvironment,
     breezApiKey: String? = null
 ) {
-    if (configuredWallet(createAppSettings(context, RAYL_PREFERENCES)) == RaylWallet.Rayl) {
+    if (usesRaylWallet(createAppSettings(context, RAYL_PREFERENCES))) {
         startRaylPocketEarly(context, sparkEnvironment.toRaylEnvironment(), breezApiKey)
     }
 }
