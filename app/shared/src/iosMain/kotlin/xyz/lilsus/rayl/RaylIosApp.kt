@@ -18,6 +18,7 @@ import xyz.lilsus.rayl.providers.rayl.RaylIosExperience
 import xyz.lilsus.rayl.providers.rayl.RaylPaymentLinks
 import xyz.lilsus.rayl.providers.rayl.RaylWalletOption
 import xyz.lilsus.rayl.providers.rayl.RaylWalletRequests
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPasskeyAuthenticator
 import xyz.lilsus.rayl.providers.rayl.startRaylPocketEarly
 import xyz.lilsus.rayl.providers.spark.SparkAppHost
 import xyz.lilsus.rayl.providers.spark.SparkDeepLinks
@@ -131,7 +132,16 @@ object RaylIosApp {
         }
     }
 
-    fun configureSpark(environment: SparkEnvironment, breezApiKey: String?) {
+    /**
+     * [passkeys] is the Swift passkey bridge, or `null` for the stand-in passkey of automated
+     * builds; [debugTools] marks a debug build.
+     */
+    fun configureSpark(
+        environment: SparkEnvironment,
+        breezApiKey: String?,
+        passkeys: RaylPasskeyAuthenticator?,
+        debugTools: Boolean
+    ) {
         check(spark == null && rayl == null) { "Configure Spark before mounting its experience" }
         sparkHostFactory = { mode -> createIOSAppHost(environment, mode, breezApiKey) }
         raylFactory = {
@@ -139,6 +149,8 @@ object RaylIosApp {
                 RAYL_POCKET,
                 environment.toRaylEnvironment(),
                 breezApiKey,
+                passkeys,
+                debugTools,
                 ::externalWalletOptions
             )
         }

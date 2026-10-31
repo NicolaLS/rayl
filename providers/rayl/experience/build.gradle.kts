@@ -35,6 +35,10 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.multiplatform.settings.test)
         }
+        // The iOS host passes the Swift passkey bridge, an interface of the pocket module.
+        iosMain.dependencies {
+            api(project(":providers:rayl:integration:pocket"))
+        }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.lifecycle.runtimeCompose)

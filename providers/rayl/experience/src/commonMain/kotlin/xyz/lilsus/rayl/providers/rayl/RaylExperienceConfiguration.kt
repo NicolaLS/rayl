@@ -12,7 +12,7 @@ data class RaylExperienceConfiguration(
 )
 
 enum class RaylEnvironment {
-    /** Regtest pocket; also offers erasing the pocket for development. */
+    /** Regtest pocket. */
     DEBUG,
     PRODUCTION
 }

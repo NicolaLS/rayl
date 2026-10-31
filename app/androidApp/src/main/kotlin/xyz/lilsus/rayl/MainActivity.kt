@@ -21,6 +21,7 @@ open class MainActivity : AppCompatActivity() {
             App(
                 sparkEnvironment = configuration.environment,
                 raylPasskeys = configuration.passkeys,
+                debugTools = BuildConfig.DEBUG,
                 breezApiKey = configuration.breezApiKey
             )
         }

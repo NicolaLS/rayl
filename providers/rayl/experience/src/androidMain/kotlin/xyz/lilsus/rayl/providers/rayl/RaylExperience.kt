@@ -50,6 +50,7 @@ fun RaylExperience(
     environment: RaylEnvironment,
     breezApiKey: String?,
     passkeys: RaylPasskeys,
+    debugTools: Boolean,
     otherWallets: List<RaylWalletOption>,
     onUseWallet: (String) -> Unit,
     onErased: () -> Unit,
@@ -67,7 +68,7 @@ fun RaylExperience(
             RaylRuntime(
                 appSettings = appSettings,
                 configuration = configuration,
-                environment = environment,
+                debugTools = debugTools,
                 pocket = RaylEarlyStart.take {
                     createAndroidRaylPocket(context, environment.pocketConfig(breezApiKey))
                 },

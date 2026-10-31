@@ -50,7 +50,8 @@ internal sealed interface RaylExitTarget {
 internal class RaylRuntime(
     appSettings: Settings,
     val configuration: RaylExperienceConfiguration,
-    environment: RaylEnvironment,
+    /** A debug build: offers erasing the pocket's key copy, whichever network it uses. */
+    debugTools: Boolean,
     val pocket: RaylPocket,
     createSetup: (RaylPocket) -> PocketSetup,
     haptics: HapticFeedbackManager,
@@ -64,7 +65,7 @@ internal class RaylRuntime(
     var exitTarget: RaylExitTarget? = null
         private set
 
-    val canErase = environment == RaylEnvironment.DEBUG
+    val canErase = debugTools
 
     val themePreferences = DefaultThemePreferences(appSettings)
     val currencyPreferences = DefaultCurrencyPreferences(appSettings)

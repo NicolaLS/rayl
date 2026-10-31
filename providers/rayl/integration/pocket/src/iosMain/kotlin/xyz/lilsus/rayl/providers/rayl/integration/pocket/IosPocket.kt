@@ -74,10 +74,20 @@ fun createIosRaylPocket(config: PocketConfig): RaylPocket {
 }
 
 /**
- * The setup of the pocket [pocket]: derives its key from a passkey. Uses a stand-in file-backed
- * passkey for now; see [FilePrfProvider].
+ * The setup of the pocket [pocket]: derives its key from the device's passkeys through
+ * [passkeys], or from the stand-in [FilePrfProvider] without one.
  */
-fun createIosPocketSetup(config: PocketConfig, pocket: RaylPocket): PocketSetup {
+fun createIosPocketSetup(
+    config: PocketConfig,
+    pocket: RaylPocket,
+    passkeys: RaylPasskeyAuthenticator?
+): PocketSetup {
+    if (passkeys != null) {
+        return PasskeyPocketSetup(
+            pocket,
+            BreezPasskeyAccounts(IosPrfProvider(passkeys), config.apiKey)
+        )
+    }
     // Kept apart from the pocket so erasing the pocket in a debug build keeps the "passkey".
     val directory = (
         NSSearchPathForDirectoriesInDomains(

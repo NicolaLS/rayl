@@ -53,6 +53,8 @@ import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
 fun App(
     sparkEnvironment: SparkEnvironment,
     raylPasskeys: RaylPasskeys,
+    /** A debug build, which offers development tools such as erasing Rayl's wallet. */
+    debugTools: Boolean,
     breezApiKey: String? = null
 ) {
     val settings = rememberAppSettings(RAYL_PREFERENCES)
@@ -173,6 +175,7 @@ fun App(
                         environment = sparkEnvironment.toRaylEnvironment(),
                         breezApiKey = breezApiKey,
                         passkeys = raylPasskeys,
+                        debugTools = debugTools,
                         otherWallets = externalWalletOptions(),
                         onUseWallet = useWallet,
                         onErased = selection::restartRaylWallet,

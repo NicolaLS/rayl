@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketStatus
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPasskeyAuthenticator
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.createIosPocketSetup
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.createIosRaylPocket
 import xyz.lilsus.raylsuite.core.settings.createAppSettings
@@ -41,15 +42,18 @@ class RaylIosExperience(
     configuration: RaylExperienceConfiguration,
     environment: RaylEnvironment,
     breezApiKey: String?,
+    /** The device's passkeys, or `null` for the stand-in passkey of automated builds. */
+    passkeys: RaylPasskeyAuthenticator?,
+    debugTools: Boolean,
     private val otherWallets: () -> List<RaylWalletOption>
 ) {
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val runtime = RaylRuntime(
         appSettings = createAppSettings(),
         configuration = configuration,
-        environment = environment,
+        debugTools = debugTools,
         pocket = RaylEarlyStart.take { createIosRaylPocket(environment.pocketConfig(breezApiKey)) },
-        createSetup = { createIosPocketSetup(environment.pocketConfig(breezApiKey), it) },
+        createSetup = { createIosPocketSetup(environment.pocketConfig(breezApiKey), it, passkeys) },
         haptics = createHapticFeedbackManager()
     )
 
