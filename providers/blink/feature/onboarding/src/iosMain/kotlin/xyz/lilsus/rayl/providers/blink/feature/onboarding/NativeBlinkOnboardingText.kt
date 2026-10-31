@@ -11,8 +11,6 @@ data class NativeBlinkOnboardingPage(
 )
 
 data class NativeBlinkOnboardingText(
-    val features: List<NativeBlinkOnboardingPage>,
-    val autoPayBody: String,
     val agreementBody: String,
     val instructionsTitle: String,
     val instructionsIntro: String,
@@ -25,80 +23,6 @@ data class NativeBlinkOnboardingText(
 
 suspend fun nativeBlinkOnboardingText(appName: String): NativeBlinkOnboardingText =
     NativeBlinkOnboardingText(
-        features =
-            listOf(
-                NativeBlinkOnboardingPage(
-                    title = nativeString(
-                        NativeStringResource(
-                            table = "BlinkOnboarding",
-                            key = "blink_onboarding_features_page1_title"
-                        )
-                    ),
-                    subtitle = nativeString(
-                        NativeStringResource(
-                            table = "BlinkOnboarding",
-                            key = "blink_onboarding_features_page1_subtitle"
-                        )
-                    ),
-                    body = nativeString(
-                        NativeStringResource(
-                            table = "BlinkOnboarding",
-                            key = "blink_onboarding_features_page1_body"
-                        ),
-                        appName
-                    ),
-                    imageName = null
-                ),
-                NativeBlinkOnboardingPage(
-                    title = nativeString(
-                        NativeStringResource(
-                            table = "BlinkOnboarding",
-                            key = "blink_onboarding_features_page2_title"
-                        )
-                    ),
-                    subtitle = nativeString(
-                        NativeStringResource(
-                            table = "BlinkOnboarding",
-                            key = "blink_onboarding_features_page2_subtitle"
-                        )
-                    ),
-                    body = nativeString(
-                        NativeStringResource(
-                            table = "BlinkOnboarding",
-                            key = "blink_onboarding_features_page2_body"
-                        ),
-                        appName
-                    ),
-                    imageName = null
-                ),
-                NativeBlinkOnboardingPage(
-                    title = nativeString(
-                        NativeStringResource(
-                            table = "BlinkOnboarding",
-                            key = "blink_onboarding_features_page3_title"
-                        )
-                    ),
-                    subtitle = nativeString(
-                        NativeStringResource(
-                            table = "BlinkOnboarding",
-                            key = "blink_onboarding_features_page3_subtitle"
-                        ),
-                        appName
-                    ),
-                    body = nativeString(
-                        NativeStringResource(
-                            table = "BlinkOnboarding",
-                            key = "blink_onboarding_features_page3_body"
-                        ),
-                        appName
-                    ),
-                    imageName = null
-                )
-            ),
-        autoPayBody = nativeString(
-            NativeStringResource(table = "BlinkOnboarding", key = "blink_onboarding_autopay_body"),
-            appName
-        ),
         agreementBody = nativeString(
             NativeStringResource(
                 table = "BlinkOnboarding",

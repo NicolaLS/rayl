@@ -1,14 +1,4 @@
 <resources>
-    <string name="blink_onboarding_features_page1_title">Leiser Scanner, schnelle Ergebnisse</string>
-    <string name="blink_onboarding_features_page1_subtitle">Es funktioniert — auch wenn du die Kamera nicht siehst.</string>
-    <string name="blink_onboarding_features_page1_body">%1$s scannt im Hintergrund für einen reibungslosen Checkout. Richte auf den Code, warte kurz, fertig.</string>
-    <string name="blink_onboarding_features_page2_title">Auto Pay, deine Regeln</string>
-    <string name="blink_onboarding_features_page2_subtitle">Kleine Beträge sofort bezahlen — ohne zusätzliche Taps.</string>
-    <string name="blink_onboarding_features_page2_body">Lege ein Limit fest, mit dem du dich wohlfühlst. Für alles darüber fragt %1$s vor der Zahlung nach.</string>
-    <string name="blink_onboarding_features_page3_title">Deine Wallet bleibt deine Wallet</string>
-    <string name="blink_onboarding_features_page3_subtitle">%1$s ist nur die Checkout-Abkürzung.</string>
-    <string name="blink_onboarding_features_page3_body">Verbinde deine vorhandene Blink-Wallet. %1$s konzentriert sich auf schnelle Zahlungen vor Ort — alles andere bleibt in deiner Wallet.</string>
-    <string name="blink_onboarding_autopay_body">Wähle aus, wann %1$s vor einer Zahlung um Bestätigung bitten soll.</string>
     <string name="blink_onboarding_agreement_body">Die Nutzung von %1$s erfolgt auf eigenes Risiko. Diese App verbindet sich mit deiner eigenen Lightning-Wallet — du bist vollständig verantwortlich für die Gelder in deiner Wallet und alle getätigten Zahlungen.\n\nWir empfehlen dringend, Wallets mit kleinem Guthaben zu verbinden.</string>
     <string name="blink_onboarding_add_wallet_title">Verbinde deine Blink-Wallet</string>
     <string name="blink_onboarding_add_wallet_intro">Folge diesen vier Schritten im Blink-Dashboard. %1$s benötigt Lese- und Schreibzugriff, um deine Wallet zu prüfen und Zahlungen zu senden.</string>

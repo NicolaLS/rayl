@@ -17,12 +17,8 @@ import xyz.lilsus.rayl.providers.blink.feature.walletconnection.AddBlinkWalletEv
 import xyz.lilsus.rayl.providers.blink.feature.walletconnection.AddBlinkWalletScreen
 import xyz.lilsus.rayl.providers.blink.feature.walletconnection.AddBlinkWalletViewModel
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWallet
-import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.platform.CredentialClipboard
 import xyz.lilsus.raylsuite.feature.onboarding.AgreementScreen
-import xyz.lilsus.raylsuite.feature.onboarding.AutoPaySettingsScreen
-import xyz.lilsus.raylsuite.feature.onboarding.FeaturesScreen
-import xyz.lilsus.raylsuite.feature.onboarding.OnboardingFeaturePage
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
 
 @Composable
@@ -35,13 +31,6 @@ fun BlinkOnboarding(
     onStepChanged: (BlinkOnboardingStep) -> Unit
 ) {
     val state by onboardingViewModel.uiState.collectAsStateWithLifecycle()
-    val back: (() -> Unit)? = when (step) {
-        BlinkOnboardingStep.AutoPay -> ({ onStepChanged(BlinkOnboardingStep.Features) })
-        BlinkOnboardingStep.Agreement -> ({ onStepChanged(BlinkOnboardingStep.AutoPay) })
-        else -> null
-    }
-    BackHandler(enabled = back != null) { back?.invoke() }
-
     when (step) {
         BlinkOnboardingStep.Connect -> AddWalletDestination(
             blinkWallet = blinkWallet,
@@ -49,48 +38,19 @@ fun BlinkOnboarding(
             termsUrl = termsUrl
         )
 
-        BlinkOnboardingStep.Features -> FeaturesScreen(
-            pages = onboardingFeaturePages(),
-            currentPage = state.featuresPage,
-            stepIndex = 1,
-            totalSteps = ONBOARDING_STEP_COUNT,
-            onPageChanged = onboardingViewModel::setFeaturesPage,
-            onContinue = { onStepChanged(BlinkOnboardingStep.AutoPay) },
-            onBack = null
-        )
-
-        BlinkOnboardingStep.AutoPay -> {
-            val formatter = rememberAmountFormatter()
-            AutoPaySettingsScreen(
-                body = stringResource(
-                    R.string.blink_onboarding_autopay_body,
-                    xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-                ),
-                confirmationMode = state.confirmationMode,
-                thresholdSats = state.thresholdSats,
-                currencyEquivalent = state.thresholdCurrencyEquivalent?.let(formatter::format),
-                stepIndex = 2,
-                totalSteps = ONBOARDING_STEP_COUNT,
-                onConfirmationModeChanged = onboardingViewModel::setConfirmationMode,
-                onThresholdChanged = onboardingViewModel::setThreshold,
-                onContinue = { onStepChanged(BlinkOnboardingStep.Agreement) },
-                onBack = { onStepChanged(BlinkOnboardingStep.Features) }
-            )
-        }
-
         BlinkOnboardingStep.Agreement -> AgreementScreen(
             body = stringResource(
                 R.string.blink_onboarding_agreement_body,
                 xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
             ),
             hasAgreed = state.hasAgreed,
-            stepIndex = 3,
-            totalSteps = ONBOARDING_STEP_COUNT,
+            stepIndex = 0,
+            totalSteps = 0,
             onAgreementChanged = onboardingViewModel::setAgreement,
             onContinue = {
                 if (state.hasAgreed) onStepChanged(BlinkOnboardingStep.Complete)
             },
-            onBack = { onStepChanged(BlinkOnboardingStep.AutoPay) }
+            onBack = null
         )
 
         BlinkOnboardingStep.Complete -> Unit
@@ -156,36 +116,3 @@ private fun AddWalletDestination(
         )
     }
 }
-
-@Composable
-private fun onboardingFeaturePages(): List<OnboardingFeaturePage> = listOf(
-    OnboardingFeaturePage(
-        title = stringResource(R.string.blink_onboarding_features_page1_title),
-        subtitle = stringResource(R.string.blink_onboarding_features_page1_subtitle),
-        body = stringResource(
-            R.string.blink_onboarding_features_page1_body,
-            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-        )
-    ),
-    OnboardingFeaturePage(
-        title = stringResource(R.string.blink_onboarding_features_page2_title),
-        subtitle = stringResource(R.string.blink_onboarding_features_page2_subtitle),
-        body = stringResource(
-            R.string.blink_onboarding_features_page2_body,
-            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-        )
-    ),
-    OnboardingFeaturePage(
-        title = stringResource(R.string.blink_onboarding_features_page3_title),
-        subtitle = stringResource(
-            R.string.blink_onboarding_features_page3_subtitle,
-            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-        ),
-        body = stringResource(
-            R.string.blink_onboarding_features_page3_body,
-            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-        )
-    )
-)
-
-private const val ONBOARDING_STEP_COUNT = 4

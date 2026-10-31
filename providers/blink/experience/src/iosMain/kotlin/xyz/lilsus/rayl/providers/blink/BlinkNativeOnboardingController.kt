@@ -18,15 +18,9 @@ import xyz.lilsus.rayl.providers.blink.feature.walletconnection.AddBlinkWalletVi
 import xyz.lilsus.rayl.providers.blink.feature.walletconnection.nativeBlinkWalletConnectionText
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWallet
 import xyz.lilsus.rayl.providers.blink.ui.nativeBlinkErrorMessageFor
-import xyz.lilsus.raylsuite.core.model.DisplayAmount
-import xyz.lilsus.raylsuite.core.model.DisplayCurrency
-import xyz.lilsus.raylsuite.core.model.PaymentConfirmationMode
-import xyz.lilsus.raylsuite.core.model.PaymentPreferences
-import xyz.lilsus.raylsuite.core.ui.format.currentAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.platform.CredentialClipboard
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
 import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingText
-import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingThresholdLabel
 import xyz.lilsus.raylsuite.feature.settings.SettingsLegalLinks
 
 data class BlinkNativeOnboardingPage(
@@ -42,19 +36,6 @@ data class BlinkNativeOnboardingSnapshot(
     val stepIndex: Int,
     val stepCount: Int,
     val backTitle: String,
-    val featurePages: List<BlinkNativeOnboardingPage>,
-    val featurePage: Int,
-    val featuresNextTitle: String,
-    val autoPayTitle: String,
-    val autoPayBody: String,
-    val autoPayAlwaysTitle: String,
-    val autoPayThresholdTitle: String,
-    val autoPayThresholdLabel: String,
-    val autoPayHint: String,
-    val autoPayNextTitle: String,
-    val confirmationMode: String,
-    val thresholdIndex: Int,
-    val thresholdStepCount: Int,
     val agreementTitle: String,
     val agreementBody: String,
     val agreementCheckboxTitle: String,
@@ -154,32 +135,6 @@ class BlinkNativeOnboardingController internal constructor(
         }
     }
 
-    fun setFeaturePage(page: Int) {
-        onboarding.setFeaturesPage(page)
-    }
-
-    fun continueFeatures() {
-        progress.moveTo(BlinkOnboardingStep.AutoPay)
-    }
-
-    fun setConfirmationMode(value: String) {
-        onboarding.setConfirmationMode(
-            if (value == CONFIRMATION_ALWAYS) {
-                PaymentConfirmationMode.Always
-            } else {
-                PaymentConfirmationMode.Above
-            }
-        )
-    }
-
-    fun setThresholdIndex(index: Int) {
-        PaymentPreferences.THRESHOLD_STEPS.getOrNull(index)?.let(onboarding::setThreshold)
-    }
-
-    fun continueAutoPay() {
-        progress.moveTo(BlinkOnboardingStep.Agreement)
-    }
-
     fun setAgreement(agreed: Boolean) {
         onboarding.setAgreement(agreed)
     }
@@ -224,8 +179,6 @@ class BlinkNativeOnboardingController internal constructor(
 
     fun back() {
         when (currentStep()) {
-            STEP_AUTO_PAY -> progress.moveTo(BlinkOnboardingStep.Features)
-            STEP_AGREEMENT -> progress.moveTo(BlinkOnboardingStep.AutoPay)
             STEP_INSTRUCTIONS -> showWalletConnection()
         }
     }
@@ -254,8 +207,6 @@ class BlinkNativeOnboardingController internal constructor(
         progress.step.value.destination(blinkWallet.connection.value != null)
     ) {
         BlinkOnboardingStep.Connect -> if (showingInstructions) STEP_INSTRUCTIONS else STEP_WALLET
-        BlinkOnboardingStep.Features -> STEP_FEATURES
-        BlinkOnboardingStep.AutoPay -> STEP_AUTO_PAY
         BlinkOnboardingStep.Agreement -> STEP_AGREEMENT
         BlinkOnboardingStep.Complete -> "complete"
     }
@@ -270,16 +221,6 @@ class BlinkNativeOnboardingController internal constructor(
         val common = nativeOnboardingText()
         val blink = nativeBlinkOnboardingText(appName)
         val wallet = nativeBlinkWalletConnectionText(appName)
-        val formatter = currentAmountFormatter()
-        val sats =
-            formatter.format(
-                DisplayAmount(state.thresholdSats, DisplayCurrency.Satoshi)
-            )
-        val thresholdAmount =
-            state.thresholdCurrencyEquivalent
-                ?.let(formatter::format)
-                ?.let { "$sats ($it)" }
-                ?: sats
         val instructionPages =
             blink.instructions.map { page ->
                 BlinkNativeOnboardingPage(
@@ -293,37 +234,10 @@ class BlinkNativeOnboardingController internal constructor(
         snapshot.value =
             BlinkNativeOnboardingSnapshot(
                 step = currentStep,
-                canGoBack = currentStep == STEP_AUTO_PAY || currentStep == STEP_AGREEMENT ||
-                    currentStep == STEP_INSTRUCTIONS,
-                stepIndex = stepIndex(currentStep),
-                stepCount = ONBOARDING_STEP_COUNT,
+                canGoBack = currentStep == STEP_INSTRUCTIONS,
+                stepIndex = 0,
+                stepCount = 0,
                 backTitle = common.back,
-                featurePages =
-                    blink.features.map { page ->
-                        BlinkNativeOnboardingPage(
-                            title = page.title,
-                            subtitle = page.subtitle,
-                            body = page.body,
-                            imageName = page.imageName
-                        )
-                    },
-                featurePage = state.featuresPage,
-                featuresNextTitle = common.featuresContinue,
-                autoPayTitle = common.autoPayTitle,
-                autoPayBody = blink.autoPayBody,
-                autoPayAlwaysTitle = common.autoPayAlways,
-                autoPayThresholdTitle = common.autoPayThreshold,
-                autoPayThresholdLabel = nativeOnboardingThresholdLabel(thresholdAmount),
-                autoPayHint = common.autoPayHint,
-                autoPayNextTitle = common.autoPayContinue,
-                confirmationMode =
-                    if (state.confirmationMode == PaymentConfirmationMode.Always) {
-                        CONFIRMATION_ALWAYS
-                    } else {
-                        CONFIRMATION_ABOVE
-                    },
-                thresholdIndex = PaymentPreferences.thresholdToStepIndex(state.thresholdSats),
-                thresholdStepCount = PaymentPreferences.THRESHOLD_STEPS.size,
                 agreementTitle = common.agreementTitle,
                 agreementBody = blink.agreementBody,
                 agreementCheckboxTitle = common.agreementCheckbox,
@@ -366,22 +280,10 @@ class BlinkNativeOnboardingController internal constructor(
             )
     }
 
-    private fun stepIndex(step: String): Int = when (step) {
-        STEP_FEATURES -> 1
-        STEP_AUTO_PAY -> 2
-        STEP_AGREEMENT -> 3
-        else -> 0
-    }
-
     private companion object {
-        const val STEP_FEATURES = "features"
-        const val STEP_AUTO_PAY = "autoPay"
         const val STEP_AGREEMENT = "agreement"
         const val STEP_INSTRUCTIONS = "instructions"
         const val STEP_WALLET = "wallet"
-        const val CONFIRMATION_ALWAYS = "always"
-        const val CONFIRMATION_ABOVE = "above"
-        const val ONBOARDING_STEP_COUNT = 4
         const val INSTRUCTION_PAGE_COUNT = 4
         const val BLINK_DASHBOARD_URL = "https://dashboard.blink.sv/api-keys"
     }

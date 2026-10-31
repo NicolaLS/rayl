@@ -8,12 +8,8 @@ import xyz.lilsus.rayl.providers.blink.feature.onboarding.BlinkOnboardingStep
 /** App-scoped progress survives interruption and removal of the provider connection. */
 internal class BlinkOnboardingState(private val settings: Settings) {
     private val mutableStep = MutableStateFlow(
-        BlinkOnboardingStep.valueOf(
-            settings.getString(
-                KEY_STEP,
-                BlinkOnboardingStep.Connect.name
-            )
-        )
+        BlinkOnboardingStep.entries.firstOrNull { it.name == settings.getStringOrNull(KEY_STEP) }
+            ?: BlinkOnboardingStep.Connect
     )
     val step = mutableStep.asStateFlow()
 

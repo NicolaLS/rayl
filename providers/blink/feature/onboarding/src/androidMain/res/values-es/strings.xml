@@ -1,14 +1,4 @@
 <resources>
-    <string name="blink_onboarding_features_page1_title">Escáner silencioso, resultados rápidos</string>
-    <string name="blink_onboarding_features_page1_subtitle">Está funcionando — aunque no veas la cámara.</string>
-    <string name="blink_onboarding_features_page1_body">%1$s escanea en segundo plano para un pago fluido. Apunta al código, espera un momento y listo.</string>
-    <string name="blink_onboarding_features_page2_title">Auto Pay, tus reglas</string>
-    <string name="blink_onboarding_features_page2_subtitle">Paga montos pequeños al instante — sin toques adicionales.</string>
-    <string name="blink_onboarding_features_page2_body">Establece un límite con el que te sientas cómodo. Para cualquier monto superior, %1$s preguntará antes de pagar.</string>
-    <string name="blink_onboarding_features_page3_title">Tu billetera sigue siendo tu billetera</string>
-    <string name="blink_onboarding_features_page3_subtitle">%1$s es solo el atajo para pagar.</string>
-    <string name="blink_onboarding_features_page3_body">Conecta la billetera Blink que ya usas. %1$s se enfoca en pagos rápidos en persona — todo lo demás permanece en tu billetera.</string>
-    <string name="blink_onboarding_autopay_body">Elige cuándo %1$s debe pedir confirmación antes de pagar.</string>
     <string name="blink_onboarding_agreement_body">Usar %1$s es bajo tu propio riesgo. Esta app se conecta a tu propia billetera Lightning — eres totalmente responsable de los fondos en tu billetera y de cualquier pago realizado.\n\nRecomendamos encarecidamente conectar billeteras con saldos pequeños.</string>
     <string name="blink_onboarding_add_wallet_title">Conecta tu billetera Blink</string>
     <string name="blink_onboarding_add_wallet_intro">Sigue estos cuatro pasos en el panel de Blink. %1$s necesita acceso de Lectura y Escritura para consultar tu billetera y enviar pagos.</string>
