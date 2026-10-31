@@ -331,69 +331,71 @@ private struct RaylWalletSettingsActions: View {
         _model = StateObject(wrappedValue: RaylWalletSettingsModel(controller: controller))
     }
 
+    // Separate views become separate list rows; buttons sharing one row would share one tap target.
     var body: some View {
         if let snapshot = model.snapshot {
-            VStack(alignment: .leading, spacing: 12) {
-                if snapshot.pocketFailed {
-                    Button { model.controller.retryPocket() } label: { balance(snapshot) }
-                } else {
-                    Button { model.controller.addFunds() } label: { balance(snapshot) }
-                        .disabled(snapshot.fundingStage == "creating")
-                        .accessibilityIdentifier("rayl_balance")
-                        .alert(
-                            snapshot.invoiceFailed,
-                            isPresented: Binding(
-                                get: { model.snapshot?.fundingStage == "failed" },
-                                set: { if !$0 { model.controller.resetFunding() } }
-                            )
-                        ) {
-                            Button(snapshot.doneTitle) { model.controller.resetFunding() }
-                        }
+            balanceRow(snapshot)
+                .onChange(of: snapshot.fundingStage, initial: true) { _, stage in
+                    if stage == "open", let invoice = model.snapshot?.invoice {
+                        openInWallet(invoice)
+                    }
                 }
-                Divider()
-                NavigationLink {
-                    RaylUseAnotherWalletView(model: model)
-                } label: {
-                    detail(
-                        snapshot.useAnotherWalletTitle,
-                        snapshot.useAnotherWalletBody,
-                        systemImage: "arrow.left.arrow.right"
+                .sheet(
+                    isPresented: Binding(
+                        get: { ["shown", "received"].contains(model.snapshot?.fundingStage ?? "") },
+                        set: { if !$0 { model.controller.resetFunding() } }
                     )
+                ) {
+                    RaylFundingSheet(model: model)
+                }
+            NavigationLink {
+                RaylUseAnotherWalletView(model: model)
+            } label: {
+                detail(
+                    snapshot.useAnotherWalletTitle,
+                    snapshot.useAnotherWalletBody,
+                    systemImage: "arrow.left.arrow.right"
+                )
+            }
+            .disabled(snapshot.isSubmitting)
+            if snapshot.canErase {
+                Button(role: .destructive) {
+                    confirmsErase = true
+                } label: {
+                    detail(snapshot.eraseTitle, snapshot.eraseBody, systemImage: "trash")
                 }
                 .disabled(snapshot.isSubmitting)
-                if snapshot.canErase {
-                    Divider()
-                    Button(role: .destructive) {
-                        confirmsErase = true
-                    } label: {
-                        detail(snapshot.eraseTitle, snapshot.eraseBody, systemImage: "trash")
+                .alert(snapshot.eraseTitle, isPresented: $confirmsErase) {
+                    Button(snapshot.cancelTitle, role: .cancel) {}
+                    Button(snapshot.eraseConfirmTitle, role: .destructive) {
+                        model.controller.erasePocket()
                     }
-                    .disabled(snapshot.isSubmitting)
+                } message: {
+                    Text(snapshot.eraseBody)
                 }
-            }
-            .onChange(of: snapshot.fundingStage, initial: true) { _, stage in
-                if stage == "open", let invoice = model.snapshot?.invoice {
-                    openInWallet(invoice)
-                }
-            }
-            .sheet(
-                isPresented: Binding(
-                    get: { ["shown", "received"].contains(model.snapshot?.fundingStage ?? "") },
-                    set: { if !$0 { model.controller.resetFunding() } }
-                )
-            ) {
-                RaylFundingSheet(model: model)
-            }
-            .alert(snapshot.eraseTitle, isPresented: $confirmsErase) {
-                Button(snapshot.cancelTitle, role: .cancel) {}
-                Button(snapshot.eraseConfirmTitle, role: .destructive) {
-                    model.controller.erasePocket()
-                }
-            } message: {
-                Text(snapshot.eraseBody)
             }
         } else {
             ProgressView()
+        }
+    }
+
+    @ViewBuilder
+    private func balanceRow(_ snapshot: RaylNativeWalletSettingsSnapshot) -> some View {
+        if snapshot.pocketFailed {
+            Button { model.controller.retryPocket() } label: { balance(snapshot) }
+        } else {
+            Button { model.controller.addFunds() } label: { balance(snapshot) }
+                .disabled(snapshot.fundingStage == "creating")
+                .accessibilityIdentifier("rayl_balance")
+                .alert(
+                    snapshot.invoiceFailed,
+                    isPresented: Binding(
+                        get: { model.snapshot?.fundingStage == "failed" },
+                        set: { if !$0 { model.controller.resetFunding() } }
+                    )
+                ) {
+                    Button(snapshot.doneTitle) { model.controller.resetFunding() }
+                }
         }
     }
 
