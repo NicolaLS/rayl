@@ -128,10 +128,16 @@ class RaylOnboardingStateTest {
     }
 
     @Test
-    fun aPasskeyRejectedDuringSetupSendsTheUserToAnotherWallet() = runTest {
-        val state = agreed(FakeSetup(started = PocketSetupResult.Unavailable))
+    fun aPasswordManagerWithoutPrfAsksForAnotherOne() = runTest {
+        val setup = FakeSetup(started = PocketSetupResult.ChooseAccount(listOf("Default"), true))
+        val state = agreed(setup)
+        setup.chosenResult = PocketSetupResult.PasskeyWithoutPrf
 
-        assertEquals(RaylOnboardingStep.Unavailable, state.step.value)
+        state.choose("Default")
+        advanceUntilIdle()
+
+        assertEquals(RaylOnboardingStep.Agreement, state.step.value)
+        assertEquals(RaylSetupActivity.PasskeyWithoutPrf, state.activity.value)
     }
 
     @Test
@@ -161,6 +167,7 @@ private class FakeSetup(
     private val hasKey: Boolean = false,
     var started: PocketSetupResult = PocketSetupResult.Done
 ) : PocketSetup {
+    var chosenResult: PocketSetupResult = PocketSetupResult.Done
     var starts = 0
     var creates = 0
     val chosen = mutableListOf<String>()
@@ -176,7 +183,7 @@ private class FakeSetup(
 
     override suspend fun choose(account: String): PocketSetupResult {
         chosen += account
-        return PocketSetupResult.Done
+        return chosenResult
     }
 
     override suspend fun createAccount(): PocketSetupResult {

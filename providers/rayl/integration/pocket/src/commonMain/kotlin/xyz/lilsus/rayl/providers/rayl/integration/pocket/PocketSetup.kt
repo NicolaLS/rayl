@@ -18,8 +18,11 @@ sealed interface PocketSetupResult {
     /** The user dismissed the passkey prompt; only an explicit retry prompts again. */
     data object Cancelled : PocketSetupResult
 
-    /** This device cannot use passkeys, so Rayl's wallet is not available. */
-    data object Unavailable : PocketSetupResult
+    /**
+     * The chosen passkey's password manager does not support the PRF extension, so it cannot
+     * derive a key; another password manager can. Such a passkey never held a wallet.
+     */
+    data object PasskeyWithoutPrf : PocketSetupResult
 
     data class Failed(val detail: String?) : PocketSetupResult
 }
@@ -61,6 +64,12 @@ internal class PasskeyPocketSetup(
     /** The passkey of this setup, so later prompts cannot switch to another passkey. */
     private var credentialId: ByteArray? = null
 
+    /**
+     * Passkeys created in a password manager without PRF. The next start creates a passkey
+     * elsewhere instead of signing in, since signing in would offer the same useless passkey.
+     */
+    private val withoutPrf = mutableListOf<ByteArray>()
+
     override suspend fun isAvailable(): Boolean = try {
         accounts.isAvailable()
     } catch (error: CancellationException) {
@@ -73,7 +82,11 @@ internal class PasskeyPocketSetup(
 
     override suspend fun start(): PocketSetupResult = attempt {
         PocketTimings.mark("passkey connect")
-        val opened = accounts.connect(credentialId)
+        val opened = if (withoutPrf.isEmpty()) {
+            accounts.connect(credentialId)
+        } else {
+            accounts.register(excludeCredentials = withoutPrf.toList())
+        }
         PocketTimings.mark("passkey connected, ${opened.labels.size} accounts")
         connection = opened
         opened.credentialId?.let { credentialId = it }
@@ -92,15 +105,12 @@ internal class PasskeyPocketSetup(
 
     override suspend fun choose(account: String): PocketSetupResult = attempt {
         val opened = connection ?: return@attempt PocketSetupResult.Failed("Not connected")
-        install(
-            if (account ==
-                opened.label
-            ) {
-                opened.phrase
-            } else {
-                accounts.open(account, credentialId)
-            }
-        )
+        val phrase = if (account == opened.label) {
+            opened.phrase
+        } else {
+            accounts.open(account, credentialId)
+        }
+        install(phrase)
     }
 
     override suspend fun createAccount(): PocketSetupResult = attempt {
@@ -120,6 +130,7 @@ internal class PasskeyPocketSetup(
 
     private suspend fun install(phrase: String): PocketSetupResult =
         if (pocket.install(PocketKey(phrase))) {
+            withoutPrf.clear()
             PocketSetupResult.Done
         } else {
             PocketSetupResult.Failed("The key could not be stored")
@@ -129,28 +140,38 @@ internal class PasskeyPocketSetup(
         lock.withLock { attemptLocked(block).also { PocketTimings.mark("passkey setup: $it") } }
 
     private suspend fun attemptLocked(block: suspend () -> PocketSetupResult): PocketSetupResult =
-        run {
-            try {
-                block()
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: PasskeyAccountsException) {
-                when (error) {
-                    PasskeyAccountsException.Cancelled -> PocketSetupResult.Cancelled
+        try {
+            block()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: PasskeyAccountsException) {
+            when (error) {
+                PasskeyAccountsException.Cancelled -> PocketSetupResult.Cancelled
 
-                    PasskeyAccountsException.Unsupported -> PocketSetupResult.Unavailable
-
-                    is PasskeyAccountsException.CreatedButNotDerived -> {
-                        // Registering again would orphan this passkey; sign in with it instead.
-                        credentialId = error.credentialId
-                        PocketSetupResult.Failed(error.message)
-                    }
-
-                    is PasskeyAccountsException.Other -> PocketSetupResult.Failed(error.message)
+                PasskeyAccountsException.WithoutPrf -> {
+                    // The user picked a useless passkey; let them pick another one next time.
+                    credentialId = null
+                    connection = null
+                    PocketSetupResult.PasskeyWithoutPrf
                 }
-            } catch (error: Exception) {
-                PocketSetupResult.Failed(error.message)
+
+                is PasskeyAccountsException.CreatedWithoutPrf -> {
+                    withoutPrf += error.credentialId
+                    credentialId = null
+                    connection = null
+                    PocketSetupResult.PasskeyWithoutPrf
+                }
+
+                is PasskeyAccountsException.CreatedButNotDerived -> {
+                    // Registering again would orphan this passkey; sign in with it instead.
+                    credentialId = error.credentialId
+                    PocketSetupResult.Failed(error.message)
+                }
+
+                is PasskeyAccountsException.Other -> PocketSetupResult.Failed(error.message)
             }
+        } catch (error: Exception) {
+            PocketSetupResult.Failed(error.message)
         }
 }
 
@@ -172,6 +193,9 @@ internal interface PasskeyAccounts {
     /** Signs in to the passkey, or registers one when the device has none for Rayl's domain. */
     suspend fun connect(credentialId: ByteArray?): PasskeyConnection
 
+    /** Registers a new passkey, never one of [excludeCredentials]. */
+    suspend fun register(excludeCredentials: List<ByteArray>): PasskeyConnection
+
     /** The phrase of [label] on the passkey [credentialId], or the one the user picks if null. */
     suspend fun open(label: String, credentialId: ByteArray?): String
 
@@ -185,7 +209,12 @@ internal interface PasskeyAccounts {
 internal sealed class PasskeyAccountsException(message: String?) : Exception(message) {
     data object Cancelled : PasskeyAccountsException("Cancelled")
 
-    data object Unsupported : PasskeyAccountsException("Passkeys are not supported")
+    /** The passkey's password manager does not support PRF. */
+    data object WithoutPrf : PasskeyAccountsException("The passkey does not support PRF")
+
+    /** A passkey was created in a password manager without PRF. */
+    class CreatedWithoutPrf(val credentialId: ByteArray) :
+        PasskeyAccountsException("The new passkey does not support PRF")
 
     class CreatedButNotDerived(val credentialId: ByteArray, message: String?) :
         PasskeyAccountsException(message)

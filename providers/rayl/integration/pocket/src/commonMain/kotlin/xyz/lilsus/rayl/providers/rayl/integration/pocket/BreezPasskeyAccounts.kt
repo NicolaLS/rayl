@@ -12,6 +12,7 @@ import breez_sdk_spark.PasskeyCredential
 import breez_sdk_spark.PasskeyException
 import breez_sdk_spark.PrfProvider
 import breez_sdk_spark.PrfProviderException
+import breez_sdk_spark.RegisterRequest
 import breez_sdk_spark.Seed
 import breez_sdk_spark.SignInRequest
 import breez_sdk_spark.Wallet
@@ -47,6 +48,20 @@ internal class BreezPasskeyAccounts(prfProvider: PrfProvider, breezApiKey: Strin
         )
     }
 
+    override suspend fun register(excludeCredentials: List<ByteArray>): PasskeyConnection =
+        translated {
+            val response = client.register(
+                RegisterRequest(label = null, excludeCredentials = excludeCredentials)
+            )
+            PasskeyConnection(
+                label = response.wallet.label,
+                phrase = response.wallet.phrase(),
+                labels = emptyList(),
+                created = true,
+                credentialId = response.credential?.credentialId
+            )
+        }
+
     override suspend fun open(label: String, credentialId: ByteArray?): String = translated {
         client.signIn(
             SignInRequest(
@@ -77,13 +92,19 @@ internal class BreezPasskeyAccounts(prfProvider: PrfProvider, breezApiKey: Strin
                 is PrfProviderException.UserCancelled,
                 is PrfProviderException.UserTimedOut -> PasskeyAccountsException.Cancelled
 
-                is PrfProviderException.PrfNotSupported -> PasskeyAccountsException.Unsupported
+                is PrfProviderException.PrfNotSupported -> PasskeyAccountsException.WithoutPrf
 
                 else -> PasskeyAccountsException.Other(error.message)
             }
 
-            is PasskeyException.CreatedButNotDerived ->
-                PasskeyAccountsException.CreatedButNotDerived(error.credentialId, error.message)
+            is PasskeyException.CreatedButNotDerived -> {
+                val withoutPrf = error.source is PrfProviderException.PrfNotSupported
+                if (withoutPrf) {
+                    PasskeyAccountsException.CreatedWithoutPrf(error.credentialId)
+                } else {
+                    PasskeyAccountsException.CreatedButNotDerived(error.credentialId, error.message)
+                }
+            }
 
             else -> PasskeyAccountsException.Other(error.message)
         }

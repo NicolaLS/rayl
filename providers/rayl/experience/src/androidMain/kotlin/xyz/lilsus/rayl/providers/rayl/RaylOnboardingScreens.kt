@@ -34,10 +34,10 @@ internal fun RaylOnboarding(runtime: RaylRuntime, otherWallets: List<RaylWalletO
     val hasAgreed by state.hasAgreed.collectAsStateWithLifecycle()
     val activity by state.activity.collectAsStateWithLifecycle()
     val working = activity == RaylSetupActivity.Working
-    val message = if (activity == RaylSetupActivity.Failed) {
-        stringResource(R.string.rayl_passkey_failed)
-    } else {
-        null
+    val message = when (activity) {
+        RaylSetupActivity.Failed -> stringResource(R.string.rayl_passkey_failed)
+        RaylSetupActivity.PasskeyWithoutPrf -> stringResource(R.string.rayl_passkey_without_prf)
+        RaylSetupActivity.Idle, RaylSetupActivity.Working -> null
     }
     when (val current = step) {
         RaylOnboardingStep.Checking, RaylOnboardingStep.Complete -> RaylStatusScreen(message = null)

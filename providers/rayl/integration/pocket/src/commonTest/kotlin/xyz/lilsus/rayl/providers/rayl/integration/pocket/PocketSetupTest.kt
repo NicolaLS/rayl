@@ -129,10 +129,36 @@ class PocketSetupTest {
     }
 
     @Test
-    fun aDeviceWithoutPasskeysIsUnavailable() = runTest {
-        val accounts = FakeAccounts(connectFailure = PasskeyAccountsException.Unsupported)
+    fun aPasskeyWithoutPrfIsSignedInAgainUnpinned() = runTest {
+        val accounts = FakeAccounts(
+            connectFailure = PasskeyAccountsException.CreatedButNotDerived(byteArrayOf(9), "flaky")
+        )
+        val setup = setup(FakeKeyStore(), accounts)
+        setup.start()
+        accounts.connectFailure = PasskeyAccountsException.WithoutPrf
 
-        assertEquals(PocketSetupResult.Unavailable, setup(FakeKeyStore(), accounts).start())
+        assertEquals(PocketSetupResult.PasskeyWithoutPrf, setup.start())
+        accounts.connectFailure = null
+        assertEquals(PocketSetupResult.Done, setup.start())
+
+        // Signing in again lets the user pick another passkey; it never creates one.
+        assertNull(accounts.connected.last())
+        assertEquals(0, accounts.registrations.size)
+    }
+
+    @Test
+    fun aPasskeyCreatedWithoutPrfIsReplacedByANewOne() = runTest {
+        val keys = FakeKeyStore()
+        val accounts = FakeAccounts(
+            connectFailure = PasskeyAccountsException.CreatedWithoutPrf(byteArrayOf(5))
+        )
+        val setup = setup(keys, accounts)
+
+        assertEquals(PocketSetupResult.PasskeyWithoutPrf, setup.start())
+        assertEquals(PocketSetupResult.Done, setup.start())
+
+        assertContentEquals(byteArrayOf(5), accounts.registrations.single().single())
+        assertEquals("phrase Default", keys.storedPhrase())
     }
 
     @Test
@@ -178,6 +204,7 @@ private class FakeAccounts(
     val connected = mutableListOf<ByteArray?>()
     val opened = mutableListOf<Pair<String, ByteArray?>>()
     val published = mutableListOf<String>()
+    val registrations = mutableListOf<List<ByteArray>>()
     var lists = 0
 
     override suspend fun isAvailable(): Boolean {
@@ -195,6 +222,11 @@ private class FakeAccounts(
             created = created,
             credentialId = this.credentialId
         )
+    }
+
+    override suspend fun register(excludeCredentials: List<ByteArray>): PasskeyConnection {
+        registrations += excludeCredentials
+        return PasskeyConnection("Default", "phrase Default", emptyList(), true, null)
     }
 
     override suspend fun open(label: String, credentialId: ByteArray?): String {

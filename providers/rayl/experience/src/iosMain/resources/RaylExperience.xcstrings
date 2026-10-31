@@ -484,6 +484,29 @@
         }
       }
     },
+    "rayl_passkey_without_prf" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Passwortmanager kann für Rayl nicht verwendet werden. Fahre fort und wähle einen anderen, zum Beispiel die integrierten Passwörter deines Telefons."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That password manager can't be used for Rayl. Continue and choose another one, like your phone's built-in passwords."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ese gestor de contraseñas no se puede usar con Rayl. Continúa y elige otro, como las contraseñas integradas de tu teléfono."
+          }
+        }
+      }
+    },
     "rayl_retry" : {
       "extractionState" : "stale",
       "localizations" : {

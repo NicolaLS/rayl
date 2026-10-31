@@ -25,4 +25,5 @@
     <string name="rayl_accounts_body">Your passkey already has accounts, maybe from other apps. Pay from one of them, or start a new one just for Rayl.</string>
     <string name="rayl_accounts_new">New Rayl account</string>
     <string name="rayl_connect_wallet">Connect your wallet</string>
+    <string name="rayl_passkey_without_prf">That password manager can\'t be used for Rayl. Continue and choose another one, like your phone\'s built-in passwords.</string>
 </resources>

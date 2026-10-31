@@ -78,6 +78,9 @@ private class ActivityCheckedAccounts(
     override suspend fun connect(credentialId: ByteArray?): PasskeyConnection =
         checked { accounts.connect(credentialId) }
 
+    override suspend fun register(excludeCredentials: List<ByteArray>): PasskeyConnection =
+        checked { accounts.register(excludeCredentials) }
+
     override suspend fun open(label: String, credentialId: ByteArray?): String =
         checked { accounts.open(label, credentialId) }
 

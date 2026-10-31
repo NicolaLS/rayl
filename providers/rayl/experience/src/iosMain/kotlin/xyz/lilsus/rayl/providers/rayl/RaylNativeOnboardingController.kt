@@ -60,10 +60,10 @@ class RaylNativeOnboardingController internal constructor(
                     agreementNextTitle = common.agreementContinue,
                     hasAgreed = agreed,
                     isWorking = activity == RaylSetupActivity.Working,
-                    message = if (activity == RaylSetupActivity.Failed) {
-                        text("rayl_passkey_failed")
-                    } else {
-                        null
+                    message = when (activity) {
+                        RaylSetupActivity.Failed -> text("rayl_passkey_failed")
+                        RaylSetupActivity.PasskeyWithoutPrf -> text("rayl_passkey_without_prf")
+                        RaylSetupActivity.Idle, RaylSetupActivity.Working -> null
                     },
                     accountsTitle = text("rayl_accounts_title"),
                     accountsBody = text("rayl_accounts_body"),

@@ -30,7 +30,14 @@ internal sealed interface RaylOnboardingStep {
     data object Complete : RaylOnboardingStep
 }
 
-internal enum class RaylSetupActivity { Idle, Working, Failed }
+internal enum class RaylSetupActivity {
+    Idle,
+    Working,
+    Failed,
+
+    /** The chosen password manager cannot hold Rayl's passkey; continuing lets the user pick another. */
+    PasskeyWithoutPrf
+}
 
 internal class RaylOnboardingState(
     private val settings: Settings,
@@ -134,10 +141,10 @@ internal class RaylOnboardingState(
             } catch (error: Exception) {
                 PocketSetupResult.Failed(error.message)
             }
-            mutableActivity.value = if (result is PocketSetupResult.Failed) {
-                RaylSetupActivity.Failed
-            } else {
-                RaylSetupActivity.Idle
+            mutableActivity.value = when (result) {
+                is PocketSetupResult.Failed -> RaylSetupActivity.Failed
+                PocketSetupResult.PasskeyWithoutPrf -> RaylSetupActivity.PasskeyWithoutPrf
+                else -> RaylSetupActivity.Idle
             }
             when (result) {
                 PocketSetupResult.Done -> complete()
@@ -146,7 +153,10 @@ internal class RaylOnboardingState(
                     mutableStep.value =
                         RaylOnboardingStep.Accounts(result.accounts, result.canCreate)
 
-                PocketSetupResult.Unavailable -> mutableStep.value = RaylOnboardingStep.Unavailable
+                // Back to the terms, whose Continue lets the user pick another passkey.
+                PocketSetupResult.PasskeyWithoutPrf ->
+                    mutableStep.value =
+                        RaylOnboardingStep.Agreement
 
                 // A dismissed prompt is the user's decision: wait for another tap.
                 PocketSetupResult.Cancelled, is PocketSetupResult.Failed -> Unit
