@@ -60,14 +60,6 @@ internal class RaylSelection(private val settings: Settings) {
             settings.putString(EXTERNAL_WALLET_KEY, wallet.name)
         }
     }
-    private val mutableWelcomeCompleted =
-        MutableStateFlow(settings.getBoolean(WELCOME_KEY, false))
-    val welcomeCompleted = mutableWelcomeCompleted.asStateFlow()
-
-    fun completeWelcome() {
-        settings.putBoolean(WELCOME_KEY, true)
-        mutableWelcomeCompleted.value = true
-    }
 
     /** Starts fresh setup of [wallet] once Rayl's built-in wallet has closed its session. */
     fun choose(wallet: ExternalWallet) {
@@ -111,14 +103,13 @@ internal enum class ExternalWallet {
 }
 
 private const val EXTERNAL_WALLET_KEY = "rayl.wallet"
-private const val WELCOME_KEY = "rayl.welcome"
 
 /** The external wallet that completed setup on an earlier launch, if any. */
 internal fun configuredExternalWallet(settings: Settings): ExternalWallet? =
     ExternalWallet.entries.firstOrNull { it.name == settings.getStringOrNull(EXTERNAL_WALLET_KEY) }
 
-/** Rayl's built-in wallet is in use once the welcome is done and no external wallet is. */
+/** Rayl's built-in wallet is in use once Rayl was onboarded and no external wallet is. */
 internal fun usesRaylWallet(settings: Settings): Boolean =
-    settings.getBoolean(WELCOME_KEY, false) && configuredExternalWallet(settings) == null
+    appOnboarded(settings) && configuredExternalWallet(settings) == null
 
 internal enum class WalletPreparation { Cleaning, Failed, Ready }

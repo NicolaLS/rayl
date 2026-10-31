@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,7 +46,6 @@ import xyz.lilsus.raylsuite.core.settings.createAppSettings
 import xyz.lilsus.raylsuite.core.settings.rememberAppSettings
 import xyz.lilsus.raylsuite.core.ui.platform.rememberRetainedInstance
 import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
-import xyz.lilsus.raylsuite.feature.onboarding.WelcomeScreen
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
 
 @Composable
@@ -66,7 +64,12 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
     LaunchedEffect(selection, external) {
         selection.prepare { clearSavedWallet(context, it) }
     }
-    val welcomeCompleted by selection.welcomeCompleted.collectAsStateWithLifecycle()
+    val appOnboarding = rememberRetainedInstance(
+        key = "rayl-app-onboarding-state",
+        factory = { RaylAppOnboarding(settings) },
+        onDispose = {}
+    )
+    val appOnboardingStep by appOnboarding.step.collectAsStateWithLifecycle()
     // Whether the external wallet in use is connected; Rayl's wallet queues links itself.
     var connected by remember { mutableStateOf<Boolean?>(null) }
     // A connection link that waits for Rayl's wallet to close before its setup starts.
@@ -104,11 +107,12 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
     }
     LaunchedEffect(selection, external) {
         RaylDeepLinks.events.collect { uri ->
+            // Links wait for Rayl's onboarding; wallets then queue them until they are ready.
+            appOnboarding.step.first { it == AppOnboardingStep.Complete }
             selection.preparation.first { it == WalletPreparation.Ready }
             val selected = selection.external.value
             if (uri.substringBefore(':').equals("nostr+walletconnect", true)) {
                 if (selected == null) {
-                    selection.completeWelcome()
                     pendingNwcLink = uri
                     RaylWalletRequests.request(ExternalWallet.Nwc.id)
                 } else if (selected == ExternalWallet.Nwc &&
@@ -119,7 +123,7 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
                     message = R.string.connection_exists
                 }
             } else if (selected == null) {
-                // Rayl's wallet queues links while it connects, or until the welcome is done.
+                // Rayl's wallet queues links while it connects or shows its terms.
                 RaylPaymentLinks.emit(uri)
             } else if (!snapshotFlow { connected }.filterNotNull().first()) {
                 // FIXME: Spark cold-start reports Loading -> false before async restore finishes,
@@ -156,16 +160,8 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
         }
         key(external, session) {
             when (external) {
-                null -> if (!welcomeCompleted) {
-                    Surface(modifier = Modifier.fillMaxSize()) {
-                        WelcomeScreen(
-                            title = stringResource(R.string.welcome_title),
-                            subtitle = "",
-                            description = stringResource(R.string.welcome_body),
-                            actionTitle = stringResource(R.string.get_started),
-                            onGetStarted = selection::completeWelcome
-                        )
-                    }
+                null -> if (appOnboardingStep != AppOnboardingStep.Complete) {
+                    AppOnboarding(appOnboarding, settings)
                 } else {
                     RaylExperience(
                         configuration = RAYL_POCKET,

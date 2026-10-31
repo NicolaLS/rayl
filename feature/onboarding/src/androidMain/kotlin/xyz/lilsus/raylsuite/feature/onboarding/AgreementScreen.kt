@@ -35,13 +35,14 @@ fun AgreementScreen(
     totalSteps: Int,
     onAgreementChanged: (Boolean) -> Unit,
     onContinue: () -> Unit,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     OnboardingScaffold(
         stepIndex = stepIndex,
         totalSteps = totalSteps,
-        onBack = onBack
+        showBackButton = onBack != null,
+        onBack = onBack ?: {}
     ) {
         Column(
             modifier =

@@ -15,4 +15,14 @@
     <string name="wallet_cleanup_failed">Rayl could not finish clearing the previous wallet connection. Retry to continue.</string>
     <string name="wallet_cleanup_retry">Retry</string>
     <string name="wallet_switch_busy">Wait for the current payment to finish, then open the link again.</string>
+    <string name="onboarding_page1_title">Quiet scanner, quick results</string>
+    <string name="onboarding_page1_subtitle">It’s working — even if you can’t see the camera.</string>
+    <string name="onboarding_page1_body">Rayl scans in the background so checkout stays smooth. Aim at the code, wait a beat, and you’re good.</string>
+    <string name="onboarding_page2_title">Auto Pay, your rules</string>
+    <string name="onboarding_page2_subtitle">Pay small amounts instantly — no extra taps.</string>
+    <string name="onboarding_page2_body">Set a limit you’re comfortable with. For anything above it, Rayl will ask before paying.</string>
+    <string name="onboarding_page3_title">A balance for spending</string>
+    <string name="onboarding_page3_subtitle">Like a prepaid card for Lightning.</string>
+    <string name="onboarding_page3_body">Top up Rayl from the wallet you save in, and keep only what you plan to spend. Your savings stay where they are.</string>
+    <string name="onboarding_autopay_body">Choose when Rayl should ask for confirmation before paying.</string>
 </resources>

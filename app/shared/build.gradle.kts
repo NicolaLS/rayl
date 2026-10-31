@@ -20,7 +20,7 @@ kotlin {
     }
     sourceSets {
         androidMain.dependencies {
-            implementation(project(":feature:onboarding"))
+            implementation(libs.androidx.activity.compose)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.androidx.lifecycle.runtimeCompose)
@@ -41,6 +41,10 @@ kotlin {
             implementation(project(":core:ui"))
             implementation(project(":feature:theme-settings"))
             implementation(project(":feature:language-settings"))
+            implementation(project(":feature:onboarding"))
+            implementation(project(":feature:payment-settings"))
+            implementation(project(":feature:currency-settings"))
+            implementation(project(":integration:exchange-rate"))
             implementation(libs.multiplatform.settings)
             implementation(libs.kotlinx.coroutines.core)
             api(project(":feature:payment-hub"))

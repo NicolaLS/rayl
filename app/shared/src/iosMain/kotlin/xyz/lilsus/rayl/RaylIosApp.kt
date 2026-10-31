@@ -7,6 +7,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.blink.BlinkDeepLinks
@@ -40,7 +41,8 @@ class RaylSnapshot(
     val sparkExperience: SparkIosExperience?,
     val preparingWallets: Boolean,
     val walletCleanupFailed: Boolean,
-    val welcomeCompleted: Boolean,
+    /** Rayl's app onboarding is done; until then the root shows [RaylIosApp.onboardingController]. */
+    val onboarded: Boolean,
     val connected: Boolean,
     val canCancelSetup: Boolean,
     val closingSpark: Boolean,
@@ -62,6 +64,10 @@ object RaylIosApp {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val appSettings = createAppSettings()
     private val selection = RaylSelection(appSettings)
+    private val appOnboarding = RaylAppOnboarding(appSettings)
+    private val onboardingController by lazy {
+        RaylAppOnboardingController(appOnboarding, appSettings, language.preference)
+    }
     private val language = createLanguageRepository()
     private val experienceState = MutableStateFlow(RaylExperienceState())
     private val messageKey = MutableStateFlow<String?>(null)
@@ -86,6 +92,8 @@ object RaylIosApp {
         }
         scope.launch {
             RaylDeepLinks.events.collect { uri ->
+                // Links wait for Rayl's onboarding; wallets then queue them until they are ready.
+                appOnboarding.step.first { it == AppOnboardingStep.Complete }
                 selection.preparation.first { it == WalletPreparation.Ready }
                 val selected = selection.external.value
                 val hasConnection = when (selected) {
@@ -97,12 +105,11 @@ object RaylIosApp {
                     // Loading, which can reject a cold-start payment deep link.
                     ExternalWallet.Spark -> sparkExperience()?.isConnected() == true
 
-                    // Rayl's wallet queues links while it connects, or until the welcome is done.
+                    // Rayl's wallet queues links while it connects or shows its terms.
                     null -> true
                 }
                 if (uri.substringBefore(':').equals("nostr+walletconnect", true)) {
                     if (selected == null) {
-                        selection.completeWelcome()
                         pendingNwcLink = uri
                         RaylWalletRequests.request(ExternalWallet.Nwc.id)
                     } else if (selected == ExternalWallet.Nwc && !hasConnection) {
@@ -148,7 +155,7 @@ object RaylIosApp {
                     selection.session,
                     selection.preparation
                 ) { external, _, preparation -> external to preparation },
-                selection.welcomeCompleted,
+                appOnboarding.step.map { it == AppOnboardingStep.Complete },
                 experienceState,
                 language.preference,
                 messageKey
@@ -163,9 +170,6 @@ object RaylIosApp {
                 val ready = preparation == WalletPreparation.Ready
                 val keys =
                     listOf(
-                        "welcome_title",
-                        "welcome_body",
-                        "get_started",
                         "close",
                         "wallet_cleanup_failed",
                         "wallet_cleanup_retry"
@@ -253,7 +257,7 @@ object RaylIosApp {
         return { job.cancel() }
     }
 
-    fun completeWelcome() = selection.completeWelcome()
+    fun onboardingController(): RaylAppOnboardingController = onboardingController
     fun dismissMessage() {
         messageKey.value = null
     }
@@ -285,7 +289,11 @@ object RaylIosApp {
         }
 
     private fun raylExperience(): RaylIosExperience? {
-        if (selection.external.value != null || !selection.welcomeCompleted.value) return null
+        if (selection.external.value != null ||
+            appOnboarding.step.value != AppOnboardingStep.Complete
+        ) {
+            return null
+        }
         return rayl ?: checkNotNull(raylFactory) {
             "Configure the environment before observing Rayl"
         }().also { experience ->

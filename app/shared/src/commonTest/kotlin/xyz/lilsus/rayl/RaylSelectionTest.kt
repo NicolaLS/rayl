@@ -139,11 +139,11 @@ class RaylSelectionTest {
     }
 
     @Test
-    fun raylsWalletIsInUseAfterTheWelcomeUntilAnExternalWalletConnects() = runTest {
+    fun raylsWalletIsInUseAfterOnboardingUntilAnExternalWalletConnects() = runTest {
         val settings = MapSettings()
         val selection = RaylSelection(settings)
         assertFalse(usesRaylWallet(settings))
-        selection.completeWelcome()
+        RaylAppOnboarding(settings).moveTo(AppOnboardingStep.Complete)
         assertNull(selection.external.value)
         assertTrue(usesRaylWallet(settings))
 

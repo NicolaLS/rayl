@@ -60,14 +60,8 @@ struct ContentView: View {
                     } else if let experience = snapshot.sparkExperience {
                         SparkExperienceView(experience: experience)
                             .id(ObjectIdentifier(experience))
-                    } else if !snapshot.welcomeCompleted {
-                        NativeOnboardingWelcomeView(
-                            title: snapshot.text["welcome_title"] ?? "",
-                            subtitle: "",
-                            description: snapshot.text["welcome_body"] ?? "",
-                            actionTitle: snapshot.text["get_started"] ?? "",
-                            action: { RaylIosApp.shared.completeWelcome() }
-                        )
+                    } else if !snapshot.onboarded {
+                        RaylAppOnboardingView(controller: RaylIosApp.shared.onboardingController())
                     } else {
                         ProgressView()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -99,6 +93,104 @@ struct ContentView: View {
         case "light": return .light
         case "dark": return .dark
         default: return nil
+        }
+    }
+}
+
+@MainActor
+private final class RaylAppOnboardingModel: ObservableObject {
+    @Published private(set) var snapshot: RaylAppOnboardingSnapshot?
+
+    let controller: RaylAppOnboardingController
+    private var cancel: (() -> Void)?
+
+    init(controller: RaylAppOnboardingController) {
+        self.controller = controller
+        cancel = controller.observe { [weak self] in self?.snapshot = $0 }
+    }
+
+    deinit { cancel?() }
+}
+
+/// Rayl's onboarding before any wallet: the welcome, what Rayl does, and Auto Pay.
+private struct RaylAppOnboardingView: View {
+    @StateObject private var model: RaylAppOnboardingModel
+
+    init(controller: RaylAppOnboardingController) {
+        _model = StateObject(wrappedValue: RaylAppOnboardingModel(controller: controller))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let snapshot = model.snapshot {
+                    screen(snapshot)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            if snapshot.canGoBack {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    Button(action: model.controller.back) {
+                                        Label(snapshot.backTitle, systemImage: "chevron.left")
+                                            .labelStyle(.iconOnly)
+                                    }
+                                }
+                            }
+                        }
+                } else {
+                    ProgressView()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func screen(_ snapshot: RaylAppOnboardingSnapshot) -> some View {
+        switch snapshot.step {
+        case "welcome":
+            NativeOnboardingWelcomeView(
+                title: snapshot.welcomeTitle,
+                subtitle: "",
+                description: snapshot.welcomeBody,
+                actionTitle: snapshot.getStartedTitle,
+                action: model.controller.getStarted
+            )
+        case "features":
+            NativeOnboardingFeaturesView(
+                pages: snapshot.featurePages.enumerated().map { index, page in
+                    NativeOnboardingPageValue(
+                        id: index,
+                        title: page.title,
+                        subtitle: page.subtitle,
+                        body: page.body
+                    )
+                },
+                currentPage: snapshot.featurePage,
+                stepIndex: snapshot.stepIndex,
+                stepCount: snapshot.stepCount,
+                actionTitle: snapshot.featuresNextTitle,
+                onPageChanged: model.controller.setFeaturePage,
+                action: model.controller.continueFeatures
+            )
+        case "autoPay":
+            NativeOnboardingAutoPayView(
+                title: snapshot.autoPayTitle,
+                body: snapshot.autoPayBody,
+                alwaysTitle: snapshot.autoPayAlwaysTitle,
+                thresholdTitle: snapshot.autoPayThresholdTitle,
+                thresholdLabel: snapshot.autoPayThresholdLabel,
+                hint: snapshot.autoPayHint,
+                actionTitle: snapshot.autoPayNextTitle,
+                confirmationMode: snapshot.confirmationMode,
+                thresholdIndex: snapshot.thresholdIndex,
+                thresholdStepCount: snapshot.thresholdStepCount,
+                stepIndex: snapshot.stepIndex,
+                stepCount: snapshot.stepCount,
+                onConfirmationModeChanged: model.controller.setConfirmationMode,
+                onThresholdIndexChanged: model.controller.setThresholdIndex,
+                action: model.controller.continueAutoPay
+            )
+        default:
+            ProgressView()
         }
     }
 }

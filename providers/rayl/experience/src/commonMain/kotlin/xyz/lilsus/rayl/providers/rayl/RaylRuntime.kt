@@ -21,7 +21,6 @@ import xyz.lilsus.raylsuite.feature.appshell.AppTab
 import xyz.lilsus.raylsuite.feature.appshell.AppTabState
 import xyz.lilsus.raylsuite.feature.currencysettings.DefaultCurrencyPreferences
 import xyz.lilsus.raylsuite.feature.languagesettings.createLanguageRepository
-import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentFlowCoordinator
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiState
 import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
@@ -84,8 +83,6 @@ internal class RaylRuntime(
         haptics = haptics
     )
     val onboardingState = RaylOnboardingState(appSettings)
-    val onboarding =
-        OnboardingViewModel(paymentPreferences, currencyPreferences, bitcoinPriceProvider)
     val funding = RaylFunding(
         createInvoice = { pocket.createInvoice(amountSats = null, description = it) },
         receipts = pocket.receivedPayments,
@@ -191,7 +188,6 @@ internal class RaylRuntime(
         closed = true
         scope.cancel()
         paymentCoordinator.clear()
-        onboarding.clear()
         bitcoinPriceProvider.close()
         lnurlPayClient.close()
         languageRepository.close()

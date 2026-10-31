@@ -102,10 +102,7 @@ fun RaylExperience(
 
                 exit != RaylExit.None -> RaylStatusScreen(message = null)
 
-                onboardingStep != RaylOnboardingStep.Complete -> RaylOnboarding(
-                    runtime,
-                    onboardingStep
-                )
+                onboardingStep != RaylOnboardingStep.Complete -> RaylOnboarding(runtime)
 
                 // The pocket connects in the background: the camera must not wait for it.
                 else -> RaylTabs(runtime, otherWallets)

@@ -111,7 +111,7 @@ private final class RaylOnboardingModel: ObservableObject {
     deinit { cancel?() }
 }
 
-/// Introduces Rayl's wallet with the shared onboarding views the providers use.
+/// Rayl's wallet terms, on the shared agreement view the external wallets use too.
 private struct RaylOnboardingView: View {
     @StateObject private var model: RaylOnboardingModel
 
@@ -120,79 +120,19 @@ private struct RaylOnboardingView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let snapshot = model.snapshot {
-                    screen(snapshot)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            if snapshot.canGoBack {
-                                ToolbarItem(placement: .topBarLeading) {
-                                    Button(action: model.controller.back) {
-                                        Label(snapshot.backTitle, systemImage: "chevron.left")
-                                            .labelStyle(.iconOnly)
-                                    }
-                                }
-                            }
-                        }
-                } else {
-                    ProgressView()
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func screen(_ snapshot: RaylNativeOnboardingSnapshot) -> some View {
-        switch snapshot.step {
-        case "features":
-            NativeOnboardingFeaturesView(
-                pages: snapshot.featurePages.enumerated().map { index, page in
-                    NativeOnboardingPageValue(
-                        id: index,
-                        title: page.title,
-                        subtitle: page.subtitle,
-                        body: page.body
-                    )
-                },
-                currentPage: snapshot.featurePage,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
-                actionTitle: snapshot.featuresNextTitle,
-                onPageChanged: model.controller.setFeaturePage,
-                action: model.controller.continueFeatures
-            )
-        case "autoPay":
-            NativeOnboardingAutoPayView(
-                title: snapshot.autoPayTitle,
-                body: snapshot.autoPayBody,
-                alwaysTitle: snapshot.autoPayAlwaysTitle,
-                thresholdTitle: snapshot.autoPayThresholdTitle,
-                thresholdLabel: snapshot.autoPayThresholdLabel,
-                hint: snapshot.autoPayHint,
-                actionTitle: snapshot.autoPayNextTitle,
-                confirmationMode: snapshot.confirmationMode,
-                thresholdIndex: snapshot.thresholdIndex,
-                thresholdStepCount: snapshot.thresholdStepCount,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
-                onConfirmationModeChanged: model.controller.setConfirmationMode,
-                onThresholdIndexChanged: model.controller.setThresholdIndex,
-                action: model.controller.continueAutoPay
-            )
-        case "agreement":
+        if let snapshot = model.snapshot {
             NativeOnboardingAgreementView(
                 title: snapshot.agreementTitle,
                 body: snapshot.agreementBody,
                 checkboxTitle: snapshot.agreementCheckboxTitle,
                 actionTitle: snapshot.agreementNextTitle,
                 hasAgreed: snapshot.hasAgreed,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
+                stepIndex: 0,
+                stepCount: 0,
                 onAgreementChanged: model.controller.setAgreement,
-                action: model.controller.continueAgreement
+                action: model.controller.accept
             )
-        default:
+        } else {
             ProgressView()
         }
     }

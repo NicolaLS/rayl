@@ -6,30 +6,22 @@ import kotlin.test.assertEquals
 
 class RaylOnboardingStateTest {
     @Test
-    fun anInterruptedOnboardingStartsOver() {
-        val settings = MapSettings()
-        RaylOnboardingState(settings).moveTo(RaylOnboardingStep.Agreement)
-        assertEquals(RaylOnboardingStep.Features, RaylOnboardingState(settings).step.value)
-    }
-
-    @Test
-    fun completingTheAgreementIsRemembered() {
-        val settings = MapSettings()
-        val state = RaylOnboardingState(settings)
-        state.moveTo(RaylOnboardingStep.Complete)
-        state.moveTo(RaylOnboardingStep.Features)
-        assertEquals(RaylOnboardingStep.Complete, state.step.value)
-        assertEquals(RaylOnboardingStep.Complete, RaylOnboardingState(settings).step.value)
-    }
-
-    @Test
-    fun backGoesToThePreviousStep() {
+    fun theTermsMustBeAcceptedToContinue() {
         val state = RaylOnboardingState(MapSettings())
-        state.moveTo(RaylOnboardingStep.Agreement)
-        state.back()
-        assertEquals(RaylOnboardingStep.AutoPay, state.step.value)
-        state.back()
-        state.back()
-        assertEquals(RaylOnboardingStep.Features, state.step.value)
+        state.accept()
+        assertEquals(RaylOnboardingStep.Agreement, state.step.value)
+        state.setAgreement(true)
+        state.accept()
+        assertEquals(RaylOnboardingStep.Complete, state.step.value)
+    }
+
+    @Test
+    fun acceptanceIsRemembered() {
+        val settings = MapSettings()
+        RaylOnboardingState(settings).apply {
+            setAgreement(true)
+            accept()
+        }
+        assertEquals(RaylOnboardingStep.Complete, RaylOnboardingState(settings).step.value)
     }
 }

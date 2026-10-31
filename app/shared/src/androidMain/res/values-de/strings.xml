@@ -15,4 +15,14 @@
     <string name="wallet_cleanup_failed">Rayl konnte die vorherige Wallet-Verbindung nicht vollständig entfernen. Versuche es erneut, um fortzufahren.</string>
     <string name="wallet_cleanup_retry">Erneut versuchen</string>
     <string name="wallet_switch_busy">Warte, bis die aktuelle Zahlung abgeschlossen ist, und öffne den Link dann erneut.</string>
+    <string name="onboarding_page1_title">Leiser Scanner, schnelle Ergebnisse</string>
+    <string name="onboarding_page1_subtitle">Er arbeitet – auch wenn du die Kamera nicht siehst.</string>
+    <string name="onboarding_page1_body">Rayl scannt im Hintergrund, damit der Bezahlvorgang flüssig bleibt. Richte die Kamera auf den Code, warte kurz, und fertig.</string>
+    <string name="onboarding_page2_title">Auto Pay nach deinen Regeln</string>
+    <string name="onboarding_page2_subtitle">Kleine Beträge sofort bezahlen – ohne zusätzliches Tippen.</string>
+    <string name="onboarding_page2_body">Lege ein Limit fest, mit dem du dich wohlfühlst. Bei allem darüber fragt Rayl vor dem Bezahlen nach.</string>
+    <string name="onboarding_page3_title">Guthaben zum Ausgeben</string>
+    <string name="onboarding_page3_subtitle">Wie eine Prepaid-Karte für Lightning.</string>
+    <string name="onboarding_page3_body">Lade Rayl aus der Wallet auf, in der du sparst, und behalte nur, was du ausgeben willst. Deine Ersparnisse bleiben, wo sie sind.</string>
+    <string name="onboarding_autopay_body">Wähle, wann Rayl vor dem Bezahlen um Bestätigung bitten soll.</string>
 </resources>

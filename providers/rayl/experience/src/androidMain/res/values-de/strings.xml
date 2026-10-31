@@ -19,15 +19,5 @@
     <string name="rayl_use_another_wallet_info">Verbinde eine Wallet, die du bereits hast, und bezahle damit. Dein Rayl-Guthaben bleibt auf diesem Gerät, und du kannst jederzeit in den Einstellungen zu Rayl zurückkehren.</string>
     <string name="rayl_balance">Guthaben</string>
     <string name="rayl_add_funds_with">Aufladen mit</string>
-    <string name="rayl_onboarding_page1_title">Leiser Scanner, schnelle Ergebnisse</string>
-    <string name="rayl_onboarding_page1_subtitle">Er arbeitet – auch wenn du die Kamera nicht siehst.</string>
-    <string name="rayl_onboarding_page1_body">Rayl scannt im Hintergrund, damit der Bezahlvorgang flüssig bleibt. Richte die Kamera auf den Code, warte kurz, und fertig.</string>
-    <string name="rayl_onboarding_page2_title">Auto Pay nach deinen Regeln</string>
-    <string name="rayl_onboarding_page2_subtitle">Kleine Beträge sofort bezahlen – ohne zusätzliches Tippen.</string>
-    <string name="rayl_onboarding_page2_body">Lege ein Limit fest, mit dem du dich wohlfühlst. Bei allem darüber fragt Rayl vor dem Bezahlen nach.</string>
-    <string name="rayl_onboarding_page3_title">Guthaben zum Ausgeben</string>
-    <string name="rayl_onboarding_page3_subtitle">Wie eine Prepaid-Karte für Lightning.</string>
-    <string name="rayl_onboarding_page3_body">Lade Rayl aus der Wallet auf, in der du sparst, und behalte nur, was du ausgeben willst. Deine Ersparnisse bleiben, wo sie sind.</string>
-    <string name="rayl_onboarding_autopay_body">Wähle, wann Rayl vor dem Bezahlen um Bestätigung bitten soll.</string>
     <string name="rayl_onboarding_agreement_body">Die Nutzung von Rayl erfolgt auf eigenes Risiko. Dein Rayl-Guthaben wird nur auf diesem Gerät gespeichert und nicht gesichert: Wenn du dieses Telefon verlierst oder zurücksetzt, ist das Guthaben verloren. Du bist für das Guthaben und alle Zahlungen voll verantwortlich.\n\nBehalte nur kleine Beträge, die du ausgeben willst.</string>
 </resources>
