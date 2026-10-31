@@ -1,11 +1,8 @@
 <resources>
     <string name="rayl_retry">Retry</string>
-    <string name="rayl_spending_power">Spending power</string>
     <string name="rayl_balance_updating">Updating…</string>
     <string name="rayl_add_funds">Add funds</string>
-    <string name="rayl_add_funds_body">Pay this Lightning invoice from any wallet to add spending power.</string>
-    <string name="rayl_amount_sats">Amount (sats)</string>
-    <string name="rayl_create_invoice">Create invoice</string>
+    <string name="rayl_add_funds_body">Pay this invoice from any Lightning wallet. You choose the amount there.</string>
     <string name="rayl_copy_invoice">Copy invoice</string>
     <string name="rayl_waiting_for_payment">Waiting for payment…</string>
     <string name="rayl_funds_added">Funds added</string>
@@ -20,4 +17,6 @@
     <string name="rayl_leave_failed">Rayl couldn\'t close its session. Retry to continue.</string>
     <string name="rayl_balance_unavailable">Not connected. Tap to retry.</string>
     <string name="rayl_use_another_wallet_info">Connect a wallet you already have and pay with it. Your Rayl balance stays on this device, and you can go back to Rayl in Settings at any time.</string>
+    <string name="rayl_balance">Balance</string>
+    <string name="rayl_add_funds_with">Add funds with</string>
 </resources>

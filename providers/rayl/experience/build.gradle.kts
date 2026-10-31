@@ -29,6 +29,10 @@ kotlin {
             implementation(libs.multiplatform.settings)
             implementation(libs.compose.runtime)
         }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+        }
         androidMain.dependencies {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.compose.foundation)

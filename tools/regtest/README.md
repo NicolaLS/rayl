@@ -24,12 +24,15 @@ tools/regtest/regtest invoice 500 --open ios # Rayl pays this (scan the QR); wai
    transaction on the [Regtest explorer](https://regtest-mempool.us-west-2.sparkinfra.net/),
    then run `status` again to claim it. Spark transfers are off-chain and do not
    appear in the explorer.
-2. **Add funds to Rayl.** In a debug build, open Settings → Spending power and
-   create an invoice. On Android, `tools/regtest/regtest pay --from android`
-   pays the latest one: debug builds log it under the `RaylRegtest` logcat tag,
-   so no copying is needed (set `ANDROID_SERIAL` when several devices are
-   connected). On the iOS simulator, tap Copy invoice and run
-   `tools/regtest/regtest pay "$(pbpaste)"`; its clipboard syncs with the Mac.
+2. **Add funds to Rayl.** In a debug build, tap Add funds on Settings → Balance.
+   The invoice has no amount, so pass one: on Android,
+   `tools/regtest/regtest pay --from android --amount 1000` pays the latest
+   invoice: debug builds log it under the `RaylRegtest` logcat tag, so no
+   copying is needed (set `ANDROID_SERIAL` when several devices are connected).
+   When no other wallet app opens it, Rayl shows the invoice; on the iOS
+   simulator, tap Copy invoice and run
+   `tools/regtest/regtest pay "$(pbpaste)" --amount 1000`; its clipboard syncs
+   with the Mac.
 3. **Pay from Rayl.** `tools/regtest/regtest invoice 500 --open android` (or
    `ios`) opens the invoice in the running app as a `lightning:` link. Confirm
    the payment in Rayl; the command reports when it arrives.

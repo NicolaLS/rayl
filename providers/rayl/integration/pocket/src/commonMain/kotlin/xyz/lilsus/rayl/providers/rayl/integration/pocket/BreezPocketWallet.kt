@@ -140,12 +140,12 @@ private class BreezPocketWallet private constructor(
         return awaitOutcome(payment).also { PocketTimings.mark("payment outcome $it") }
     }
 
-    override suspend fun createInvoice(amountSats: Long, description: String): String =
+    override suspend fun createInvoice(amountSats: Long?, description: String): String =
         sdk.receivePayment(
             ReceivePaymentRequest(
                 ReceivePaymentMethod.Bolt11Invoice(
                     description = description,
-                    amountSats = amountSats.toULong(),
+                    amountSats = amountSats?.toULong(),
                     expirySecs = null,
                     paymentHash = null,
                     receiverIdentityPublicKey = null
@@ -194,7 +194,9 @@ private class BreezPocketWallet private constructor(
                         event.payment.paymentType == PaymentType.RECEIVE
                     ) {
                         (event.payment.details as? PaymentDetails.Lightning)?.invoice?.let {
-                            mutableEvents.emit(PocketEvent.Received(it))
+                            mutableEvents.emit(
+                                PocketEvent.Received(it, event.payment.amount.longValue())
+                            )
                         }
                     }
                     mutableEvents.emit(PocketEvent.Changed)

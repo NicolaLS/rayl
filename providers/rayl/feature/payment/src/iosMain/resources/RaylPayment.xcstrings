@@ -13,7 +13,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not enough spending power. Add funds in Settings."
+            "value" : "Not enough balance. Add funds in Settings."
           }
         },
         "es" : {

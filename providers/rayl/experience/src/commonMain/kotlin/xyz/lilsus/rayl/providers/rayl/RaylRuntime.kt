@@ -16,6 +16,7 @@ import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketTimings
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPocket
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
 import xyz.lilsus.raylsuite.core.ui.platform.HapticFeedbackManager
+import xyz.lilsus.raylsuite.feature.appshell.AppTab
 import xyz.lilsus.raylsuite.feature.appshell.AppTabState
 import xyz.lilsus.raylsuite.feature.currencysettings.DefaultCurrencyPreferences
 import xyz.lilsus.raylsuite.feature.languagesettings.createLanguageRepository
@@ -80,7 +81,13 @@ internal class RaylRuntime(
         paymentHub = paymentHub,
         haptics = haptics
     )
-    val funding = RaylFunding(pocket, configuration.appName, scope, onFundingInvoice)
+    val funding = RaylFunding(
+        createInvoice = { pocket.createInvoice(amountSats = null, description = it) },
+        receipts = pocket.receivedPayments,
+        description = configuration.appName,
+        scope = scope,
+        onInvoice = onFundingInvoice
+    )
 
     private val mutableExit = MutableStateFlow(RaylExit.None)
     val exit: StateFlow<RaylExit> = mutableExit.asStateFlow()
@@ -92,7 +99,13 @@ internal class RaylRuntime(
             // A link that arrives while the pocket connects waits in the settlement step.
             RaylPaymentLinks.events.collect { uri ->
                 PocketTimings.mark("payment link received")
-                if (mutableExit.value == RaylExit.None && !paymentCoordinator.isSubmitting.value) {
+                if (funding.isOwnInvoice(uri)) {
+                    // No other wallet took the funding invoice; Rayl must not pay itself.
+                    funding.showInvoice()
+                    tabState.select(AppTab.Settings)
+                } else if (mutableExit.value == RaylExit.None &&
+                    !paymentCoordinator.isSubmitting.value
+                ) {
                     tabState.requestScan()
                     paymentCoordinator.dispatch(PaymentIntent.DeepLinkReceived(uri))
                 }

@@ -12,20 +12,23 @@ import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.ui.format.currentAmountFormatter
 
 data class RaylNativeWalletSettingsSnapshot(
-    val spendingPowerTitle: String,
+    val balanceTitle: String,
     val balance: String,
     /** The pocket could not connect; tapping the balance row retries. */
     val pocketFailed: Boolean,
     val addFundsTitle: String,
     val addFundsBody: String,
-    val amountLabel: String,
-    val createInvoiceTitle: String,
     val copyInvoiceTitle: String,
     val waitingForPayment: String,
     val fundsAdded: String,
+    /** The amount the last funding payment added, once it arrived. */
+    val fundsAddedAmount: String?,
     val invoiceFailed: String,
     val doneTitle: String,
-    /** `idle`, `creating`, `awaiting`, `received`, or `failed`. */
+    /**
+     * `idle`, `creating`, `open` (open [invoice] in another wallet app, then report back),
+     * `inWallet`, `shown` (present [invoice]), `received`, or `failed`.
+     */
     val fundingStage: String,
     val invoice: String?,
     val useAnotherWalletTitle: String,
@@ -63,7 +66,13 @@ class RaylNativeWalletSettingsController internal constructor(
         return { job.cancel() }
     }
 
-    fun requestInvoice(amountSats: Long) = runtime.funding.request(amountSats)
+    /** Creates an amountless invoice for the user's other wallet to pay. */
+    fun addFunds() = runtime.funding.request()
+
+    fun openedInWallet() = runtime.funding.openedInWallet()
+
+    /** No other wallet app opened the invoice. */
+    fun showInvoice() = runtime.funding.showInvoice()
 
     fun resetFunding() = runtime.funding.reset()
 
@@ -85,7 +94,7 @@ class RaylNativeWalletSettingsController internal constructor(
         funding: FundingState,
         isSubmitting: Boolean
     ) = RaylNativeWalletSettingsSnapshot(
-        spendingPowerTitle = text("rayl_spending_power"),
+        balanceTitle = text("rayl_balance"),
         balance = when {
             pocketFailed -> text("rayl_balance_unavailable")
 
@@ -97,18 +106,27 @@ class RaylNativeWalletSettingsController internal constructor(
         pocketFailed = pocketFailed,
         addFundsTitle = text("rayl_add_funds"),
         addFundsBody = text("rayl_add_funds_body"),
-        amountLabel = text("rayl_amount_sats"),
-        createInvoiceTitle = text("rayl_create_invoice"),
         copyInvoiceTitle = text("rayl_copy_invoice"),
         waitingForPayment = text("rayl_waiting_for_payment"),
         fundsAdded = text("rayl_funds_added"),
+        fundsAddedAmount = (funding as? FundingState.Received)?.let {
+            currentAmountFormatter().format(DisplayAmount(it.amountSats, DisplayCurrency.Satoshi))
+        },
         invoiceFailed = text("rayl_invoice_failed"),
         doneTitle = text("rayl_done"),
         fundingStage = when (funding) {
             FundingState.Idle -> "idle"
+
             FundingState.Creating -> "creating"
-            is FundingState.Awaiting -> "awaiting"
+
+            is FundingState.Awaiting -> when (funding.presentation) {
+                FundingPresentation.OpenWallet -> "open"
+                FundingPresentation.InWallet -> "inWallet"
+                FundingPresentation.Shown -> "shown"
+            }
+
             is FundingState.Received -> "received"
+
             FundingState.Failed -> "failed"
         },
         invoice = (funding as? FundingState.Awaiting)?.invoice,

@@ -12,7 +12,8 @@ internal interface PocketWallet {
 
     suspend fun pay(quote: PocketQuote): PocketPayOutcome
 
-    suspend fun createInvoice(amountSats: Long, description: String): String
+    /** A Lightning invoice paying into this wallet; `null` lets the payer choose the amount. */
+    suspend fun createInvoice(amountSats: Long?, description: String): String
 
     suspend fun disconnect()
 }
@@ -25,7 +26,7 @@ internal sealed interface PocketEvent {
     /** Balance or payment state may have changed. */
     data object Changed : PocketEvent
 
-    data class Received(val invoice: String) : PocketEvent
+    data class Received(val invoice: String, val amountSats: Long) : PocketEvent
 }
 
 /** What paying from the pocket needs, so payment features stay independent of its lifecycle. */

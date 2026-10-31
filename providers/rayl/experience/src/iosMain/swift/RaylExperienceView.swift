@@ -129,9 +129,20 @@ private struct RaylWalletSettingsActions: View {
         if let snapshot = model.snapshot {
             VStack(alignment: .leading, spacing: 12) {
                 if snapshot.pocketFailed {
-                    Button { model.controller.retryPocket() } label: { spendingPower(snapshot) }
+                    Button { model.controller.retryPocket() } label: { balance(snapshot) }
                 } else {
-                    NavigationLink { RaylAddFundsView(model: model) } label: { spendingPower(snapshot) }
+                    Button { model.controller.addFunds() } label: { balance(snapshot) }
+                        .disabled(snapshot.fundingStage == "creating")
+                        .accessibilityIdentifier("rayl_balance")
+                        .alert(
+                            snapshot.invoiceFailed,
+                            isPresented: Binding(
+                                get: { model.snapshot?.fundingStage == "failed" },
+                                set: { if !$0 { model.controller.resetFunding() } }
+                            )
+                        ) {
+                            Button(snapshot.doneTitle) { model.controller.resetFunding() }
+                        }
                 }
                 Divider()
                 NavigationLink {
@@ -154,6 +165,19 @@ private struct RaylWalletSettingsActions: View {
                     .disabled(snapshot.isSubmitting)
                 }
             }
+            .onChange(of: snapshot.fundingStage, initial: true) { _, stage in
+                if stage == "open", let invoice = model.snapshot?.invoice {
+                    openInWallet(invoice)
+                }
+            }
+            .sheet(
+                isPresented: Binding(
+                    get: { ["shown", "received"].contains(model.snapshot?.fundingStage ?? "") },
+                    set: { if !$0 { model.controller.resetFunding() } }
+                )
+            ) {
+                RaylFundingSheet(model: model)
+            }
             .alert(snapshot.eraseTitle, isPresented: $confirmsErase) {
                 Button(snapshot.cancelTitle, role: .cancel) {}
                 Button(snapshot.eraseConfirmTitle, role: .destructive) {
@@ -167,12 +191,38 @@ private struct RaylWalletSettingsActions: View {
         }
     }
 
-    private func spendingPower(_ snapshot: RaylNativeWalletSettingsSnapshot) -> some View {
+    private func balance(_ snapshot: RaylNativeWalletSettingsSnapshot) -> some View {
         HStack {
-            Label(snapshot.spendingPowerTitle, systemImage: "creditcard")
+            VStack(alignment: .leading, spacing: 4) {
+                Label(snapshot.balanceTitle, systemImage: "creditcard")
+                Text(snapshot.balance)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
-            Text(snapshot.balance)
-                .foregroundStyle(.secondary)
+            if snapshot.fundingStage == "creating" {
+                ProgressView()
+            } else if !snapshot.pocketFailed {
+                Text(snapshot.addFundsTitle)
+                    .foregroundStyle(.tint)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    /// Hands the amountless invoice to another wallet app, where the user chooses the amount.
+    /// Rayl handles `lightning:` links too; if iOS sends the link back, Rayl shows the invoice.
+    private func openInWallet(_ invoice: String) {
+        guard let url = URL(string: "lightning:\(invoice)") else {
+            model.controller.showInvoice()
+            return
+        }
+        UIApplication.shared.open(url) { opened in
+            if opened {
+                model.controller.openedInWallet()
+            } else {
+                model.controller.showInvoice()
+            }
         }
     }
 
@@ -227,10 +277,9 @@ private struct RaylUseAnotherWalletView: View {
     }
 }
 
-private struct RaylAddFundsView: View {
+/// The funding invoice when no other wallet app opened it, then the amount that arrived.
+private struct RaylFundingSheet: View {
     @ObservedObject var model: RaylWalletSettingsModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var amount = ""
 
     var body: some View {
         ScrollView {
@@ -241,62 +290,40 @@ private struct RaylAddFundsView: View {
                     .frame(maxWidth: .infinity)
             }
         }
-        .navigationTitle(model.snapshot?.addFundsTitle ?? "")
-        .navigationBarTitleDisplayMode(.inline)
-        .onDisappear { model.controller.resetFunding() }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
     }
 
     @ViewBuilder
     private func content(_ snapshot: RaylNativeWalletSettingsSnapshot) -> some View {
         VStack(spacing: 20) {
-            switch snapshot.fundingStage {
-            case "awaiting":
-                if let invoice = snapshot.invoice {
-                    Text(snapshot.addFundsBody)
-                        .multilineTextAlignment(.center)
-                    RaylQRCode(value: invoice.uppercased())
-                    Text(invoice)
-                        .font(.footnote.monospaced())
-                        .lineLimit(2)
-                        .truncationMode(.middle)
-                    Button(snapshot.copyInvoiceTitle) { UIPasteboard.general.string = invoice }
-                        .buttonStyle(.bordered)
-                    Text(snapshot.waitingForPayment)
-                        .foregroundStyle(.secondary)
-                }
-            case "received":
+            if snapshot.fundingStage == "received" {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(.tint)
                 Text(snapshot.fundsAdded)
                     .font(.title2.bold())
-                Button(snapshot.doneTitle) { dismiss() }
+                if let amount = snapshot.fundsAddedAmount {
+                    Text(amount)
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
+                Button(snapshot.doneTitle) { model.controller.resetFunding() }
                     .buttonStyle(.borderedProminent)
-            default:
-                TextField(snapshot.amountLabel, text: $amount)
-                    .keyboardType(.numberPad)
-                    .textFieldStyle(.roundedBorder)
-                    .onChange(of: amount) { _, value in
-                        let digits = String(value.filter(\.isNumber).prefix(9))
-                        if digits != value { amount = digits }
-                    }
-                if snapshot.fundingStage == "failed" {
-                    Text(snapshot.invoiceFailed)
-                        .foregroundStyle(.red)
-                }
-                Button {
-                    if let sats = Int64(amount), sats > 0 {
-                        model.controller.requestInvoice(amountSats: sats)
-                    }
-                } label: {
-                    if snapshot.fundingStage == "creating" {
-                        ProgressView()
-                    } else {
-                        Text(snapshot.createInvoiceTitle)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(snapshot.fundingStage == "creating" || (Int64(amount) ?? 0) <= 0)
+            } else if let invoice = snapshot.invoice {
+                Text(snapshot.addFundsTitle)
+                    .font(.title2.bold())
+                Text(snapshot.addFundsBody)
+                    .multilineTextAlignment(.center)
+                RaylQRCode(value: invoice.uppercased())
+                Text(invoice)
+                    .font(.footnote.monospaced())
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                Button(snapshot.copyInvoiceTitle) { UIPasteboard.general.string = invoice }
+                    .buttonStyle(.bordered)
+                Text(snapshot.waitingForPayment)
+                    .foregroundStyle(.secondary)
             }
         }
     }

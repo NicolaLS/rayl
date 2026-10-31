@@ -143,19 +143,10 @@ private fun RaylSettingsTab(runtime: RaylRuntime, otherWallets: List<RaylWalletO
             overviewBottomContent = {
                 RaylSettingsActions(
                     runtime = runtime,
-                    onAddFunds = { destination = RaylSettingsDestination.AddFunds },
                     onUseAnotherWallet = {
                         destination = RaylSettingsDestination.UseAnotherWallet
                     }
                 )
-            }
-        )
-
-        RaylSettingsDestination.AddFunds -> RaylAddFundsScreen(
-            funding = runtime.funding,
-            onBack = {
-                runtime.funding.reset()
-                destination = RaylSettingsDestination.Root
             }
         )
 
@@ -168,21 +159,19 @@ private fun RaylSettingsTab(runtime: RaylRuntime, otherWallets: List<RaylWalletO
 }
 
 @Composable
-private fun RaylSettingsActions(
-    runtime: RaylRuntime,
-    onAddFunds: () -> Unit,
-    onUseAnotherWallet: () -> Unit
-) {
+private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> Unit) {
     val balance by runtime.pocket.balanceSats.collectAsStateWithLifecycle()
     val status by runtime.pocket.status.collectAsStateWithLifecycle()
     val failed = status == PocketStatus.Failed
     val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
+    val funding by runtime.funding.state.collectAsStateWithLifecycle()
     val formatter = rememberAmountFormatter()
     var confirmsErase by rememberSaveable { mutableStateOf(false) }
+    RaylFundingEffects(runtime.funding)
 
     Column(verticalArrangement = Arrangement.spacedBy(AppSettingsRowDefaults.RowSpacing)) {
         AppSettingsRow(
-            title = stringResource(R.string.rayl_spending_power),
+            title = stringResource(R.string.rayl_balance),
             subtitle = if (failed) {
                 stringResource(R.string.rayl_balance_unavailable)
             } else {
@@ -190,19 +179,20 @@ private fun RaylSettingsActions(
                     ?: stringResource(R.string.rayl_balance_updating)
             },
             icon = Icons.Filled.AccountBalanceWallet,
-            onClick = if (failed) runtime::retryPocket else onAddFunds
+            testTag = "rayl_balance",
+            onClick = if (failed) runtime::retryPocket else runtime.funding::request
         ) {
-            Text(
-                text = stringResource(if (failed) R.string.rayl_retry else R.string.rayl_add_funds),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(AppSettingsRowDefaults.ChevronSize)
-            )
+            if (funding == FundingState.Creating) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                Text(
+                    text = stringResource(
+                        if (failed) R.string.rayl_retry else R.string.rayl_add_funds
+                    ),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
         AppSettingsRow(
             title = stringResource(R.string.rayl_use_another_wallet),
@@ -309,114 +299,7 @@ private fun RaylUseAnotherWalletScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun RaylAddFundsScreen(funding: RaylFunding, onBack: () -> Unit) {
-    val state by funding.state.collectAsStateWithLifecycle()
-    var amount by rememberSaveable { mutableStateOf("") }
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.rayl_add_funds)) },
-                navigationIcon = { BackIconButton(onClick = onBack) }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .consumeWindowInsets(padding)
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            when (val current = state) {
-                FundingState.Idle, FundingState.Creating, FundingState.Failed -> {
-                    OutlinedTextField(
-                        value = amount,
-                        onValueChange = { value -> amount = value.filter(Char::isDigit).take(9) },
-                        label = { Text(stringResource(R.string.rayl_amount_sats)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (current == FundingState.Failed) {
-                        Text(
-                            text = stringResource(R.string.rayl_invoice_failed),
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    Button(
-                        enabled = current != FundingState.Creating &&
-                            (amount.toLongOrNull() ?: 0) > 0,
-                        onClick = { amount.toLongOrNull()?.let(funding::request) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (current == FundingState.Creating) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                        } else {
-                            Text(stringResource(R.string.rayl_create_invoice))
-                        }
-                    }
-                }
-
-                is FundingState.Awaiting -> {
-                    val context = LocalContext.current
-                    Text(
-                        text = stringResource(R.string.rayl_add_funds_body),
-                        textAlign = TextAlign.Center
-                    )
-                    Image(
-                        painter = rememberQrCodePainter(current.invoice.uppercase()),
-                        contentDescription = null,
-                        modifier = Modifier.size(260.dp)
-                    )
-                    Text(
-                        text = current.invoice,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.MiddleEllipsis
-                    )
-                    OutlinedButton(
-                        onClick = {
-                            context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(
-                                ClipData.newPlainText("Lightning invoice", current.invoice)
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.rayl_copy_invoice))
-                    }
-                    Text(
-                        text = stringResource(R.string.rayl_waiting_for_payment),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                is FundingState.Received -> {
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(72.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.rayl_funds_added),
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.rayl_done))
-                    }
-                }
-            }
-        }
-    }
-}
-
-private enum class RaylSettingsDestination { Root, AddFunds, UseAnotherWallet }
+private enum class RaylSettingsDestination { Root, UseAnotherWallet }
 
 private data class RaylSettingsNavigationInfo(val destination: RaylSettingsDestination) :
     NavigationEventInfo()

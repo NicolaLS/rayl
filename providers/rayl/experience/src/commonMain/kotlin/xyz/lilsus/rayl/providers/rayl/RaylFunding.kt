@@ -2,27 +2,44 @@ package xyz.lilsus.rayl.providers.rayl
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPocket
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketReceipt
+
+/** How an unpaid funding invoice is presented. */
+internal enum class FundingPresentation {
+    /** The platform should open it as a `lightning:` link in another wallet app. */
+    OpenWallet,
+
+    /** It was handed to another wallet app. */
+    InWallet,
+
+    /** No other wallet app could open it, so Rayl shows it to be scanned or copied. */
+    Shown
+}
 
 internal sealed interface FundingState {
     data object Idle : FundingState
 
     data object Creating : FundingState
 
-    data class Awaiting(val invoice: String, val amountSats: Long) : FundingState
+    data class Awaiting(val invoice: String, val presentation: FundingPresentation) : FundingState
 
     data class Received(val amountSats: Long) : FundingState
 
     data object Failed : FundingState
 }
 
-/** Pre-loading spending power: an invoice for an amount, paid from any external wallet. */
+/**
+ * Adding funds to Rayl's wallet: an amountless invoice that the user's other wallet opens, so the
+ * amount is chosen there. Rayl only shows the invoice when no other wallet app can take it.
+ */
 internal class RaylFunding(
-    private val pocket: RaylPocket,
+    private val createInvoice: suspend (description: String) -> String,
+    receipts: Flow<PocketReceipt>,
     private val description: String,
     private val scope: CoroutineScope,
     private val onInvoice: (String) -> Unit = {}
@@ -32,23 +49,24 @@ internal class RaylFunding(
 
     init {
         scope.launch {
-            pocket.receivedInvoices.collect { invoice ->
+            receipts.collect { receipt ->
                 val awaiting = mutableState.value as? FundingState.Awaiting
-                if (awaiting?.invoice == invoice) {
-                    mutableState.value = FundingState.Received(awaiting.amountSats)
+                if (awaiting?.invoice == receipt.invoice) {
+                    mutableState.value = FundingState.Received(receipt.amountSats)
                 }
             }
         }
     }
 
-    fun request(amountSats: Long) {
-        if (amountSats <= 0 || mutableState.value == FundingState.Creating) return
+    /** Creates a new invoice, also when an earlier one is still unpaid in another wallet. */
+    fun request() {
+        if (mutableState.value == FundingState.Creating) return
         mutableState.value = FundingState.Creating
         scope.launch {
             mutableState.value = try {
-                val invoice = pocket.createInvoice(amountSats, description)
+                val invoice = createInvoice(description)
                 onInvoice(invoice)
-                FundingState.Awaiting(invoice, amountSats)
+                FundingState.Awaiting(invoice, FundingPresentation.OpenWallet)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -57,7 +75,27 @@ internal class RaylFunding(
         }
     }
 
+    fun openedInWallet() = present(FundingPresentation.InWallet)
+
+    fun showInvoice() = present(FundingPresentation.Shown)
+
+    /**
+     * True for a payment link carrying the unpaid funding invoice. Where Rayl cannot exclude
+     * itself from the apps that open `lightning:` links (iOS), the invoice can come back to Rayl;
+     * it is then shown rather than paid from the wallet it would fund.
+     */
+    fun isOwnInvoice(uri: String): Boolean {
+        val awaiting = mutableState.value as? FundingState.Awaiting ?: return false
+        val invoice = uri.trim().removePrefix("lightning:").removePrefix("LIGHTNING:")
+        return invoice.equals(awaiting.invoice, ignoreCase = true)
+    }
+
     fun reset() {
         mutableState.value = FundingState.Idle
+    }
+
+    private fun present(presentation: FundingPresentation) {
+        val awaiting = mutableState.value as? FundingState.Awaiting ?: return
+        mutableState.value = awaiting.copy(presentation = presentation)
     }
 }

@@ -24,6 +24,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 enum class PocketStatus { Starting, Ready, Failed, Closed }
 
+/** A payment of [amountSats] to the pocket [invoice]. */
+data class PocketReceipt(val invoice: String, val amountSats: Long)
+
 /**
  * The Rayl pocket: an app-owned Spark wallet whose key is generated on first use and kept on this
  * device. Closing it only ends the session; the key and funds survive until [erase].
@@ -49,10 +52,10 @@ class RaylPocket internal constructor(
     private val mutableBalance = MutableStateFlow<Long?>(null)
     val balanceSats: StateFlow<Long?> = mutableBalance.asStateFlow()
 
-    private val mutableReceived = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    private val mutableReceived = MutableSharedFlow<PocketReceipt>(extraBufferCapacity = 16)
 
-    /** Invoices created by [createInvoice] that have been paid to the pocket. */
-    val receivedInvoices: SharedFlow<String> = mutableReceived.asSharedFlow()
+    /** Payments to invoices created by [createInvoice]. */
+    val receivedPayments: SharedFlow<PocketReceipt> = mutableReceived.asSharedFlow()
 
     /**
      * Loads the pocket key, creating one only when none was ever stored, and connects in the
@@ -76,9 +79,12 @@ class RaylPocket internal constructor(
         return current.pay(quote).also { refreshBalance(current) }
     }
 
-    /** Returns a Lightning invoice that adds [amountSats] to the pocket. */
-    suspend fun createInvoice(amountSats: Long, description: String): String {
-        require(amountSats > 0) { "Amount must be positive" }
+    /**
+     * Returns a Lightning invoice that adds [amountSats] to the pocket, or any amount the payer
+     * chooses when it is `null`.
+     */
+    suspend fun createInvoice(amountSats: Long?, description: String): String {
+        require(amountSats == null || amountSats > 0) { "Amount must be positive" }
         val current = checkNotNull(connectedWallet()) { "Pocket is not connected" }
         return current.createInvoice(amountSats, description)
     }
@@ -135,7 +141,9 @@ class RaylPocket internal constructor(
             if (closed) return
             eventsJob = scope.launch {
                 connected.events.collect { event ->
-                    if (event is PocketEvent.Received) mutableReceived.emit(event.invoice)
+                    if (event is PocketEvent.Received) {
+                        mutableReceived.emit(PocketReceipt(event.invoice, event.amountSats))
+                    }
                     refreshBalance(connected)
                 }
             }

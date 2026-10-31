@@ -30,42 +30,65 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bezahle diese Lightning-Rechnung mit einer beliebigen Wallet, um Guthaben aufzuladen."
+            "value" : "Bezahle diese Rechnung mit einer beliebigen Lightning-Wallet. Den Betrag wählst du dort."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pay this Lightning invoice from any wallet to add spending power."
+            "value" : "Pay this invoice from any Lightning wallet. You choose the amount there."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paga esta factura Lightning desde cualquier billetera para añadir saldo."
+            "value" : "Paga esta factura desde cualquier billetera Lightning. Allí eliges el importe."
           }
         }
       }
     },
-    "rayl_amount_sats" : {
-      "extractionState" : "stale",
+    "rayl_add_funds_with" : {
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Betrag (Sats)"
+            "value" : "Aufladen mit"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Amount (sats)"
+            "value" : "Add funds with"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Importe (sats)"
+            "value" : "Añadir fondos con"
+          }
+        }
+      }
+    },
+    "rayl_balance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guthaben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saldo"
           }
         }
       }
@@ -158,29 +181,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copiar factura"
-          }
-        }
-      }
-    },
-    "rayl_create_invoice" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rechnung erstellen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create invoice"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crear factura"
           }
         }
       }
@@ -365,29 +365,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reintentar"
-          }
-        }
-      }
-    },
-    "rayl_spending_power" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Guthaben"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spending power"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saldo disponible"
           }
         }
       }

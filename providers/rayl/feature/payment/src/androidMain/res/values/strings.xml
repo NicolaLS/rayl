@@ -1,5 +1,5 @@
 <resources>
-    <string name="error_insufficient_funds">Not enough spending power. Add funds in Settings.</string>
+    <string name="error_insufficient_funds">Not enough balance. Add funds in Settings.</string>
     <string name="error_pocket_not_ready">Couldn\'t reach Rayl, so nothing was paid. Check your connection and try again.</string>
     <string name="error_sub_satoshi_amount">Rayl can only pay whole satoshi amounts.</string>
     <string name="error_payment_rejected_generic">Payment failed.</string>

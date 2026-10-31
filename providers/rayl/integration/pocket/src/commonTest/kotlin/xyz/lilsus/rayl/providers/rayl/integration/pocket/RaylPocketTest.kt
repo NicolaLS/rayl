@@ -128,9 +128,9 @@ class RaylPocketTest {
     fun reportsBalanceAndPaidInvoices() = runTest {
         val connector = FakeConnector()
         val pocket = pocket(FakeKeyStore(), connector)
-        val received = mutableListOf<String>()
+        val received = mutableListOf<PocketReceipt>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            pocket.receivedInvoices.collect { received += it }
+            pocket.receivedPayments.collect { received += it }
         }
         assertNull(pocket.balanceSats.value)
 
@@ -139,11 +139,11 @@ class RaylPocketTest {
         assertEquals(0L, pocket.balanceSats.value)
 
         connector.wallet.balance = 2_100
-        connector.wallet.events.emit(PocketEvent.Received("lnbcrt1invoice"))
+        connector.wallet.events.emit(PocketEvent.Received("lnbcrt1invoice", 2_100))
         advanceUntilIdle()
 
         assertEquals(2_100L, pocket.balanceSats.value)
-        assertEquals(listOf("lnbcrt1invoice"), received)
+        assertEquals(listOf(PocketReceipt("lnbcrt1invoice", 2_100)), received)
     }
 
     private fun TestScope.pocket(keys: FakeKeyStore, connector: FakeConnector, eraseData: suspend () -> Boolean = { true }) =
@@ -197,7 +197,7 @@ private class FakeWallet : PocketWallet {
 
     override suspend fun pay(quote: PocketQuote): PocketPayOutcome = PocketPayOutcome.Failed(null)
 
-    override suspend fun createInvoice(amountSats: Long, description: String): String = "lnbcrt1"
+    override suspend fun createInvoice(amountSats: Long?, description: String): String = "lnbcrt1"
 
     override suspend fun disconnect() {
         disconnected = true
