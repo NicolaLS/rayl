@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.camera.camera2.Camera2Config
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.CameraXConfig
+import xyz.lilsus.rayl.providers.rayl.RaylPasskeys
 import xyz.lilsus.rayl.providers.rayl.enableRaylTimings
 import xyz.lilsus.rayl.providers.spark.SparkEnvironment
 import xyz.lilsus.raylsuite.core.network.initializeNetworkConnectivity
@@ -28,5 +29,14 @@ class RaylApplication :
 
 internal data class AndroidRaylConfiguration(
     val environment: SparkEnvironment,
+    val passkeys: RaylPasskeys,
     val breezApiKey: String? = null
 )
+
+/**
+ * Rayl's own relying party for passkeys while it is not registered with Breez. Its
+ * `/.well-known/assetlinks.json` lists the development packages and their signing certificates;
+ * the site lives in the nicolasusca.com repository. The apex domain redirects to `www`, and
+ * association files must not redirect.
+ */
+internal val DEVELOPMENT_PASSKEYS = RaylPasskeys.Platform(rpId = "www.nicolasusca.com")

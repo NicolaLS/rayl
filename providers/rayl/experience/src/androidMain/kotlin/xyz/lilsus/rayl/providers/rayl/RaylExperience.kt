@@ -1,7 +1,9 @@
 package xyz.lilsus.rayl.providers.rayl
 
+import android.app.Activity
 import android.content.Context
 import android.util.Log
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -24,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.lang.ref.WeakReference
 import kotlin.random.Random
 import xyz.lilsus.rayl.providers.rayl.experience.R
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketStatus
@@ -46,6 +50,7 @@ fun RaylExperience(
     configuration: RaylExperienceConfiguration,
     environment: RaylEnvironment,
     breezApiKey: String?,
+    passkeys: RaylPasskeys,
     otherWallets: List<RaylWalletOption>,
     onUseWallet: (String) -> Unit,
     onErased: () -> Unit,
@@ -54,6 +59,8 @@ fun RaylExperience(
     val appSettings = rememberAppSettings(configuration.preferencesName)
     val haptics = rememberHapticFeedbackManager()
     val context = LocalContext.current.applicationContext
+    // Before the runtime: its onboarding checks passkey support with this activity right away.
+    RaylPasskeyActivity.Track()
     val runtimeKey = rememberSaveable { "rayl-" + Random.nextLong() }
     val runtime = rememberRetainedInstance(
         key = runtimeKey,
@@ -66,7 +73,13 @@ fun RaylExperience(
                     createAndroidRaylPocket(context, environment.pocketConfig(breezApiKey))
                 },
                 createSetup = { pocket ->
-                    createAndroidPocketSetup(context, environment.pocketConfig(breezApiKey), pocket)
+                    createAndroidPocketSetup(
+                        context = context,
+                        config = environment.pocketConfig(breezApiKey),
+                        pocket = pocket,
+                        rpId = (passkeys as? RaylPasskeys.Platform)?.rpId,
+                        activity = RaylPasskeyActivity::get
+                    )
                 },
                 haptics = haptics,
                 onFundingInvoice = { invoice ->
@@ -145,5 +158,24 @@ private const val REGTEST_LOG_TAG = "RaylRegtest"
 fun startRaylPocketEarly(context: Context, environment: RaylEnvironment, breezApiKey: String?) {
     RaylEarlyStart.start {
         createAndroidRaylPocket(context.applicationContext, environment.pocketConfig(breezApiKey))
+    }
+}
+
+/**
+ * The activity passkey prompts appear over. Credential Manager needs the resumed one, and the
+ * runtime outlives activities across configuration changes.
+ */
+private object RaylPasskeyActivity {
+    private var current: WeakReference<Activity>? = null
+
+    fun get(): Activity = checkNotNull(current?.get()) { "No activity for the passkey prompt" }
+
+    @Composable
+    fun Track() {
+        val activity = LocalActivity.current
+        if (activity != null && current?.get() !== activity) current = WeakReference(activity)
+        DisposableEffect(activity) {
+            onDispose { if (current?.get() === activity) current = null }
+        }
     }
 }

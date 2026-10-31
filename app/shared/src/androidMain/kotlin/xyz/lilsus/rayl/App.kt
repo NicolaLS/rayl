@@ -33,6 +33,7 @@ import xyz.lilsus.rayl.providers.blink.BlinkExperience
 import xyz.lilsus.rayl.providers.nwc.NwcDeepLinks
 import xyz.lilsus.rayl.providers.nwc.NwcExperience
 import xyz.lilsus.rayl.providers.rayl.RaylExperience
+import xyz.lilsus.rayl.providers.rayl.RaylPasskeys
 import xyz.lilsus.rayl.providers.rayl.RaylPaymentLinks
 import xyz.lilsus.rayl.providers.rayl.RaylWalletOption
 import xyz.lilsus.rayl.providers.rayl.RaylWalletRequests
@@ -49,7 +50,11 @@ import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
 
 @Composable
-fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
+fun App(
+    sparkEnvironment: SparkEnvironment,
+    raylPasskeys: RaylPasskeys,
+    breezApiKey: String? = null
+) {
     val settings = rememberAppSettings(RAYL_PREFERENCES)
     val selection = rememberRetainedInstance(
         key = "rayl-selection",
@@ -167,6 +172,7 @@ fun App(sparkEnvironment: SparkEnvironment, breezApiKey: String? = null) {
                         configuration = RAYL_POCKET,
                         environment = sparkEnvironment.toRaylEnvironment(),
                         breezApiKey = breezApiKey,
+                        passkeys = raylPasskeys,
                         otherWallets = externalWalletOptions(),
                         onUseWallet = useWallet,
                         onErased = selection::restartRaylWallet,

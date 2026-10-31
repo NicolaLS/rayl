@@ -20,6 +20,7 @@ open class MainActivity : AppCompatActivity() {
         setContent {
             App(
                 sparkEnvironment = configuration.environment,
+                raylPasskeys = configuration.passkeys,
                 breezApiKey = configuration.breezApiKey
             )
         }

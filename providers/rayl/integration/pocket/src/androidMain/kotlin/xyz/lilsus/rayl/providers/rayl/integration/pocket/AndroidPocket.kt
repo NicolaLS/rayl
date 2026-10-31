@@ -1,8 +1,10 @@
 package xyz.lilsus.rayl.providers.rayl.integration.pocket
 
+import android.app.Activity
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import breez_sdk_spark.PasskeyProviderOptions
 import java.io.File
 import java.io.FileOutputStream
 import java.security.KeyStore
@@ -13,6 +15,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import technology.breez.spark.passkey.PasskeyProvider
 
 fun createAndroidRaylPocket(context: Context, config: PocketConfig): RaylPocket {
     val appContext = context.applicationContext
@@ -33,14 +36,37 @@ fun createAndroidRaylPocket(context: Context, config: PocketConfig): RaylPocket 
 }
 
 /**
- * The setup of the pocket [pocket]: derives its key from a passkey. Uses a stand-in file-backed
- * passkey for now; see [FilePrfProvider].
+ * The setup of the pocket [pocket]: derives its key from a passkey for the relying party [rpId],
+ * prompting over [activity], which must be the resumed one. Without [rpId] it uses the stand-in
+ * [FilePrfProvider], which works on emulators and needs no relying party.
  */
 fun createAndroidPocketSetup(
     context: Context,
     config: PocketConfig,
-    pocket: RaylPocket
+    pocket: RaylPocket,
+    rpId: String?,
+    activity: () -> Activity
 ): PocketSetup {
+    val provider = if (rpId != null) {
+        PasskeyProvider(
+            activityProvider = activity,
+            options = PasskeyProviderOptions(
+                rpId = rpId,
+                rpName = PASSKEY_NAME,
+                userName = PASSKEY_NAME,
+                userDisplayName = PASSKEY_NAME
+            )
+        )
+    } else {
+        filePrfProvider(context)
+    }
+    return PasskeyPocketSetup(pocket, BreezPasskeyAccounts(provider, config.apiKey))
+}
+
+/** How the passkey is named in the system's passkey manager. */
+private const val PASSKEY_NAME = "Rayl"
+
+private fun filePrfProvider(context: Context): FilePrfProvider {
     // Kept apart from the pocket so erasing the pocket in a debug build keeps the "passkey".
     val secretFile =
         File(context.applicationContext.noBackupFilesDir, "rayl-passkey/file-prf-secret")
@@ -63,7 +89,7 @@ fun createAndroidPocketSetup(
             check(temporary.renameTo(secretFile))
         }
     )
-    return PasskeyPocketSetup(pocket, BreezPasskeyAccounts(FilePrfProvider(secret), config.apiKey))
+    return FilePrfProvider(secret)
 }
 
 internal actual fun secureRandomBytes(size: Int): ByteArray =

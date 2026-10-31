@@ -90,12 +90,13 @@ internal class BreezPasskeyAccounts(prfProvider: PrfProvider, breezApiKey: Strin
 }
 
 /**
- * TODO(passkey): Replace with Breez's platform `PasskeyProvider` once Rayl has a relying party:
- * Breez's shared `keys.breez.technology` for production, its own domain for development builds.
+ * A stand-in passkey for emulators and automated builds, which cannot complete passkey ceremonies:
+ * HMAC-SHA256 with a random secret stored on this device, like the Breez CLI's file-backed
+ * provider. It never prompts and is never missing, so it always "signs in". Unlike a real passkey
+ * it is not synced: uninstalling loses it.
  *
- * A stand-in passkey: HMAC-SHA256 with a random secret stored on this device, like the Breez CLI's
- * file-backed provider. It never prompts and is never missing, so it always "signs in". Unlike a
- * real passkey it is not synced: uninstalling loses it.
+ * TODO(passkey-ios): iOS still uses it in every build. Bridge Breez's Swift `PasskeyProvider` into
+ * this Kotlin SDK's `PasskeyClient` and add the `webcredentials` associated domain.
  */
 internal class FilePrfProvider(private val secret: ByteArray) : PrfProvider {
     init {
