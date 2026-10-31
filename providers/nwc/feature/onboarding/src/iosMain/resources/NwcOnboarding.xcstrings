@@ -1,374 +1,144 @@
 {
-  "sourceLanguage": "en",
-  "strings": {
-    "onboarding_add_wallet_intro": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Du erstellst eine Verbindung in deiner Wallet und bringst den Verbindungs-String zurück zu %1$@."
+  "sourceLanguage" : "en",
+  "strings" : {
+    "onboarding_add_wallet_intro" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du erstellst eine Verbindung in deiner Wallet und bringst den Verbindungs-String zurück zu %1$@."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You'll create a connection in your wallet and bring the connection string back to %1$@."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You'll create a connection in your wallet and bring the connection string back to %1$@."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Crearás una conexión en tu billetera y traerás la cadena de conexión a %1$@."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crearás una conexión en tu billetera y traerás la cadena de conexión a %1$@."
           }
         }
       }
     },
-    "onboarding_add_wallet_step1": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Erstelle in deiner Wallet eine neue NWC-Verbindung für %1$@."
+    "onboarding_add_wallet_step1" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erstelle in deiner Wallet eine neue NWC-Verbindung für %1$@."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In your wallet, create a new NWC connection for %1$@."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In your wallet, create a new NWC connection for %1$@."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En tu billetera, crea una nueva conexión NWC para %1$@."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En tu billetera, crea una nueva conexión NWC para %1$@."
           }
         }
       }
     },
-    "onboarding_add_wallet_step2": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Setze ein vernünftiges Budget und aktiviere Zahlungsberechtigungen."
+    "onboarding_add_wallet_step2" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setze ein vernünftiges Budget und aktiviere Zahlungsberechtigungen."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Set a reasonable budget and enable payment permissions."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set a reasonable budget and enable payment permissions."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Establece un presupuesto razonable y habilita los permisos de pago."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Establece un presupuesto razonable y habilita los permisos de pago."
           }
         }
       }
     },
-    "onboarding_add_wallet_step3": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scanne den QR-Code oder füge den Verbindungs-String auf dem nächsten Bildschirm ein."
+    "onboarding_add_wallet_step3" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scanne den QR-Code oder füge den Verbindungs-String auf dem nächsten Bildschirm ein."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scan the QR code or paste the connection string on the next screen."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan the QR code or paste the connection string on the next screen."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Escanea el código QR o pega la cadena de conexión en la siguiente pantalla."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escanea el código QR o pega la cadena de conexión en la siguiente pantalla."
           }
         }
       }
     },
-    "onboarding_add_wallet_title": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Per NWC verbinden"
+    "onboarding_add_wallet_title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per NWC verbinden"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connect via NWC"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect via NWC"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Conectar vía NWC"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar vía NWC"
           }
         }
       }
     },
-    "onboarding_agreement_body": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Nutzung von %1$@ erfolgt auf eigenes Risiko. Diese App verbindet sich mit deiner eigenen Lightning-Wallet – du bist vollständig verantwortlich für die Gelder in deiner Wallet und alle getätigten Zahlungen.\n\nWir empfehlen dringend, Wallets mit kleinem Guthaben zu verbinden oder NWC-Verbindungen mit begrenztem Budget zu nutzen."
+    "onboarding_agreement_body" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Nutzung von %1$@ erfolgt auf eigenes Risiko. Diese App verbindet sich mit deiner eigenen Lightning-Wallet – du bist vollständig verantwortlich für die Gelder in deiner Wallet und alle getätigten Zahlungen.\n\nWir empfehlen dringend, Wallets mit kleinem Guthaben zu verbinden oder NWC-Verbindungen mit begrenztem Budget zu nutzen."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Using %1$@ is at your own risk. This app connects to your own Lightning wallet - you are fully responsible for the funds in your wallet and any payments made.\n\nWe strongly recommend connecting wallets with small spending balances or using NWC connections with limited budgets."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Using %1$@ is at your own risk. This app connects to your own Lightning wallet - you are fully responsible for the funds in your wallet and any payments made.\n\nWe strongly recommend connecting wallets with small spending balances or using NWC connections with limited budgets."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Usar %1$@ es bajo tu propio riesgo. Esta app se conecta a tu propia billetera Lightning – eres totalmente responsable de los fondos en tu billetera y de cualquier pago realizado.\n\nRecomendamos encarecidamente conectar billeteras con saldos pequeños o usar conexiones NWC con presupuestos limitados."
-          }
-        }
-      }
-    },
-    "onboarding_autopay_body": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wähle aus, wann %1$@ vor einer Zahlung um Bestätigung bitten soll."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose when %1$@ should ask for confirmation before paying."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Elige cuándo %1$@ debe pedir confirmación antes de pagar."
-          }
-        }
-      }
-    },
-    "onboarding_features_page1_body": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ scannt im Hintergrund für einen reibungslosen Checkout. Richte auf den Code, warte kurz, fertig."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ scans in the background so checkout stays smooth. Aim at the code, wait a beat, and you're good."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ escanea en segundo plano para un pago fluido. Apunta al código, espera un momento y listo."
-          }
-        }
-      }
-    },
-    "onboarding_features_page1_subtitle": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Es funktioniert – auch wenn du die Kamera nicht siehst."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "It's working - even if you can't see the camera."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Está funcionando – aunque no veas la cámara."
-          }
-        }
-      }
-    },
-    "onboarding_features_page1_title": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leiser Scanner, schnelle Ergebnisse"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quiet scanner, quick results"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Escáner silencioso, resultados rápidos"
-          }
-        }
-      }
-    },
-    "onboarding_features_page2_body": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lege ein Limit fest, mit dem du dich wohl fühlst. Für alles darüber fragt %1$@ vor der Zahlung nach."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Set a limit you're comfortable with. For anything above it, %1$@ will ask before paying."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Establece un límite con el que te sientas cómodo. Para cualquier monto superior, %1$@ preguntará antes de pagar."
-          }
-        }
-      }
-    },
-    "onboarding_features_page2_subtitle": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kleine Beträge sofort bezahlen – ohne zusätzliche Taps."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pay small amounts instantly - no extra taps."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paga montos pequeños al instante – sin toques adicionales."
-          }
-        }
-      }
-    },
-    "onboarding_features_page2_title": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auto Pay, deine Regeln"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auto Pay, your rules"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auto Pay, tus reglas"
-          }
-        }
-      }
-    },
-    "onboarding_features_page3_body": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verbinde die Wallet, die du bereits nutzt. %1$@ konzentriert sich auf schnelle Zahlungen vor Ort – alles andere bleibt in deiner Wallet."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connect the wallet you already use. %1$@ focuses on fast in-person payments - everything else stays in your wallet."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Conecta la billetera que ya usas. %1$@ se enfoca en pagos rápidos en persona – todo lo demás permanece en tu billetera."
-          }
-        }
-      }
-    },
-    "onboarding_features_page3_subtitle": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ ist nur die Checkout-Abkürzung."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ is the checkout shortcut."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ es solo el atajo para pagar."
-          }
-        }
-      }
-    },
-    "onboarding_features_page3_title": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deine Wallet bleibt deine Wallet"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your wallet stays your wallet"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tu billetera sigue siendo tu billetera"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar %1$@ es bajo tu propio riesgo. Esta app se conecta a tu propia billetera Lightning – eres totalmente responsable de los fondos en tu billetera y de cualquier pago realizado.\n\nRecomendamos encarecidamente conectar billeteras con saldos pequeños o usar conexiones NWC con presupuestos limitados."
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }

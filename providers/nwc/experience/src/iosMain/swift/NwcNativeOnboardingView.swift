@@ -35,7 +35,7 @@ struct NwcNativeOnboardingView: View {
                 if let snapshot = model.snapshot {
                     screen(snapshot)
                         .toolbar {
-                            if snapshot.settingsFlow || ["autoPay", "agreement", "instructions"].contains(snapshot.step) {
+                            if snapshot.settingsFlow || snapshot.step == "instructions" {
                                 ToolbarItem(placement: .topBarLeading) {
                                     Button(
                                         action: snapshot.settingsFlow
@@ -68,34 +68,6 @@ struct NwcNativeOnboardingView: View {
     @ViewBuilder
     private func screen(_ snapshot: NwcNativeOnboardingSnapshot) -> some View {
         switch snapshot.step {
-        case "features":
-            NativeOnboardingFeaturesView(
-                pages: featurePages(snapshot),
-                currentPage: snapshot.featurePage,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
-                actionTitle: snapshot.featuresNextTitle,
-                onPageChanged: model.controller.setFeaturePage,
-                action: model.controller.continueFeatures
-            )
-        case "autoPay":
-            NativeOnboardingAutoPayView(
-                title: snapshot.autoPayTitle,
-                body: snapshot.autoPayBody,
-                alwaysTitle: snapshot.autoPayAlwaysTitle,
-                thresholdTitle: snapshot.autoPayThresholdTitle,
-                thresholdLabel: snapshot.autoPayThresholdLabel,
-                hint: snapshot.autoPayHint,
-                actionTitle: snapshot.autoPayNextTitle,
-                confirmationMode: snapshot.confirmationMode,
-                thresholdIndex: snapshot.thresholdIndex,
-                thresholdStepCount: snapshot.thresholdStepCount,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
-                onConfirmationModeChanged: model.controller.setConfirmationMode,
-                onThresholdIndexChanged: model.controller.setThresholdIndex,
-                action: model.controller.continueAutoPay
-            )
         case "agreement":
             NativeOnboardingAgreementView(
                 title: snapshot.agreementTitle,
@@ -333,19 +305,6 @@ struct NwcNativeOnboardingView: View {
                     .font(.body)
                     .textSelection(.enabled)
             }
-        }
-    }
-
-    private func featurePages(
-        _ snapshot: NwcNativeOnboardingSnapshot
-    ) -> [NativeOnboardingPageValue] {
-        snapshot.featurePages.enumerated().map { index, page in
-            NativeOnboardingPageValue(
-                id: index,
-                title: page.title,
-                subtitle: page.subtitle,
-                body: page.body
-            )
         }
     }
 

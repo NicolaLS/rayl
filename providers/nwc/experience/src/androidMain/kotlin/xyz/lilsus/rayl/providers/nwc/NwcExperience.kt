@@ -21,7 +21,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import kotlin.random.Random
 import xyz.lilsus.rayl.providers.nwc.feature.onboarding.NwcOnboardingDestination
-import xyz.lilsus.rayl.providers.nwc.feature.onboarding.nwcEducationDestination
 import xyz.lilsus.rayl.providers.nwc.feature.onboarding.nwcOnboarding
 import xyz.lilsus.raylsuite.core.model.ThemePreference
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
@@ -104,7 +103,7 @@ private fun NwcExperienceContent(runtime: NwcRuntime, onConnectionChanged: (Bool
             } else if (runtime.nwcWallet.connection.value == null) {
                 NwcOnboardingDestination.AddWallet
             } else {
-                nwcEducationDestination(runtime.onboardingState.educationStep.value)
+                NwcOnboardingDestination.Agreement
             }
         }
 
@@ -151,8 +150,6 @@ private fun NwcExperienceContent(runtime: NwcRuntime, onConnectionChanged: (Bool
                 connectionDraft = runtime.connectionDraft,
                 clipboard = clipboard,
                 connectionOnly = connectionOnly,
-                initialEducationStep = runtime.onboardingState.educationStep.value,
-                onEducationStepChanged = runtime.onboardingState::moveToEducationStep,
                 privacyPolicyUrl = runtime.configuration.legalLinks.privacyPolicyUrl,
                 termsUrl = runtime.configuration.legalLinks.termsUrl,
                 onWalletConnected = {

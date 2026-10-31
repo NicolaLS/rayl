@@ -8,17 +8,6 @@ import kotlin.test.assertTrue
 
 class NwcOnboardingStateTest {
     @Test
-    fun restartingDuringEducationRestoresTheCurrentStep() {
-        val settings = MapSettings()
-        val state = NwcOnboardingState(settings)
-        state.moveToEducationStep("autoPay")
-        assertEquals("autoPay", NwcOnboardingState(settings).educationStep.value)
-        state.moveToEducationStep("agreement")
-        assertEquals("agreement", NwcOnboardingState(settings).educationStep.value)
-        assertFalse(NwcOnboardingState(settings).completed.value)
-    }
-
-    @Test
     fun freshInstallStartsIncompleteAndRoutesDeepLinksThroughOnboarding() {
         val state = NwcOnboardingState(MapSettings())
 

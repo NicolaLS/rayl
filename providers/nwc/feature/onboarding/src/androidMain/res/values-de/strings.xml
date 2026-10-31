@@ -1,14 +1,4 @@
 <resources>
-    <string name="onboarding_features_page1_title">Leiser Scanner, schnelle Ergebnisse</string>
-    <string name="onboarding_features_page1_subtitle">Es funktioniert – auch wenn du die Kamera nicht siehst.</string>
-    <string name="onboarding_features_page1_body">%1$s scannt im Hintergrund für einen reibungslosen Checkout. Richte auf den Code, warte kurz, fertig.</string>
-    <string name="onboarding_features_page2_title">Auto Pay, deine Regeln</string>
-    <string name="onboarding_features_page2_subtitle">Kleine Beträge sofort bezahlen – ohne zusätzliche Taps.</string>
-    <string name="onboarding_features_page2_body">Lege ein Limit fest, mit dem du dich wohl fühlst. Für alles darüber fragt %1$s vor der Zahlung nach.</string>
-    <string name="onboarding_features_page3_title">Deine Wallet bleibt deine Wallet</string>
-    <string name="onboarding_features_page3_subtitle">%1$s ist nur die Checkout-Abkürzung.</string>
-    <string name="onboarding_features_page3_body">Verbinde die Wallet, die du bereits nutzt. %1$s konzentriert sich auf schnelle Zahlungen vor Ort – alles andere bleibt in deiner Wallet.</string>
-    <string name="onboarding_autopay_body">Wähle aus, wann %1$s vor einer Zahlung um Bestätigung bitten soll.</string>
     <string name="onboarding_agreement_body">Die Nutzung von %1$s erfolgt auf eigenes Risiko. Diese App verbindet sich mit deiner eigenen Lightning-Wallet – du bist vollständig verantwortlich für die Gelder in deiner Wallet und alle getätigten Zahlungen.\n\nWir empfehlen dringend, Wallets mit kleinem Guthaben zu verbinden oder NWC-Verbindungen mit begrenztem Budget zu nutzen.</string>
     <string name="onboarding_add_wallet_title">Per NWC verbinden</string>
     <string name="onboarding_add_wallet_intro">Du erstellst eine Verbindung in deiner Wallet und bringst den Verbindungs-String zurück zu %1$s.</string>

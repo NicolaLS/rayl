@@ -1,6 +1,5 @@
 package xyz.lilsus.rayl.providers.nwc.feature.onboarding
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -27,22 +26,12 @@ import xyz.lilsus.rayl.providers.nwc.feature.walletconnection.ConnectNwcWalletVi
 import xyz.lilsus.rayl.providers.nwc.integration.nwc.NwcWallet
 import xyz.lilsus.raylsuite.core.camera.CameraAuthorizationState
 import xyz.lilsus.raylsuite.core.camera.rememberCameraPermissionState
-import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.platform.CredentialClipboard
 import xyz.lilsus.raylsuite.feature.onboarding.AgreementScreen
-import xyz.lilsus.raylsuite.feature.onboarding.AutoPaySettingsScreen
-import xyz.lilsus.raylsuite.feature.onboarding.FeaturesScreen
-import xyz.lilsus.raylsuite.feature.onboarding.OnboardingFeaturePage
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
 
 @Serializable
 sealed interface NwcOnboardingDestination {
-    @Serializable
-    data object Features : NwcOnboardingDestination
-
-    @Serializable
-    data object AutoPay : NwcOnboardingDestination
-
     @Serializable
     data object Agreement : NwcOnboardingDestination
 
@@ -59,12 +48,6 @@ sealed interface NwcOnboardingDestination {
     data class ConfirmWallet(val fromSettings: Boolean) : NwcOnboardingDestination
 }
 
-fun nwcEducationDestination(step: String): NwcOnboardingDestination = when (step) {
-    "autoPay" -> NwcOnboardingDestination.AutoPay
-    "agreement" -> NwcOnboardingDestination.Agreement
-    else -> NwcOnboardingDestination.Features
-}
-
 fun NavGraphBuilder.nwcOnboarding(
     navController: NavController,
     nwcWallet: NwcWallet,
@@ -72,65 +55,11 @@ fun NavGraphBuilder.nwcOnboarding(
     connectionDraft: NwcConnectionDraft,
     clipboard: CredentialClipboard,
     connectionOnly: Boolean = false,
-    initialEducationStep: String = "features",
-    onEducationStepChanged: (String) -> Unit = {},
     privacyPolicyUrl: String? = null,
     termsUrl: String? = null,
     onWalletConnected: () -> Unit
 ) {
-    composable<NwcOnboardingDestination.Features> {
-        LaunchedEffect(Unit) { onEducationStepChanged("features") }
-        val state by onboardingViewModel.uiState.collectAsStateWithLifecycle()
-        FeaturesScreen(
-            pages = onboardingFeaturePages(),
-            currentPage = state.featuresPage,
-            stepIndex = OnboardingStep.Features.index,
-            totalSteps = ONBOARDING_STEP_COUNT,
-            onPageChanged = onboardingViewModel::setFeaturesPage,
-            onContinue = {
-                navController.navigate(NwcOnboardingDestination.AutoPay)
-            },
-            onBack = null
-        )
-    }
-    composable<NwcOnboardingDestination.AutoPay> {
-        LaunchedEffect(Unit) { onEducationStepChanged("autoPay") }
-        val onBack = {
-            navController.navigate(NwcOnboardingDestination.Features) {
-                popUpTo(navController.graph.id) { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-        BackHandler(onBack = onBack)
-        val state by onboardingViewModel.uiState.collectAsStateWithLifecycle()
-        val formatter = rememberAmountFormatter()
-        AutoPaySettingsScreen(
-            body = stringResource(
-                R.string.onboarding_autopay_body,
-                xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-            ),
-            confirmationMode = state.confirmationMode,
-            thresholdSats = state.thresholdSats,
-            currencyEquivalent = state.thresholdCurrencyEquivalent?.let(formatter::format),
-            stepIndex = OnboardingStep.AutoPay.index,
-            totalSteps = ONBOARDING_STEP_COUNT,
-            onConfirmationModeChanged = onboardingViewModel::setConfirmationMode,
-            onThresholdChanged = onboardingViewModel::setThreshold,
-            onContinue = {
-                navController.navigate(NwcOnboardingDestination.Agreement)
-            },
-            onBack = onBack
-        )
-    }
     composable<NwcOnboardingDestination.Agreement> {
-        LaunchedEffect(Unit) { onEducationStepChanged("agreement") }
-        val onBack = {
-            navController.navigate(NwcOnboardingDestination.AutoPay) {
-                popUpTo(navController.graph.id) { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-        BackHandler(onBack = onBack)
         val state by onboardingViewModel.uiState.collectAsStateWithLifecycle()
         AgreementScreen(
             body = stringResource(
@@ -138,8 +67,8 @@ fun NavGraphBuilder.nwcOnboarding(
                 xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
             ),
             hasAgreed = state.hasAgreed,
-            stepIndex = OnboardingStep.Agreement.index,
-            totalSteps = ONBOARDING_STEP_COUNT,
+            stepIndex = 0,
+            totalSteps = 0,
             onAgreementChanged = onboardingViewModel::setAgreement,
             onContinue = {
                 if (nwcWallet.connection.value == null) {
@@ -148,7 +77,7 @@ fun NavGraphBuilder.nwcOnboarding(
                     onWalletConnected()
                 }
             },
-            onBack = onBack
+            onBack = null
         )
     }
     composable<NwcOnboardingDestination.WalletInstructions> {
@@ -194,7 +123,7 @@ fun NavGraphBuilder.nwcOnboarding(
                     )
                 ) {
                     NwcWalletConnectionOutcome.ResumeOnboarding ->
-                        navController.navigate(nwcEducationDestination(initialEducationStep)) {
+                        navController.navigate(NwcOnboardingDestination.Agreement) {
                             popUpTo(navController.graph.id) { inclusive = true }
                             launchSingleTop = true
                         }
@@ -350,42 +279,3 @@ private fun ConfirmWalletDestination(
         onCancel = viewModel::cancel
     )
 }
-
-@Composable
-private fun onboardingFeaturePages(): List<OnboardingFeaturePage> = listOf(
-    OnboardingFeaturePage(
-        title = stringResource(R.string.onboarding_features_page1_title),
-        subtitle = stringResource(R.string.onboarding_features_page1_subtitle),
-        body = stringResource(
-            R.string.onboarding_features_page1_body,
-            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-        )
-    ),
-    OnboardingFeaturePage(
-        title = stringResource(R.string.onboarding_features_page2_title),
-        subtitle = stringResource(R.string.onboarding_features_page2_subtitle),
-        body = stringResource(
-            R.string.onboarding_features_page2_body,
-            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-        )
-    ),
-    OnboardingFeaturePage(
-        title = stringResource(R.string.onboarding_features_page3_title),
-        subtitle = stringResource(
-            R.string.onboarding_features_page3_subtitle,
-            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-        ),
-        body = stringResource(
-            R.string.onboarding_features_page3_body,
-            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-        )
-    )
-)
-
-private enum class OnboardingStep(val index: Int) {
-    Features(1),
-    AutoPay(2),
-    Agreement(3)
-}
-
-private const val ONBOARDING_STEP_COUNT = 4

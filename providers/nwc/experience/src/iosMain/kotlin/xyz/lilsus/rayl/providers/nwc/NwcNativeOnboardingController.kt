@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import xyz.lilsus.rayl.providers.nwc.feature.onboarding.NativeNwcOnboardingPage
 import xyz.lilsus.rayl.providers.nwc.feature.onboarding.NwcWalletConnectionOutcome
 import xyz.lilsus.rayl.providers.nwc.feature.onboarding.nativeNwcOnboardingText
 import xyz.lilsus.rayl.providers.nwc.feature.onboarding.nwcWalletConnectionOutcome
@@ -26,18 +25,10 @@ import xyz.lilsus.raylsuite.core.camera.QrScannerController
 import xyz.lilsus.raylsuite.core.camera.createNativeQrScannerController
 import xyz.lilsus.raylsuite.core.camera.nativeCameraAuthorizationState
 import xyz.lilsus.raylsuite.core.camera.requestNativeCameraPermission
-import xyz.lilsus.raylsuite.core.model.DisplayAmount
-import xyz.lilsus.raylsuite.core.model.DisplayCurrency
-import xyz.lilsus.raylsuite.core.model.PaymentConfirmationMode
-import xyz.lilsus.raylsuite.core.model.PaymentPreferences
 import xyz.lilsus.raylsuite.core.ui.NativeCredentialText
-import xyz.lilsus.raylsuite.core.ui.format.currentAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.nativeCredentialText
 import xyz.lilsus.raylsuite.core.ui.platform.CredentialClipboard
 import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingText
-import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingThresholdLabel
-
-data class NwcNativeOnboardingPage(val title: String, val subtitle: String, val body: String)
 
 data class NwcNativeOnboardingSnapshot(
     val step: String,
@@ -49,19 +40,6 @@ data class NwcNativeOnboardingSnapshot(
     val stepIndex: Int,
     val stepCount: Int,
     val backTitle: String,
-    val featurePages: List<NwcNativeOnboardingPage>,
-    val featurePage: Int,
-    val featuresNextTitle: String,
-    val autoPayTitle: String,
-    val autoPayBody: String,
-    val autoPayAlwaysTitle: String,
-    val autoPayThresholdTitle: String,
-    val autoPayThresholdLabel: String,
-    val autoPayHint: String,
-    val autoPayNextTitle: String,
-    val confirmationMode: String,
-    val thresholdIndex: Int,
-    val thresholdStepCount: Int,
     val agreementTitle: String,
     val agreementBody: String,
     val agreementCheckboxTitle: String,
@@ -128,7 +106,7 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         if (runtime.nwcWallet.connection.value != null &&
             !connectionOnly
         ) {
-            runtime.onboardingState.educationStep.value
+            STEP_AGREEMENT
         } else {
             STEP_WALLET
         }
@@ -171,7 +149,7 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
                             )
                         ) {
                             NwcWalletConnectionOutcome.ResumeOnboarding ->
-                                moveTo(runtime.onboardingState.educationStep.value)
+                                moveTo(STEP_AGREEMENT)
 
                             NwcWalletConnectionOutcome.CompleteOnboarding ->
                                 runtime.completeOnboarding()
@@ -229,32 +207,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
             observers -= onChange
             job.cancel()
         }
-    }
-
-    fun setFeaturePage(page: Int) {
-        runtime.onboardingViewModel.setFeaturesPage(page)
-    }
-
-    fun continueFeatures() = moveTo(STEP_AUTO_PAY)
-
-    fun setConfirmationMode(value: String) {
-        runtime.onboardingViewModel.setConfirmationMode(
-            if (value == CONFIRMATION_ALWAYS) {
-                PaymentConfirmationMode.Always
-            } else {
-                PaymentConfirmationMode.Above
-            }
-        )
-    }
-
-    fun setThresholdIndex(index: Int) {
-        PaymentPreferences.THRESHOLD_STEPS
-            .getOrNull(index)
-            ?.let(runtime.onboardingViewModel::setThreshold)
-    }
-
-    fun continueAutoPay() {
-        moveTo(STEP_AGREEMENT)
     }
 
     fun setAgreement(agreed: Boolean) {
@@ -355,7 +307,7 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
             if (runtime.nwcWallet.connection.value != null &&
                 !connectionOnly
             ) {
-                runtime.onboardingState.educationStep.value
+                STEP_AGREEMENT
             } else {
                 STEP_WALLET
             }
@@ -364,16 +316,11 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
 
     fun back() {
         when (currentStep) {
-            STEP_AUTO_PAY -> moveTo(STEP_FEATURES)
-            STEP_AGREEMENT -> moveTo(STEP_AUTO_PAY)
             STEP_INSTRUCTIONS -> moveTo(STEP_WALLET)
         }
     }
 
     private fun moveTo(step: String) {
-        if (step == STEP_FEATURES || step == STEP_AUTO_PAY || step == STEP_AGREEMENT) {
-            runtime.onboardingState.moveToEducationStep(step)
-        }
         currentStep = step
         if (step != STEP_WALLET) {
             stopScanner()
@@ -471,13 +418,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         val common = nativeOnboardingText()
         val nwc = nativeNwcOnboardingText(runtime.configuration.appName)
         val wallet = nativeNwcWalletConnectionText(runtime.configuration.appName)
-        val formatter = currentAmountFormatter()
-        val sats = formatter.format(DisplayAmount(state.thresholdSats, DisplayCurrency.Satoshi))
-        val thresholdAmount =
-            state.thresholdCurrencyEquivalent
-                ?.let(formatter::format)
-                ?.let { "$sats ($it)" }
-                ?: sats
         val discovery = connect.discovery
 
         snapshot.value =
@@ -488,27 +428,9 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
                 termsUrl = runtime.configuration.legalLinks.termsUrl,
                 settingsFlow = settingsFlow,
                 connectionOnly = connectionOnly,
-                stepIndex = stepIndex(currentStep),
-                stepCount = ONBOARDING_STEP_COUNT,
+                stepIndex = 0,
+                stepCount = 0,
                 backTitle = common.back,
-                featurePages = nwc.featurePages.map(NativeNwcOnboardingPage::toSnapshot),
-                featurePage = state.featuresPage,
-                featuresNextTitle = common.featuresContinue,
-                autoPayTitle = common.autoPayTitle,
-                autoPayBody = nwc.autoPayBody,
-                autoPayAlwaysTitle = common.autoPayAlways,
-                autoPayThresholdTitle = common.autoPayThreshold,
-                autoPayThresholdLabel = nativeOnboardingThresholdLabel(thresholdAmount),
-                autoPayHint = common.autoPayHint,
-                autoPayNextTitle = common.autoPayContinue,
-                confirmationMode =
-                    if (state.confirmationMode == PaymentConfirmationMode.Always) {
-                        CONFIRMATION_ALWAYS
-                    } else {
-                        CONFIRMATION_ABOVE
-                    },
-                thresholdIndex = PaymentPreferences.thresholdToStepIndex(state.thresholdSats),
-                thresholdStepCount = PaymentPreferences.THRESHOLD_STEPS.size,
                 agreementTitle = common.agreementTitle,
                 agreementBody = nwc.agreementBody,
                 agreementCheckboxTitle = common.agreementCheckbox,
@@ -570,27 +492,12 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
             )
     }
 
-    private fun stepIndex(step: String): Int = when (step) {
-        STEP_FEATURES -> 1
-        STEP_AUTO_PAY -> 2
-        STEP_AGREEMENT -> 3
-        else -> 0
-    }
-
     private companion object {
-        const val STEP_FEATURES = "features"
-        const val STEP_AUTO_PAY = "autoPay"
         const val STEP_AGREEMENT = "agreement"
         const val STEP_INSTRUCTIONS = "instructions"
         const val STEP_WALLET = "wallet"
-        const val CONFIRMATION_ALWAYS = "always"
-        const val CONFIRMATION_ABOVE = "above"
-        const val ONBOARDING_STEP_COUNT = 4
     }
 }
-
-private fun NativeNwcOnboardingPage.toSnapshot(): NwcNativeOnboardingPage =
-    NwcNativeOnboardingPage(title = title, subtitle = subtitle, body = body)
 
 private fun CameraAuthorizationState.nativeValue(): String = when (this) {
     CameraAuthorizationState.NOT_DETERMINED -> "notDetermined"
