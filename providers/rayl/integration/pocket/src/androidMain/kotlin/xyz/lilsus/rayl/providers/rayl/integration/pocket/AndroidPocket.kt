@@ -45,22 +45,56 @@ fun createAndroidPocketSetup(
     config: PocketConfig,
     pocket: RaylPocket,
     rpId: String?,
-    activity: () -> Activity
+    activity: () -> Activity?
 ): PocketSetup {
-    val provider = if (rpId != null) {
-        PasskeyProvider(
-            activityProvider = activity,
-            options = PasskeyProviderOptions(
-                rpId = rpId,
-                rpName = PASSKEY_NAME,
-                userName = PASSKEY_NAME,
-                userDisplayName = PASSKEY_NAME
-            )
+    if (rpId == null) {
+        return PasskeyPocketSetup(
+            pocket,
+            BreezPasskeyAccounts(filePrfProvider(context), config.apiKey)
         )
-    } else {
-        filePrfProvider(context)
     }
-    return PasskeyPocketSetup(pocket, BreezPasskeyAccounts(provider, config.apiKey))
+    val provider = PasskeyProvider(
+        // An exception thrown inside an SDK callback aborts the process, so every call below checks
+        // for an activity first.
+        activityProvider = { checkNotNull(activity()) },
+        options = PasskeyProviderOptions(
+            rpId = rpId,
+            rpName = PASSKEY_NAME,
+            userName = PASSKEY_NAME,
+            userDisplayName = PASSKEY_NAME
+        )
+    )
+    val accounts = BreezPasskeyAccounts(provider, config.apiKey)
+    return PasskeyPocketSetup(pocket, ActivityCheckedAccounts(accounts) { activity() != null })
+}
+
+/** Fails passkey calls without an activity before they reach the SDK. */
+private class ActivityCheckedAccounts(
+    private val accounts: PasskeyAccounts,
+    private val hasActivity: () -> Boolean
+) : PasskeyAccounts {
+    override suspend fun isAvailable(): Boolean = checked { accounts.isAvailable() }
+
+    override suspend fun connect(credentialId: ByteArray?): PasskeyConnection =
+        checked { accounts.connect(credentialId) }
+
+    override suspend fun open(label: String, credentialId: ByteArray?): String =
+        checked { accounts.open(label, credentialId) }
+
+    override suspend fun list(): List<String> = checked { accounts.list() }
+
+    override suspend fun publish(label: String) = checked { accounts.publish(label) }
+
+    override fun close() = accounts.close()
+
+    private inline fun <T> checked(block: () -> T): T {
+        if (!hasActivity()) {
+            throw PasskeyAccountsException.Other(
+                "No activity for the passkey prompt"
+            )
+        }
+        return block()
+    }
 }
 
 /** How the passkey is named in the system's passkey manager. */

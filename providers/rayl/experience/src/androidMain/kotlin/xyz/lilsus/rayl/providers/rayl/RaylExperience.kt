@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -166,16 +165,14 @@ fun startRaylPocketEarly(context: Context, environment: RaylEnvironment, breezAp
  * runtime outlives activities across configuration changes.
  */
 private object RaylPasskeyActivity {
-    private var current: WeakReference<Activity>? = null
+    @Volatile private var current: WeakReference<Activity>? = null
 
-    fun get(): Activity = checkNotNull(current?.get()) { "No activity for the passkey prompt" }
+    fun get(): Activity? = current?.get()?.takeUnless { it.isFinishing || it.isDestroyed }
 
+    /** Remembers the composing activity; a remounted experience keeps using the same one. */
     @Composable
     fun Track() {
         val activity = LocalActivity.current
         if (activity != null && current?.get() !== activity) current = WeakReference(activity)
-        DisposableEffect(activity) {
-            onDispose { if (current?.get() === activity) current = null }
-        }
     }
 }
