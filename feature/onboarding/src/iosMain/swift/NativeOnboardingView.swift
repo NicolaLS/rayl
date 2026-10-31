@@ -242,6 +242,8 @@ struct NativeOnboardingAgreementView: View {
     let hasAgreed: Bool
     let stepIndex: Int32
     let stepCount: Int32
+    let isWorking: Bool
+    let message: String?
     let onAgreementChanged: (Bool) -> Void
     let action: () -> Void
 
@@ -253,6 +255,8 @@ struct NativeOnboardingAgreementView: View {
         hasAgreed: Bool,
         stepIndex: Int32,
         stepCount: Int32,
+        isWorking: Bool = false,
+        message: String? = nil,
         onAgreementChanged: @escaping (Bool) -> Void,
         action: @escaping () -> Void
     ) {
@@ -263,6 +267,8 @@ struct NativeOnboardingAgreementView: View {
         self.hasAgreed = hasAgreed
         self.stepIndex = stepIndex
         self.stepCount = stepCount
+        self.isWorking = isWorking
+        self.message = message
         self.onAgreementChanged = onAgreementChanged
         self.action = action
     }
@@ -292,8 +298,20 @@ struct NativeOnboardingAgreementView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            NativeOnboardingPrimaryButton(title: actionTitle, action: action)
-                .disabled(!hasAgreed)
+            if let message {
+                Text(message)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if isWorking {
+                ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            } else {
+                NativeOnboardingPrimaryButton(title: actionTitle, action: action)
+                    .disabled(!hasAgreed)
+            }
         }
     }
 }

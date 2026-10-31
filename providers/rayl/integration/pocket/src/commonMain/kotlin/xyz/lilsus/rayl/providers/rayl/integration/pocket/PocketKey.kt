@@ -1,34 +1,18 @@
 package xyz.lilsus.rayl.providers.rayl.integration.pocket
 
-import fr.acinq.bitcoin.MnemonicCode
-
 /**
- * The pocket's BIP-39 phrase. Rayl generates it on the device and never asks the user to write it
- * down; it stays a standard phrase so a later emergency export works with any Spark wallet.
- *
- * TODO(production): Required before real users hold funds: a lost or reset phone loses this key.
- * Derive it from a passkey with Breez passkey login (guide/passkey.html): `connectWithPasskey`
- * once, then store the returned seed here so launches and payments never prompt. Use the shared
- * Breez relying party (register the app IDs with Breez) and a "Rayl" label, so the wallet differs
- * from other Breez apps'. On iOS, inject Breez's Swift `PasskeyProvider` into this Kotlin SDK's
- * `PasskeyClient`; Breez's Swift `PasskeyClient` would re-register the SDK callbacks. Keeping a
- * generated key where passkeys are unsupported is a stopgap that needs its own backup.
+ * The pocket's BIP-39 phrase. Rayl never generates it: a passkey derives it during setup (see
+ * [PocketSetup]), and this device keeps a copy so launches and payments never prompt. The passkey
+ * stays the backup, so the phrase is never shown or exported.
  */
 class PocketKey internal constructor(internal val phrase: String) {
     override fun toString(): String = "PocketKey(<redacted>)"
-
-    internal companion object {
-        fun generate(): PocketKey =
-            PocketKey(MnemonicCode.toMnemonics(secureRandomBytes(ENTROPY_BYTES)).joinToString(" "))
-
-        private const val ENTROPY_BYTES = 16
-    }
 }
 
 internal sealed interface PocketKeyLoad {
     data class Present(val key: PocketKey) : PocketKeyLoad
 
-    /** No key was ever stored, so generating one cannot orphan funds. */
+    /** No key was ever stored: the pocket needs setup. */
     data object Absent : PocketKeyLoad
 
     /** A key may exist but cannot be read now; never replace it. */

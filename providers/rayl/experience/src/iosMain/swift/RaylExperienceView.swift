@@ -46,7 +46,7 @@ private func makeRaylShellAdapter(_ experience: RaylIosExperience) -> NativeShel
                 )
             )
         },
-        // Rayl's wallet needs no setup: this stage introduces it, or shows a failed exit.
+        // Rayl's wallet terms and passkey setup, or a failed exit.
         nativeOnboardingView: {
             AnyView(RaylOnboardingStageView(experience: experience))
         }
@@ -111,7 +111,7 @@ private final class RaylOnboardingModel: ObservableObject {
     deinit { cancel?() }
 }
 
-/// Rayl's wallet terms, on the shared agreement view the external wallets use too.
+/// Rayl's wallet terms and passkey, on the shared onboarding views the external wallets use too.
 private struct RaylOnboardingView: View {
     @StateObject private var model: RaylOnboardingModel
 
@@ -121,20 +121,137 @@ private struct RaylOnboardingView: View {
 
     var body: some View {
         if let snapshot = model.snapshot {
-            NativeOnboardingAgreementView(
-                title: snapshot.agreementTitle,
-                body: snapshot.agreementBody,
-                checkboxTitle: snapshot.agreementCheckboxTitle,
-                actionTitle: snapshot.agreementNextTitle,
-                hasAgreed: snapshot.hasAgreed,
-                stepIndex: 0,
-                stepCount: 0,
-                onAgreementChanged: model.controller.setAgreement,
-                action: model.controller.accept
-            )
+            switch snapshot.stage {
+            case "agreement":
+                NativeOnboardingAgreementView(
+                    title: snapshot.agreementTitle,
+                    body: snapshot.agreementBody,
+                    checkboxTitle: snapshot.agreementCheckboxTitle,
+                    actionTitle: snapshot.agreementNextTitle,
+                    hasAgreed: snapshot.hasAgreed,
+                    stepIndex: 0,
+                    stepCount: 0,
+                    isWorking: snapshot.isWorking,
+                    message: snapshot.message,
+                    onAgreementChanged: model.controller.setAgreement,
+                    action: model.controller.accept
+                )
+            case "accounts":
+                RaylAccountsView(snapshot: snapshot, controller: model.controller)
+            case "unavailable":
+                RaylPasskeyUnavailableView(snapshot: snapshot, controller: model.controller)
+            default:
+                ProgressView()
+            }
         } else {
             ProgressView()
         }
+    }
+}
+
+/// The passkey already holds accounts, maybe from other apps: share one, or start Rayl's own.
+private struct RaylAccountsView: View {
+    let snapshot: RaylNativeOnboardingSnapshot
+    let controller: RaylNativeOnboardingController
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(snapshot.accounts, id: \.self) { account in
+                        RaylOnboardingRow(title: account, subtitle: nil) {
+                            controller.choose(account: account)
+                        }
+                        .disabled(snapshot.isWorking)
+                        .accessibilityIdentifier("rayl_account_\(account)")
+                    }
+                    if let newAccountTitle = snapshot.newAccountTitle {
+                        Button {
+                            controller.createAccount()
+                        } label: {
+                            Label(newAccountTitle, systemImage: "plus")
+                        }
+                        .disabled(snapshot.isWorking)
+                        .accessibilityIdentifier("rayl_account_new")
+                    }
+                } header: {
+                    Text(snapshot.accountsBody)
+                        .textCase(nil)
+                } footer: {
+                    if snapshot.isWorking {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else if let message = snapshot.message {
+                        Text(message)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle(snapshot.accountsTitle)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        controller.back()
+                    } label: {
+                        Image(systemName: "chevron.backward")
+                    }
+                    .disabled(snapshot.isWorking)
+                }
+            }
+        }
+    }
+}
+
+/// Rayl's wallet needs a passkey; without one the user pays with a wallet they already have.
+private struct RaylPasskeyUnavailableView: View {
+    let snapshot: RaylNativeOnboardingSnapshot
+    let controller: RaylNativeOnboardingController
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(snapshot.otherWallets, id: \.id) { wallet in
+                        RaylOnboardingRow(title: wallet.title, subtitle: wallet.subtitle) {
+                            controller.useWallet(id: wallet.id)
+                        }
+                        .accessibilityIdentifier("rayl_use_wallet_\(wallet.id)")
+                    }
+                } header: {
+                    Text(snapshot.unavailableBody)
+                        .textCase(nil)
+                }
+            }
+            .navigationTitle(snapshot.unavailableTitle)
+        }
+    }
+}
+
+private struct RaylOnboardingRow: View {
+    let title: String
+    let subtitle: String?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .foregroundStyle(.primary)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

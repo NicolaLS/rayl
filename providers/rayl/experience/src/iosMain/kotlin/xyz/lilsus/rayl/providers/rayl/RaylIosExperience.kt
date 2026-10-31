@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketStatus
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.createIosPocketSetup
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.createIosRaylPocket
 import xyz.lilsus.raylsuite.core.settings.createAppSettings
 import xyz.lilsus.raylsuite.core.ui.platform.createHapticFeedbackManager
@@ -48,6 +49,7 @@ class RaylIosExperience(
         configuration = configuration,
         environment = environment,
         pocket = RaylEarlyStart.take { createIosRaylPocket(environment.pocketConfig(breezApiKey)) },
+        createSetup = { createIosPocketSetup(environment.pocketConfig(breezApiKey), it) },
         haptics = createHapticFeedbackManager()
     )
 
@@ -72,7 +74,9 @@ class RaylIosExperience(
             currencyCodes = runtime.currencyPreferences.code
         )
     }
-    private val onboardingController = lazy { RaylNativeOnboardingController(runtime) }
+    private val onboardingController = lazy {
+        RaylNativeOnboardingController(runtime, otherWallets)
+    }
     private val walletSettingsController = lazy {
         RaylNativeWalletSettingsController(runtime, otherWallets)
     }

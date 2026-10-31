@@ -25,6 +25,9 @@ import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.create
 import platform.Foundation.dataUsingEncoding
+import platform.Foundation.dataWithBytes
+import platform.Foundation.dataWithContentsOfFile
+import platform.Foundation.writeToFile
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
@@ -42,6 +45,7 @@ import platform.Security.kSecMatchLimitOne
 import platform.Security.kSecRandomDefault
 import platform.Security.kSecReturnData
 import platform.Security.kSecValueData
+import platform.posix.memcpy
 import xyz.lilsus.raylsuite.core.settings.withKeychainDictionary
 
 fun createIosRaylPocket(config: PocketConfig): RaylPocket {
@@ -69,6 +73,49 @@ fun createIosRaylPocket(config: PocketConfig): RaylPocket {
     )
 }
 
+/**
+ * The setup of the pocket [pocket]: derives its key from a passkey. Uses a stand-in file-backed
+ * passkey for now; see [FilePrfProvider].
+ */
+fun createIosPocketSetup(config: PocketConfig, pocket: RaylPocket): PocketSetup {
+    // Kept apart from the pocket so erasing the pocket in a debug build keeps the "passkey".
+    val directory = (
+        NSSearchPathForDirectoriesInDomains(
+            NSApplicationSupportDirectory,
+            NSUserDomainMask,
+            true
+        ).first() as String
+        ) + "/rayl-passkey"
+    val path = "$directory/file-prf-secret"
+    val fileManager = NSFileManager.defaultManager
+    val secret = filePrfSecret(
+        read = {
+            NSData.dataWithContentsOfFile(path)?.toByteArray()?.also {
+                check(it.size == FilePrfProvider.SECRET_BYTES)
+            }
+        },
+        write = { bytes ->
+            check(fileManager.createDirectoryAtPath(directory, true, null, null))
+            NSURL.fileURLWithPath(
+                directory
+            ).setResourceValue(true, NSURLIsExcludedFromBackupKey, null)
+            check(bytes.toNSData().writeToFile(path, atomically = true))
+        }
+    )
+    return PasskeyPocketSetup(pocket, BreezPasskeyAccounts(FilePrfProvider(secret), config.apiKey))
+}
+
+private fun NSData.toByteArray(): ByteArray {
+    val size = length.toInt()
+    val bytes = ByteArray(size)
+    if (size > 0) bytes.usePinned { memcpy(it.addressOf(0), this.bytes, length) }
+    return bytes
+}
+
+private fun ByteArray.toNSData(): NSData = usePinned {
+    NSData.dataWithBytes(it.addressOf(0), size.convert())
+}
+
 internal actual fun secureRandomBytes(size: Int): ByteArray {
     val bytes = ByteArray(size)
     val status = bytes.usePinned {
@@ -79,8 +126,8 @@ internal actual fun secureRandomBytes(size: Int): ByteArray {
 }
 
 /**
- * A device-only Keychain item: it survives reinstalling but never restores to another device.
- * See the production TODO on [PocketKey].
+ * A device-only Keychain item: it survives reinstalling but never restores to another device,
+ * where the passkey derives the key again.
  */
 private class IosPocketKeyStore(private val network: String) : PocketKeyStore {
     override suspend fun load(): PocketKeyLoad = withKeychainDictionary(

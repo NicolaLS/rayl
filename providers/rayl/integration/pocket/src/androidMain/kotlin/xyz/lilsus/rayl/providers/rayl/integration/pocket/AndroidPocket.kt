@@ -32,12 +32,46 @@ fun createAndroidRaylPocket(context: Context, config: PocketConfig): RaylPocket 
     )
 }
 
+/**
+ * The setup of the pocket [pocket]: derives its key from a passkey. Uses a stand-in file-backed
+ * passkey for now; see [FilePrfProvider].
+ */
+fun createAndroidPocketSetup(
+    context: Context,
+    config: PocketConfig,
+    pocket: RaylPocket
+): PocketSetup {
+    // Kept apart from the pocket so erasing the pocket in a debug build keeps the "passkey".
+    val secretFile =
+        File(context.applicationContext.noBackupFilesDir, "rayl-passkey/file-prf-secret")
+    val secret = filePrfSecret(
+        read = {
+            if (secretFile.isFile) {
+                secretFile.readBytes().also { check(it.size == FilePrfProvider.SECRET_BYTES) }
+            } else {
+                null
+            }
+        },
+        write = { bytes ->
+            val directory = checkNotNull(secretFile.parentFile)
+            check(directory.isDirectory || directory.mkdirs())
+            val temporary = File(directory, "file-prf-secret.tmp")
+            FileOutputStream(temporary).use {
+                it.write(bytes)
+                it.fd.sync()
+            }
+            check(temporary.renameTo(secretFile))
+        }
+    )
+    return PasskeyPocketSetup(pocket, BreezPasskeyAccounts(FilePrfProvider(secret), config.apiKey))
+}
+
 internal actual fun secureRandomBytes(size: Int): ByteArray =
     ByteArray(size).also(SecureRandom()::nextBytes)
 
 /**
- * Encrypts the phrase with a non-exportable Android Keystore key, outside Auto Backup, so it is
- * lost on uninstall or a new phone. See the production TODO on [PocketKey].
+ * Encrypts the phrase with a non-exportable Android Keystore key, outside Auto Backup, so this
+ * copy is lost on uninstall or a new phone; the passkey derives it again.
  */
 private class AndroidPocketKeyStore(
     context: Context,

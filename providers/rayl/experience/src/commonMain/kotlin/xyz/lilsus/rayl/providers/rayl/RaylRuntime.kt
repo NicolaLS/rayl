@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.rayl.feature.payment.RaylPaymentSettlement
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketSetup
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketTimings
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPocket
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
@@ -43,14 +44,15 @@ internal sealed interface RaylExitTarget {
 
 /**
  * Objects of Rayl's built-in wallet experience, held outside composition so both the Compose host
- * and the native iOS shell share one instance. There is no setup step: the pocket starts as soon as
- * it mounts.
+ * and the native iOS shell share one instance. The pocket starts as soon as it mounts; only its
+ * first use needs a passkey, set up through [createSetup] during onboarding.
  */
 internal class RaylRuntime(
     appSettings: Settings,
     val configuration: RaylExperienceConfiguration,
     environment: RaylEnvironment,
     val pocket: RaylPocket,
+    createSetup: (RaylPocket) -> PocketSetup,
     haptics: HapticFeedbackManager,
     onFundingInvoice: (String) -> Unit = {}
 ) {
@@ -82,7 +84,7 @@ internal class RaylRuntime(
         paymentHub = paymentHub,
         haptics = haptics
     )
-    val onboardingState = RaylOnboardingState(appSettings)
+    val onboardingState = RaylOnboardingState(appSettings, scope) { createSetup(pocket) }
     val funding = RaylFunding(
         createInvoice = { pocket.createInvoice(amountSats = null, description = it) },
         receipts = pocket.receivedPayments,
@@ -140,7 +142,7 @@ internal class RaylRuntime(
      */
     fun useWallet(walletId: String): Boolean = leave(RaylExitTarget.Wallet(walletId))
 
-    /** Debug builds only: deletes the wallet key and its funds, then starts a new wallet. */
+    /** Debug builds only: deletes this device's wallet key and data, then sets the wallet up again. */
     fun erase() {
         if (canErase) leave(RaylExitTarget.Erased)
     }
@@ -159,7 +161,7 @@ internal class RaylRuntime(
                 paymentCoordinator.resetSession()
                 funding.reset()
                 val finished = if (target == RaylExitTarget.Erased) {
-                    pocket.erase()
+                    pocket.erase().also { erased -> if (erased) onboardingState.reset() }
                 } else {
                     pocket.close()
                     true
@@ -188,6 +190,7 @@ internal class RaylRuntime(
         closed = true
         scope.cancel()
         paymentCoordinator.clear()
+        onboardingState.close()
         bitcoinPriceProvider.close()
         lnurlPayClient.close()
         languageRepository.close()

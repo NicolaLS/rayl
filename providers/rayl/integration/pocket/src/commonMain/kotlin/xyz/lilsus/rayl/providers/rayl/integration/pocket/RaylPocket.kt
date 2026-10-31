@@ -22,14 +22,22 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
-enum class PocketStatus { Starting, Ready, Failed, Closed }
+enum class PocketStatus {
+    Starting,
+
+    /** No key is stored yet: [PocketSetup] must derive one from a passkey. */
+    NeedsKey,
+    Ready,
+    Failed,
+    Closed
+}
 
 /** A payment of [amountSats] to the pocket [invoice]. */
 data class PocketReceipt(val invoice: String, val amountSats: Long)
 
 /**
- * The Rayl pocket: an app-owned Spark wallet whose key is generated on first use and kept on this
- * device. Closing it only ends the session; the key and funds survive until [erase].
+ * The Rayl pocket: an app-owned Spark wallet whose key a passkey derives once ([install]) and this
+ * device keeps. Closing it only ends the session; the key and funds survive until [erase].
  * See SPEC-wallet-lifecycle.
  */
 class RaylPocket internal constructor(
@@ -58,8 +66,8 @@ class RaylPocket internal constructor(
     val receivedPayments: SharedFlow<PocketReceipt> = mutableReceived.asSharedFlow()
 
     /**
-     * Loads the pocket key, creating one only when none was ever stored, and connects in the
-     * background. Also retries after [PocketStatus.Failed].
+     * Loads the pocket key and connects in the background, or reports [PocketStatus.NeedsKey]
+     * when none was ever stored. Also retries after [PocketStatus.Failed].
      */
     fun start() {
         if (closed || wallet != null) return
@@ -87,6 +95,19 @@ class RaylPocket internal constructor(
         require(amountSats == null || amountSats > 0) { "Amount must be positive" }
         val current = checkNotNull(connectedWallet()) { "Pocket is not connected" }
         return current.createInvoice(amountSats, description)
+    }
+
+    /** Whether a key is stored, even one that cannot be read right now. */
+    suspend fun hasKey(): Boolean = keys.load() !is PocketKeyLoad.Absent
+
+    /**
+     * Stores the passkey-derived [key] and connects with it. Returns false without connecting when
+     * it could not be stored, including when a key already exists: that one is never replaced.
+     */
+    internal suspend fun install(key: PocketKey): Boolean {
+        if (!keys.add(key)) return false
+        start()
+        return true
     }
 
     /** Ends the session and releases SDK resources. The key and wallet data remain. */
@@ -121,10 +142,18 @@ class RaylPocket internal constructor(
             if (closed || wallet != null) return
             mutableStatus.value = PocketStatus.Starting
             val connected = try {
-                val key = obtainKey()
-                if (key == null) {
-                    mutableStatus.value = PocketStatus.Failed
-                    return
+                val key = when (val loaded = keys.load()) {
+                    is PocketKeyLoad.Present -> loaded.key
+
+                    PocketKeyLoad.Absent -> {
+                        mutableStatus.value = PocketStatus.NeedsKey
+                        return
+                    }
+
+                    PocketKeyLoad.Unavailable -> {
+                        mutableStatus.value = PocketStatus.Failed
+                        return
+                    }
                 }
                 // The SDK keeps running after a cancelled connect, so always take ownership of the
                 // session to be able to disconnect it.
@@ -161,22 +190,6 @@ class RaylPocket internal constructor(
             mutableStatus.first { it != PocketStatus.Starting }
         }
         return wallet
-    }
-
-    private suspend fun obtainKey(): PocketKey? = when (val loaded = keys.load()) {
-        is PocketKeyLoad.Present -> loaded.key
-
-        PocketKeyLoad.Unavailable -> null
-
-        PocketKeyLoad.Absent -> {
-            val generated = PocketKey.generate()
-            // Connect only with the key exactly as it was durably stored.
-            if (keys.add(generated)) {
-                (keys.load() as? PocketKeyLoad.Present)?.key
-            } else {
-                null
-            }
-        }
     }
 
     private suspend fun refreshBalance(current: PocketWallet) {

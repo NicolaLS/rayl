@@ -2,6 +2,7 @@ package xyz.lilsus.rayl.providers.rayl.integration.pocket
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -17,17 +18,44 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class RaylPocketTest {
     @Test
-    fun createsStoresAndConnectsWithANewKeyWhenNoneExists() = runTest {
+    fun needsAKeyInsteadOfCreatingOne() = runTest {
         val keys = FakeKeyStore()
         val connector = FakeConnector()
         val pocket = pocket(keys, connector)
 
         pocket.connect()
 
-        val stored = (keys.load() as PocketKeyLoad.Present).key
-        assertEquals(12, stored.phrase.split(' ').size)
-        assertSame(stored, connector.keys.single())
+        assertEquals(PocketStatus.NeedsKey, pocket.status.value)
+        assertEquals(0, keys.adds)
+        assertTrue(connector.keys.isEmpty())
+        assertFalse(pocket.hasKey())
+    }
+
+    @Test
+    fun installStoresTheKeyAndConnectsWithIt() = runTest {
+        val keys = FakeKeyStore()
+        val connector = FakeConnector()
+        val pocket = pocket(keys, connector)
+        pocket.connect()
+
+        assertTrue(pocket.install(PocketKey("derived")))
+        advanceUntilIdle()
+
+        assertEquals("derived", (keys.load() as PocketKeyLoad.Present).key.phrase)
+        assertEquals("derived", connector.keys.single().phrase)
         assertEquals(PocketStatus.Ready, pocket.status.value)
+        assertTrue(pocket.hasKey())
+    }
+
+    @Test
+    fun installNeverReplacesAStoredKey() = runTest {
+        val existing = PocketKey("existing")
+        val keys = FakeKeyStore(existing)
+        val pocket = pocket(keys, FakeConnector())
+
+        assertFalse(pocket.install(PocketKey("derived")))
+
+        assertSame(existing, (keys.load() as PocketKeyLoad.Present).key)
     }
 
     @Test
@@ -61,15 +89,15 @@ class RaylPocketTest {
         val connector = FakeConnector()
         val pocket = pocket(keys, connector)
 
-        pocket.connect()
+        assertFalse(pocket.install(PocketKey("derived")))
+        advanceUntilIdle()
 
-        assertEquals(PocketStatus.Failed, pocket.status.value)
         assertTrue(connector.keys.isEmpty())
     }
 
     @Test
     fun retryAfterConnectionFailureKeepsTheSameKey() = runTest {
-        val keys = FakeKeyStore()
+        val keys = FakeKeyStore(PocketKey("stored"))
         val connector = FakeConnector(failures = 1)
         val pocket = pocket(keys, connector)
 
@@ -78,13 +106,13 @@ class RaylPocketTest {
         pocket.connect()
 
         assertEquals(PocketStatus.Ready, pocket.status.value)
-        assertEquals(1, keys.adds)
+        assertEquals(0, keys.adds)
         assertSame(connector.keys[0], connector.keys[1])
     }
 
     @Test
     fun closeKeepsTheKeyAndEraseDeletesIt() = runTest {
-        val keys = FakeKeyStore()
+        val keys = FakeKeyStore(PocketKey("stored"))
         val connector = FakeConnector()
         var dataErased = false
         val pocket = pocket(keys, connector, eraseData = {
@@ -105,7 +133,7 @@ class RaylPocketTest {
 
     @Test
     fun aPaymentDuringStartupWaitsForThePocket() = runTest {
-        val pocket = pocket(FakeKeyStore(), FakeConnector())
+        val pocket = pocket(FakeKeyStore(PocketKey("stored")), FakeConnector())
         pocket.start()
 
         assertEquals(PocketQuoteResult.Rejected("wallet"), pocket.quote("lnbcrt1", null))
@@ -115,7 +143,7 @@ class RaylPocketTest {
     @Test
     fun aPaymentAfterAFailedStartRetriesTheConnection() = runTest {
         val connector = FakeConnector(failures = 1)
-        val pocket = pocket(FakeKeyStore(), connector)
+        val pocket = pocket(FakeKeyStore(PocketKey("stored")), connector)
         pocket.start()
         advanceUntilIdle()
         assertEquals(PocketStatus.Failed, pocket.status.value)
@@ -127,7 +155,7 @@ class RaylPocketTest {
     @Test
     fun reportsBalanceAndPaidInvoices() = runTest {
         val connector = FakeConnector()
-        val pocket = pocket(FakeKeyStore(), connector)
+        val pocket = pocket(FakeKeyStore(PocketKey("stored")), connector)
         val received = mutableListOf<PocketReceipt>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             pocket.receivedPayments.collect { received += it }
@@ -150,7 +178,7 @@ class RaylPocketTest {
         RaylPocket(keys, connector, eraseData, StandardTestDispatcher(testScheduler))
 }
 
-private class FakeKeyStore(
+internal class FakeKeyStore(
     private var key: PocketKey? = null,
     private val unavailable: Boolean = false,
     private val acceptAdds: Boolean = true
@@ -175,7 +203,7 @@ private class FakeKeyStore(
     }
 }
 
-private class FakeConnector(private var failures: Int = 0) : PocketConnector {
+internal class FakeConnector(private var failures: Int = 0) : PocketConnector {
     val keys = mutableListOf<PocketKey>()
     val wallet = FakeWallet()
 
@@ -186,7 +214,7 @@ private class FakeConnector(private var failures: Int = 0) : PocketConnector {
     }
 }
 
-private class FakeWallet : PocketWallet {
+internal class FakeWallet : PocketWallet {
     override val events = MutableSharedFlow<PocketEvent>()
     var balance = 0L
     var disconnected = false

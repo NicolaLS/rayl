@@ -8,8 +8,9 @@ Rayl's platform hosts, provider runtimes, and platform credential stores jointly
 
 Rayl pays with its built-in wallet, the Rayl pocket, unless the user connects an
 external wallet (Blink, NWC, or Spark) from its Settings. After the welcome,
-Rayl's wallet is in use without any setup. App preferences, the user's shared
-Hub, and the pocket are independent of external connections.
+Rayl's wallet is in use once its terms are accepted and a passkey is set up.
+App preferences, the user's shared Hub, and the pocket are independent of
+external connections.
 
 ## External connections
 
@@ -48,10 +49,21 @@ wallets.
 ## The Rayl pocket
 
 The pocket holds funds in an app-owned wallet rather than a connection to an
-external wallet. Its key is generated on the device the first time Rayl's wallet
-mounts and is never entered or shown in normal use, so erasing it would destroy
-funds the user cannot recover. Using another wallet therefore stops its session
-without erasing the key or pocket data; startup cleanup does not erase them
-either, and going back to Rayl restores the same pocket. A generated key is
-stored before the pocket first connects, and a key that exists but cannot be
-read is never replaced. Only an explicit debug-build action erases the pocket.
+external wallet. Rayl never generates its key: Breez passkey login derives it
+from a passkey during Rayl's wallet onboarding, so the passkey is the pocket's
+only backup and the key is never entered, shown, or exported. Without passkey
+support, Rayl's wallet is not available and onboarding offers the external
+wallets instead.
+
+A passkey can hold several wallets, one per account label, shared with other
+apps that use the same relying party. A passkey without published accounts
+opens its default account. When accounts exist, the user chooses one, sharing
+its balance, or creates Rayl's own account.
+
+The device keeps a copy of the derived key so launches and payments never
+prompt. The copy is stored before the pocket first connects, and a key that
+exists but cannot be read is never replaced. Using another wallet stops the
+pocket session without erasing the key copy or pocket data; startup cleanup does
+not erase them either, and going back to Rayl restores the same pocket. Only an
+explicit debug-build action erases the copy, after which the passkey sets the
+pocket up again.

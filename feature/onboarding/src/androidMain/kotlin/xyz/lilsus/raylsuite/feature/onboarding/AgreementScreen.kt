@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,7 +38,9 @@ fun AgreementScreen(
     onAgreementChanged: (Boolean) -> Unit,
     onContinue: () -> Unit,
     onBack: (() -> Unit)?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isWorking: Boolean = false,
+    message: String? = null
 ) {
     OnboardingScaffold(
         stepIndex = stepIndex,
@@ -103,15 +107,30 @@ fun AgreementScreen(
                 }
             }
 
+            message?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
             Button(
                 onClick = onContinue,
-                enabled = hasAgreed,
+                enabled = hasAgreed && !isWorking,
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .testTag(OnboardingTestTags.AGREEMENT_CONTINUE)
             ) {
-                Text(stringResource(R.string.onboarding_agreement_continue))
+                if (isWorking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(stringResource(R.string.onboarding_agreement_continue))
+                }
             }
         }
     }

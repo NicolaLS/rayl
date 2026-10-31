@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.random.Random
 import xyz.lilsus.rayl.providers.rayl.experience.R
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketStatus
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.createAndroidPocketSetup
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.createAndroidRaylPocket
 import xyz.lilsus.raylsuite.core.model.ThemePreference
 import xyz.lilsus.raylsuite.core.settings.rememberAppSettings
@@ -37,7 +38,7 @@ import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
 
 /**
  * The Compose host of Rayl's built-in wallet on Android. It needs no credentials: mounting it
- * starts the pocket. [onUseWallet] runs with one of [otherWallets] once the pocket session has
+ * starts the pocket, and its onboarding sets up the passkey that derives the pocket key. [onUseWallet] runs with one of [otherWallets] once the pocket session has
  * closed, so the host can set up that wallet; [onErased] after a debug build erased the pocket.
  */
 @Composable
@@ -63,6 +64,9 @@ fun RaylExperience(
                 environment = environment,
                 pocket = RaylEarlyStart.take {
                     createAndroidRaylPocket(context, environment.pocketConfig(breezApiKey))
+                },
+                createSetup = { pocket ->
+                    createAndroidPocketSetup(context, environment.pocketConfig(breezApiKey), pocket)
                 },
                 haptics = haptics,
                 onFundingInvoice = { invoice ->
@@ -102,7 +106,10 @@ fun RaylExperience(
 
                 exit != RaylExit.None -> RaylStatusScreen(message = null)
 
-                onboardingStep != RaylOnboardingStep.Complete -> RaylOnboarding(runtime)
+                onboardingStep != RaylOnboardingStep.Complete -> RaylOnboarding(
+                    runtime,
+                    otherWallets
+                )
 
                 // The pocket connects in the background: the camera must not wait for it.
                 else -> RaylTabs(runtime, otherWallets)
@@ -112,7 +119,7 @@ fun RaylExperience(
 }
 
 @Composable
-private fun RaylStatusScreen(message: String?, action: String? = null, onAction: () -> Unit = {}) {
+internal fun RaylStatusScreen(message: String?, action: String? = null, onAction: () -> Unit = {}) {
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
