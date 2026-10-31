@@ -24,6 +24,5 @@
     <string name="rayl_accounts_title">Wähle ein Konto</string>
     <string name="rayl_accounts_body">Dein Passkey hat bereits Konten, vielleicht aus anderen Apps. Zahle mit einem davon oder starte ein neues nur für Rayl.</string>
     <string name="rayl_accounts_new">Neues Rayl-Konto</string>
-    <string name="rayl_passkey_unavailable_title">Rayl braucht einen Passkey</string>
-    <string name="rayl_passkey_unavailable_body">Dieses Telefon kann keine Passkeys verwenden, daher kann Rayl hier kein Guthaben führen. Zahle stattdessen mit einer Wallet, die du schon hast.</string>
+    <string name="rayl_connect_wallet">Verbinde deine Wallet</string>
 </resources>

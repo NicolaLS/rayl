@@ -55,11 +55,6 @@ only backup and the key is never entered, shown, or exported. Without passkey
 support, Rayl's wallet is not available and onboarding offers the external
 wallets instead.
 
-A passkey can hold several wallets, one per account label, shared with other
-apps that use the same relying party. A passkey without published accounts
-opens its default account. When accounts exist, the user chooses one, sharing
-its balance, or creates Rayl's own account.
-
 The device keeps a copy of the derived key so launches and payments never
 prompt. The copy is stored before the pocket first connects, and a key that
 exists but cannot be read is never replaced. Using another wallet stops the

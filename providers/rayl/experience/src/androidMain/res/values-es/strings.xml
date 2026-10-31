@@ -24,6 +24,5 @@
     <string name="rayl_accounts_title">Elige una cuenta</string>
     <string name="rayl_accounts_body">Tu passkey ya tiene cuentas, quizá de otras apps. Paga con una de ellas o crea una nueva solo para Rayl.</string>
     <string name="rayl_accounts_new">Nueva cuenta de Rayl</string>
-    <string name="rayl_passkey_unavailable_title">Rayl necesita una passkey</string>
-    <string name="rayl_passkey_unavailable_body">Este teléfono no puede usar passkeys, así que Rayl no puede guardar un saldo aquí. Paga con una billetera que ya tengas.</string>
+    <string name="rayl_connect_wallet">Conecta tu billetera</string>
 </resources>

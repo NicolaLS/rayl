@@ -247,7 +247,6 @@ private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> 
 }
 
 /** The entry point to external wallets; choosing one closes Rayl's wallet and starts its setup. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RaylUseAnotherWalletScreen(
     runtime: RaylRuntime,
@@ -255,11 +254,30 @@ private fun RaylUseAnotherWalletScreen(
     onBack: () -> Unit
 ) {
     val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
+    RaylWalletChoiceScreen(
+        title = stringResource(R.string.rayl_use_another_wallet),
+        info = stringResource(R.string.rayl_use_another_wallet_info),
+        otherWallets = otherWallets,
+        onUseWallet = { if (!isSubmitting) runtime.useWallet(it) },
+        onBack = onBack
+    )
+}
+
+/** The external wallets the host offers; [onUseWallet] receives the chosen one's id. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RaylWalletChoiceScreen(
+    title: String,
+    info: String?,
+    otherWallets: List<RaylWalletOption>,
+    onUseWallet: (String) -> Unit,
+    onBack: (() -> Unit)?
+) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.rayl_use_another_wallet)) },
-                navigationIcon = { BackIconButton(onClick = onBack) }
+                title = { Text(title) },
+                navigationIcon = { onBack?.let { BackIconButton(onClick = it) } }
             )
         }
     ) { padding ->
@@ -273,19 +291,21 @@ private fun RaylUseAnotherWalletScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(AppSettingsRowDefaults.RowSpacing)
         ) {
-            Text(
-                text = stringResource(R.string.rayl_use_another_wallet_info),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-            )
+            info?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                )
+            }
             otherWallets.forEach { wallet ->
                 AppSettingsRow(
                     title = wallet.title,
                     subtitle = wallet.subtitle,
                     subtitleMaxLines = 2,
                     testTag = "rayl_use_wallet_${wallet.id}",
-                    onClick = { if (!isSubmitting) runtime.useWallet(wallet.id) }
+                    onClick = { onUseWallet(wallet.id) }
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,

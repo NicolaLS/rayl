@@ -231,6 +231,29 @@
         }
       }
     },
+    "rayl_connect_wallet" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinde deine Wallet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect your wallet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conecta tu billetera"
+          }
+        }
+      }
+    },
     "rayl_copy_invoice" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -457,52 +480,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo abrir tu passkey. Inténtalo de nuevo."
-          }
-        }
-      }
-    },
-    "rayl_passkey_unavailable_body" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dieses Telefon kann keine Passkeys verwenden, daher kann Rayl hier kein Guthaben führen. Zahle stattdessen mit einer Wallet, die du schon hast."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This phone can't use passkeys, so Rayl can't keep a balance here. Pay with a wallet you already have instead."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Este teléfono no puede usar passkeys, así que Rayl no puede guardar un saldo aquí. Paga con una billetera que ya tengas."
-          }
-        }
-      }
-    },
-    "rayl_passkey_unavailable_title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rayl braucht einen Passkey"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rayl needs a passkey"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rayl necesita una passkey"
           }
         }
       }

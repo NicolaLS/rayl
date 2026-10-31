@@ -139,7 +139,7 @@ private struct RaylOnboardingView: View {
             case "accounts":
                 RaylAccountsView(snapshot: snapshot, controller: model.controller)
             case "unavailable":
-                RaylPasskeyUnavailableView(snapshot: snapshot, controller: model.controller)
+                RaylConnectWalletView(snapshot: snapshot, controller: model.controller)
             default:
                 ProgressView()
             }
@@ -202,27 +202,43 @@ private struct RaylAccountsView: View {
     }
 }
 
-/// Rayl's wallet needs a passkey; without one the user pays with a wallet they already have.
-private struct RaylPasskeyUnavailableView: View {
+/// Without passkeys Rayl's wallet cannot exist: connecting a wallet is simply the next step.
+private struct RaylConnectWalletView: View {
     let snapshot: RaylNativeOnboardingSnapshot
     let controller: RaylNativeOnboardingController
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    ForEach(snapshot.otherWallets, id: \.id) { wallet in
-                        RaylOnboardingRow(title: wallet.title, subtitle: wallet.subtitle) {
-                            controller.useWallet(id: wallet.id)
-                        }
-                        .accessibilityIdentifier("rayl_use_wallet_\(wallet.id)")
+            RaylWalletChoiceList(wallets: snapshot.otherWallets, info: nil, isDisabled: false) {
+                controller.useWallet(id: $0)
+            }
+            .navigationTitle(snapshot.connectWalletTitle)
+        }
+    }
+}
+
+/// The external wallets the host offers; choosing one closes Rayl's wallet and starts its setup.
+private struct RaylWalletChoiceList: View {
+    let wallets: [RaylWalletOption]
+    let info: String?
+    let isDisabled: Bool
+    let onUseWallet: (String) -> Void
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(wallets, id: \.id) { wallet in
+                    RaylOnboardingRow(title: wallet.title, subtitle: wallet.subtitle) {
+                        onUseWallet(wallet.id)
                     }
-                } header: {
-                    Text(snapshot.unavailableBody)
-                        .textCase(nil)
+                    .disabled(isDisabled)
+                    .accessibilityIdentifier("rayl_use_wallet_\(wallet.id)")
+                }
+            } footer: {
+                if let info {
+                    Text(info)
                 }
             }
-            .navigationTitle(snapshot.unavailableTitle)
         }
     }
 }
@@ -431,34 +447,14 @@ private struct RaylUseAnotherWalletView: View {
     @ObservedObject var model: RaylWalletSettingsModel
 
     var body: some View {
-        List {
+        Group {
             if let snapshot = model.snapshot {
-                Section {
-                    ForEach(snapshot.otherWallets, id: \.id) { wallet in
-                        Button {
-                            model.controller.useWallet(id: wallet.id)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(wallet.title)
-                                        .foregroundStyle(.primary)
-                                    Text(wallet.subtitle)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(snapshot.isSubmitting)
-                        .accessibilityIdentifier("rayl_use_wallet_\(wallet.id)")
-                    }
-                } footer: {
-                    Text(snapshot.useAnotherWalletInfo)
+                RaylWalletChoiceList(
+                    wallets: snapshot.otherWallets,
+                    info: snapshot.useAnotherWalletInfo,
+                    isDisabled: snapshot.isSubmitting
+                ) {
+                    model.controller.useWallet(id: $0)
                 }
             }
         }

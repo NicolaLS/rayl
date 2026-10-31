@@ -25,8 +25,7 @@ data class RaylNativeOnboardingSnapshot(
     val accountsBody: String,
     val accounts: List<String>,
     val newAccountTitle: String?,
-    val unavailableTitle: String,
-    val unavailableBody: String,
+    val connectWalletTitle: String,
     val otherWallets: List<RaylWalletOption>
 )
 
@@ -74,8 +73,7 @@ class RaylNativeOnboardingController internal constructor(
                     } else {
                         null
                     },
-                    unavailableTitle = text("rayl_passkey_unavailable_title"),
-                    unavailableBody = text("rayl_passkey_unavailable_body"),
+                    connectWalletTitle = text("rayl_connect_wallet"),
                     otherWallets = otherWallets()
                 )
             }.collect(onChange)

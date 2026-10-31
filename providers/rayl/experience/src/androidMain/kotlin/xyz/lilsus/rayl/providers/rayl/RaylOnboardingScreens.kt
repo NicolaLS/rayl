@@ -42,7 +42,14 @@ internal fun RaylOnboarding(runtime: RaylRuntime, otherWallets: List<RaylWalletO
     when (val current = step) {
         RaylOnboardingStep.Checking, RaylOnboardingStep.Complete -> RaylStatusScreen(message = null)
 
-        RaylOnboardingStep.Unavailable -> RaylPasskeyUnavailable(runtime, otherWallets)
+        // Without passkeys Rayl's wallet cannot exist: connecting a wallet is simply the next step.
+        RaylOnboardingStep.Unavailable -> RaylWalletChoiceScreen(
+            title = stringResource(R.string.rayl_connect_wallet),
+            info = null,
+            otherWallets = otherWallets,
+            onUseWallet = { runtime.useWallet(it) },
+            onBack = null
+        )
 
         RaylOnboardingStep.Agreement -> AgreementScreen(
             body = stringResource(R.string.rayl_onboarding_agreement_body),
@@ -104,26 +111,6 @@ private fun RaylAccounts(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error
             )
-        }
-    }
-}
-
-/** Rayl's wallet needs a passkey; without one the user pays with a wallet they already have. */
-@Composable
-private fun RaylPasskeyUnavailable(runtime: RaylRuntime, otherWallets: List<RaylWalletOption>) {
-    RaylOnboardingPage(
-        title = stringResource(R.string.rayl_passkey_unavailable_title),
-        body = stringResource(R.string.rayl_passkey_unavailable_body),
-        onBack = null
-    ) {
-        otherWallets.forEach { wallet ->
-            AppSettingsRow(
-                title = wallet.title,
-                subtitle = wallet.subtitle,
-                subtitleMaxLines = 2,
-                testTag = "rayl_use_wallet_${wallet.id}",
-                onClick = { runtime.useWallet(wallet.id) }
-            ) { RaylChevron() }
         }
     }
 }
