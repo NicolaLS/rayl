@@ -71,6 +71,7 @@ internal class BreezPasskeyAccounts(prfProvider: PrfProvider, breezApiKey: Strin
     private inline fun <T> translated(block: () -> T): T = try {
         block()
     } catch (error: PasskeyException) {
+        PocketTimings.mark("passkey error: ${error::class.simpleName} ${error.message}")
         throw when (error) {
             is PasskeyException.Prf -> when (error.v1) {
                 is PrfProviderException.UserCancelled,

@@ -126,7 +126,10 @@ internal class PasskeyPocketSetup(
         }
 
     private suspend fun attempt(block: suspend () -> PocketSetupResult): PocketSetupResult =
-        lock.withLock {
+        lock.withLock { attemptLocked(block).also { PocketTimings.mark("passkey setup: $it") } }
+
+    private suspend fun attemptLocked(block: suspend () -> PocketSetupResult): PocketSetupResult =
+        run {
             try {
                 block()
             } catch (error: CancellationException) {
