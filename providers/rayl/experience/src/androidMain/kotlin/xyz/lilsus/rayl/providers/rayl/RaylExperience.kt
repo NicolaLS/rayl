@@ -80,6 +80,7 @@ fun RaylExperience(
     )
     val status by runtime.pocket.status.collectAsStateWithLifecycle()
     val exit by runtime.exit.collectAsStateWithLifecycle()
+    val onboardingStep by runtime.onboardingState.step.collectAsStateWithLifecycle()
     LaunchedEffect(runtime, status, exit) {
         onConnectionChanged(status == PocketStatus.Ready && exit == RaylExit.None)
         if (exit == RaylExit.Done) {
@@ -100,6 +101,11 @@ fun RaylExperience(
                 )
 
                 exit != RaylExit.None -> RaylStatusScreen(message = null)
+
+                onboardingStep != RaylOnboardingStep.Complete -> RaylOnboarding(
+                    runtime,
+                    onboardingStep
+                )
 
                 // The pocket connects in the background: the camera must not wait for it.
                 else -> RaylTabs(runtime, otherWallets)

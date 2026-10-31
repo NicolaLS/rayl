@@ -5,7 +5,7 @@ import Shared
 private func raylShellStage(_ value: String) -> NativeShellStage {
     switch value {
     case "tabs": return .tabs
-    case "problem": return .onboarding
+    case "onboarding", "problem": return .onboarding
     default: return .loading
     }
 }
@@ -46,9 +46,9 @@ private func makeRaylShellAdapter(_ experience: RaylIosExperience) -> NativeShel
                 )
             )
         },
-        // Rayl has no setup; this stage only shows a failed "Use another wallet".
+        // Rayl's wallet needs no setup: this stage introduces it, or shows a failed exit.
         nativeOnboardingView: {
-            AnyView(RaylProblemView(experience: experience))
+            AnyView(RaylOnboardingStageView(experience: experience))
         }
     )
 }
@@ -62,6 +62,139 @@ struct RaylExperienceView: View {
 
     var body: some View {
         NativeAppShell(adapter: adapter)
+    }
+}
+
+@MainActor
+private final class RaylStageModel: ObservableObject {
+    @Published private(set) var stage: String
+    private var cancel: (() -> Void)?
+
+    init(experience: RaylIosExperience) {
+        stage = experience.stage()
+        cancel = experience.observeStage { [weak self] in self?.stage = $0 }
+    }
+
+    deinit { cancel?() }
+}
+
+private struct RaylOnboardingStageView: View {
+    let experience: RaylIosExperience
+    @StateObject private var model: RaylStageModel
+
+    init(experience: RaylIosExperience) {
+        self.experience = experience
+        _model = StateObject(wrappedValue: RaylStageModel(experience: experience))
+    }
+
+    var body: some View {
+        if model.stage == "problem" {
+            RaylProblemView(experience: experience)
+        } else {
+            RaylOnboardingView(controller: experience.onboardingController())
+        }
+    }
+}
+
+@MainActor
+private final class RaylOnboardingModel: ObservableObject {
+    @Published private(set) var snapshot: RaylNativeOnboardingSnapshot?
+
+    let controller: RaylNativeOnboardingController
+    private var cancel: (() -> Void)?
+
+    init(controller: RaylNativeOnboardingController) {
+        self.controller = controller
+        cancel = controller.observe { [weak self] in self?.snapshot = $0 }
+    }
+
+    deinit { cancel?() }
+}
+
+/// Introduces Rayl's wallet with the shared onboarding views the providers use.
+private struct RaylOnboardingView: View {
+    @StateObject private var model: RaylOnboardingModel
+
+    init(controller: RaylNativeOnboardingController) {
+        _model = StateObject(wrappedValue: RaylOnboardingModel(controller: controller))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let snapshot = model.snapshot {
+                    screen(snapshot)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            if snapshot.canGoBack {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    Button(action: model.controller.back) {
+                                        Label(snapshot.backTitle, systemImage: "chevron.left")
+                                            .labelStyle(.iconOnly)
+                                    }
+                                }
+                            }
+                        }
+                } else {
+                    ProgressView()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func screen(_ snapshot: RaylNativeOnboardingSnapshot) -> some View {
+        switch snapshot.step {
+        case "features":
+            NativeOnboardingFeaturesView(
+                pages: snapshot.featurePages.enumerated().map { index, page in
+                    NativeOnboardingPageValue(
+                        id: index,
+                        title: page.title,
+                        subtitle: page.subtitle,
+                        body: page.body
+                    )
+                },
+                currentPage: snapshot.featurePage,
+                stepIndex: snapshot.stepIndex,
+                stepCount: snapshot.stepCount,
+                actionTitle: snapshot.featuresNextTitle,
+                onPageChanged: model.controller.setFeaturePage,
+                action: model.controller.continueFeatures
+            )
+        case "autoPay":
+            NativeOnboardingAutoPayView(
+                title: snapshot.autoPayTitle,
+                body: snapshot.autoPayBody,
+                alwaysTitle: snapshot.autoPayAlwaysTitle,
+                thresholdTitle: snapshot.autoPayThresholdTitle,
+                thresholdLabel: snapshot.autoPayThresholdLabel,
+                hint: snapshot.autoPayHint,
+                actionTitle: snapshot.autoPayNextTitle,
+                confirmationMode: snapshot.confirmationMode,
+                thresholdIndex: snapshot.thresholdIndex,
+                thresholdStepCount: snapshot.thresholdStepCount,
+                stepIndex: snapshot.stepIndex,
+                stepCount: snapshot.stepCount,
+                onConfirmationModeChanged: model.controller.setConfirmationMode,
+                onThresholdIndexChanged: model.controller.setThresholdIndex,
+                action: model.controller.continueAutoPay
+            )
+        case "agreement":
+            NativeOnboardingAgreementView(
+                title: snapshot.agreementTitle,
+                body: snapshot.agreementBody,
+                checkboxTitle: snapshot.agreementCheckboxTitle,
+                actionTitle: snapshot.agreementNextTitle,
+                hasAgreed: snapshot.hasAgreed,
+                stepIndex: snapshot.stepIndex,
+                stepCount: snapshot.stepCount,
+                onAgreementChanged: model.controller.setAgreement,
+                action: model.controller.continueAgreement
+            )
+        default:
+            ProgressView()
+        }
     }
 }
 

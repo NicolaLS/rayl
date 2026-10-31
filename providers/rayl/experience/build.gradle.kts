@@ -18,6 +18,7 @@ kotlin {
             implementation(project(":feature:app-shell"))
             implementation(project(":feature:currency-settings"))
             implementation(project(":feature:language-settings"))
+            implementation(project(":feature:onboarding"))
             implementation(project(":feature:payment-settings"))
             api(project(":feature:payment-hub"))
             api(project(":feature:payment-ui"))
@@ -32,8 +33,10 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.multiplatform.settings.test)
         }
         androidMain.dependencies {
+            implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material.icons.extended)

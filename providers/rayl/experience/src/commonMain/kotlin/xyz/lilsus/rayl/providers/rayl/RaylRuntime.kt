@@ -10,6 +10,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.rayl.feature.payment.RaylPaymentSettlement
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketTimings
@@ -20,6 +21,7 @@ import xyz.lilsus.raylsuite.feature.appshell.AppTab
 import xyz.lilsus.raylsuite.feature.appshell.AppTabState
 import xyz.lilsus.raylsuite.feature.currencysettings.DefaultCurrencyPreferences
 import xyz.lilsus.raylsuite.feature.languagesettings.createLanguageRepository
+import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentFlowCoordinator
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiState
 import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
@@ -81,6 +83,9 @@ internal class RaylRuntime(
         paymentHub = paymentHub,
         haptics = haptics
     )
+    val onboardingState = RaylOnboardingState(appSettings)
+    val onboarding =
+        OnboardingViewModel(paymentPreferences, currencyPreferences, bitcoinPriceProvider)
     val funding = RaylFunding(
         createInvoice = { pocket.createInvoice(amountSats = null, description = it) },
         receipts = pocket.receivedPayments,
@@ -103,9 +108,11 @@ internal class RaylRuntime(
                     // No other wallet took the funding invoice; Rayl must not pay itself.
                     funding.showInvoice()
                     tabState.select(AppTab.Settings)
-                } else if (mutableExit.value == RaylExit.None &&
-                    !paymentCoordinator.isSubmitting.value
-                ) {
+                    return@collect
+                }
+                // Payments present on the Scan tab, which shows once onboarding is complete.
+                onboardingState.step.first { it == RaylOnboardingStep.Complete }
+                if (mutableExit.value == RaylExit.None && !paymentCoordinator.isSubmitting.value) {
                     tabState.requestScan()
                     paymentCoordinator.dispatch(PaymentIntent.DeepLinkReceived(uri))
                 }
@@ -184,6 +191,7 @@ internal class RaylRuntime(
         closed = true
         scope.cancel()
         paymentCoordinator.clear()
+        onboarding.clear()
         bitcoinPriceProvider.close()
         lnurlPayClient.close()
         languageRepository.close()

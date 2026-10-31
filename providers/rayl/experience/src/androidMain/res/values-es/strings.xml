@@ -19,4 +19,15 @@
     <string name="rayl_use_another_wallet_info">Conecta una billetera que ya tienes y paga con ella. Tu saldo de Rayl se queda en este dispositivo y puedes volver a Rayl en Ajustes cuando quieras.</string>
     <string name="rayl_balance">Saldo</string>
     <string name="rayl_add_funds_with">Añadir fondos con</string>
+    <string name="rayl_onboarding_page1_title">Escáner silencioso, resultados rápidos</string>
+    <string name="rayl_onboarding_page1_subtitle">Funciona, aunque no veas la cámara.</string>
+    <string name="rayl_onboarding_page1_body">Rayl escanea en segundo plano para que el pago sea fluido. Apunta al código, espera un momento y listo.</string>
+    <string name="rayl_onboarding_page2_title">Auto Pay, a tu manera</string>
+    <string name="rayl_onboarding_page2_subtitle">Paga importes pequeños al instante, sin toques extra.</string>
+    <string name="rayl_onboarding_page2_body">Fija un límite con el que te sientas cómodo. Por encima de él, Rayl te preguntará antes de pagar.</string>
+    <string name="rayl_onboarding_page3_title">Un saldo para gastar</string>
+    <string name="rayl_onboarding_page3_subtitle">Como una tarjeta prepago para Lightning.</string>
+    <string name="rayl_onboarding_page3_body">Recarga Rayl desde la billetera donde ahorras y guarda solo lo que piensas gastar. Tus ahorros se quedan donde están.</string>
+    <string name="rayl_onboarding_autopay_body">Elige cuándo Rayl debe pedir confirmación antes de pagar.</string>
+    <string name="rayl_onboarding_agreement_body">Usar Rayl es bajo tu propio riesgo. Tu saldo de Rayl se guarda solo en este dispositivo y no tiene copia de seguridad: si pierdes o restableces este teléfono, el saldo se pierde. Eres totalmente responsable de los fondos y de los pagos realizados.\n\nGuarda solo importes pequeños que pienses gastar.</string>
 </resources>

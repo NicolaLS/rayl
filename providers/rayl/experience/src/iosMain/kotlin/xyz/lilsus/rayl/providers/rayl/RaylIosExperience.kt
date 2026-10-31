@@ -72,15 +72,19 @@ class RaylIosExperience(
             currencyCodes = runtime.currencyPreferences.code
         )
     }
+    private val onboardingController = lazy { RaylNativeOnboardingController(runtime) }
     private val walletSettingsController = lazy {
         RaylNativeWalletSettingsController(runtime, otherWallets)
     }
 
-    /** `tabs` at once: the pocket connects in the background, so the camera never waits for it. */
-    fun stage(): String = stageOf(runtime.exit.value)
+    /**
+     * `onboarding` until Rayl's wallet was introduced, then `tabs`: the pocket connects in the
+     * background, so the camera never waits for it.
+     */
+    fun stage(): String = stageOf(runtime.exit.value, runtime.onboardingState.step.value)
 
     fun observeStage(onChange: (String) -> Unit): () -> Unit =
-        observe(runtime.exit) { onChange(stageOf(it)) }
+        observe(combine(runtime.exit, runtime.onboardingState.step, ::stageOf)) { onChange(it) }
 
     /** Shown when closing the pocket for "Use another wallet" failed. */
     fun observeProblem(onChange: (RaylProblemSnapshot) -> Unit): () -> Unit =
@@ -132,6 +136,8 @@ class RaylIosExperience(
 
     fun hubController(): NativePaymentHubController = hubController.value
 
+    fun onboardingController(): RaylNativeOnboardingController = onboardingController.value
+
     fun walletSettingsController(): RaylNativeWalletSettingsController =
         walletSettingsController.value
 
@@ -141,6 +147,7 @@ class RaylIosExperience(
         if (recentController.isInitialized()) recentController.value.clear()
         if (hubController.isInitialized()) hubController.value.clear()
         if (walletSettingsController.isInitialized()) walletSettingsController.value.clear()
+        if (onboardingController.isInitialized()) onboardingController.value.clear()
         observerScope.coroutineContext[Job]?.cancel()
         runtime.clear()
     }
@@ -218,8 +225,8 @@ class RaylIosExperience(
     }
 }
 
-private fun stageOf(exit: RaylExit): String = when (exit) {
-    RaylExit.None -> "tabs"
+private fun stageOf(exit: RaylExit, onboarding: RaylOnboardingStep): String = when (exit) {
+    RaylExit.None -> if (onboarding == RaylOnboardingStep.Complete) "tabs" else "onboarding"
     RaylExit.Failed -> "problem"
     RaylExit.Working, RaylExit.Done -> "loading"
 }
