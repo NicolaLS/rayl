@@ -1,14 +1,4 @@
 <resources>
-    <string name="spark_onboarding_features_page1_title">Escáner discreto, resultados rápidos</string>
-    <string name="spark_onboarding_features_page1_subtitle">Funciona aunque la cámara permanezca fuera de vista.</string>
-    <string name="spark_onboarding_features_page1_body">%1$s escanea en segundo plano para que el pago sea fluido. Apunta al código, espera un instante y listo.</string>
-    <string name="spark_onboarding_features_page2_title">Auto Pay, bajo tus reglas</string>
-    <string name="spark_onboarding_features_page2_subtitle">Paga montos pequeños al instante y sin pasos adicionales.</string>
-    <string name="spark_onboarding_features_page2_body">Define un límite con el que te sientas cómodo. Para cualquier monto superior, %1$s pedirá confirmación.</string>
-    <string name="spark_onboarding_features_page3_title">Tu frase, tu billetera Spark</string>
-    <string name="spark_onboarding_features_page3_subtitle">%1$s abre la billetera derivada de tu frase.</string>
-    <string name="spark_onboarding_features_page3_body">La frase de recuperación permanece protegida en este dispositivo mientras %1$s se concentra en pagos presenciales rápidos.</string>
-    <string name="spark_onboarding_autopay_body">Elige cuándo %1$s debe pedir confirmación antes de pagar.</string>
     <string name="spark_onboarding_agreement_body">Usas %1$s bajo tu propio riesgo. Esta aplicación puede gastar desde la billetera Spark derivada de tu frase de recuperación. Eres totalmente responsable de la frase, los fondos y los pagos realizados.\n\nRecomendamos usar una billetera con un saldo pequeño para gastos.</string>
     <string name="spark_onboarding_add_wallet_title">Importa tu billetera Spark</string>
     <string name="spark_onboarding_add_wallet_intro">Ten lista la frase de recuperación de la billetera que quieres usar con %1$s.</string>

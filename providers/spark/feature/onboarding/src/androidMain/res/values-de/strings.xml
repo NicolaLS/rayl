@@ -1,14 +1,4 @@
 <resources>
-    <string name="spark_onboarding_features_page1_title">Leiser Scanner, schnelle Ergebnisse</string>
-    <string name="spark_onboarding_features_page1_subtitle">Er funktioniert, auch wenn die Kamera im Hintergrund bleibt.</string>
-    <string name="spark_onboarding_features_page1_body">%1$s scannt im Hintergrund, damit das Bezahlen reibungslos bleibt. Richte es auf den Code, warte kurz und schon kann es losgehen.</string>
-    <string name="spark_onboarding_features_page2_title">Auto Pay nach deinen Regeln</string>
-    <string name="spark_onboarding_features_page2_subtitle">Bezahle kleine Beträge sofort und ohne zusätzliche Schritte.</string>
-    <string name="spark_onboarding_features_page2_body">Lege ein Limit fest, mit dem du dich wohlfühlst. Bei höheren Beträgen fragt %1$s vor der Zahlung nach.</string>
-    <string name="spark_onboarding_features_page3_title">Deine Phrase, deine Spark-Wallet</string>
-    <string name="spark_onboarding_features_page3_subtitle">%1$s öffnet die aus deiner Phrase abgeleitete Wallet.</string>
-    <string name="spark_onboarding_features_page3_body">Die Wiederherstellungsphrase bleibt auf diesem Gerät geschützt, während %1$s sich auf schnelle Zahlungen vor Ort konzentriert.</string>
-    <string name="spark_onboarding_autopay_body">Wähle, wann %1$s vor einer Zahlung um Bestätigung bitten soll.</string>
     <string name="spark_onboarding_agreement_body">Die Nutzung von %1$s erfolgt auf eigenes Risiko. Diese App kann Guthaben aus der Spark-Wallet ausgeben, die aus deiner Wiederherstellungsphrase abgeleitet wird. Du bist vollständig für die Phrase, das Guthaben und alle Zahlungen verantwortlich.\n\nWir empfehlen dringend eine Wallet mit einem kleinen Ausgabeguthaben.</string>
     <string name="spark_onboarding_add_wallet_title">Spark-Wallet importieren</string>
     <string name="spark_onboarding_add_wallet_intro">Halte die Wiederherstellungsphrase der Wallet bereit, die %1$s verwenden soll.</string>

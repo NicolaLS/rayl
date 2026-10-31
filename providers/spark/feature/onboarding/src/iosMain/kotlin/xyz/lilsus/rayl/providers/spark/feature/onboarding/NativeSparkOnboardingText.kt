@@ -3,11 +3,7 @@ package xyz.lilsus.rayl.providers.spark.feature.onboarding
 import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
 import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 
-data class NativeSparkOnboardingPage(val title: String, val subtitle: String, val body: String)
-
 data class NativeSparkOnboardingText(
-    val featurePages: List<NativeSparkOnboardingPage>,
-    val autoPayBody: String,
     val agreementBody: String,
     val instructionsTitle: String,
     val instructionsIntro: String,
@@ -16,77 +12,6 @@ data class NativeSparkOnboardingText(
 
 suspend fun nativeSparkOnboardingText(appName: String): NativeSparkOnboardingText =
     NativeSparkOnboardingText(
-        featurePages =
-            listOf(
-                NativeSparkOnboardingPage(
-                    title = nativeString(
-                        NativeStringResource(
-                            table = "SparkOnboarding",
-                            key = "spark_onboarding_features_page1_title"
-                        )
-                    ),
-                    subtitle = nativeString(
-                        NativeStringResource(
-                            table = "SparkOnboarding",
-                            key = "spark_onboarding_features_page1_subtitle"
-                        )
-                    ),
-                    body = nativeString(
-                        NativeStringResource(
-                            table = "SparkOnboarding",
-                            key = "spark_onboarding_features_page1_body"
-                        ),
-                        appName
-                    )
-                ),
-                NativeSparkOnboardingPage(
-                    title = nativeString(
-                        NativeStringResource(
-                            table = "SparkOnboarding",
-                            key = "spark_onboarding_features_page2_title"
-                        )
-                    ),
-                    subtitle = nativeString(
-                        NativeStringResource(
-                            table = "SparkOnboarding",
-                            key = "spark_onboarding_features_page2_subtitle"
-                        )
-                    ),
-                    body = nativeString(
-                        NativeStringResource(
-                            table = "SparkOnboarding",
-                            key = "spark_onboarding_features_page2_body"
-                        ),
-                        appName
-                    )
-                ),
-                NativeSparkOnboardingPage(
-                    title = nativeString(
-                        NativeStringResource(
-                            table = "SparkOnboarding",
-                            key = "spark_onboarding_features_page3_title"
-                        )
-                    ),
-                    subtitle = nativeString(
-                        NativeStringResource(
-                            table = "SparkOnboarding",
-                            key = "spark_onboarding_features_page3_subtitle"
-                        ),
-                        appName
-                    ),
-                    body = nativeString(
-                        NativeStringResource(
-                            table = "SparkOnboarding",
-                            key = "spark_onboarding_features_page3_body"
-                        ),
-                        appName
-                    )
-                )
-            ),
-        autoPayBody = nativeString(
-            NativeStringResource(table = "SparkOnboarding", key = "spark_onboarding_autopay_body"),
-            appName
-        ),
         agreementBody = nativeString(
             NativeStringResource(
                 table = "SparkOnboarding",

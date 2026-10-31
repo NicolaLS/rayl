@@ -83,8 +83,6 @@ class SparkIosExperience(
             languageChanges = runtime.languageRepository.preference,
             appName = configuration.appName,
             connectionOnly = runtime.onboardingCompleted.value,
-            initialEducationStep = runtime.onboardingState.educationStep.value,
-            onEducationStepChanged = runtime.onboardingState::moveToEducationStep,
             onComplete = runtime::completeOnboarding,
             privacyPolicyUrl = configuration.legalLinks.privacyPolicyUrl,
             termsUrl = configuration.legalLinks.termsUrl

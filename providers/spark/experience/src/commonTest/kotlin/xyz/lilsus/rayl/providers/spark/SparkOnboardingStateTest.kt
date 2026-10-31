@@ -9,17 +9,6 @@ import xyz.lilsus.raylsuite.core.model.WalletStartMode
 
 class SparkOnboardingStateTest {
     @Test
-    fun restartingDuringEducationRestoresTheCurrentStep() {
-        val settings = MapSettings()
-        val state = SparkOnboardingState(settings, WalletStartMode.Fresh)
-        state.moveToEducationStep("autoPay")
-        assertEquals("autoPay", SparkOnboardingState(settings, WalletStartMode.Restore).educationStep.value)
-        state.moveToEducationStep("agreement")
-        assertEquals("agreement", SparkOnboardingState(settings, WalletStartMode.Restore).educationStep.value)
-        assertFalse(SparkOnboardingState(settings, WalletStartMode.Restore).completed.value)
-    }
-
-    @Test
     fun connectingBeforeAgreementDoesNotAdmitPaymentLinks() {
         val state = SparkOnboardingState(MapSettings(), WalletStartMode.Fresh)
         assertFalse(state.canHandlePaymentDeepLink(walletConnected = true))

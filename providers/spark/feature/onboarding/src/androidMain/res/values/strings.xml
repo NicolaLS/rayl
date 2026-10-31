@@ -1,14 +1,4 @@
 <resources>
-    <string name="spark_onboarding_features_page1_title">Quiet scanner, quick results</string>
-    <string name="spark_onboarding_features_page1_subtitle">It’s working—even when the camera stays out of sight.</string>
-    <string name="spark_onboarding_features_page1_body">%1$s scans in the background so checkout stays smooth. Aim at the code, wait a beat, and you’re ready.</string>
-    <string name="spark_onboarding_features_page2_title">Auto Pay, your rules</string>
-    <string name="spark_onboarding_features_page2_subtitle">Pay small amounts instantly with no extra taps.</string>
-    <string name="spark_onboarding_features_page2_body">Set a limit you’re comfortable with. For anything above it, %1$s asks before paying.</string>
-    <string name="spark_onboarding_features_page3_title">Your seed, your Spark wallet</string>
-    <string name="spark_onboarding_features_page3_subtitle">%1$s opens the wallet derived from your phrase.</string>
-    <string name="spark_onboarding_features_page3_body">The recovery phrase stays protected on this device while %1$s focuses on fast in-person payments.</string>
-    <string name="spark_onboarding_autopay_body">Choose when %1$s should ask for confirmation before paying.</string>
     <string name="spark_onboarding_agreement_body">Using %1$s is at your own risk. This app can spend from the Spark wallet derived from your recovery phrase. You are fully responsible for the phrase, funds, and payments made.\n\nWe strongly recommend using a wallet with a small spending balance.</string>
     <string name="spark_onboarding_add_wallet_title">Import your Spark wallet</string>
     <string name="spark_onboarding_add_wallet_intro">Have the recovery phrase for the wallet you want %1$s to use ready.</string>

@@ -12,25 +12,16 @@ import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialProblemKind
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccess
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
-import xyz.lilsus.rayl.providers.spark.feature.onboarding.NativeSparkOnboardingPage
 import xyz.lilsus.rayl.providers.spark.feature.onboarding.nativeSparkOnboardingText
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletAction
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletMessage
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletViewModel
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.nativeSparkWalletConnectionText
-import xyz.lilsus.raylsuite.core.model.DisplayAmount
-import xyz.lilsus.raylsuite.core.model.DisplayCurrency
-import xyz.lilsus.raylsuite.core.model.PaymentConfirmationMode
-import xyz.lilsus.raylsuite.core.model.PaymentPreferences
 import xyz.lilsus.raylsuite.core.ui.NativeCredentialText
-import xyz.lilsus.raylsuite.core.ui.format.currentAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.nativeCredentialText
 import xyz.lilsus.raylsuite.core.ui.platform.CredentialClipboard
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
 import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingText
-import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingThresholdLabel
-
-data class SparkNativeOnboardingPage(val title: String, val subtitle: String, val body: String)
 
 data class SparkNativeOnboardingSnapshot(
     val step: String,
@@ -41,19 +32,6 @@ data class SparkNativeOnboardingSnapshot(
     val stepCount: Int,
     val canGoBack: Boolean,
     val backTitle: String,
-    val featurePages: List<SparkNativeOnboardingPage>,
-    val featurePage: Int,
-    val featuresNextTitle: String,
-    val autoPayTitle: String,
-    val autoPayBody: String,
-    val autoPayAlwaysTitle: String,
-    val autoPayThresholdTitle: String,
-    val autoPayThresholdLabel: String,
-    val autoPayHint: String,
-    val autoPayNextTitle: String,
-    val confirmationMode: String,
-    val thresholdIndex: Int,
-    val thresholdStepCount: Int,
     val agreementTitle: String,
     val agreementBody: String,
     val agreementCheckboxTitle: String,
@@ -89,8 +67,6 @@ class SparkNativeOnboardingController internal constructor(
     languageChanges: Flow<*>,
     private val appName: String,
     private val connectionOnly: Boolean = false,
-    initialEducationStep: String = "features",
-    private val onEducationStepChanged: (String) -> Unit = {},
     private val onComplete: () -> Unit = {},
     private val privacyPolicyUrl: String? = null,
     private val termsUrl: String? = null
@@ -101,12 +77,11 @@ class SparkNativeOnboardingController internal constructor(
     private val clipboard = CredentialClipboard()
     private val snapshot = MutableStateFlow<SparkNativeOnboardingSnapshot?>(null)
     private var resolvingInitialWallet = walletAccess.state.value.isInitialising()
-    private var educationStep = initialEducationStep
     private var currentStep =
         if (walletAccess.state.value == WalletAccessState.Connected &&
             !connectionOnly
         ) {
-            educationStep
+            STEP_AGREEMENT
         } else {
             STEP_WALLET
         }
@@ -132,33 +107,6 @@ class SparkNativeOnboardingController internal constructor(
         wallet.dispose()
         clipboard.discard()
         snapshot.value = null
-    }
-
-    fun setFeaturePage(page: Int) {
-        if (closed) return
-        onboarding.setFeaturesPage(page)
-    }
-
-    fun continueFeatures() = moveTo(STEP_AUTO_PAY)
-
-    fun setConfirmationMode(value: String) {
-        if (closed) return
-        onboarding.setConfirmationMode(
-            if (value == CONFIRMATION_ALWAYS) {
-                PaymentConfirmationMode.Always
-            } else {
-                PaymentConfirmationMode.Above
-            }
-        )
-    }
-
-    fun setThresholdIndex(index: Int) {
-        if (closed) return
-        PaymentPreferences.THRESHOLD_STEPS.getOrNull(index)?.let(onboarding::setThreshold)
-    }
-
-    fun continueAutoPay() {
-        moveTo(STEP_AGREEMENT)
     }
 
     fun setAgreement(agreed: Boolean) {
@@ -215,18 +163,12 @@ class SparkNativeOnboardingController internal constructor(
 
     fun back() {
         when (effectiveStep(wallet.state.value.access)) {
-            STEP_AUTO_PAY -> moveTo(STEP_FEATURES)
-            STEP_AGREEMENT -> moveTo(STEP_AUTO_PAY)
             STEP_INSTRUCTIONS -> moveTo(STEP_WALLET)
         }
     }
 
     private fun moveTo(step: String) {
         if (closed) return
-        if (step == STEP_FEATURES || step == STEP_AUTO_PAY || step == STEP_AGREEMENT) {
-            educationStep = step
-            onEducationStepChanged(step)
-        }
         currentStep = step
         scope.launch { publishSnapshot() }
     }
@@ -240,7 +182,7 @@ class SparkNativeOnboardingController internal constructor(
                 if (walletState.access == WalletAccessState.Connected &&
                     !connectionOnly
                 ) {
-                    educationStep
+                    STEP_AGREEMENT
                 } else {
                     STEP_WALLET
                 }
@@ -253,7 +195,7 @@ class SparkNativeOnboardingController internal constructor(
         val connected = walletState.access == WalletAccessState.Connected
         if (connected && !wasConnected) {
             clipboard.clearAfterSaving()
-            currentStep = if (connectionOnly) STEP_WALLET else educationStep
+            currentStep = if (connectionOnly) STEP_WALLET else STEP_AGREEMENT
             if (connectionOnly) onComplete()
         }
         wasConnected = connected
@@ -262,13 +204,6 @@ class SparkNativeOnboardingController internal constructor(
         val spark = nativeSparkOnboardingText(appName)
         val walletText = nativeSparkWalletConnectionText(appName)
         val step = effectiveStep(walletState.access)
-        val formatter = currentAmountFormatter()
-        val sats = formatter.format(DisplayAmount(state.thresholdSats, DisplayCurrency.Satoshi))
-        val thresholdAmount =
-            state.thresholdCurrencyEquivalent
-                ?.let(formatter::format)
-                ?.let { "$sats ($it)" }
-                ?: sats
         val recovery = recoveryCopy(walletState.access, walletText)
 
         snapshot.value =
@@ -277,30 +212,10 @@ class SparkNativeOnboardingController internal constructor(
                 credentialText = nativeCredentialText(),
                 privacyPolicyUrl = privacyPolicyUrl,
                 termsUrl = termsUrl,
-                stepIndex = stepIndex(step),
-                stepCount = ONBOARDING_STEP_COUNT,
-                canGoBack =
-                    step in listOf(STEP_AUTO_PAY, STEP_AGREEMENT, STEP_INSTRUCTIONS) &&
-                        !isRecovery(walletState.access),
+                stepIndex = 0,
+                stepCount = 0,
+                canGoBack = step == STEP_INSTRUCTIONS && !isRecovery(walletState.access),
                 backTitle = common.back,
-                featurePages = spark.featurePages.map(NativeSparkOnboardingPage::toSnapshot),
-                featurePage = state.featuresPage,
-                featuresNextTitle = common.featuresContinue,
-                autoPayTitle = common.autoPayTitle,
-                autoPayBody = spark.autoPayBody,
-                autoPayAlwaysTitle = common.autoPayAlways,
-                autoPayThresholdTitle = common.autoPayThreshold,
-                autoPayThresholdLabel = nativeOnboardingThresholdLabel(thresholdAmount),
-                autoPayHint = common.autoPayHint,
-                autoPayNextTitle = common.autoPayContinue,
-                confirmationMode =
-                    if (state.confirmationMode == PaymentConfirmationMode.Always) {
-                        CONFIRMATION_ALWAYS
-                    } else {
-                        CONFIRMATION_ABOVE
-                    },
-                thresholdIndex = PaymentPreferences.thresholdToStepIndex(state.thresholdSats),
-                thresholdStepCount = PaymentPreferences.THRESHOLD_STEPS.size,
                 agreementTitle = common.agreementTitle,
                 agreementBody = spark.agreementBody,
                 agreementCheckboxTitle = common.agreementCheckbox,
@@ -342,30 +257,15 @@ class SparkNativeOnboardingController internal constructor(
         access is WalletAccessState.CredentialProblem ||
         access == WalletAccessState.Removing
 
-    private fun stepIndex(step: String): Int = when (step) {
-        STEP_FEATURES -> 1
-        STEP_AUTO_PAY -> 2
-        STEP_AGREEMENT -> 3
-        else -> 0
-    }
-
     private companion object {
-        const val STEP_FEATURES = "features"
-        const val STEP_AUTO_PAY = "autoPay"
         const val STEP_AGREEMENT = "agreement"
         const val STEP_INSTRUCTIONS = "instructions"
         const val STEP_WALLET = "wallet"
-        const val CONFIRMATION_ALWAYS = "always"
-        const val CONFIRMATION_ABOVE = "above"
-        const val ONBOARDING_STEP_COUNT = 4
     }
 }
 
 private fun WalletAccessState.isInitialising(): Boolean =
     this == WalletAccessState.Loading || this == WalletAccessState.Connecting
-
-private fun NativeSparkOnboardingPage.toSnapshot(): SparkNativeOnboardingPage =
-    SparkNativeOnboardingPage(title = title, subtitle = subtitle, body = body)
 
 private fun walletKind(access: WalletAccessState): String = when (access) {
     WalletAccessState.NoWallet -> "import"
