@@ -44,7 +44,7 @@ Slices, in order:
 | 2.2 | The same contract for Blink and NWC (M3) | PR-04 | **A test seam** (an interface the settlement depends on) in both settlements: a small production change, waiting for Nicola's OK |
 | 2.3 | **Done.** Spark removal waits for the credential delete (M6, W2) | PR-08 | Nothing |
 | 2.4 | **Done.** An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
-| 2.5 | LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
+| 2.5 | **Done.** LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
 | 2.6 | Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (S1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
 | 2.7 | Fiat quote: rounding to whole sats and invalid rates (M5, S2) | PR-01, PR-18 | Nothing |
 | 2.8 | Payment flow component tests: each source and outcome through `PaymentFlowCoordinator`, and the Auto Pay table through the flow (M2, M1); check O-02 (M4) | PR-01–PR-04 | Nothing; fee conditions parked (SI-01) |
@@ -66,7 +66,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-02 Confirmation skipped | Policy decision table and msat boundary for every threshold step (`PaymentConfirmationPolicyTest`); nothing through the flow | M1 | Partly |
 | PR-03 Duplicate payment | Operation guard and paid-hash lookup, mutation-checked (`PaymentOperationTest`, `PaymentHistoryTest`) | M4 | Partly |
 | PR-04 Outcome misreported | The Unknown-never-Failed rule and cancellation are protected for Rayl and Spark (2.1). Blink's payment client is well covered, but its settlement and NWC's have no tests (2.2). | M3, M2, M4 | Partly |
-| PR-05 Wrong recipient | LNURL client and resolver, mutation-checked; `description_hash` check untested (audit §3); the code checks it | S4 | Partly |
+| PR-05 Wrong recipient | LNURL client and resolver, mutation-checked, including `description_hash` binding and amountless invoices (2.5) | S4 | Partly |
 | PR-06 Fee surprises | None | M1 (once built), S5 | No |
 | PR-08 Credentials retained | Spark lifecycle and removal, mutation-checked. Removal waiting for the credential delete is now tested (2.3). | M6, M10 | Partly |
 | PR-09 Pocket key lost | Pocket rules and passkey account selection, mutation-checked. The never-replace rule lives only in the platform stores, which have no tests (audit §9). | M7, M10 | Partly |

@@ -1,5 +1,6 @@
 package xyz.lilsus.raylsuite.core.payment
 
+import fr.acinq.bitcoin.ByteVector32
 import fr.acinq.bitcoin.Chain
 import fr.acinq.bitcoin.Crypto
 import fr.acinq.bitcoin.PrivateKey
@@ -117,6 +118,39 @@ class LnurlInvoiceResolverTest {
         assertEquals(0, client.requestCount)
     }
 
+    @Test
+    fun anInvoiceBoundByTheMetadataHashIsAccepted() = runTest {
+        // LUD-06 binds the invoice to the metadata with description_hash, which is how most
+        // LNURL servers in production do it.
+        val client = FakeLnurlPayClient { amount, _ ->
+            LnurlResult.Success(invoice(amount, descriptionHash = sha256(METADATA_RAW)).write())
+        }
+
+        assertIs<LnurlInvoiceResolution.Success>(resolver(client).resolve(request()))
+    }
+
+    @Test
+    fun anInvoiceBoundToOtherMetadataIsRejected() = runTest {
+        // A server could return an invoice made for another payment description (PR-05).
+        val client = FakeLnurlPayClient { amount, _ ->
+            LnurlResult.Success(invoice(amount, descriptionHash = sha256("[[\"text/plain\",\"other\"]]")).write())
+        }
+
+        assertIs<LnurlInvoiceResolutionError.MetadataMismatch>(failure(resolver(client).resolve(request())))
+    }
+
+    @Test
+    fun anAmountlessInvoiceFromTheServerIsRejected() = runTest {
+        // The server must return an invoice for the requested amount; an amountless one would
+        // leave the amount paid open.
+        val client = FakeLnurlPayClient { _, _ -> LnurlResult.Success(invoice(amountMsats = null).write()) }
+
+        val error = assertIs<LnurlInvoiceResolutionError.AmountMismatch>(failure(resolver(client).resolve(request())))
+        assertNull(error.actualMsats)
+    }
+
+    private fun sha256(text: String) = Crypto.sha256(text.encodeToByteArray()).toByteVector32()
+
     private fun resolver(client: LnurlPayClient) = LnurlInvoiceResolver(client) { 1L }
 
     private fun request(amountMsats: Long = 100_000L, comment: String? = null, params: LnurlPayParams = params()) =
@@ -126,7 +160,7 @@ class LnurlInvoiceResolverTest {
         callback = "https://pay.example/callback",
         minSendable = 1_000L,
         maxSendable = 1_000_000L,
-        metadataRaw = "[[\"text/plain\",\"coffee\"]]",
+        metadataRaw = METADATA_RAW,
         metadata =
             LnurlPayMetadata(
                 plainText = "coffee",
@@ -144,23 +178,29 @@ class LnurlInvoiceResolverTest {
     private fun failure(result: LnurlInvoiceResolution): LnurlInvoiceResolutionError =
         assertIs<LnurlInvoiceResolution.Failure>(result).error
 
-    private fun invoice(amountMsats: Long, description: String = "coffee", timestampSeconds: Long = 1L): Bolt11Invoice =
-        Bolt11Invoice.create(
-            chain = Chain.Mainnet,
-            amount = amountMsats.msat,
-            paymentHash = Crypto.sha256("payment-$amountMsats-$description".encodeToByteArray())
-                .toByteVector32(),
-            privateKey = PrivateKey(ByteArray(32) { 1 }),
-            description = Either.Left(description),
-            minFinalCltvExpiryDelta = Bolt11Invoice.DEFAULT_MIN_FINAL_EXPIRY_DELTA,
-            features =
-                Features(
-                    Feature.VariableLengthOnion to FeatureSupport.Optional,
-                    Feature.PaymentSecret to FeatureSupport.Optional
-                ),
-            timestampSeconds = timestampSeconds
-        )
+    private fun invoice(
+        amountMsats: Long?,
+        description: String = "coffee",
+        timestampSeconds: Long = 1L,
+        descriptionHash: ByteVector32? = null
+    ): Bolt11Invoice = Bolt11Invoice.create(
+        chain = Chain.Mainnet,
+        amount = amountMsats?.msat,
+        paymentHash = Crypto.sha256("payment-$amountMsats-$description".encodeToByteArray())
+            .toByteVector32(),
+        privateKey = PrivateKey(ByteArray(32) { 1 }),
+        description = descriptionHash?.let { Either.Right(it) } ?: Either.Left(description),
+        minFinalCltvExpiryDelta = Bolt11Invoice.DEFAULT_MIN_FINAL_EXPIRY_DELTA,
+        features =
+            Features(
+                Feature.VariableLengthOnion to FeatureSupport.Optional,
+                Feature.PaymentSecret to FeatureSupport.Optional
+            ),
+        timestampSeconds = timestampSeconds
+    )
 }
+
+private const val METADATA_RAW = "[[\"text/plain\",\"coffee\"]]"
 
 private class FakeLnurlPayClient(private val response: (amountMsats: Long, comment: String?) -> LnurlResult<String>) : LnurlPayClient {
     var requestCount = 0

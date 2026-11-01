@@ -2,6 +2,13 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Stage 2.5, LNURL invoice binding
+
+- **Build:** `main` at `041db645` plus 3 new tests (uncommitted)
+- **Ran:** `core/payment` tests and ktlint, then 3 mutation checks.
+- **Result:** pass (current code correct). R1 and R4 from the audit and a new R5 (the hash
+  compared against the wrong input) are killed.
+
 ## 2026-11-01: Stage 2.4, unreadable pocket key
 
 - **Build:** `main` at `ccfcbf42` plus 1 new test (uncommitted)
