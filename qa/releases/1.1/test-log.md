@@ -2,6 +2,15 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of `integration/lnurl`
+
+- **Build:** `main` at `7f972deb` plus the audit changes (uncommitted)
+- **Ran:** 5 mutation checks before and 4 after the changes, then the module's tests and
+  ktlint.
+- **Result:** all meaningful mutations killed; N3 is an equivalent mutant. The module passes
+  with 7 tests.
+- Findings: [test-audit.md §7](test-audit.md#7-integrationlnurl-2026-11-01).
+
 ## 2026-11-01: Audit of the price modules
 
 - **Build:** `main` at `09267645` plus the audit changes (uncommitted)

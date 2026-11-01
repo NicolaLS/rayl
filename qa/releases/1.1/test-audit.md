@@ -66,7 +66,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 4 | `core/model` | 10 → 8 | PR-01 | Done | 8 | 0 | 2 |
 | 5 | `feature/payment-ui` | 15 → 10 | PR-01, PR-05 | Done | 10 | 0 | 5 |
 | 6 | `feature/payment-currency`, `integration/exchange-rate`, `backend/rayl` | 18 → 17 | PR-01, PR-18 | Done | 16 | 1 improved | 1 |
-| 7 | `integration/lnurl` | 7 | PR-05 | Not audited | | | |
+| 7 | `integration/lnurl` | 7 | PR-05, PR-11 | Done | 4 | 2 merged into 1, 1 split into 2 | 0 |
 | 8 | Settlement: `providers/rayl/feature/payment`, `providers/spark/feature/payment`, `providers/blink/integration/blink`, `providers/nwc/integration/nwc` | 5, 6, 16, 3 | PR-04, PR-07 | Not audited | | | |
 | 9 | Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` | 31, 15 | PR-09, PR-10 | Not audited | | | |
 | 10 | Spark wallet: `providers/spark/application`, `integration/wallet`, `feature/wallet-connection`, `experience` | 26, 4, 5, 3 | PR-08 | Not audited | | | |
@@ -273,4 +273,33 @@ aggregates prices from four public sources and serves the median.
 - S2: invalid rates (0, negative, NaN, infinite) yield no quote (Q1). A golden JSON for the
   prices response: the server and client share one model, so they can't drift within a
   build, but already released apps are frozen while the backend keeps changing.
+
+### 7. `integration/lnurl` (2026-11-01)
+
+The best tests in the suite: they treat the LNURL server as hostile. They cover SSRF
+(private, loopback, NAT64, `.onion` and `.local` destinations, and DNS answers that resolve
+to loopback), refused redirects, response size and nesting limits, strict field validation,
+and redaction of remote error text.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `lightningAddressRequestPreservesUsernameAndTagCase` | Keep | The address becomes the right `.well-known` URL |
+| `payParamsRequestPropagatesCancellation`, `invoiceRequestPropagatesCancellation` | **Merge** → `cancellationIsPropagatedInsteadOfBecomingAnError` | Both entry points share one `request {}` wrapper. A swallowed cancellation would surface as an LNURL error after the session was cancelled (N2 killed). |
+| `rejectsUnsafeDestinationsAndDnsAnswersBeforeRequesting` | Keep | SSRF protection, including DNS rebinding |
+| `rejectsRedirectsAndOversizedResponsesWithoutTrustingContentLength` | Keep | Resource limits against a hostile server |
+| `rejectsMalformedFieldsAndMetadata` | Keep | Strict LUD-06 validation, including a non-public callback (N4 killed) |
+| `replacesCallbackParametersAndRedactsRemoteFailures` | **Improve** → split into `invoiceRequestSendsOnlyTheApprovedAmountAndComment` and `remoteFailureReasonsAreNotShown` | Two behaviours in one test, and the amount check ran *inside* the mock engine. The client turned the thrown assertion into an `Unexpected` error, so the amount check only worked through the later error comparison. It now captures the request and asserts outside. |
+
+**Mutation checks** (after the changes)
+
+| # | Mutation | Result |
+|---|---|---|
+| N1 | A server-supplied `amount` in the callback URL is kept | Killed (directly) |
+| N1b | A server-supplied `comment` is kept | Killed |
+| N2 | Cancellation becomes an error result | Killed |
+| N3 | The explicit redirect check is removed | Survived: equivalent mutant, since a 3xx still fails the "not 2xx" check |
+| N4 | The callback destination isn't checked | Killed |
+| N5 | The server's error reason is shown to the user | Killed |
+
+**Gaps:** none at this level.
 

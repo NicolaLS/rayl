@@ -5,6 +5,7 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.Parameters
 import io.ktor.http.headersOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -69,18 +70,13 @@ class KtorLnurlPayClientTest {
     }
 
     @Test
-    fun payParamsRequestPropagatesCancellation() = runTest {
+    fun cancellationIsPropagatedInsteadOfBecomingAnError() = runTest {
+        // A cancelled payment session must not surface as an LNURL error afterwards.
         val client = cancellingClient()
 
         assertFailsWith<CancellationException> {
             client.fetchPayParams("https://example.com/lnurl")
         }
-    }
-
-    @Test
-    fun invoiceRequestPropagatesCancellation() = runTest {
-        val client = cancellingClient()
-
         assertFailsWith<CancellationException> {
             client.requestInvoice(
                 callback = "https://example.com/callback",
@@ -171,21 +167,30 @@ class KtorLnurlPayClientTest {
     }
 
     @Test
-    fun replacesCallbackParametersAndRedactsRemoteFailures() = runTest {
+    fun invoiceRequestSendsOnlyTheApprovedAmountAndComment() = runTest {
+        // A server-supplied amount in the callback URL must never reach the invoice request.
+        var parameters: Parameters? = null
         val client = client(
             MockEngine { request ->
-                assertEquals(listOf("1000"), request.url.parameters.getAll("amount"))
-                assertEquals(listOf("approved comment"), request.url.parameters.getAll("comment"))
-                respond("{\"status\":\"ERROR\",\"reason\":\"untrusted response contents\"}")
+                parameters = request.url.parameters
+                respond("{\"pr\":\"lnbc1invoice\"}")
             }
         )
-        val result = assertIs<LnurlResult.Error>(
-            client.requestInvoice(
-                "https://example.com/callback?amount=5&comment=old",
-                1_000,
-                "approved comment"
-            )
-        )
+
+        client.requestInvoice("https://example.com/callback?amount=5&comment=old", 1_000, "approved comment")
+
+        assertEquals(listOf("1000"), parameters?.getAll("amount"))
+        assertEquals(listOf("approved comment"), parameters?.getAll("comment"))
+        client.close()
+    }
+
+    @Test
+    fun remoteFailureReasonsAreNotShown() = runTest {
+        // The reason text is controlled by the remote server.
+        val client = client(MockEngine { respond("{\"status\":\"ERROR\",\"reason\":\"untrusted response contents\"}") })
+
+        val result = assertIs<LnurlResult.Error>(client.requestInvoice("https://example.com/callback", 1_000, null))
+
         assertEquals(LnurlError.Protocol("LNURL service rejected the request"), result.error)
         assertNull(result.cause)
         client.close()
