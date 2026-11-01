@@ -49,8 +49,6 @@ State and logic live in common Kotlin; only the hero animation is shared Compose
 - `main` moves fast; release branches remove providers that aren't ready.
 - The first store review is slow, so `main` is already well past the 1.0 branch. Test
   effort goes to `main` and 1.1, not the frozen 1.0 branch.
-- Several areas are likely to be removed or replaced soon (§3.1). They get no new test
-  investment until decided.
 
 ## 2. Test basis
 
@@ -75,14 +73,14 @@ Example: the intended Auto Pay boundary (O-01).
 
 | Area | Main modules |
 |---|---|
-| Payment input: QR, paste; BOLT11, LNURL-pay, Lightning address. The custom parser may go (§3.1). | `core/payment`, `core/camera`, `integration/lnurl` |
+| Payment input: QR, paste; BOLT11, LNURL-pay, Lightning address | `core/payment`, `core/camera`, `integration/lnurl` |
 | Shared payment flow: admission, amount entry, confirmation or Auto Pay, outcome, session history | `feature/payment-flow`, `feature/payment-ui`, `feature/payment-currency`, `feature/payment-settings` |
 | Rayl pocket: passkey onboarding, key storage, connect/sync, quote/pay/outcome, add funds, balance | `providers/rayl/**` |
 | External wallets: setup, restore, payment, removal | `providers/blink/**`, `providers/nwc/**`, `providers/spark/**` |
 | Wallet selection and lifecycle | `app/shared` (`RaylSelection`), provider storage cleanup, `core/settings` |
 | Hub: contacts, presets, payment hand-off | `feature/payment-hub` |
 | Settings: confirmation mode and threshold, currency, language, theme, haptics | `feature/*-settings` |
-| Fiat prices; may move to the Breez SDK (§3.1) | `backend/rayl`, `core/rayl-api`, `integration/exchange-rate` |
+| Fiat prices | `backend/rayl`, `core/rayl-api`, `integration/exchange-rate` |
 | App shell, onboarding, Android and iOS hosts, release build configuration | `feature/app-shell`, `feature/onboarding`, `app/*` |
 | User-facing documents | `distribution/` |
 
@@ -99,15 +97,16 @@ Example: the intended Auto Pay boundary (O-01).
 
 ### 3.1 Planned product changes that shape scope
 
-These changes are likely but not final. Until each one is decided, the affected area gets
-**no new test investment**. Existing tests stay, and whatever ships still gets the release
-checklist. When a decision is made, update this table and the risk register.
+While a change is undecided, the affected area gets **no new test investment**. Existing
+tests stay, and whatever ships still gets the release checklist. When a change is decided,
+update this table and the risk register.
 
 | Change | Status | Effect on testing |
 |---|---|---|
 | **Remove all deep links** (payment and wallet connection). Rayl is built for in-person checkout and Hub payments, not to be a general wallet's link handler. Add funds still hands its invoice to another wallet as a `lightning:` link. | Done (2026-11-01) | Nothing to test for incoming links. Add funds: the handoff, and the invoice sheet when no wallet app is installed. Automated runs need an E2E-only way to inject scanned input (§12, after 1.1); the regtest tool's `--open` is gone. |
-| **Replace the custom payment-input parser with the Breez SDK parser** for every wallet | Under discussion with another engineer | Parser tests deferred (PR-14). Real-world payloads found in the meantime are recorded; they can later check that the new parser accepts everything the old one did. |
-| **Get fiat rates from the Breez SDK** instead of `backend/rayl` | Under consideration | Rate and backend tests deferred (PR-18). The fiat→sats correctness of whatever source ships stays in scope (PR-01). |
+| Replace the custom payment-input parser with the Breez SDK parser | Not pursued (2026-11-01, D-10) | The custom parser stays: corpus and property tests are in scope (P1.9, PR-14). |
+| Get fiat rates from the Breez SDK instead of `backend/rayl` | Not pursued (2026-11-01, D-10) | The backend stays: contract and degradation tests are in scope (P1.8, PR-18). |
+| **Fee-aware Auto Pay** (SI-01 decision) | Decided, to be built for 1.1 | New decision-table conditions (P1.2) and fee checks (P1.7). Blocked until implemented. |
 
 ## 4. Risk-based approach
 
@@ -122,16 +121,17 @@ The Level 1 focus for 1.1, grouped by the stakeholder's priorities:
 - **Plus:** PR-13 (speed), PR-14 (scanning real-world input), PR-17 (interruptions),
   PR-19 (dependency changes), PR-20 (release configuration), PR-21 (legal docs)
 
-Two of these are held back for now:
-- **PR-06 (fees under Auto Pay)** is blocked on specification issue SI-01 (appendix B).
-- **PR-14** is deferred while the parser replacement is decided (§3.1).
+One of these is held back for now: **PR-06 (fees under Auto Pay)**. SI-01 is decided
+(appendix B), but the fee-aware Auto Pay isn't built yet, so its tests wait for it.
 
 ## 5. Baseline assessment (2026-11-01)
 
 What exists, measured before this plan:
 
-- **275 JVM unit tests** in 64 classes, all passing, about 29 s of test time
-  (`testAndroidHostTest` plus `:backend:rayl:test`). That is roughly 5.9k test LOC against
+- **257 JVM unit tests** in 63 classes, all passing, about 26 s of test time
+  (`testAndroidHostTest` plus `:backend:rayl:test`). An earlier count of 275 included 18
+  stale results from the archived Club module; see the
+  [1.1 test log](releases/1.1/test-log.md). That is roughly 5.9k test LOC against
   roughly 38k Kotlin and 6.5k Swift LOC.
 - **Well covered:** input parsers, the LNURL resolver and client, Spark wallet lifecycle and
   removal, pocket setup and pocket state, Blink payment mapping, `RaylSelection`, Hub
@@ -212,10 +212,10 @@ isn't.
      action
    - passkey setup partitions: PRF supported or not, cancelled, several accounts
    - recovery: set it up again when the key is unreadable
-6. **Input corpus** (PR-14). *Deferred* until the parser decision (§3.1). Meanwhile, record
-   any real-world payment string that failed or looked unusual (merchants, PoS terminals,
-   LNURL services). Later this record becomes a golden file that either parser must
-   accept.
+6. **Input corpus** (PR-14). A golden file of real-world payment strings that
+   `LightningInputParser` must classify correctly, run on every change. Add every string
+   that failed or looked unusual (merchants, PoS terminals, LNURL services, other wallets'
+   QR codes), together with the expected target or rejection reason.
 
 ### 6.3 Techniques
 
@@ -425,7 +425,7 @@ Resume on a new candidate build, re-running the checklist sections it affects.
 
 ## 10. Defect management
 
-Defects are tracked as GitHub issues labelled `bug`, `S1`–`S4` and the risk ID where
+Defects are tracked as Linear issues labelled `bug`, `S1`–`S4` and the risk ID where
 relevant. They are prioritised with the stakeholder.
 
 | Severity | Meaning | Examples |
@@ -463,7 +463,7 @@ phase are small, independently mergeable slices.
 - P0.3 Kover report in CI as information; add `iosSimulatorArm64Test` to the iOS workflow.
 - P0.4 Agree the open decisions in §15, and specify SI-01 (Auto Pay and fees) together.
 
-**Phase 1: Money correctness (PR-01 to PR-07)**
+**Phase 1: Money correctness and payment input (PR-01 to PR-07, PR-14, PR-18)**
 - P1.1 Coordinator component suite: happy paths for each source and each outcome.
 - P1.2 Auto Pay decision table, on the policy and through the coordinator (resolve O-01
   first). Fee conditions follow SI-01.
@@ -475,8 +475,11 @@ phase are small, independently mergeable slices.
 - P1.6 Hostile LNURL fixtures (PR-05).
 - P1.7 Fee display checks per provider: a shown fee matches the fee reported as paid
   (PR-06).
-- *Deferred (§3.1):* price API contract and degradation tests (PR-18), and the parser input
-  corpus (PR-14).
+- P1.8 Price service tests (PR-18): the client/backend wire contract pinned with golden
+  JSON, and client behaviour when the backend is down, returns 503, or returns missing,
+  zero or non-finite prices (fiat entry is blocked; no amount is converted with a bad rate).
+- P1.9 Parser input corpus (PR-14), plus a property test that the parser never throws on
+  arbitrary input.
 
 **Phase 2: Wallet and credential safety (PR-08 to PR-12)**
 - P2.1 Wallet lifecycle state-transition suite with a traceability table to
@@ -536,17 +539,22 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
   after, and 1.0 gets only a release-build smoke test.
 - D-09 **Device coverage comes from Browserless App Live**, with manual checklist runs once
   per release candidate.
-- D-10 **The custom parser and backend rates are likely to be replaced** (§3.1). No new
-  test investment there until decided. Deep links were removed.
+
+**Decided (kickoff interview, 2026-11-01)**
+- D-01 **1.1 ships in about two weeks** (target 2026-11-15). The phases are cut to fit in
+  the [1.1 release test plan](releases/1.1/release-test-plan.md).
+- D-10 **The custom parser and the backend fiat rates stay.** Neither is being replaced by
+  the Breez SDK, so both get normal test investment (P1.8, P1.9).
+- D-06a **O-01: confirmation is required at exactly the threshold.** The code is right; the
+  "Above 10,000 sats" copy is wrong.
+- SI-01 **The threshold caps amount + fee where the fee is known** (appendix B).
 
 **Open (stakeholder input needed)**
-- D-01 Target date or milestone for 1.1, to schedule the phases.
-- SI-01 The rule for fees under Auto Pay (appendix B).
 - D-02 Field performance telemetry: opt-in custom metrics (needs a privacy policy change)
   or platform vitals only?
 - D-04 Mainnet test budget per release candidate.
 - D-05 Which App Live devices form the standard matrix (proposal in §7).
-- D-06 Observations O-01 and O-05: intended behaviour.
+- D-06 Observation O-05: intended behaviour (O-01 is decided, D-06a).
 - D-07 Add a property-testing library (e.g. kotest-property) or use hand-rolled
   generators?
 
@@ -559,7 +567,7 @@ one needs a test or a product decision before it becomes a defect or is closed.
 
 | ID | Observation | Risk | Next step |
 |---|---|---|---|
-| O-01 | The settings copy says "Above 10,000 sats", but `PaymentConfirmationPolicy` asks for confirmation at `amountSats >= thresholdSats`, i.e. also at exactly 10,000. The code errs on the safe side, but the copy and code disagree at the boundary. | PR-02 | Product decision on the boundary; then a boundary test |
+| O-01 | The settings copy says "Above 10,000 sats", but `PaymentConfirmationPolicy` asks for confirmation at `amountSats >= thresholdSats`, i.e. also at exactly 10,000. The code errs on the safe side, but the copy and code disagree at the boundary. | PR-02 | Decided (D-06a): the code is right. Boundary pinned in `PaymentConfirmationPolicyTest`. The onboarding label "Auto-pay up to …" is wrong too; defect drafted ([1.1 status](releases/1.1/status.md)) |
 | O-02 | `SparkExperience` calls `resetPaymentSession()` when the wallet state becomes `NoWallet` or `ResetRequired`, without the `isSubmitting` guard that the Rayl and Blink exit paths use. `resetSession()` cancels the in-flight operation, so if that state change can happen during `settle`, the outcome could be neither shown nor recorded. | PR-04 | Check reachability; write a component test |
 | O-03 | Known FIXME in `App.kt`: on a Spark cold start, a payment deep link can be rejected as "connect to pay" before the asynchronous restore finishes. | PR-14, PR-17 | Resolved: deep links were removed (§3.1) |
 | O-04 | `terms.md` and `privacy.md` describe Rayl as a non-custodial client for external wallets only. They don't mention the built-in pocket, passkeys, the device-held key copy, or Breez. | PR-21 | Review before release; release exit criterion 6 |
@@ -607,6 +615,14 @@ from an unsupported capability, which this is.
 4. Where a fee is shown, is it labelled an estimate before payment and the actual fee
    after?
 
-Once decided, the rule spans the shared flow and every provider's settlement, so it
-probably qualifies as a Linked Specs `SPEC-*` record. Tests then follow from it: decision
-table conditions in P1.2 and fee checks in P1.7.
+**Decision (2026-11-01).** The threshold caps **amount + fee where the wallet knows the fee
+before submitting**:
+- Rayl wallet and Spark: when amount + quoted fee reaches the threshold, ask for
+  confirmation and show the fee.
+- Blink and NWC: compare the amount only, and the setting says that fees may be added.
+
+Still open: question 4 (estimate vs actual labelling), and whether Blink should probe later.
+
+The rule spans the shared flow and every provider's settlement, so it probably qualifies as
+a Linked Specs `SPEC-*` record (owner: Nicola). Tests follow from it: decision table
+conditions in P1.2 and fee checks in P1.7.

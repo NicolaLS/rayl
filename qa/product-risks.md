@@ -37,11 +37,6 @@ reports cite risk IDs (`PR-xx`) where the link adds useful rationale.
 Stakeholder priority (interview, 2026-11-01): **money correctness** and **wallet/credential
 safety** come first. Ties are broken in their favour.
 
-**Deferred** means the area is likely to be removed or replaced soon (see
-[test plan §3.1](test-plan.md#31-planned-product-changes-that-shape-scope)). Deferred areas
-get no new test investment until the change is decided. The rating still applies to
-whatever ships.
-
 ## A. Money correctness
 
 | ID | Risk | L | Impact | Level | Mitigation (see test plan §6) |
@@ -51,7 +46,7 @@ whatever ships.
 | PR-03 | **Duplicate payment.** Possible causes: a double scan, a retry after an unknown outcome, or a re-scan after an app restart. | M | Critical | 1 | Single-operation guard tests, paid-hash lookup tests, idempotency-key tests, and an "already paid" check per provider |
 | PR-04 | **Payment outcome misreported.** An unknown outcome is shown as failed (which invites a retry), success is shown before settlement, or an in-flight payment is cancelled by a session reset, navigation, or process death and its outcome is lost. | M | Critical | 1 | Settlement contract suite (Paid/Failed/Unknown classification) for every provider; interruption tests; exploratory charter |
 | PR-05 | **Payment goes to a different recipient or amount than displayed.** The LNURL invoice doesn't match the requested amount or metadata, an endpoint is malicious, or the domain/description/image display is spoofed. | L | Critical | 1 | Tests against a fake LNURL server returning hostile responses; `LnurlInvoiceResolver` BVA |
-| PR-06 | **Fees surprise the user**, measured against what each wallet can actually know. Where Rayl shows a fee, it must be correct; a quote is an estimate unless the wallet guarantees it. The bigger gap is that **Auto Pay may pay amount + fee above the user's threshold**: Auto Pay skips the fee display for speed, and the rule for fees under Auto Pay is not specified. | M | High | 1 | Shown fees match the fees reported as paid, per provider. Auto Pay fee tests are **blocked on specification issue SI-01** ([test plan appendix B](test-plan.md#appendix-b-specification-issues)). |
+| PR-06 | **Fees surprise the user**, measured against what each wallet can actually know. Where Rayl shows a fee, it must be correct; a quote is an estimate unless the wallet guarantees it. The bigger gap is that **Auto Pay may pay amount + fee above the user's threshold**: Auto Pay skips the fee display for speed, and the rule for fees under Auto Pay is not specified. | M | High | 1 | Shown fees match the fees reported as paid, per provider. Auto Pay fee tests follow the SI-01 decision ([test plan appendix B](test-plan.md#appendix-b-specification-issues)): amount + fee where the fee is known. They wait for the implementation. |
 | PR-07 | **Expired, already-paid or insufficient-funds invoices are mishandled**, giving a wrong message or a stuck loading state. | M | Medium | 2 | Error-mapping tests per provider; real SDK error classification in the nightly regtest run |
 
 ## B. Wallet and credential safety
@@ -69,7 +64,7 @@ whatever ships.
 | ID | Risk | L | Impact | Level | Mitigation |
 |---|---|---|---|---|---|
 | PR-13 | **Cold start → Scan → paid gets slower.** Likely causes: pocket early start, Breez connect/sync, camera initialisation, main-thread work. `main` changes fast. | H | High | 1 | Two-tier performance strategy (lab regression benchmark plus field percentiles); stage budgets |
-| PR-14 | **A real-world payment request can't be scanned or parsed.** Variants: uppercase BOLT11, `lightning:` URIs, BIP21 with `lightning=`, bech32 LNURL and LUD-17 schemes, Lightning addresses with odd case or spacing, dense, inverted or damaged QR codes, poor light. | M | High | 1 | **Parser tests deferred:** the custom parser may be replaced by the Breez SDK parser for every wallet (under discussion). Until then: keep the existing parser tests, record real-world payloads when found (they can later check either parser), and run the camera exploratory charter. |
+| PR-14 | **A real-world payment request can't be scanned or parsed.** Variants: uppercase BOLT11, `lightning:` URIs, BIP21 with `lightning=`, bech32 LNURL and LUD-17 schemes, Lightning addresses with odd case or spacing, dense, inverted or damaged QR codes, poor light. | M | High | 1 | Parser unit tests; a golden corpus of real-world payment strings, extended whenever one fails or looks unusual; a property test that the parser never throws; camera exploratory charter |
 | PR-15 | **Providers diverge** for the same scenario (flow, copy, extra steps), contrary to [REQ-provider-experience](../specs/REQ-provider-experience.md). | H | Medium | 2 | Settlement contract suite; provider-parity pass in the release checklist |
 | PR-16 | **Android and iOS diverge.** The native UIs differ, and the Swift code has no automated tests. | H | Medium | 2 | The same checklist on both platforms; keep logic in common Kotlin, where it is testable |
 | PR-17 | **Interruptions break a flow.** Examples: background/foreground, rotation, process death, a phone call, or a network loss during scan, confirm, pay or setup. | M | High | 1 | Interruption charter; component tests for cancellation; Android configuration-change tests |
@@ -78,7 +73,7 @@ whatever ships.
 
 | ID | Risk | L | Impact | Level | Mitigation |
 |---|---|---|---|---|---|
-| PR-18 | **The price service is down or wrong.** If all sources are stale it returns 503, and it runs as one Railway instance. Fiat entry and presets break, or estimates are wrong. | L–M | High | 2 | **Deferred:** rates may move to the Breez SDK. Keep the existing backend tests; no new rate tests until decided. Whatever source ships still needs a check that a fiat amount converts to the right sats (PR-01). |
+| PR-18 | **The price service is down or wrong.** If all sources are stale it returns 503, and it runs as one Railway instance. Fiat entry and presets break, or estimates are wrong. | L–M | High | 2 | Backend aggregation tests; wire contract pinned with golden JSON; client degradation tests (backend down, 503, invalid prices); fiat→sats conversion tests (PR-01); release checklist item for fiat entry |
 | PR-19 | **An external dependency changes or fails.** Examples: a Breez SDK upgrade (pinned separately in Gradle and Xcode), the Blink GraphQL schema, NWC relays, LNURL servers. | M | High | 1 | Nightly regtest run against the real SDK; a check that the Gradle and Xcode SDK pins match; Blink and NWC contract fixtures |
 | PR-20 | **The release build is misconfigured.** Examples: wrong network, a missing Breez key, wrong passkey RP or association files, debug tools or timing logs shipped, providers gated incorrectly on the release branch. | L | Critical | 1 | Release smoke checklist run on the signed release build; static configuration review |
 
