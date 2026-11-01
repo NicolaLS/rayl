@@ -42,15 +42,4 @@ class PaymentHubControllerTest {
         assertNull(controller.state.value.savePrompt)
         assertEquals(listOf(contact), repository.hub.value.contacts)
     }
-
-    @Test
-    fun dismissingSuggestionDoesNotSaveContactOrShortcut() = runTest {
-        val repository = DefaultPaymentHubRepository(MapSettings())
-        val controller = PaymentHubController(repository, this)
-        controller.offerSave(assertNotNull(LightningAddress.parse("alice@example.com")))
-        controller.dispatch(PaymentHubIntent.SavePromptDismiss)
-        advanceUntilIdle()
-        assertTrue(repository.hub.value.contacts.isEmpty())
-        assertTrue(repository.hub.value.targets.isEmpty())
-    }
 }

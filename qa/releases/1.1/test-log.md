@@ -2,6 +2,16 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: End of stage 1, full gate
+
+- **Build:** `main` at `03e37dd1` plus the module 13 audit changes (uncommitted, committed
+  right after)
+- **Ran:** `./gradlew cleanTestAndroidHostTest testAndroidHostTest :backend:rayl:cleanTest :backend:rayl:test ktlintCheck verifyModuleDependencies verifyNativeLocalizations`
+- **Result:** all checks pass. **203 tests in 53 classes, 0 failures, 0 skipped, 16 s of
+  test time** (was 254 tests in 63 classes, 26 s).
+- Module 13 mutation checks: Q1 and Q2 on the QR presence gate, both killed.
+- Findings: [test-audit.md §13 and the stage 1 summary](test-audit.md#stage-1-summary-2026-11-01).
+
 ## 2026-11-01: Audit of Blink and NWC onboarding
 
 - **Build:** `main` at `90c1b1b1` plus the audit changes (uncommitted)

@@ -575,6 +575,7 @@ one needs a test or a product decision before it becomes a defect or is closed.
 | O-06 | Auto Pay compares the invoice amount with the threshold. Routing fees are not part of the decision. | PR-06 | Became SI-01 (appendix B) |
 | O-08 | A Lightning address with uppercase letters in the user part (`Alice@example.com`) is rejected as unrecognised. `LightningAddress.parse` accepts it, but `DefaultLnurlParser` rejects it. Phone keyboards capitalise the first letter. LUD-16 allows only lowercase; many wallets lowercase instead of rejecting. | PR-14 | Product decision: lowercase or reject. Then a corpus row. |
 | O-09 | Rescanning an already-paid invoice: Blink returns `Paid(wasAlreadyPaid = true)` (success screen), Rayl and Spark return `Failed(AlreadyPaid)` (error screen), contrary to REQ-provider-experience. | PR-15 | Product decision on the intended result, then a contract test (M3) |
+| O-10 | Legacy fallbacks, contrary to the pre-release policy: `SparkOnboardingState` treats restored wallets as having seen the intro screens, and `AppTab.fromStoredValue` maps an obsolete `"recent"` tab. | none | For Nicola: remove |
 | O-07 | Client-side duplicate detection for re-scanned BOLT11 invoices uses only the in-memory session history, which keeps the last 10 payments (`MAX_RECENT_PAYMENTS`). After a restart, or once more than 10 payments have been made, protection depends on each wallet rejecting an already-paid invoice. | PR-03 | Verify per provider (regtest for the pocket and Spark, mainnet for Blink and NWC) |
 
 ## Appendix B: Specification issues

@@ -72,7 +72,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 10 | Spark wallet: `providers/spark/application` (wallet tests), `integration/wallet`, `feature/wallet-connection`, `experience` | 23, 4, 5, 3 → 22 | PR-08 | Done | 22 | 0 | 13 |
 | 11 | Selection and storage: `app/shared`, `core/settings` | 14 → 12 | PR-08, PR-12 | Done | 12 | 0 | 2 |
 | 12 | Blink and NWC onboarding: `blink/experience`, `blink/feature/blink-contacts`, `nwc/experience`, `nwc/feature/onboarding` | 13 → 6 | PR-02, PR-05, PR-21 | Done | 6 | 0 | 7 |
-| 13 | Level 3 areas: `feature/payment-hub`, `core/camera`, `core/ui`, `feature/app-shell`, theme, currency and language settings | 10, 4, 1, 2, 6 | PR-24 and others | Not audited | | | |
+| 13 | Level 3 areas: `feature/payment-hub`, `core/camera`, `core/ui`, `feature/app-shell`, theme, currency and language settings | 23 → 10 | PR-03, PR-05, PR-24 | Done | 10 | 0 | 13 |
 
 ## Module findings
 
@@ -489,4 +489,69 @@ contact import, which builds the Lightning addresses that Hub payments go to.
 | C1 | An imported handle with its own domain gets Blink's domain | Killed |
 
 **Gaps:** none at this level.
+
+### 13. Level 3 areas (2026-11-01)
+
+Kept only where a bug reaches money or user data. The camera tests turned out to matter:
+the presence gate is the first defence against a duplicate scan becoming a duplicate
+payment.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `QrPresenceGateTest` (3) | Keep | The same visible QR emits once and rearms only after it has left view (Q1, Q2 killed): PR-03 |
+| `QrDetectionSelectorTest.prefersLargestCandidate` | Keep | With several QR codes in view, picking the wrong one pays the wrong invoice, possibly under Auto Pay |
+| `DefaultPaymentHubRepositoryTest` (3) | Keep | Contact and preset integrity: deleting a contact removes its shortcuts, zero-amount presets are refused, saving a suggestion never overwrites a contact's name (PR-24) |
+| `PaymentHubControllerTest.acceptingSuggestionSavesContactAndWidgetOnce` | Keep | A saved suggestion creates one contact and target, with "ask every time" as the amount rule |
+| `PaymentHubControllerTest.dismissingSuggestionDoesNotSaveContactOrShortcut` | **Delete** | Low impact |
+| `WidgetHubViewModelTest.shortcutRequiresOneContactAndPositivePresetThenSaves` | Keep | A preset needs one recipient and a positive amount |
+| `WidgetHubViewModelTest` (2 others) | **Delete** | Widget editor flow and layout capacity: UI |
+| `HubGridTest` (2) | **Delete** | Tile layout |
+| `RaylHeroAnimationStateTest` (1) | **Delete** | Animation frames |
+| `AppTabStateTest` (2) | **Delete** | Tab navigation. One pins a legacy stored value (`"recent"` → Scan), a second instance of O-10. |
+| `DefaultCurrencyPreferencesTest.storesSelectedCurrency` | Keep | A lost display currency would have users type amounts in a unit they didn't intend |
+| `LanguageSettingsViewModelTest`, `DefaultThemePreferencesTest` (3), `ThemeSettingsViewModelTest` | **Delete** | Cosmetic |
+
+**Gaps:** none worth a host test.
+
+## Stage 1 summary (2026-11-01)
+
+| | Before | After |
+|---|---|---|
+| Tests | 254 in 63 classes | **203 in 53 classes** |
+| Host test time | 26 s | 16 s |
+| Deleted | | 56 |
+| Added by splits and the policy decision table | | 5 |
+
+**Verdicts across 13 modules:** most tests were kept as they were. Seven were improved,
+merged, split or replaced because they missed what they claimed to check (examples: the
+`PaymentHistory` reset, the quote's fresh rate, the LNURL callback amount, the
+confirmation policy) or tested an implementation detail instead of the behaviour (the
+preference repository). 56 were deleted: cosmetic state and UI, trivial lookups,
+tautologies, tests of fakes or libraries, dev-only code, pinned quirks, and duplicated
+partitions. About 60 mutation checks were run; every survivor is either an equivalent
+mutant or a recorded gap.
+
+**What the audit found that matters most**, in priority order for stage 2:
+1. **M3, PR-04:** no wallet protects the rule that an uncertain outcome after submitting
+   is `Unknown`, never `Failed` (§8, S1–S5). Blink's and NWC's settlements have no tests.
+2. **M6, PR-08:** a failed credential delete still completes Spark removal and leaves the
+   credential on the device (§10, W2).
+3. **M2 and M1 through the flow, PR-01 to PR-04:** `PaymentFlowCoordinator` and the
+   admission and confirmation phases (about 1,000 lines) have no tests at all (§1).
+4. **S4, PR-05:** LNURL invoices bound by `description_hash`, the common case in
+   production, and amountless invoices from LNURL servers are not checked (§3, R1, R4).
+5. **S1, PR-14:** uppercase BOLT11 and `LIGHTNING:`, untrimmed scans and Lightning address
+   targets are untested (§3, L1–L5).
+6. **M5 and S2, PR-01 and PR-18:** rounding to whole sats in the fiat quote, and invalid
+   rates (§6, Q1, Q2).
+7. **M7, PR-09:** an unreadable key counted as no key sends users into setup instead of
+   recovery (§9, K3).
+
+**Residual risk that host tests can't cover** (stage 3): the platform key and credential
+stores (Android Keystore, iOS Keychain), the Breez SDK's real error behaviour, and the
+release configuration.
+
+**Observations for Nicola:** O-08 (capitalised Lightning addresses rejected), O-09
+(already-paid result differs per wallet), O-10 (legacy fallbacks in Spark onboarding and the
+app's stored tab).
 
