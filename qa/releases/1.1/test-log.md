@@ -2,6 +2,13 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of `core/model`
+
+- **Build:** `main` at `ccd4a102` plus the audit change (uncommitted)
+- **Ran:** 2 mutation checks, then the module's tests and ktlint.
+- **Result:** 1 killed, 1 survived (display rounding, minor). The module passes with 8 tests.
+- Findings: [test-audit.md §4](test-audit.md#4-coremodel-2026-11-01).
+
 ## 2026-11-01: Audit of `core/payment`
 
 - **Build:** `main` at `65cad36c` plus the audit change (uncommitted)

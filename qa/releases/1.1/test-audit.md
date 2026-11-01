@@ -63,7 +63,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 1 | `feature/payment-flow` | 8 → 9 | PR-02–PR-04 | Done | 6 | 1 improved (split into 3) | 1 |
 | 2 | `feature/payment-settings` | 9 → 8 | PR-02 | Done | 0 | 1 rewritten (policy, `8b4855be`), 1 replaced, 1 improved | 1 |
 | 3 | `core/payment` | 26 → 25 | PR-05, PR-14 | Done | 25 | 0 | 1 |
-| 4 | `core/model` | 10 | PR-01 | Not audited | | | |
+| 4 | `core/model` | 10 → 8 | PR-01 | Done | 8 | 0 | 2 |
 | 5 | `feature/payment-ui` | 15 | PR-01 | Not audited | | | |
 | 6 | `feature/payment-currency`, `integration/exchange-rate`, `backend/rayl` | 3, 4, 11 | PR-01, PR-18 | Not audited | | | |
 | 7 | `integration/lnurl` | 7 | PR-05 | Not audited | | | |
@@ -176,3 +176,28 @@ type, and miss the partitions most common in real QR codes.
 `LightningAddress.parse` accepts it, but the LNURL parser's own user-part check rejects
 uppercase. Phone keyboards capitalise the first letter, so this will happen. LUD-16 allows
 only lowercase, but many wallets lowercase the user part instead of rejecting it.
+
+### 4. `core/model` (2026-11-01)
+
+This module converts msats into *display* amounts. The money-critical direction (a fiat
+amount into sats) is in `feature/payment-currency` (module 6).
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `AmountConversionTest` (4 tests) | Keep | The amounts shown on confirmation and receipts. Independent oracles (0.5 BTC × $60,000 = 3,000,000 cents); covers the missing-price case and the rule that a non-zero amount never shows as zero. |
+| `CatalogTest.currencyLookupIsCaseInsensitive` | **Delete** | A trivial map lookup; a failure would only show sats instead of a fiat currency |
+| `CatalogTest.languageLookupIsCaseInsensitive` | **Delete** | Trivial and cosmetic |
+| `CatalogTest.unknownCurrencyFallsBackToSatoshis` | Keep, renamed `aStoredCurrencyNoLongerInTheCatalogFallsBackToSatoshis` | A stored currency code that leaves the catalog must not break startup |
+| `LightningAddressTest.parsesSupportedUserInputAndRejectsNonAddresses` | Keep | A compact table of accepted and rejected forms, used by the Hub. It accepts `LiLsUs+Tips@BliNk.sv`, which the payment parser rejects (O-08). |
+| `PaymentPreferencesTest` (2 tests) | Keep | Threshold clamping (PR-02), and the slider step shown for a stored threshold, with the boundary at 10,000 / 10,001 |
+
+**Mutation checks**
+
+| # | Mutation | Result |
+|---|---|---|
+| C1 | Fiat amounts round down instead of to the nearest minor unit | Survived (display only, at most one minor unit) |
+| C2 | The non-zero minimum is removed | Killed |
+
+**Gaps:** a zero-decimal currency (JPY is in the catalog) and the rounding mode (C1). Both
+are display-only and minor; they belong with M5.
+
