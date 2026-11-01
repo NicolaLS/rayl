@@ -65,7 +65,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 3 | `core/payment` | 26 → 25 | PR-05, PR-14 | Done | 25 | 0 | 1 |
 | 4 | `core/model` | 10 → 8 | PR-01 | Done | 8 | 0 | 2 |
 | 5 | `feature/payment-ui` | 15 → 10 | PR-01, PR-05 | Done | 10 | 0 | 5 |
-| 6 | `feature/payment-currency`, `integration/exchange-rate`, `backend/rayl` | 3, 4, 11 | PR-01, PR-18 | Not audited | | | |
+| 6 | `feature/payment-currency`, `integration/exchange-rate`, `backend/rayl` | 18 → 17 | PR-01, PR-18 | Done | 16 | 1 improved | 1 |
 | 7 | `integration/lnurl` | 7 | PR-05 | Not audited | | | |
 | 8 | Settlement: `providers/rayl/feature/payment`, `providers/spark/feature/payment`, `providers/blink/integration/blink`, `providers/nwc/integration/nwc` | 5, 6, 16, 3 | PR-04, PR-07 | Not audited | | | |
 | 9 | Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` | 31, 15 | PR-09, PR-10 | Not audited | | | |
@@ -239,4 +239,38 @@ real PR-01 guards; several others were redundant or exotic.
 **Gaps:** with a fiat currency and no price, a typed fiat amount is returned as an amount
 with `RangeStatus.Unknown`. The flow must refuse to pay it; that belongs to the flow tests
 (M2) and S2.
+
+### 6. Prices: `feature/payment-currency`, `integration/exchange-rate`, `backend/rayl` (2026-11-01)
+
+`PaymentCurrencyManager.quote` is the fiat→sats conversion for payments. The backend
+aggregates prices from four public sources and serves the median.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `PaymentCurrencyManagerTest.paymentQuoteUsesRateReturnedForThatAction` | **Improve** → `paymentQuoteFetchesARateInsteadOfReusingTheDisplayedOne` | It claimed each quote uses a fresh rate, but the manager never held a cached rate (display currency left at sats), so reusing a stale rate went unnoticed (Q3 survived). The display currency is now set first. |
+| `PaymentCurrencyManagerTest.fiatQuoteFailsClosedWithoutRate` | Keep | PR-18: no price, no fiat payment |
+| `PaymentCurrencyManagerTest.unknownFiatCurrencyIsNotTreatedAsSatoshis` | Keep | The catalog falls back to sats for unknown codes (module 4); without this guard, 500 "XYZ" would be paid as 500 sats |
+| `RaylBitcoinPriceProviderTest.oneRequestServesEveryCurrencyByNormalizedCode` | Keep | The right price per currency, and the request URL the backend serves |
+| `RaylBitcoinPriceProviderTest.coalescesConcurrentCacheMisses` | **Delete** | Only backend load (5 concurrent lookups → 1 request); no user-facing effect |
+| `RaylBitcoinPriceProviderTest.refetchesAfterTheCacheExpires` | Keep | A stale price must be refreshed (PR-01); exact TTL boundary |
+| `RaylBitcoinPriceProviderTest.unavailableBackendYieldsNoPrice` | Keep | A 503 yields no price, so fiat payments fail closed |
+| `PriceBoardTest` (4 tests) | Keep | The median protects against one wrong source (B1 killed); invalid quotes are dropped; a failing source's quotes expire; no fresh source means no prices |
+| `PriceSourcesTest` (5 tests) | Keep | Parsers for four external APIs from realistic samples (PR-19), including Kraken's error response |
+| `RaylServerTest` (2 tests) | Keep | The 200 and 503 responses and their caching headers; a cached 503 or uncached prices would hurt every client |
+
+**Mutation checks**
+
+| # | Mutation | Result |
+|---|---|---|
+| Q1 | `quote` accepts zero, NaN or infinite rates | **Survived**. Today most of these still fail safe further down, but NaN makes `roundToLong` throw. |
+| Q2 | `quote` rounds down to whole sats instead of up | **Survived** |
+| Q3 | `quote` reuses the displayed (possibly stale) rate | Survived → killed after the improvement |
+| B1 | The backend serves the mean instead of the median | Killed |
+
+**Gaps** (for stage 2):
+- M5: rounding to whole sats in `quote` (Q2), with a non-exact amount such as $1.00 at
+  $60,000 → 1,667 sats.
+- S2: invalid rates (0, negative, NaN, infinite) yield no quote (Q1). A golden JSON for the
+  prices response: the server and client share one model, so they can't drift within a
+  build, but already released apps are frozen while the backend keeps changing.
 

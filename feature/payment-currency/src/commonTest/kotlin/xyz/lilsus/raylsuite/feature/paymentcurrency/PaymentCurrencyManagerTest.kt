@@ -10,23 +10,26 @@ import xyz.lilsus.raylsuite.core.payment.BitcoinPriceProvider
 
 class PaymentCurrencyManagerTest {
     @Test
-    fun paymentQuoteUsesRateReturnedForThatAction() = runTest {
+    fun paymentQuoteFetchesARateInsteadOfReusingTheDisplayedOne() = runTest {
         var rate = 50_000.0
         val manager =
             PaymentCurrencyManager(
                 bitcoinPriceProvider = BitcoinPriceProvider { rate },
                 scope = backgroundScope
             )
+        manager.setPreferredCurrency(DisplayCurrency.Fiat("USD"))
+        testScheduler.runCurrent()
+        assertEquals(50_000.0, manager.state.value.exchangeRate)
         val enteredAmount = DisplayAmount(500, DisplayCurrency.Fiat("USD"))
 
-        val first = manager.quote(enteredAmount)
+        // The price moves after the display rate was fetched; the payment must use the new one.
         rate = 100_000.0
-        val second = manager.quote(enteredAmount)
+        val quote = manager.quote(enteredAmount)
 
-        assertEquals(enteredAmount, first?.requestedAmount)
-        assertEquals(10_000_000L, first?.amountMsats)
-        assertEquals(5_000_000L, second?.amountMsats)
-        assertEquals(100_000.0, second?.exchangeRate)
+        // $5.00 at $100,000 per bitcoin = 5,000 sats.
+        assertEquals(enteredAmount, quote?.requestedAmount)
+        assertEquals(5_000_000L, quote?.amountMsats)
+        assertEquals(100_000.0, quote?.exchangeRate)
     }
 
     @Test

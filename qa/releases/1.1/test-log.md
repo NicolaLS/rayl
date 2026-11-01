@@ -2,6 +2,15 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of the price modules
+
+- **Build:** `main` at `09267645` plus the audit changes (uncommitted)
+- **Ran:** 4 mutation checks, then the tests and ktlint of `feature/payment-currency` and
+  `integration/exchange-rate`, and the `backend/rayl` tests.
+- **Result:** after the improvement, 2 killed and 2 survived (both stage 2 gaps). All three
+  modules pass (17 tests).
+- Findings: [test-audit.md §6](test-audit.md#6-prices-featurepayment-currency-integrationexchange-rate-backendrayl-2026-11-01).
+
 ## 2026-11-01: Audit of `feature/payment-ui`
 
 - **Build:** `main` at `fd127430` plus the audit change (uncommitted)

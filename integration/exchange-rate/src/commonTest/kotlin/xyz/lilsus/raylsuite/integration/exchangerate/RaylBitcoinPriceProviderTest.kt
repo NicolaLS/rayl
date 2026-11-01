@@ -48,20 +48,6 @@ class RaylBitcoinPriceProviderTest {
     }
 
     @Test
-    fun coalescesConcurrentCacheMisses() = runTest {
-        var requestCount = 0
-        val client = backend(onRequest = { requestCount += 1 })
-        val provider = RaylBitcoinPriceProvider(client = client, baseUrl = "https://rayl.test", clock = { 100L })
-
-        List(5) {
-            async { provider.pricePerBitcoin("USD") }
-        }.awaitAll()
-
-        assertEquals(1, requestCount)
-        client.close()
-    }
-
-    @Test
     fun refetchesAfterTheCacheExpires() = runTest {
         var requestCount = 0
         var now = 0L
