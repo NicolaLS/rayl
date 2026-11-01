@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Copies the dSYMs that Swift packages ship inside their binary xcframeworks to the archive.
+# Runs as the archive-only "Archive Package dSYMs" build phase of the iosApp target.
+#
+# Why: the Breez SDK's Swift package embeds a prebuilt dynamic framework, breez_sdk_sparkFFI,
+# and ships its dSYM in the xcframework. Xcode embeds the framework but leaves that dSYM out of
+# archives, so App Store Connect validation warns "Upload Symbols Failed ... did not include a
+# dSYM for the breez_sdk_sparkFFI.framework" and crashes inside it are not symbolicated. Code
+# Rayl compiles itself (Swift, the Kotlin framework) gets dSYMs anyway, so before the Spark SDK
+# shipped (release/1.0) archives had no such warning.
+#
+# The xcframework slice to copy is the one whose dSYM has the same UUIDs as the built framework,
+# so a package dSYM that does not match is never archived. Delete this script and its build phase
+# if Xcode starts archiving package dSYMs itself (the archive's dSYMs folder then has them
+# without it) or the app no longer depends on a binary package.
+set -euo pipefail
+
+[[ "${DEBUG_INFORMATION_FORMAT:-}" == "dwarf-with-dsym" ]] || exit 0
+
+# Package artifacts sit beside Build/ in the derived data, for archives too.
+artifacts="${BUILD_DIR%/Build/*}/SourcePackages/artifacts"
+if [[ ! -d "$artifacts" ]]; then
+  echo "warning: no Swift package artifacts at $artifacts, so their dSYMs are not archived"
+  exit 0
+fi
+
+uuids() { dwarfdump --uuid "$1" | awk '{ print $2 }' | sort; }
+
+while IFS= read -r -d '' dsym; do
+  name="$(basename "$dsym" .framework.dSYM)"
+  binary="$BUILT_PRODUCTS_DIR/$name.framework/$name"
+  [[ -f "$binary" ]] || continue
+  [[ "$(uuids "$dsym")" == "$(uuids "$binary")" ]] || continue
+  rm -rf "$DWARF_DSYM_FOLDER_PATH/$name.framework.dSYM"
+  ditto "$dsym" "$DWARF_DSYM_FOLDER_PATH/$name.framework.dSYM"
+  echo "Copied $name.framework.dSYM"
+done < <(find "$artifacts" -path '*.xcframework/*/dSYMs/*.framework.dSYM' -prune -print0)

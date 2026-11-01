@@ -308,6 +308,7 @@
 				13DEFE5A6795EA046BCA3349 /* Sources */,
 				C6283A14B200CDFBA78995C0 /* Frameworks */,
 				6C9739E92F160C8FF069113D /* Resources */,
+				F70000000000000000000001 /* Archive Package dSYMs */,
 			);
 			buildRules = (
 			);
@@ -510,6 +511,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# The key is baked into Info.plist: Mainnet builds without it fail like Android ones.\ncase \" ${SWIFT_ACTIVE_COMPILATION_CONDITIONS} \" in\n  *\" RAYL_PRODUCTION \"*)\n    if [ -z \"${RAYL_BREEZ_API_KEY:-}\" ]; then\n      echo \"error: RAYL_BREEZ_API_KEY is required for Mainnet builds (see scripts/xcode-secrets)\"\n      exit 1\n    fi\n    ;;\nesac\nif [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/../..\"\n\n# ---- Java setup ----\n\nif [ \"${CI_XCODE_CLOUD:-}\" = \"TRUE\" ]; then\n  echo \"Xcode Cloud: using Homebrew OpenJDK 21\"\n  # This path is printed by brew's caveats for openjdk@21 on Cloud\n  export JAVA_HOME=\"/usr/local/opt/openjdk@21\"\n  export PATH=\"$JAVA_HOME/bin:$PATH\"\nelse\n  echo \"Local build: using mise Java from mise.toml (if available)\"\n  export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"\n  if command -v mise >/dev/null 2>&1; then\n    eval \"$(mise env -s bash)\"\n  elif [ -n \"${JAVA_HOME:-}\" ]; then\n    export PATH=\"$JAVA_HOME/bin:$PATH\"\n  else\n    echo \"mise not found; falling back to existing PATH\"\n  fi\nfi\n\necho \"JAVA_HOME=${JAVA_HOME:-<not set>}\"\njava -version || echo \"⚠️ java -version failed; Gradle will likely fail too\"\n \n./gradlew :app:shared:embedAndSignAppleFrameworkForXcode\n";
+		};
+		F70000000000000000000001 /* Archive Package dSYMs */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 8;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Archive Package dSYMs";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+			shellPath = /bin/sh;
+			shellScript = "# Xcode leaves the dSYMs of Swift package binary frameworks (Breez's breez_sdk_sparkFFI) out of\n# archives. See the script for why and when to remove this phase.\n\"$SRCROOT/../../scripts/xcode-package-dsyms\"\n";
 		};
 		E2E000000000000000000007 /* Compile Kotlin Framework */ = {
 			isa = PBXShellScriptBuildPhase;
