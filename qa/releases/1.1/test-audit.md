@@ -64,7 +64,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 2 | `feature/payment-settings` | 9 → 8 | PR-02 | Done | 0 | 1 rewritten (policy, `8b4855be`), 1 replaced, 1 improved | 1 |
 | 3 | `core/payment` | 26 → 25 | PR-05, PR-14 | Done | 25 | 0 | 1 |
 | 4 | `core/model` | 10 → 8 | PR-01 | Done | 8 | 0 | 2 |
-| 5 | `feature/payment-ui` | 15 | PR-01 | Not audited | | | |
+| 5 | `feature/payment-ui` | 15 → 10 | PR-01, PR-05 | Done | 10 | 0 | 5 |
 | 6 | `feature/payment-currency`, `integration/exchange-rate`, `backend/rayl` | 3, 4, 11 | PR-01, PR-18 | Not audited | | | |
 | 7 | `integration/lnurl` | 7 | PR-05 | Not audited | | | |
 | 8 | Settlement: `providers/rayl/feature/payment`, `providers/spark/feature/payment`, `providers/blink/integration/blink`, `providers/nwc/integration/nwc` | 5, 6, 16, 3 | PR-04, PR-07 | Not audited | | | |
@@ -200,4 +200,43 @@ amount into sats) is in `feature/payment-currency` (module 6).
 
 **Gaps:** a zero-decimal currency (JPY is in the catalog) and the rounding mode (C1). Both
 are display-only and minor; they belong with M5.
+
+### 5. `feature/payment-ui` (2026-11-01)
+
+`ManualAmountController` turns keypresses into the amount that is paid. Its best tests are
+real PR-01 guards; several others were redundant or exotic.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `fiatStartsPrimaryAndSwitchesTheEnteredValueToWholeSats` | Keep | $1.00 at $60,000/BTC shows as 1,667 sats, the rounded-up whole sats that are paid |
+| `roundTripPreservesExactSatsUntilTheUserEditsFiat` | Keep | A lossy round trip would turn 1 sat into $0.01 and back into 17 sats. Hard to read (C6), but it guards a real money bug. |
+| `rateRefreshKeepsSatEntryAndNewEntryRestoresFiat` | Keep | A price refresh must never change the sats the user typed |
+| `satoshiEntryWorksWithoutAnExchangeRate` | Keep | With the price service down (PR-18), paying in sats still works |
+| `zeroDecimalFiatStaysIntegralInBothUnits` | Keep | The JPY partition (no minor unit) |
+| `inclusiveSatoshiBoundsAcceptExactlyMinAndMax` | Keep | Boundary values of the LNURL range |
+| `zeroAndClearedEntryShowNoErrorButPositiveAmountBelowMinDoes` | Keep | A zero or cleared entry yields no amount, so it can't be submitted |
+| `fiatRangeUsesRoundedPaymentAmount` | Keep | The range check uses the rounded-up amount that is actually submitted, consistent with `LnurlInvoiceResolver` |
+| `satoshiPreferenceHasNoCurrencySwitch` | **Delete** | Cosmetic: a key that does nothing |
+| `satoshiSwitchValidatesBoundsAndClearsErrorWhenCorrected` | **Delete** | Redundant with the inclusive-bounds, zero/below-min and rounded-max tests (A4–A6 stay killed without it) |
+| `positiveFiatBelowMillisatoshiPrecisionReportsTooLow` | **Delete** | Needs a rate of $10 billion per bitcoin. The resolver rejects a zero amount anyway. |
+| `reportsBelowMinWhenUnderRange` | **Delete** | The same partition as the zero/below-min test |
+| `LnurlPayDisplayTest.sanitizesUntrustedTextAndBoundsDescription` | Keep | PR-05: strips bidi overrides and markup that could spoof what is being paid for (A7 killed) |
+| `LnurlPayDisplayTest.rejectsMissingRequiredTextAndOmitsInvalidImage` | Keep | Untrusted metadata: a missing description or invalid image is handled |
+| `LnurlPayDisplayTest.fixedAmountReviewCarriesLnurlDetails` | **Delete** | A tautology: builds a data class and asserts its own constructor arguments |
+
+**Mutation checks** (run after the deletions)
+
+| # | Mutation | Result |
+|---|---|---|
+| A1 | The sats equivalent rounds down instead of up | Killed |
+| A2 | A currency round trip doesn't restore the original entry | Killed |
+| A3 | The range check uses unrounded msats | Killed |
+| A4 | Below-minimum isn't reported | Killed |
+| A5 | Above-maximum isn't reported | Killed |
+| A6 | The minimum becomes exclusive | Killed |
+| A7 | Bidi override characters are kept in LNURL descriptions | Killed |
+
+**Gaps:** with a fiat currency and no price, a typed fiat amount is returned as an amount
+with `RangeStatus.Unknown`. The flow must refuse to pay it; that belongs to the flow tests
+(M2) and S2.
 

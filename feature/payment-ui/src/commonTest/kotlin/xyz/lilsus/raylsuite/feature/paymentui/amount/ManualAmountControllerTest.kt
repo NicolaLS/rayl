@@ -11,15 +11,6 @@ import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 
 class ManualAmountControllerTest {
     @Test
-    fun satoshiPreferenceHasNoCurrencySwitch() {
-        val controller = ManualAmountController(ManualAmountConfig(CurrencyCatalog.infoFor("SAT"), null))
-        controller.handleKeyPress(ManualAmountKey.Digit(5))
-        assertNull(controller.current().alternativeCurrency)
-        val unchanged = controller.current()
-        assertEquals(unchanged, controller.handleKeyPress(ManualAmountKey.SwitchCurrency))
-    }
-
-    @Test
     fun fiatStartsPrimaryAndSwitchesTheEnteredValueToWholeSats() {
         val controller = ManualAmountController(usdConfig())
         assertEquals(DisplayCurrency.Fiat("USD"), controller.current().currency)
@@ -80,21 +71,6 @@ class ManualAmountControllerTest {
     }
 
     @Test
-    fun satoshiSwitchValidatesBoundsAndClearsErrorWhenCorrected() {
-        val controller = ManualAmountController(usdConfig().copy(minMsats = 1501, maxMsats = 9500))
-        controller.handleKeyPress(ManualAmountKey.SwitchCurrency)
-        controller.handleKeyPress(ManualAmountKey.Digit(1))
-        assertEquals(RangeStatus.BelowMin, controller.current().rangeStatus)
-        controller.handleKeyPress(ManualAmountKey.Digit(0))
-        assertEquals(RangeStatus.AboveMax, controller.current().rangeStatus)
-        controller.handleKeyPress(ManualAmountKey.Backspace)
-        controller.handleKeyPress(ManualAmountKey.Backspace)
-        controller.handleKeyPress(ManualAmountKey.Digit(9))
-        assertEquals(RangeStatus.InRange, controller.current().rangeStatus)
-        assertEquals(DisplayAmount(9, DisplayCurrency.Satoshi), controller.enteredAmount())
-    }
-
-    @Test
     fun zeroDecimalFiatStaysIntegralInBothUnits() {
         val controller = ManualAmountController(ManualAmountConfig(CurrencyCatalog.infoFor("JPY"), 10_000_000.0))
         controller.handleKeyPress(ManualAmountKey.Digit(5))
@@ -147,36 +123,5 @@ class ManualAmountControllerTest {
         assertEquals(RangeStatus.AboveMax, controller.current().rangeStatus)
     }
 
-    @Test
-    fun positiveFiatBelowMillisatoshiPrecisionReportsTooLow() {
-        val controller = ManualAmountController(usdConfig().copy(exchangeRate = 10_000_000_000.0, minMsats = 1000))
-        controller.handleKeyPress(ManualAmountKey.Decimal)
-        controller.handleKeyPress(ManualAmountKey.Digit(0))
-        controller.handleKeyPress(ManualAmountKey.Digit(1))
-        assertEquals(RangeStatus.BelowMin, controller.current().rangeStatus)
-    }
-
     private fun usdConfig() = ManualAmountConfig(CurrencyCatalog.infoFor("USD"), 60_000.0)
-
-    @Test
-    fun reportsBelowMinWhenUnderRange() {
-        val usd = CurrencyCatalog.infoFor("USD")
-        val controller =
-            ManualAmountController(
-                ManualAmountConfig(
-                    info = usd,
-                    exchangeRate = 60_000.0,
-                    minMsats = 1_500_000L,
-                    maxMsats = 9_000_000L
-                )
-            )
-
-        controller.handleKeyPress(ManualAmountKey.Decimal)
-        val state = controller.handleKeyPress(ManualAmountKey.Digit(5))
-
-        assertEquals(
-            RangeStatus.BelowMin,
-            state.rangeStatus
-        )
-    }
 }

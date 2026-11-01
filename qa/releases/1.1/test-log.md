@@ -2,6 +2,14 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of `feature/payment-ui`
+
+- **Build:** `main` at `fd127430` plus the audit change (uncommitted)
+- **Ran:** 7 mutation checks after deleting 5 tests, then the module's tests and ktlint.
+- **Result:** all 7 killed, so the deletions removed no protection. The module passes with
+  10 tests.
+- Findings: [test-audit.md §5](test-audit.md#5-featurepayment-ui-2026-11-01).
+
 ## 2026-11-01: Audit of `core/model`
 
 - **Build:** `main` at `ccd4a102` plus the audit change (uncommitted)
