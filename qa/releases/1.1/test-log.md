@@ -2,6 +2,14 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of `feature/payment-settings`; pilot revised
+
+- **Build:** `main` at `2f7d2d23` plus the audit changes (uncommitted)
+- **Ran:** 3 mutation checks against `:feature:payment-settings:testAndroidHostTest`, then
+  the tests and ktlint of `feature/payment-settings` and `feature/payment-flow`.
+- **Result:** all 3 mutations killed; both modules pass (8 and 9 tests).
+- Findings: [test-audit.md §2](test-audit.md#2-featurepayment-settings-2026-11-01).
+
 ## 2026-11-01: Audit of `feature/payment-flow` (pilot)
 
 - **Build:** `main` at `8b4855be` plus the improved `PaymentHistoryTest` (uncommitted)

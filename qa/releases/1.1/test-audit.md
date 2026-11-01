@@ -36,6 +36,11 @@ reverted, and the result is noted in the module's row.
 | **Replace** | The behaviour matters but the test checks it badly; rewrite it |
 | **Delete** | Fails C1 or C2 and can't be fixed cheaply, or is fully redundant (C7). The reason is always recorded. |
 
+**The bar is deliberately high** (Nicola, 2026-11-01): only high-quality tests that clearly
+make sense stay. Passing the criteria is necessary, not sufficient. A test that checks
+cosmetic or low-value behaviour, or costs more attention than the bug it could catch is
+worth, is deleted even if it works.
+
 The audit also records **gaps**: important behaviour of the audited code that no test
 covers. Gaps feed stage 2. They are not filled during the audit.
 
@@ -55,8 +60,8 @@ Modules are audited in risk order: Level 1 modules first.
 
 | # | Module | Tests | Risks | Status | Kept | Improved / merged / replaced | Deleted |
 |---|---|---|---|---|---|---|---|
-| 1 | `feature/payment-flow` | 8 → 10 | PR-02–PR-04 | Done (pilot) | 7 | 1 improved (split into 3) | 0 |
-| 2 | `feature/payment-settings` | 6 + 3 classes | PR-02 | Policy test rewritten in `8b4855be`; the other 3 classes not audited | | | |
+| 1 | `feature/payment-flow` | 8 → 9 | PR-02–PR-04 | Done | 6 | 1 improved (split into 3) | 1 |
+| 2 | `feature/payment-settings` | 9 → 8 | PR-02 | Done | 0 | 1 rewritten (policy, `8b4855be`), 1 replaced, 1 improved | 1 |
 | 3 | `core/payment` | 26 | PR-05, PR-14 | Not audited | | | |
 | 4 | `core/model` | 10 | PR-01 | Not audited | | | |
 | 5 | `feature/payment-ui` | 15 | PR-01 | Not audited | | | |
@@ -89,7 +94,7 @@ mutation.
 | `PaymentOperationTest.busyOperationRejectsOverlappingInputWithoutQueuingOrReplacingIt` | Keep | PR-03: the duplicate-payment guard (M1 killed) |
 | `PaymentOperationTest.cancelledOperationCannotReleaseTheGateForANewerOperation` | Keep | PR-03: a late completion of a cancelled operation must not open the gate (M2 killed) |
 | `PaymentPresentationPhaseTest.dismissingAResultCannotDismissLoading` | Keep | PR-04: a dismiss tap during payment must not hide the in-flight state (M4 killed) |
-| `PaymentPresentationPhaseTest.transactionNavigationMarksOnlyTheSelectedTransactionAsSeen` | Keep | Level 3 behaviour (the new-transaction badge), but cheap and non-trivial set logic |
+| `PaymentPresentationPhaseTest.transactionNavigationMarksOnlyTheSelectedTransactionAsSeen` | **Delete** (revised under the higher bar) | Only the new-transaction badge count and a navigation flag: cosmetic. It was first kept as cheap. |
 | `PaymentPresentationPhaseTest.resetClearsTransientPresentationWithoutRememberingOldTransactions` | Keep | A session reset (e.g. a wallet switch) must not carry state over |
 
 **Mutation checks** (`qa/tools/mutate.sh`; each reverted):
@@ -110,3 +115,23 @@ mutation.
   path (M1 through the flow, M2, M4).
 - `PaymentErrorMapping`: how settlement errors become user-facing errors. This is where an
   uncertain outcome could be shown as a failure (PR-04, M3).
+
+### 2. `feature/payment-settings` (2026-11-01)
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `PaymentConfirmationPolicyTest` (3 tests) | **Replaced** by a 6-test decision table in `8b4855be`, before this audit | The 3 tests were rows of the table; the table adds every combination, the msat boundary at each threshold step, and stored thresholds above the maximum |
+| `PaymentPreferencesRepositoryTest.mutationPersistsOnlyTheChangedPreference` | **Replace** → `confirmationSettingsSurviveAnAppRestart` | It pinned which storage keys a write touches (C3, implementation detail). What matters for PR-02 was untested: that "Always confirm" and the threshold survive a restart. P1 and P2 below would have passed the old suite. |
+| `PaymentPreferencesRepositoryConcurrencyTest.serializesConcurrentPreferenceWrites` | **Delete** | Real threads and `Thread.sleep` (C5, slow and potentially flaky), racing a mutex for a scenario that doesn't occur: every caller writes from the main dispatcher, and the write path has no suspension point. |
+| `PaymentSettingsViewModelTest.updatesSharedPreferencesAndThresholdPreview` | **Improve** → `thresholdIsPreviewedInTheDisplayCurrency` | The fiat preview is what users read when choosing the Auto Pay limit, and the oracle is independent ($60k/BTC: 10,000 sats = $6.00). The `offerToSaveNewTargets` part was trivial delegation and is removed. |
+
+**Mutation checks**
+
+| # | Mutation | Result |
+|---|---|---|
+| P1 | A stored "always" mode is read back as the default (Above) | Killed by the new restart test |
+| P2 | The stored threshold is ignored on load | Killed by the new restart test |
+| P3 | The preview isn't recomputed when the threshold changes | Killed |
+
+**Gaps:** none worth a test now. The stale-price guard in the preview (a slow price for the
+previous currency must not overwrite the new one) only affects display.

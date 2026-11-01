@@ -19,32 +19,6 @@ class PaymentPresentationPhaseTest {
     }
 
     @Test
-    fun transactionNavigationMarksOnlyTheSelectedTransactionAsSeen() = runTest {
-        val presentation =
-            PaymentPresentationPhase(
-                PaymentCurrencyManager(
-                    bitcoinPriceProvider = BitcoinPriceProvider { null },
-                    scope = backgroundScope
-                )
-            )
-
-        presentation.updateSessionTransactionIds(setOf("first", "second"))
-        presentation.requestTransactionDetailNavigation("first")
-
-        assertEquals(1, presentation.newSessionTransactionCount.value)
-        assertEquals("first", presentation.transactionDetailNavigationTarget.value)
-
-        presentation.onTransactionDetailNavigationHandled("second")
-        assertEquals("first", presentation.transactionDetailNavigationTarget.value)
-
-        presentation.onTransactionDetailNavigationHandled("first")
-        assertNull(presentation.transactionDetailNavigationTarget.value)
-
-        presentation.onSessionTransactionsOpened(listOf("first", "second"))
-        assertEquals(0, presentation.newSessionTransactionCount.value)
-    }
-
-    @Test
     fun resetClearsTransientPresentationWithoutRememberingOldTransactions() = runTest {
         val presentation =
             PaymentPresentationPhase(

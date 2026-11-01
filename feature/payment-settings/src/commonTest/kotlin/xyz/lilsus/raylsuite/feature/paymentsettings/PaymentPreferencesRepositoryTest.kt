@@ -4,15 +4,20 @@ import com.russhwolf.settings.MapSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.test.runTest
+import xyz.lilsus.raylsuite.core.model.PaymentConfirmationMode
 
 class PaymentPreferencesRepositoryTest {
     @Test
-    fun mutationPersistsOnlyTheChangedPreference() = runTest {
+    fun confirmationSettingsSurviveAnAppRestart() = runTest {
         val settings = MapSettings()
-        val repository = DefaultPaymentPreferencesRepository(settings)
+        DefaultPaymentPreferencesRepository(settings).apply {
+            setConfirmationMode(PaymentConfirmationMode.Always)
+            setConfirmationThreshold(2_000L)
+        }
 
-        repository.setVibrateOnScan(false)
+        val restarted = DefaultPaymentPreferencesRepository(settings).current()
 
-        assertEquals(setOf("payments.vibrateOnScan"), settings.keys)
+        assertEquals(PaymentConfirmationMode.Always, restarted.confirmationMode)
+        assertEquals(2_000L, restarted.thresholdSats)
     }
 }
