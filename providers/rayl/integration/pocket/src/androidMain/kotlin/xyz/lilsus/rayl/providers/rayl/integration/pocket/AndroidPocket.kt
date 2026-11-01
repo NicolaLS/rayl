@@ -5,6 +5,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import breez_sdk_spark.PasskeyProviderOptions
+import breez_sdk_spark.PrfProviderException
 import java.io.File
 import java.io.FileOutputStream
 import java.security.KeyStore
@@ -24,7 +25,10 @@ fun createAndroidRaylPocket(context: Context, config: PocketConfig): RaylPocket 
     val sdkDirectory = File(directory, "sdk")
     return RaylPocket(
         keys = AndroidPocketKeyStore(appContext, directory, network),
-        connector = BreezPocketConnector(config) {
+        connector = BreezPocketConnector(
+            config,
+            storageIsEmpty = { sdkDirectory.list().isNullOrEmpty() }
+        ) {
             sdkDirectory.also { check(it.isDirectory || it.mkdirs()) }.absolutePath
         },
         eraseWalletData = {
@@ -54,9 +58,12 @@ fun createAndroidPocketSetup(
         )
     }
     val provider = PasskeyProvider(
-        // An exception thrown inside an SDK callback aborts the process, so every call below checks
-        // for an activity first.
-        activityProvider = { checkNotNull(activity()) },
+        // The SDK asks for the activity again within a ceremony, so it can be gone (e.g. while it is
+        // recreated) despite the check below. Any exception but the callback's declared
+        // PrfProviderException thrown inside an SDK callback aborts the process.
+        activityProvider = {
+            activity() ?: throw PrfProviderException.Configuration(NO_ACTIVITY)
+        },
         options = PasskeyProviderOptions(
             rpId = rpId,
             rpName = PASSKEY_NAME,
@@ -92,9 +99,7 @@ private class ActivityCheckedAccounts(
 
     private inline fun <T> checked(block: () -> T): T {
         if (!hasActivity()) {
-            throw PasskeyAccountsException.Other(
-                "No activity for the passkey prompt"
-            )
+            throw PasskeyAccountsException.Other(NO_ACTIVITY)
         }
         return block()
     }
@@ -102,6 +107,8 @@ private class ActivityCheckedAccounts(
 
 /** How the passkey is named in the system's passkey manager. */
 private const val PASSKEY_NAME = "Rayl"
+
+private const val NO_ACTIVITY = "No activity for the passkey prompt"
 
 private fun filePrfProvider(context: Context): FilePrfProvider {
     // Kept apart from the pocket so erasing the pocket in a debug build keeps the "passkey".

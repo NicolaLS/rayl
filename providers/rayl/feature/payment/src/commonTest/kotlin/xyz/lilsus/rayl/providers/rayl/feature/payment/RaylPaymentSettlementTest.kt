@@ -14,6 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlinx.coroutines.test.runTest
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPayOutcome
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPaymentProblem
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPayments
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketQuote
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketQuoteResult
@@ -65,8 +66,27 @@ class RaylPaymentSettlementTest {
         pocket.outcome = PocketPayOutcome.Unknown("pending")
         assertIs<SettlementOutcome.Unknown>(settlement.settle(ready.payment))
 
-        pocket.outcome = PocketPayOutcome.Failed(null)
+        pocket.outcome = PocketPayOutcome.Failed(PocketPaymentProblem.Other, null)
         assertIs<SettlementOutcome.Failed>(settlement.settle(ready.payment))
+    }
+
+    @Test
+    fun mapsRecognizedRefusalsToTheirOwnMessages() = runTest {
+        val expired = RaylPaymentSettlement(FakePocket(PocketQuoteResult.Rejected(PocketPaymentProblem.Expired, "x")))
+            .prepare(payment())
+        assertEquals(RaylPaymentError.InvoiceExpired, providerError(expired))
+
+        val offline = RaylPaymentSettlement(FakePocket(PocketQuoteResult.Rejected(PocketPaymentProblem.Network, "x")))
+            .prepare(payment())
+        assertEquals(PaymentUiError.NetworkUnavailable, (offline as SettlementPreparation.Unavailable).error)
+
+        val quote = Quote(feeSats = 1)
+        val pocket = FakePocket(PocketQuoteResult.Quoted(quote))
+        val settlement = RaylPaymentSettlement(pocket)
+        val ready = settlement.prepare(payment()) as SettlementPreparation.Ready<RaylPayment>
+        pocket.outcome = PocketPayOutcome.Failed(PocketPaymentProblem.AlreadyPaid, "x")
+        val failed = assertIs<SettlementOutcome.Failed>(settlement.settle(ready.payment))
+        assertEquals(RaylPaymentError.AlreadyPaid, (failed.error as PaymentUiError.Provider).error)
     }
 
     private fun providerError(preparation: SettlementPreparation<RaylPayment>) =
@@ -96,7 +116,7 @@ private class Quote(override val feeSats: Long) : PocketQuote
 private class FakePocket(private val quoteResult: PocketQuoteResult) : PocketPayments {
     var quotes = 0
     var quotedAmountSats: Long? = null
-    var outcome: PocketPayOutcome = PocketPayOutcome.Failed(null)
+    var outcome: PocketPayOutcome = PocketPayOutcome.Failed(PocketPaymentProblem.Other, null)
 
     override suspend fun quote(invoice: String, amountSats: Long?): PocketQuoteResult {
         quotes++

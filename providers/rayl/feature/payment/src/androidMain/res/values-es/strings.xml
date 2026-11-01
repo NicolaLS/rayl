@@ -6,4 +6,7 @@
     <string name="error_payment_rejected_message">El pago falló: %1$s</string>
     <string name="error_payment_unconfirmed">Estado de pago desconocido. Es posible que el pago haya sido exitoso.</string>
     <string name="error_payment_unconfirmed_message">Estado de pago desconocido: %1$s</string>
+    <string name="error_invoice_already_paid">Esta factura ya se ha pagado.</string>
+    <string name="error_invoice_expired">Esta factura ha caducado. Pide una nueva al destinatario.</string>
+    <string name="error_balance_settling">Tu saldo aún se está actualizando. Inténtalo de nuevo en unos minutos.</string>
 </resources>

@@ -415,6 +415,29 @@
         }
       }
     },
+    "rayl_key_unreadable" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät kann seinen Wallet-Schlüssel nicht lesen. Dein Passkey kann ihn wieder einrichten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device can't read its wallet key. Your passkey can set it up again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo no puede leer la clave de su billetera. Tu passkey puede configurarla de nuevo."
+          }
+        }
+      }
+    },
     "rayl_leave_failed" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -526,6 +549,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reintentar"
+          }
+        }
+      }
+    },
+    "rayl_set_up_again" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu einrichten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set up again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurar de nuevo"
           }
         }
       }

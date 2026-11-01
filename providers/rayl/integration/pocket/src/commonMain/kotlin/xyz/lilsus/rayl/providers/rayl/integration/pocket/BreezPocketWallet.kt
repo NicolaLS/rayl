@@ -5,6 +5,7 @@ import breez_sdk_spark.ConnectRequest
 import breez_sdk_spark.EventListener
 import breez_sdk_spark.GetInfoRequest
 import breez_sdk_spark.GetPaymentRequest
+import breez_sdk_spark.InputType
 import breez_sdk_spark.Network
 import breez_sdk_spark.Payment
 import breez_sdk_spark.PaymentDetails
@@ -24,12 +25,16 @@ import breez_sdk_spark.SendPaymentRequest
 import breez_sdk_spark.connect
 import breez_sdk_spark.defaultConfig
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import kotlin.concurrent.Volatile
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 enum class PocketNetwork {
     Regtest,
@@ -47,6 +52,8 @@ class PocketConfig(val network: PocketNetwork, breezApiKey: String?) {
 
 internal class BreezPocketConnector(
     private val config: PocketConfig,
+    /** Whether the SDK has no local data yet; checked before [storageDirectory] creates it. */
+    private val storageIsEmpty: () -> Boolean,
     private val storageDirectory: () -> String
 ) : PocketConnector {
     override suspend fun connect(key: PocketKey): PocketWallet {
@@ -54,6 +61,7 @@ internal class BreezPocketConnector(
             PocketNetwork.Regtest -> Network.REGTEST
             PocketNetwork.Mainnet -> Network.MAINNET
         }
+        val freshStorage = storageIsEmpty()
         val sdk = connect(
             ConnectRequest(
                 // NOTE: Default leaf optimization is deliberate. It runs automatically after each
@@ -67,23 +75,35 @@ internal class BreezPocketConnector(
         // Regtest has no Lightning network, so invoices between Spark wallets must settle over
         // Spark. Breez does not recommend this on Mainnet: no preimage on send, and a received
         // payment may not link back to its invoice.
-        return BreezPocketWallet.attach(sdk, preferSpark = config.network == PocketNetwork.Regtest)
+        return BreezPocketWallet.attach(
+            sdk,
+            preferSpark = config.network == PocketNetwork.Regtest,
+            freshStorage = freshStorage
+        )
     }
 }
 
 private class BreezPocketWallet private constructor(
     private val sdk: BreezSdk,
-    private val preferSpark: Boolean
+    private val preferSpark: Boolean,
+    freshStorage: Boolean
 ) : PocketWallet {
+    @Volatile private var awaitingInitialSync = freshStorage
+
     private val mutableEvents = MutableSharedFlow<PocketEvent>(extraBufferCapacity = 64)
     override val events: SharedFlow<PocketEvent> = mutableEvents.asSharedFlow()
     private var listenerId: String? = null
+
+    /** Payment hashes of invoices created by [createInvoice], to their invoices. */
+    private val ownInvoices = LinkedHashMap<String, String>()
+    private val ownInvoicesLock = Mutex()
 
     override suspend fun balanceSats(): Long =
         sdk.getInfo(GetInfoRequest(ensureSynced = false)).balanceSats.toLong()
 
     override suspend fun quote(invoice: String, amountSats: Long?): PocketQuoteResult = try {
         PocketTimings.mark("quote start")
+        awaitInitialSync()
         val response = sdk.prepareSendPayment(
             PrepareSendPaymentRequest(
                 paymentRequest = PaymentRequest.Input(invoice),
@@ -99,14 +119,18 @@ private class BreezPocketWallet private constructor(
                 BreezQuote(response, feeSats = method.lightningFeeSats.toLong())
             )
 
-            else -> PocketQuoteResult.Rejected("Unsupported payment method")
+            else -> PocketQuoteResult.Rejected(
+                PocketPaymentProblem.Other,
+                "Unsupported payment method"
+            )
         }
     } catch (error: CancellationException) {
         throw error
-    } catch (_: SdkException.InsufficientFunds) {
-        PocketQuoteResult.InsufficientFunds
     } catch (error: Exception) {
-        PocketQuoteResult.Rejected(error.message)
+        when (val problem = error.paymentProblem()) {
+            PocketPaymentProblem.InsufficientFunds -> PocketQuoteResult.InsufficientFunds
+            else -> PocketQuoteResult.Rejected(problem, error.detail())
+        }
     }
 
     override suspend fun pay(quote: PocketQuote): PocketPayOutcome {
@@ -130,18 +154,28 @@ private class BreezPocketWallet private constructor(
             ).payment
         } catch (error: CancellationException) {
             throw error
-        } catch (error: SdkException.InsufficientFunds) {
-            return PocketPayOutcome.Failed(error.message)
         } catch (error: Exception) {
-            // The SDK may have submitted the payment before failing.
-            return PocketPayOutcome.Unknown(error.message)
+            return when (val problem = error.paymentProblem()) {
+                // Refused before anything was submitted.
+                PocketPaymentProblem.InsufficientFunds,
+                PocketPaymentProblem.AlreadyPaid,
+                PocketPaymentProblem.Expired,
+                PocketPaymentProblem.BalanceSettling -> PocketPayOutcome.Failed(
+                    problem,
+                    error.detail()
+                )
+
+                // The SDK may have submitted the payment before failing.
+                PocketPaymentProblem.Network,
+                PocketPaymentProblem.Other -> PocketPayOutcome.Unknown(error.detail())
+            }
         }
         PocketTimings.mark("send returned ${payment.status.name.lowercase()}")
         return awaitOutcome(payment).also { PocketTimings.mark("payment outcome $it") }
     }
 
-    override suspend fun createInvoice(amountSats: Long?, description: String): String =
-        sdk.receivePayment(
+    override suspend fun createInvoice(amountSats: Long?, description: String): String {
+        val invoice = sdk.receivePayment(
             ReceivePaymentRequest(
                 ReceivePaymentMethod.Bolt11Invoice(
                     description = description,
@@ -152,11 +186,48 @@ private class BreezPocketWallet private constructor(
                 )
             )
         ).paymentRequest
+        // Best effort: without the hash, only a Lightning settlement is recognized.
+        val paymentHash = try {
+            (sdk.parse(invoice) as? InputType.Bolt11Invoice)?.v1?.paymentHash
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            null
+        }
+        if (paymentHash != null) {
+            ownInvoicesLock.withLock {
+                ownInvoices[paymentHash] = invoice
+                val oldest = ownInvoices.keys.first()
+                if (ownInvoices.size > OWN_INVOICES_KEPT) ownInvoices.remove(oldest)
+            }
+        }
+        return invoice
+    }
 
     override suspend fun disconnect() {
         listenerId?.let { sdk.removeEventListener(it) }
         listenerId = null
         sdk.disconnect()
+    }
+
+    /**
+     * Only with fresh storage (a new setup or reinstall): before the first sync the SDK has no
+     * balance, so a quote would wrongly report insufficient funds. A normal start never waits.
+     */
+    private suspend fun awaitInitialSync() {
+        if (!awaitingInitialSync) return
+        PocketTimings.mark("awaiting initial sync")
+        val synced = try {
+            withTimeoutOrNull(INITIAL_SYNC_WAIT_MILLIS) {
+                sdk.getInfo(GetInfoRequest(ensureSynced = true))
+            } != null
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            false
+        }
+        // Without a sync, quote anyway; the next quote waits again.
+        if (synced) awaitingInitialSync = false
     }
 
     private suspend fun awaitOutcome(initial: Payment): PocketPayOutcome {
@@ -168,7 +239,10 @@ private class BreezPocketWallet private constructor(
                     preimage = payment.details.preimage()
                 )
 
-                PaymentStatus.FAILED -> return PocketPayOutcome.Failed(null)
+                PaymentStatus.FAILED -> return PocketPayOutcome.Failed(
+                    PocketPaymentProblem.Other,
+                    null
+                )
 
                 PaymentStatus.PENDING -> {
                     delay(PENDING_POLL_MILLIS)
@@ -193,7 +267,7 @@ private class BreezPocketWallet private constructor(
                     if (event is SdkEvent.PaymentSucceeded &&
                         event.payment.paymentType == PaymentType.RECEIVE
                     ) {
-                        (event.payment.details as? PaymentDetails.Lightning)?.invoice?.let {
+                        receivedInvoice(event.payment.details)?.let {
                             mutableEvents.emit(
                                 PocketEvent.Received(it, event.payment.amount.longValue())
                             )
@@ -205,6 +279,20 @@ private class BreezPocketWallet private constructor(
         )
     }
 
+    /**
+     * The invoice a received payment paid. A Spark payer can settle an invoice through its embedded
+     * Spark address instead of Lightning, which reports only the HTLC's payment hash.
+     */
+    private suspend fun receivedInvoice(details: PaymentDetails?): String? = when (details) {
+        is PaymentDetails.Lightning -> details.invoice
+
+        is PaymentDetails.Spark -> details.htlcDetails?.paymentHash?.let { hash ->
+            ownInvoicesLock.withLock { ownInvoices[hash] }
+        }
+
+        else -> null
+    }
+
     private class BreezQuote(val response: PrepareSendPaymentResponse, override val feeSats: Long) :
         PocketQuote {
         val idempotencyKey = Uuid.random().toString()
@@ -213,8 +301,12 @@ private class BreezPocketWallet private constructor(
     }
 
     companion object {
-        suspend fun attach(sdk: BreezSdk, preferSpark: Boolean): PocketWallet {
-            val wallet = BreezPocketWallet(sdk, preferSpark)
+        suspend fun attach(
+            sdk: BreezSdk,
+            preferSpark: Boolean,
+            freshStorage: Boolean
+        ): PocketWallet {
+            val wallet = BreezPocketWallet(sdk, preferSpark, freshStorage)
             try {
                 wallet.listen()
             } catch (error: Throwable) {
@@ -227,6 +319,28 @@ private class BreezPocketWallet private constructor(
         private val COMPLETION_TIMEOUT_SECONDS = 30u
         private const val PENDING_POLL_ATTEMPTS = 60
         private const val PENDING_POLL_MILLIS = 1_000L
+        private const val OWN_INVOICES_KEPT = 16
+        private const val INITIAL_SYNC_WAIT_MILLIS = 20_000L
+    }
+}
+
+/** The SDK's own text: its Kotlin exceptions format their message as `v1=<text>`. */
+internal fun Exception.detail(): String? =
+    message?.removePrefix("v1=")?.trim()?.takeIf(String::isNotEmpty)
+
+/**
+ * Breez reports most refusals as text. These patterns are the ones Breez's Glow app matches:
+ * the gRPC status for a second send to a paid hash, and the SDK's own messages.
+ */
+internal fun Exception.paymentProblem(): PocketPaymentProblem {
+    val text = message.orEmpty()
+    return when {
+        this is SdkException.InsufficientFunds -> PocketPaymentProblem.InsufficientFunds
+        this is SdkException.NetworkException -> PocketPaymentProblem.Network
+        "status: AlreadyExists" in text -> PocketPaymentProblem.AlreadyPaid
+        "Invoice has expired" in text -> PocketPaymentProblem.Expired
+        "Failed to select leaves" in text -> PocketPaymentProblem.BalanceSettling
+        else -> PocketPaymentProblem.Other
     }
 }
 

@@ -41,6 +41,18 @@ interface PocketQuote {
     val feeSats: Long
 }
 
+/** Why the pocket refused a payment, as far as the SDK says. */
+enum class PocketPaymentProblem {
+    InsufficientFunds,
+    AlreadyPaid,
+    Expired,
+
+    /** Funds are briefly reserved, e.g. after an interrupted leaf swap. */
+    BalanceSettling,
+    Network,
+    Other
+}
+
 sealed interface PocketQuoteResult {
     data class Quoted(val quote: PocketQuote) : PocketQuoteResult
 
@@ -48,14 +60,14 @@ sealed interface PocketQuoteResult {
 
     data object NotReady : PocketQuoteResult
 
-    data class Rejected(val detail: String?) : PocketQuoteResult
+    data class Rejected(val problem: PocketPaymentProblem, val detail: String?) : PocketQuoteResult
 }
 
 sealed interface PocketPayOutcome {
     data class Paid(val feeSats: Long, val preimage: String?) : PocketPayOutcome
 
     /** The wallet definitively did not pay. */
-    data class Failed(val detail: String?) : PocketPayOutcome
+    data class Failed(val problem: PocketPaymentProblem, val detail: String?) : PocketPayOutcome
 
     /** The payment may still complete; callers must not treat it as failed. */
     data class Unknown(val detail: String?) : PocketPayOutcome

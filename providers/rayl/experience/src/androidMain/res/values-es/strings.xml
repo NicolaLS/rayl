@@ -26,4 +26,6 @@
     <string name="rayl_accounts_new">Nueva cuenta de Rayl</string>
     <string name="rayl_connect_wallet">Conecta tu billetera</string>
     <string name="rayl_passkey_without_prf">Ese gestor de contraseñas no se puede usar con Rayl. Continúa y elige otro, como las contraseñas integradas de tu teléfono.</string>
+    <string name="rayl_key_unreadable">Este dispositivo no puede leer la clave de su billetera. Tu passkey puede configurarla de nuevo.</string>
+    <string name="rayl_set_up_again">Configurar de nuevo</string>
 </resources>

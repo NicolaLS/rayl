@@ -78,7 +78,7 @@ class RaylPocketTest {
 
         pocket.connect()
 
-        assertEquals(PocketStatus.Failed, pocket.status.value)
+        assertEquals(PocketStatus.KeyUnreadable, pocket.status.value)
         assertEquals(0, keys.adds)
         assertTrue(connector.keys.isEmpty())
     }
@@ -136,7 +136,7 @@ class RaylPocketTest {
         val pocket = pocket(FakeKeyStore(PocketKey("stored")), FakeConnector())
         pocket.start()
 
-        assertEquals(PocketQuoteResult.Rejected("wallet"), pocket.quote("lnbcrt1", null))
+        assertEquals(PocketQuoteResult.Rejected(PocketPaymentProblem.Other, "wallet"), pocket.quote("lnbcrt1", null))
         assertEquals(PocketStatus.Ready, pocket.status.value)
     }
 
@@ -148,7 +148,7 @@ class RaylPocketTest {
         advanceUntilIdle()
         assertEquals(PocketStatus.Failed, pocket.status.value)
 
-        assertEquals(PocketQuoteResult.Rejected("wallet"), pocket.quote("lnbcrt1", null))
+        assertEquals(PocketQuoteResult.Rejected(PocketPaymentProblem.Other, "wallet"), pocket.quote("lnbcrt1", null))
         assertEquals(2, connector.keys.size)
     }
 
@@ -221,9 +221,10 @@ internal class FakeWallet : PocketWallet {
 
     override suspend fun balanceSats(): Long = balance
 
-    override suspend fun quote(invoice: String, amountSats: Long?): PocketQuoteResult = PocketQuoteResult.Rejected("wallet")
+    override suspend fun quote(invoice: String, amountSats: Long?): PocketQuoteResult =
+        PocketQuoteResult.Rejected(PocketPaymentProblem.Other, "wallet")
 
-    override suspend fun pay(quote: PocketQuote): PocketPayOutcome = PocketPayOutcome.Failed(null)
+    override suspend fun pay(quote: PocketQuote): PocketPayOutcome = PocketPayOutcome.Failed(PocketPaymentProblem.Other, null)
 
     override suspend fun createInvoice(amountSats: Long?, description: String): String = "lnbcrt1"
 

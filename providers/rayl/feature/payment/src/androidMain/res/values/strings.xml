@@ -6,4 +6,7 @@
     <string name="error_payment_rejected_message">Payment failed: %1$s</string>
     <string name="error_payment_unconfirmed">Payment status unknown. It may have succeeded.</string>
     <string name="error_payment_unconfirmed_message">Payment status unknown: %1$s</string>
+    <string name="error_invoice_already_paid">This invoice has already been paid.</string>
+    <string name="error_invoice_expired">This invoice has expired. Ask the recipient for a new one.</string>
+    <string name="error_balance_settling">Your balance is still settling. Try again in a few minutes.</string>
 </resources>

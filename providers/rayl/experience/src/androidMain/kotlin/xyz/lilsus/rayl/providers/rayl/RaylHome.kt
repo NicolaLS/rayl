@@ -162,7 +162,8 @@ private fun RaylSettingsTab(runtime: RaylRuntime, otherWallets: List<RaylWalletO
 private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> Unit) {
     val balance by runtime.pocket.balanceSats.collectAsStateWithLifecycle()
     val status by runtime.pocket.status.collectAsStateWithLifecycle()
-    val failed = status == PocketStatus.Failed
+    val unreadable = status == PocketStatus.KeyUnreadable
+    val failed = status == PocketStatus.Failed || unreadable
     val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
     val funding by runtime.funding.state.collectAsStateWithLifecycle()
     val formatter = rememberAmountFormatter()
@@ -172,22 +173,34 @@ private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> 
     Column(verticalArrangement = Arrangement.spacedBy(AppSettingsRowDefaults.RowSpacing)) {
         AppSettingsRow(
             title = stringResource(R.string.rayl_balance),
-            subtitle = if (failed) {
-                stringResource(R.string.rayl_balance_unavailable)
-            } else {
-                balance?.let { formatter.format(DisplayAmount(it, DisplayCurrency.Satoshi)) }
-                    ?: stringResource(R.string.rayl_balance_updating)
+            subtitle = when {
+                unreadable -> stringResource(R.string.rayl_key_unreadable)
+
+                failed -> stringResource(R.string.rayl_balance_unavailable)
+
+                else ->
+                    balance?.let { formatter.format(DisplayAmount(it, DisplayCurrency.Satoshi)) }
+                        ?: stringResource(R.string.rayl_balance_updating)
             },
+            subtitleMaxLines = if (unreadable) 2 else 1,
             icon = Icons.Filled.AccountBalanceWallet,
             testTag = "rayl_balance",
-            onClick = if (failed) runtime::retryPocket else runtime.funding::request
+            onClick = when {
+                unreadable -> runtime::setUpAgain
+                failed -> runtime::retryPocket
+                else -> runtime.funding::request
+            }
         ) {
             if (funding == FundingState.Creating) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
                 Text(
                     text = stringResource(
-                        if (failed) R.string.rayl_retry else R.string.rayl_add_funds
+                        when {
+                            unreadable -> R.string.rayl_set_up_again
+                            failed -> R.string.rayl_retry
+                            else -> R.string.rayl_add_funds
+                        }
                     ),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary

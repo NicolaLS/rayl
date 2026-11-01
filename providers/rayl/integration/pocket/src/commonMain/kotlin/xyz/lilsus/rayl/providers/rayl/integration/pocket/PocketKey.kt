@@ -15,7 +15,7 @@ internal sealed interface PocketKeyLoad {
     /** No key was ever stored: the pocket needs setup. */
     data object Absent : PocketKeyLoad
 
-    /** A key may exist but cannot be read now; never replace it. */
+    /** A key may exist but cannot be read now; never replace it without the user's choice. */
     data object Unavailable : PocketKeyLoad
 }
 

@@ -381,7 +381,9 @@ private struct RaylWalletSettingsActions: View {
 
     @ViewBuilder
     private func balanceRow(_ snapshot: RaylNativeWalletSettingsSnapshot) -> some View {
-        if snapshot.pocketFailed {
+        if snapshot.keyUnreadable {
+            Button { model.controller.setUpAgain() } label: { balance(snapshot) }
+        } else if snapshot.pocketFailed {
             Button { model.controller.retryPocket() } label: { balance(snapshot) }
         } else {
             Button { model.controller.addFunds() } label: { balance(snapshot) }
@@ -410,6 +412,9 @@ private struct RaylWalletSettingsActions: View {
             Spacer()
             if snapshot.fundingStage == "creating" {
                 ProgressView()
+            } else if snapshot.keyUnreadable {
+                Text(snapshot.setUpAgainTitle)
+                    .foregroundStyle(.tint)
             } else if !snapshot.pocketFailed {
                 Text(snapshot.addFundsTitle)
                     .foregroundStyle(.tint)

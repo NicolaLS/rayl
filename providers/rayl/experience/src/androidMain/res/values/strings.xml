@@ -26,4 +26,6 @@
     <string name="rayl_accounts_new">New Rayl account</string>
     <string name="rayl_connect_wallet">Connect your wallet</string>
     <string name="rayl_passkey_without_prf">That password manager can\'t be used for Rayl. Continue and choose another one, like your phone\'s built-in passwords.</string>
+    <string name="rayl_key_unreadable">This device can\'t read its wallet key. Your passkey can set it up again.</string>
+    <string name="rayl_set_up_again">Set up again</string>
 </resources>

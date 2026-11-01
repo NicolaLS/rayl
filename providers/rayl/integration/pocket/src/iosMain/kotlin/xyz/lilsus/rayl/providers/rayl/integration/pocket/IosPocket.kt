@@ -59,7 +59,12 @@ fun createIosRaylPocket(config: PocketConfig): RaylPocket {
     val fileManager = NSFileManager.defaultManager
     return RaylPocket(
         keys = IosPocketKeyStore(config.network.storageName),
-        connector = BreezPocketConnector(config) {
+        connector = BreezPocketConnector(
+            config,
+            storageIsEmpty = {
+                fileManager.contentsOfDirectoryAtPath(directory, null).isNullOrEmpty()
+            }
+        ) {
             directory.also {
                 check(fileManager.createDirectoryAtPath(it, true, null, null))
                 // Like Android's no-backup directory: wallet data stays out of device backups.

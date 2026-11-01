@@ -9,6 +9,9 @@ internal enum class RaylPaymentTextKey(override val key: String) : LocalizedText
     ErrorInsufficientFunds("error_insufficient_funds"),
     ErrorPocketNotReady("error_pocket_not_ready"),
     ErrorSubSatoshiAmount("error_sub_satoshi_amount"),
+    ErrorInvoiceAlreadyPaid("error_invoice_already_paid"),
+    ErrorInvoiceExpired("error_invoice_expired"),
+    ErrorBalanceSettling("error_balance_settling"),
     ErrorPaymentRejectedGeneric("error_payment_rejected_generic"),
     ErrorPaymentRejectedMessage("error_payment_rejected_message"),
     ErrorPaymentUnconfirmed("error_payment_unconfirmed"),
@@ -24,6 +27,12 @@ sealed interface RaylPaymentError : ProviderPaymentError {
 
     data object SubSatoshiAmount : RaylPaymentError
 
+    data object AlreadyPaid : RaylPaymentError
+
+    data object InvoiceExpired : RaylPaymentError
+
+    data object BalanceSettling : RaylPaymentError
+
     data class Rejected(val detail: String?) : RaylPaymentError
 
     data class OutcomeUnknown(val detail: String?) : RaylPaymentError
@@ -34,6 +43,12 @@ sealed interface RaylPaymentError : ProviderPaymentError {
         PocketNotReady -> LocalizedText(RaylPaymentTextKey.ErrorPocketNotReady)
 
         SubSatoshiAmount -> LocalizedText(RaylPaymentTextKey.ErrorSubSatoshiAmount)
+
+        AlreadyPaid -> LocalizedText(RaylPaymentTextKey.ErrorInvoiceAlreadyPaid)
+
+        InvoiceExpired -> LocalizedText(RaylPaymentTextKey.ErrorInvoiceExpired)
+
+        BalanceSettling -> LocalizedText(RaylPaymentTextKey.ErrorBalanceSettling)
 
         is Rejected -> localizedTextWithOptionalDetail(
             detail,

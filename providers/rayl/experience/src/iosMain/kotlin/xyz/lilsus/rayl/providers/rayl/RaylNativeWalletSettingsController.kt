@@ -16,6 +16,9 @@ data class RaylNativeWalletSettingsSnapshot(
     val balance: String,
     /** The pocket could not connect; tapping the balance row retries. */
     val pocketFailed: Boolean,
+    /** The device cannot read its key; tapping the balance row sets the wallet up again. */
+    val keyUnreadable: Boolean,
+    val setUpAgainTitle: String,
     val addFundsTitle: String,
     val addFundsBody: String,
     val copyInvoiceTitle: String,
@@ -60,7 +63,7 @@ class RaylNativeWalletSettingsController internal constructor(
                 runtime.paymentCoordinator.isSubmitting,
                 runtime.languageRepository.preference
             ) { balance, status, funding, isSubmitting, _ ->
-                snapshot(balance, status == PocketStatus.Failed, funding, isSubmitting)
+                snapshot(balance, status, funding, isSubmitting)
             }.collect(onChange)
         }
         return { job.cancel() }
@@ -78,6 +81,8 @@ class RaylNativeWalletSettingsController internal constructor(
 
     fun retryPocket() = runtime.retryPocket()
 
+    fun setUpAgain() = runtime.setUpAgain()
+
     fun useWallet(id: String) {
         runtime.useWallet(id)
     }
@@ -90,20 +95,24 @@ class RaylNativeWalletSettingsController internal constructor(
 
     private fun snapshot(
         balance: Long?,
-        pocketFailed: Boolean,
+        status: PocketStatus,
         funding: FundingState,
         isSubmitting: Boolean
     ) = RaylNativeWalletSettingsSnapshot(
         balanceTitle = text("rayl_balance"),
         balance = when {
-            pocketFailed -> text("rayl_balance_unavailable")
+            status == PocketStatus.KeyUnreadable -> text("rayl_key_unreadable")
+
+            status == PocketStatus.Failed -> text("rayl_balance_unavailable")
 
             balance != null ->
                 currentAmountFormatter().format(DisplayAmount(balance, DisplayCurrency.Satoshi))
 
             else -> text("rayl_balance_updating")
         },
-        pocketFailed = pocketFailed,
+        pocketFailed = status == PocketStatus.Failed || status == PocketStatus.KeyUnreadable,
+        keyUnreadable = status == PocketStatus.KeyUnreadable,
+        setUpAgainTitle = text("rayl_set_up_again"),
         addFundsTitle = text("rayl_add_funds"),
         addFundsBody = text("rayl_add_funds_body"),
         copyInvoiceTitle = text("rayl_copy_invoice"),

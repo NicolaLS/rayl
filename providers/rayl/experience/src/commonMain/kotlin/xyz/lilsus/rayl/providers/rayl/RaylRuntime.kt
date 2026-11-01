@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.rayl.feature.payment.RaylPaymentSettlement
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketSetup
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketStatus
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketTimings
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPocket
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
@@ -146,6 +147,14 @@ internal class RaylRuntime(
     /** Debug builds only: deletes this device's wallet key and data, then sets the wallet up again. */
     fun erase() {
         if (canErase) leave(RaylExitTarget.Erased)
+    }
+
+    /**
+     * When this device can no longer read its key copy, deletes it and sets the wallet up again:
+     * the same passkey and account derive the same wallet. See SPEC-wallet-lifecycle.
+     */
+    fun setUpAgain() {
+        if (pocket.status.value == PocketStatus.KeyUnreadable) leave(RaylExitTarget.Erased)
     }
 
     private fun leave(target: RaylExitTarget): Boolean {

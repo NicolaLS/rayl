@@ -57,8 +57,9 @@ wallets instead.
 
 The device keeps a copy of the derived key so launches and payments never
 prompt. The copy is stored before the pocket first connects, and a key that
-exists but cannot be read is never replaced. Using another wallet stops the
-pocket session without erasing the key copy or pocket data; startup cleanup does
-not erase them either, and going back to Rayl restores the same pocket. Only an
-explicit debug-build action erases the copy, after which the passkey sets the
-pocket up again.
+exists but cannot be read is never replaced silently. Using another wallet stops
+the pocket session without erasing the key copy or pocket data; startup cleanup
+does not erase them either, and going back to Rayl restores the same pocket.
+Only an explicit user action erases the copy, after which the passkey sets the
+pocket up again: a debug-build action, or, in any build, setting Rayl's wallet
+up again when its copy exists but cannot be read.

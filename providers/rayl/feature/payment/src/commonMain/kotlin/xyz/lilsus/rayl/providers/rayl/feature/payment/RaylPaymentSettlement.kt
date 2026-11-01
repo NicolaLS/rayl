@@ -2,6 +2,7 @@ package xyz.lilsus.rayl.providers.rayl.feature.payment
 
 import kotlinx.coroutines.CancellationException
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPayOutcome
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPaymentProblem
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPayments
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketQuote
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketQuoteResult
@@ -46,7 +47,8 @@ class RaylPaymentSettlement(private val pocket: PocketPayments) : PaymentSettlem
 
             PocketQuoteResult.NotReady -> unavailable(RaylPaymentError.PocketNotReady)
 
-            is PocketQuoteResult.Rejected -> unavailable(RaylPaymentError.Rejected(result.detail))
+            is PocketQuoteResult.Rejected ->
+                SettlementPreparation.Unavailable(result.problem.toUiError(result.detail))
         }
     }
 
@@ -67,15 +69,30 @@ class RaylPaymentSettlement(private val pocket: PocketPayments) : PaymentSettlem
                 )
 
             is PocketPayOutcome.Failed ->
-                SettlementOutcome.Failed(
-                    PaymentUiError.Provider(RaylPaymentError.Rejected(outcome.detail))
-                )
+                SettlementOutcome.Failed(outcome.problem.toUiError(outcome.detail))
 
             is PocketPayOutcome.Unknown ->
                 SettlementOutcome.Unknown(
                     PaymentUiError.Provider(RaylPaymentError.OutcomeUnknown(outcome.detail))
                 )
         }
+    }
+
+    private fun PocketPaymentProblem.toUiError(detail: String?): PaymentUiError = when (this) {
+        PocketPaymentProblem.Network -> PaymentUiError.NetworkUnavailable
+
+        PocketPaymentProblem.InsufficientFunds ->
+            PaymentUiError.Provider(RaylPaymentError.InsufficientFunds)
+
+        PocketPaymentProblem.AlreadyPaid -> PaymentUiError.Provider(RaylPaymentError.AlreadyPaid)
+
+        PocketPaymentProblem.Expired -> PaymentUiError.Provider(RaylPaymentError.InvoiceExpired)
+
+        PocketPaymentProblem.BalanceSettling ->
+            PaymentUiError.Provider(RaylPaymentError.BalanceSettling)
+
+        // Unrecognized refusals keep Breez's own text.
+        PocketPaymentProblem.Other -> PaymentUiError.Provider(RaylPaymentError.Rejected(detail))
     }
 
     private fun unavailable(error: RaylPaymentError) =

@@ -29,6 +29,12 @@ enum class PocketStatus {
     NeedsKey,
     Ready,
     Failed,
+
+    /**
+     * A key is stored but cannot be read. It is never replaced silently: retrying may still read
+     * it, and only the user's explicit choice erases it so the passkey sets the pocket up again.
+     */
+    KeyUnreadable,
     Closed
 }
 
@@ -83,7 +89,8 @@ class RaylPocket internal constructor(
     }
 
     override suspend fun pay(quote: PocketQuote): PocketPayOutcome {
-        val current = wallet ?: return PocketPayOutcome.Failed("Pocket is not connected")
+        val current = wallet
+            ?: return PocketPayOutcome.Failed(PocketPaymentProblem.Other, "Pocket is not connected")
         return current.pay(quote).also { refreshBalance(current) }
     }
 
@@ -125,7 +132,10 @@ class RaylPocket internal constructor(
         }
     }
 
-    /** Debug-only: closes the session and permanently deletes the key and local wallet data. */
+    /**
+     * Closes the session and permanently deletes the key and local wallet data, so the passkey
+     * sets the pocket up again. Offered by debug builds, and to users only for [PocketStatus.KeyUnreadable].
+     */
     suspend fun erase(): Boolean {
         close()
         return withContext(NonCancellable) {
@@ -151,7 +161,7 @@ class RaylPocket internal constructor(
                     }
 
                     PocketKeyLoad.Unavailable -> {
-                        mutableStatus.value = PocketStatus.Failed
+                        mutableStatus.value = PocketStatus.KeyUnreadable
                         return
                     }
                 }
@@ -185,7 +195,8 @@ class RaylPocket internal constructor(
     /** The connected wallet once startup settles; a failed pocket is retried once per call. */
     private suspend fun connectedWallet(): PocketWallet? {
         wallet?.let { return it }
-        if (mutableStatus.value == PocketStatus.Failed) start()
+        val status = mutableStatus.value
+        if (status == PocketStatus.Failed || status == PocketStatus.KeyUnreadable) start()
         withTimeoutOrNull(CONNECT_WAIT_MILLIS) {
             mutableStatus.first { it != PocketStatus.Starting }
         }
