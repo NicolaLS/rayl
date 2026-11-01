@@ -146,7 +146,6 @@ class DefaultWalletAccess(
                 disconnectCurrent()
                 restoreOrResumeReset()
             }
-            Unit
         }
     }
 
