@@ -30,7 +30,52 @@ must be cut early in week 2.
 
 ## 3. What gets tested for 1.1
 
-The master roadmap (§12) doesn't fit into two weeks. This is the cut, by risk.
+### 3.1 Current focus: host-level tests only (decided 2026-11-01)
+
+Work proceeds in three stages. Stage 3 starts only when Nicola says so.
+
+1. **Foundation: audit the existing suite.** Every existing test is reviewed against the
+   criteria in [test-audit.md](test-audit.md). It is kept, improved, merged or deleted
+   based on one question: would it catch a realistic bug in behaviour that matters? The
+   suite was written without a strategy, so its value is unknown, and every later test
+   builds on it.
+2. **Minimal automated suite.** Fill the gaps that matter most for the Level 1 risks
+   (money first, then wallet and credential safety) with host-level tests. These are the
+   host-level parts of M1–M7 plus S1 and S2 below.
+3. **Everything else:** platform integration, the regtest SDK, static reviews, the release
+   checklist, App Live, the mainnet protocol and exploratory charters (M8–M12, S3–S6).
+   The `distribution/` review (M9) is deferred until then.
+
+"Host-level" means unit tests and small component tests (one class or feature driven
+through its public API with fakes at the edges). They live in `commonTest` or the backend's
+`test`, and they run on the JVM in seconds with no device, emulator, network or real time.
+
+**Why limit the test levels now**
+- It is the cheapest test level to write and run. It gives the fastest feedback, so it can
+  run on every change, even while CI is manual-only (PJ-01).
+- A trustworthy fast suite is the precondition for everything else: safe refactoring,
+  confirmation testing of fixes, and later the CI gate. A large but weak suite gives false
+  confidence, which is worse than a small honest one.
+- The higher levels need infrastructure that isn't ready: CI, emulator and simulator jobs,
+  the nightly regtest, and the UI automation decision (D-03).
+- One person develops and releases. Host tests cost no manual time.
+
+**What this leaves uncovered for now** (reported as residual risk if stage 3 doesn't fit
+before release):
+- real platform storage (Keystore, Keychain), real Breez SDK, Blink and NWC behaviour
+- UI wiring and all Swift code
+- release build configuration
+- legal documents
+- device and OS differences, performance
+
+**Effect on the schedule.** The two weeks in §2 assumed all stages run in parallel. With
+stage 3 postponed, Nicola decides at the end of week 1 whether 1.1 waits for stage 3 or
+ships with the residual risk above accepted.
+
+### 3.2 The cut from the master roadmap
+
+The master roadmap (§12) doesn't fit into two weeks. This is the cut, by risk. Stage 2
+covers the host-level parts of M1–M7 and S1–S2.
 
 **Must (release gate)**
 
