@@ -15,21 +15,6 @@ class RaylFundingTest {
     private var invoices = 0
 
     @Test
-    fun anInvoiceIsFirstOfferedToAnotherWalletApp() = runTest {
-        val funding = funding()
-        funding.request()
-        assertEquals(
-            FundingState.Awaiting("lnbcrt1", FundingPresentation.OpenWallet),
-            funding.state.value
-        )
-        funding.openedInWallet()
-        assertEquals(
-            FundingState.Awaiting("lnbcrt1", FundingPresentation.InWallet),
-            funding.state.value
-        )
-    }
-
-    @Test
     fun theInvoiceIsShownWhenNoOtherWalletCanOpenIt() = runTest {
         val funding = funding()
         funding.request()

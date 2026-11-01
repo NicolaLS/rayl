@@ -68,7 +68,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 6 | `feature/payment-currency`, `integration/exchange-rate`, `backend/rayl` | 18 → 17 | PR-01, PR-18 | Done | 16 | 1 improved | 1 |
 | 7 | `integration/lnurl` | 7 | PR-05, PR-11 | Done | 4 | 2 merged into 1, 1 split into 2 | 0 |
 | 8 | Settlement: `providers/rayl/feature/payment`, `providers/spark/feature/payment` and `SparkPaymentsTest`, `providers/blink/integration/blink`, `providers/nwc/integration/nwc` | 5, 6 + 3, 16, 3 → 31 | PR-04, PR-07, PR-08 | Done | 31 | 0 | 2 |
-| 9 | Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` | 31, 15 | PR-09, PR-10 | Not audited | | | |
+| 9 | Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` | 46 → 38 | PR-09, PR-10 | Done | 38 | 0 | 8 |
 | 10 | Spark wallet: `providers/spark/application`, `integration/wallet`, `feature/wallet-connection`, `experience` | 26, 4, 5, 3 | PR-08 | Not audited | | | |
 | 11 | Selection and storage: `app/shared`, `core/settings` | 13, 1 | PR-08, PR-12 | Not audited | | | |
 | 12 | Blink and NWC onboarding: `blink/experience`, `blink/feature/blink-contacts`, `nwc/experience`, `nwc/feature/onboarding` | 5, 2, 3, 3 | PR-08, PR-15 | Not audited | | | |
@@ -354,4 +354,46 @@ REQ-provider-experience asks for the same experience. Which one is intended?
 test task belongs to another module, it misreported the result as a build failure. It now
 derives the results directory from the task path. No earlier result was affected: they all
 used the same module for both.
+
+### 9. Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` (2026-11-01)
+
+The pocket tests encode PR-09's rules almost word for word, and the passkey setup tests
+decide *which key is stored*, i.e. which wallet and whose funds the user sees. Most are high
+value. The deletions are a test of the fake, dev-only code, and cosmetic state.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `RaylPocketTest.installNeverReplacesAStoredKey` | **Delete** | It tests the fake. `RaylPocket.install` only calls `keys.add`; the never-replace rule lives in the store's contract, which the fake implements. The real stores are platform code (Android Keystore plus file, iOS Keychain): see the residual risk below. |
+| `RaylPocketTest` (other 10) | Keep | Never create, never overwrite an unreadable key (K1 killed), never connect with an unstored key, retry with the same key, close keeps the key and erase deletes it, a payment during startup waits for the pocket, received payments update the balance |
+| `PocketSetupTest` (14) | Keep | Account selection on a passkey: the default wallet only when there are no accounts, a relay failure fails instead of opening the default wallet (K4 killed), the chosen account is opened on the same passkey, the no-PRF paths never create a passkey by accident |
+| `FilePrfProviderTest` (4) | **Delete** | `FilePrfProvider` is a stand-in used only without a relying party, i.e. debug and emulator builds; release builds set one on both platforms. It protects developer regtest wallets, and a break shows immediately on an emulator. |
+| `PaymentProblemTest.recognizesTheRefusalsBreezDocumentsByTypeOrText` | Keep | Decides which SDK errors are definite refusals (`Failed`) and which may have paid (`Unknown`). Partly matched by message text, so a Breez SDK upgrade can break it silently (PR-19). |
+| `PaymentProblemTest.detailDropsTheBindingsFieldPrefix` | **Delete** | Message formatting only |
+| `RaylFundingTest.anInvoiceIsFirstOfferedToAnotherWalletApp` | **Delete** | A cosmetic presentation transition |
+| `RaylFundingTest` (other 4) | Keep | Add funds: the invoice is shown when no wallet app can open it, only a payment to *this* invoice counts (F1 killed), each request gets a new invoice, a failure can be retried |
+| `RaylOnboardingStateTest.aDismissedPromptWaitsForAnotherTap` | **Delete** | UI state only; that a dismissed prompt stores nothing is covered by `PocketSetupTest.aDismissedPromptOnlyCancels` |
+| `RaylOnboardingStateTest` (other 9) | Keep | Terms before the passkey (PR-21), completion is remembered (no second passkey setup), the fallback to external wallets, account choice and creation, failure and retry, the no-PRF prompt, reset for recovery |
+
+**Mutation checks**
+
+| # | Mutation | Result |
+|---|---|---|
+| K1 | An unreadable key is treated as absent | Killed |
+| K2 | `install` starts the pocket even when the key wasn't stored | Survived: equivalent, since `connect` always reads the key from the store |
+| K3 | `hasKey` treats an unreadable key as no key | **Survived** |
+| K4 | A relay failure while listing accounts falls back to the default wallet | Killed |
+| F1 | Funding counts a payment to another invoice | Killed |
+
+**Gaps** (for stage 2, M7):
+- K3: with an unreadable key, onboarding would run passkey setup again instead of offering
+  recovery, then fail with "the key could not be stored". Nothing is lost (the store
+  refuses), but the recovery path is broken.
+- `BreezPocketWallet.pay` classifies SDK errors after submitting (network and unknown →
+  `Unknown`). It depends on the Breez SDK class directly, so testing it needs a seam or the
+  regtest level.
+
+**Residual risk (stage 3):** the rule that a stored pocket key is never replaced is
+enforced only by `AndroidPocketKeyStore` and the iOS Keychain store. No host test can check
+it. Until platform tests exist (P2.2), the release checklist must cover reinstall and key
+restore on both platforms.
 

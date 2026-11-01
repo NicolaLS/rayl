@@ -2,6 +2,15 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of the pocket
+
+- **Build:** `main` at `38757831` plus the audit changes (uncommitted)
+- **Ran:** 5 mutation checks, then the tests and ktlint of
+  `providers/rayl/integration/pocket` and `providers/rayl/experience`.
+- **Result:** 3 killed, 1 equivalent, 1 survived (K3, a stage 2 gap). Both modules pass
+  (38 tests).
+- Findings: [test-audit.md §9](test-audit.md#9-pocket-providersraylintegrationpocket-providersraylexperience-2026-11-01).
+
 ## 2026-11-01: Audit of settlement in each wallet
 
 - **Build:** `main` at `84e54e3c` plus the audit changes (uncommitted)

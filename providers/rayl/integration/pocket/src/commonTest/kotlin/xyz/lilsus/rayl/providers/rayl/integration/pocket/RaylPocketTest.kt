@@ -48,17 +48,6 @@ class RaylPocketTest {
     }
 
     @Test
-    fun installNeverReplacesAStoredKey() = runTest {
-        val existing = PocketKey("existing")
-        val keys = FakeKeyStore(existing)
-        val pocket = pocket(keys, FakeConnector())
-
-        assertFalse(pocket.install(PocketKey("derived")))
-
-        assertSame(existing, (keys.load() as PocketKeyLoad.Present).key)
-    }
-
-    @Test
     fun reusesTheStoredKey() = runTest {
         val existing = PocketKey("existing")
         val keys = FakeKeyStore(existing)

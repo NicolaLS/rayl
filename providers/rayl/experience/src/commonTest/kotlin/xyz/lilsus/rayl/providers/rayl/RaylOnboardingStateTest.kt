@@ -104,16 +104,6 @@ class RaylOnboardingStateTest {
     }
 
     @Test
-    fun aDismissedPromptWaitsForAnotherTap() = runTest {
-        val setup = FakeSetup(started = PocketSetupResult.Cancelled)
-        val state = agreed(setup)
-
-        assertEquals(RaylOnboardingStep.Agreement, state.step.value)
-        assertEquals(RaylSetupActivity.Idle, state.activity.value)
-        assertEquals(1, setup.starts)
-    }
-
-    @Test
     fun aFailureIsShownAndCanBeRetried() = runTest {
         val setup = FakeSetup(started = PocketSetupResult.Failed("relays"))
         val state = agreed(setup)
