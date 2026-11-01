@@ -59,39 +59,6 @@ class WalletViewModelTest {
         assertTrue(model.state.value.isPhraseComplete)
     }
 
-    @Test
-    fun severalWordsTypedIntoAFieldFillTheFollowingOnes() = withModel { model ->
-        model.dispatch(WalletAction.WordChanged(10, "legal winner thank"))
-        runCurrent()
-
-        val words = model.state.value.words
-        assertEquals(12, words.size)
-        assertEquals(listOf("legal", "winner"), words.subList(10, 12))
-    }
-
-    @Test
-    fun aFieldCompletesToItsOnlyWordAndFlagsDeadEnds() = withModel { model ->
-        model.dispatch(WalletAction.WordChanged(0, "aban"))
-        model.dispatch(WalletAction.WordChanged(1, "zz"))
-        runCurrent()
-        assertEquals("don", model.state.value.completionSuffix(0))
-        assertTrue(model.state.value.isWordWrong(1))
-
-        model.dispatch(WalletAction.WordCompleted(0))
-        runCurrent()
-        assertEquals("abandon", model.state.value.words[0])
-    }
-
-    @Test
-    fun changingTheLengthKeepsTheWordsAlreadyEntered() = withModel { model ->
-        model.dispatch(WalletAction.WordChanged(0, "legal"))
-        model.dispatch(WalletAction.WordCountChanged(24))
-        runCurrent()
-
-        assertEquals(24, model.state.value.words.size)
-        assertEquals("legal", model.state.value.words[0])
-    }
-
     private fun withModel(block: suspend kotlinx.coroutines.test.TestScope.(WalletViewModel) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val access = ErrorWalletAccess().apply { state.value = WalletAccessState.NoWallet }

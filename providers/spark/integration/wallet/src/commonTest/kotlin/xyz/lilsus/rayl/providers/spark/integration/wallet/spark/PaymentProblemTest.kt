@@ -23,9 +23,4 @@ class PaymentProblemTest {
         )
         assertEquals(SparkPaymentProblem.Other, SdkException.Generic("boom").paymentProblem())
     }
-
-    @Test
-    fun detailDropsTheBindingsFieldPrefix() {
-        assertEquals("route not found", SdkException.SparkException("route not found").detail())
-    }
 }

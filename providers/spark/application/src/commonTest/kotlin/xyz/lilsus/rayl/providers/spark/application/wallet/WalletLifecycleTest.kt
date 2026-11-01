@@ -225,27 +225,6 @@ class WalletLifecycleTest {
     }
 
     @Test
-    fun closeFailsWhileAConnectionAttemptStillRuns() = runTest {
-        val fixture = LifecycleFixture(backgroundScope)
-        fixture.vault.credential = WalletCredential.fromMnemonic(TEST_MNEMONIC)
-        val connected = CompletableDeferred<Unit>()
-        fixture.connectAction = {
-            connected.await()
-            fixture.session
-        }
-        fixture.access.start()
-        runCurrent()
-
-        assertFailsWith<IllegalStateException> { fixture.access.close() }
-        connected.complete(Unit)
-        fixture.access.close()
-
-        assertEquals(1, fixture.session.disconnections)
-        assertEquals(1, fixture.connections)
-        fixture.assertNoRemoval()
-    }
-
-    @Test
     fun closeCancelsImportAndOwnsSessionWhoseAttachmentWasInterrupted() = runTest {
         val fixture = LifecycleFixture(backgroundScope)
         fixture.lifecycle.attachAction = { awaitCancellation() }
@@ -291,29 +270,6 @@ class WalletLifecycleTest {
         assertEquals(1, fixture.connections)
         fixture.assertNoRemoval()
         assertTrue(backgroundScope.isActive)
-    }
-
-    @Test
-    fun concurrentCloseCallsShareOneSuccessfulCleanup() = runTest {
-        val fixture = LifecycleFixture(backgroundScope)
-        fixture.vault.credential = WalletCredential.fromMnemonic(TEST_MNEMONIC)
-        fixture.access.start()
-        runCurrent()
-        val disconnected = CompletableDeferred<Unit>()
-        fixture.session.disconnectAction = { disconnected.await() }
-
-        val first = async { fixture.access.close() }
-        val second = async { fixture.access.close() }
-        runCurrent()
-        assertEquals(1, fixture.session.disconnections)
-        assertFalse(first.isCompleted)
-        assertFalse(second.isCompleted)
-
-        disconnected.complete(Unit)
-        first.await()
-        second.await()
-        assertEquals(1, fixture.lifecycle.detachments)
-        assertEquals(1, fixture.session.disconnections)
     }
 }
 

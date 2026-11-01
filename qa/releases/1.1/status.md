@@ -9,7 +9,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 
 | # | Item | State | Artifacts |
 |---|---|---|---|
-| A | Stage 1: audit the existing tests | In progress: 9 of 13 modules | [test-audit.md](test-audit.md) |
+| A | Stage 1: audit the existing tests | In progress: 10 of 13 modules | [test-audit.md](test-audit.md) |
 | M1 | Auto Pay decision table | In progress: policy level done; through the flow next; fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest` (6 tests) |
 | M2 | Payment flow component tests | Not started | |
 | M3 | Settlement classification, four wallets | Not started | |
@@ -38,7 +38,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-04 Outcome misreported | Blink's own payment client is well covered. The Unknown-never-Failed rule is unprotected in all four settlements (audit §8). | M3 (first), M2, M4 | **No** for the central rule |
 | PR-05 Wrong recipient | `LnurlInvoiceResolverTest` | S4 | Partly |
 | PR-06 Fee surprises | None | M1 (once built), S5 | No |
-| PR-08 Credentials retained | Spark lifecycle and removal, `ConnectionStorageResetTest`, `RaylSelectionTest` | M6, M10 | Partly |
+| PR-08 Credentials retained | Spark lifecycle and removal, mutation-checked. Gap: a failed credential delete still completes removal (audit §10, W2). | M6, M10 | Partly |
 | PR-09 Pocket key lost | Pocket rules and passkey account selection, mutation-checked. The never-replace rule lives only in the platform stores, which have no tests (audit §9). | M7, M10 | Partly |
 | PR-10 Passkey onboarding | `RaylOnboardingStateTest`, `PocketSetupTest` (no-PRF path) | S3, M10 | Partly |
 | PR-11 Secrets exposed | None | M8 | No |
@@ -59,4 +59,5 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | O-05 | No screen-capture protection for credentials on Android | Pending decision | Open (D-06) |
 | O-07 | Duplicate detection after a restart relies on each wallet | Unknown | To check (M11) |
 | O-09 | Rescanning an already-paid invoice: Blink shows success (already paid), Rayl and Spark show an error | S3 (parity) | Product decision needed |
+| O-10 | Legacy default in `SparkOnboardingState` (restored wallets skip the intro screens) | S4 | For Nicola: remove under the pre-release policy |
 | O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 if the decision is to accept it | Product decision needed |

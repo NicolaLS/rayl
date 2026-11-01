@@ -2,6 +2,16 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of the Spark wallet modules
+
+- **Build:** `main` at `f26b25b7` plus the audit changes (uncommitted)
+- **Ran:** 3 mutation checks, then the tests and ktlint of the four Spark modules.
+- **Result:** 2 killed, 1 survived (W2, a Critical PR-08 gap). The modules pass.
+- **Incident:** the first removal of `concurrentCloseCallsShareOneSuccessfulCleanup` also
+  cut the fixtures declared after the test class. The compile failure showed it; the file
+  was restored and the tests were removed by brace matching instead.
+- Findings: [test-audit.md §10](test-audit.md#10-spark-wallet-2026-11-01).
+
 ## 2026-11-01: Audit of the pocket
 
 - **Build:** `main` at `38757831` plus the audit changes (uncommitted)

@@ -69,7 +69,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 7 | `integration/lnurl` | 7 | PR-05, PR-11 | Done | 4 | 2 merged into 1, 1 split into 2 | 0 |
 | 8 | Settlement: `providers/rayl/feature/payment`, `providers/spark/feature/payment` and `SparkPaymentsTest`, `providers/blink/integration/blink`, `providers/nwc/integration/nwc` | 5, 6 + 3, 16, 3 → 31 | PR-04, PR-07, PR-08 | Done | 31 | 0 | 2 |
 | 9 | Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` | 46 → 38 | PR-09, PR-10 | Done | 38 | 0 | 8 |
-| 10 | Spark wallet: `providers/spark/application`, `integration/wallet`, `feature/wallet-connection`, `experience` | 26, 4, 5, 3 | PR-08 | Not audited | | | |
+| 10 | Spark wallet: `providers/spark/application` (wallet tests), `integration/wallet`, `feature/wallet-connection`, `experience` | 23, 4, 5, 3 → 22 | PR-08 | Done | 22 | 0 | 13 |
 | 11 | Selection and storage: `app/shared`, `core/settings` | 13, 1 | PR-08, PR-12 | Not audited | | | |
 | 12 | Blink and NWC onboarding: `blink/experience`, `blink/feature/blink-contacts`, `nwc/experience`, `nwc/feature/onboarding` | 5, 2, 3, 3 | PR-08, PR-15 | Not audited | | | |
 | 13 | Level 3 areas: `feature/payment-hub`, `core/camera`, `core/ui`, `feature/app-shell`, theme, currency and language settings | 10, 4, 1, 2, 6 | PR-24 and others | Not audited | | | |
@@ -396,4 +396,44 @@ value. The deletions are a test of the fake, dev-only code, and cosmetic state.
 enforced only by `AndroidPocketKeyStore` and the iOS Keychain store. No host test can check
 it. Until platform tests exist (P2.2), the release checklist must cover reinstall and key
 restore on both platforms.
+
+### 10. Spark wallet (2026-11-01)
+
+`SparkPaymentsTest` was audited with settlement (§8). The wallet lifecycle tests encode
+SPEC-wallet-lifecycle well. The deletions are UI conveniences, cosmetic onboarding, and
+tests that pin implementation quirks.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `WalletLifecycleTest` (12 kept) | Keep | A fresh setup never reads old credentials (W1 killed) or resurrects an unexpected one; a failed import can't reuse a session whose cleanup failed; an unreadable credential can still be removed; cleanup never decrypts or connects; close keeps credentials and never leaves two SDK sessions or a late session running |
+| `WalletLifecycleTest.closeFailsWhileAConnectionAttemptStillRuns` | **Delete** | Pins a confusing quirk (close throws while connecting). Its safety-relevant part, that the session is released and nothing is removed, is covered by `closeAwaitsSuspendedStartupConnectionAndReleasesIt`. |
+| `WalletLifecycleTest.concurrentCloseCallsShareOneSuccessfulCleanup` | **Delete** | Deduplicates a double close; the worst case is a redundant disconnect |
+| `WalletRemovalTest` (2) | Keep | Crash-safe removal: the marker survives retries and restarts, and a marker failure leaves the wallet intact (W3 killed) |
+| `WalletCredentialTest` (4) | Keep | Phrase validation (checksum, unknown words, length), normalisation, and a passphrase kept *exactly*, since a changed passphrase derives a different wallet |
+| `RecoveryPhraseWordsTest.completesOnlyUnambiguousPrefixes` | Keep | Autocompletion must never change a complete word ("act" stays "act") |
+| `RecoveryPhraseWordsTest.recognizesWordsAndDeadEnds`, `splitsPastedTextIntoNormalizedWords` | **Delete** | Input hints, and paste splitting already covered through the view model's paste test |
+| `PaymentPreimageTest` (2) | **Delete** | Extracts the proof shown on a receipt from SDK data; no money or safety impact |
+| `PaymentProblemTest.recognizesTheRefusalsBreezDocumentsByTypeOrText` | Keep | Same reason as the pocket's copy (§9): decides `Failed` versus `Unknown` |
+| `PaymentProblemTest.detailDropsTheBindingsFieldPrefix` | **Delete** | Message formatting |
+| `WalletViewModelTest.credentialErrorActionsRetryConfirmAndReportRemovalFailure` | Keep | Removal asks for confirmation, and a removal failure is reported (PR-08) |
+| `WalletViewModelTest.aPastedPhraseFillsEveryFieldAndSetsItsLength` | Keep | Pasting is the main way to enter a 24-word phrase |
+| `WalletViewModelTest` (3 others) | **Delete** | Entry conveniences (spill-over typing, completion display, changing the length); completion correctness is covered by `RecoveryPhraseWordsTest` |
+| `SparkOnboardingStateTest` (3) | **Delete** | Whether the Spark intro screens were completed: cosmetic. One test pins a legacy default (O-10). |
+
+**Mutation checks**
+
+| # | Mutation | Result |
+|---|---|---|
+| W1 | A fresh start is treated as a restore (old credentials are read) | Killed |
+| W2 | Removal is reported complete although deleting the credential failed | **Survived** |
+| W3 | Removal starts without writing the crash-safety marker | Killed |
+
+**Gaps** (for stage 2, M6):
+- **W2 (PR-08, Critical):** if the vault fails to delete the credential while the data is
+  deleted, removal still completes and the credential stays on the device. No test makes the
+  vault's delete fail. This contradicts SPEC-wallet-lifecycle.
+
+**Observation O-10** (minor, to Nicola): `SparkOnboardingState` treats a restored wallet
+with no stored flag as having completed the intro screens, a fallback for wallets
+configured before the flag existed. Pre-release policy is no legacy fallbacks.
 

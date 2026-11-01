@@ -14,16 +14,4 @@ class RecoveryPhraseWordsTest {
         // A complete word stays as typed, even when longer words start with it.
         assertNull(RecoveryPhraseWords.completion("act"))
     }
-
-    @Test
-    fun recognizesWordsAndDeadEnds() {
-        assertTrue(RecoveryPhraseWords.isWord("zoo"))
-        assertTrue(RecoveryPhraseWords.isPrefix("zo"))
-        assertFalse(RecoveryPhraseWords.isPrefix("zz"))
-    }
-
-    @Test
-    fun splitsPastedTextIntoNormalizedWords() {
-        assertEquals(listOf("legal", "winner"), RecoveryPhraseWords.split("  Legal\n WINNER "))
-    }
 }
