@@ -7,6 +7,15 @@ import kotlin.test.assertTrue
 
 class NwcOnboardingStateTest {
     @Test
+    fun completionSurvivesRestartAndWalletRemoval() {
+        // Regression test for MOB-1: onboarding completion was not persisted.
+        val settings = MapSettings()
+        NwcOnboardingState(settings).complete()
+
+        assertTrue(NwcOnboardingState(settings).completed.value)
+    }
+
+    @Test
     fun interruptedOnboardingRemainsIncompleteAcrossRestart() {
         val settings = MapSettings()
         NwcOnboardingState(settings)

@@ -2,6 +2,17 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Linear cross-check of deleted tests
+
+- **Build:** `main` at `902bea96` plus the restored tests (uncommitted)
+- **Ran:** traced every deleted test to its originating commit and Linear issue; restored 3;
+  1 mutation check (NWC completion not persisted, the MOB-1 bug); tests and ktlint of
+  `feature/payment-settings`, `feature/payment-hub` and `providers/nwc/experience`.
+- **Result:** the mutation is killed only by the restored test. The modules pass. Suite
+  total: 206 tests.
+- **Filed:** [MOB-88](https://linear.app/nicola-susca/issue/MOB-88) (O-01, threshold copy).
+- Findings: [test-audit.md, revision after the Linear cross-check](test-audit.md#revision-after-the-linear-cross-check-2026-11-01).
+
 ## 2026-11-01: End of stage 1, full gate
 
 - **Build:** `main` at `03e37dd1` plus the module 13 audit changes (uncommitted, committed

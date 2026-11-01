@@ -36,6 +36,12 @@ reverted, and the result is noted in the module's row.
 | **Replace** | The behaviour matters but the test checks it badly; rewrite it |
 | **Delete** | Fails C1 or C2 and can't be fixed cheaply, or is fully redundant (C7). The reason is always recorded. |
 
+**Test basis check** (added after the Linear cross-check below): before deleting a test,
+look up where it came from. A test that verifies an explicit acceptance criterion of a
+Linear issue, or that was added with a `fix:` commit, is kept unless the criterion is
+obsolete, the behaviour is purely cosmetic, or other tests still cover it (checked by
+mutation).
+
 **The bar is deliberately high** (Nicola, 2026-11-01): only high-quality tests that clearly
 make sense stay. Passing the criteria is necessary, not sufficient. A test that checks
 cosmetic or low-value behaviour, or costs more attention than the bug it could catch is
@@ -63,7 +69,7 @@ Modules are audited in risk order: Level 1 modules first.
 | # | Module | Tests | Risks | Status | Kept | Improved / merged / replaced | Deleted |
 |---|---|---|---|---|---|---|---|
 | 1 | `feature/payment-flow` | 8 → 9 | PR-02–PR-04 | Done | 6 | 1 improved (split into 3) | 1 |
-| 2 | `feature/payment-settings` | 9 → 8 | PR-02 | Done | 0 | 1 rewritten (policy, `8b4855be`), 1 replaced, 1 improved | 1 |
+| 2 | `feature/payment-settings` | 9 → 9 | PR-02 | Done (revised) | 1 | 1 rewritten (policy, `8b4855be`), 1 improved, 1 added | 1 |
 | 3 | `core/payment` | 26 → 25 | PR-05, PR-14 | Done | 25 | 0 | 1 |
 | 4 | `core/model` | 10 → 8 | PR-01 | Done | 8 | 0 | 2 |
 | 5 | `feature/payment-ui` | 15 → 10 | PR-01, PR-05 | Done | 10 | 0 | 5 |
@@ -73,8 +79,8 @@ Modules are audited in risk order: Level 1 modules first.
 | 9 | Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` | 46 → 38 | PR-09, PR-10 | Done | 38 | 0 | 8 |
 | 10 | Spark wallet: `providers/spark/application` (wallet tests), `integration/wallet`, `feature/wallet-connection`, `experience` | 23, 4, 5, 3 → 22 | PR-08 | Done | 22 | 0 | 13 |
 | 11 | Selection and storage: `app/shared`, `core/settings` | 14 → 12 | PR-08, PR-12 | Done | 12 | 0 | 2 |
-| 12 | Blink and NWC onboarding: `blink/experience`, `blink/feature/blink-contacts`, `nwc/experience`, `nwc/feature/onboarding` | 13 → 6 | PR-02, PR-05, PR-21 | Done | 6 | 0 | 7 |
-| 13 | Level 3 areas: `feature/payment-hub`, `core/camera`, `core/ui`, `feature/app-shell`, theme, currency and language settings | 23 → 10 | PR-03, PR-05, PR-24 | Done | 10 | 0 | 13 |
+| 12 | Blink and NWC onboarding: `blink/experience`, `blink/feature/blink-contacts`, `nwc/experience`, `nwc/feature/onboarding` | 13 → 7 | PR-02, PR-05, PR-21 | Done (revised) | 7 | 0 | 6 |
+| 13 | Level 3 areas: `feature/payment-hub`, `core/camera`, `core/ui`, `feature/app-shell`, theme, currency and language settings | 23 → 11 | PR-03, PR-05, PR-24 | Done (revised) | 11 | 0 | 12 |
 
 ## Module findings
 
@@ -123,7 +129,7 @@ mutation.
 | Test | Verdict | Reason |
 |---|---|---|
 | `PaymentConfirmationPolicyTest` (3 tests) | **Replaced** by a 6-test decision table in `8b4855be`, before this audit | The 3 tests were rows of the table; the table adds every combination, the msat boundary at each threshold step, and stored thresholds above the maximum |
-| `PaymentPreferencesRepositoryTest.mutationPersistsOnlyTheChangedPreference` | **Replace** → `confirmationSettingsSurviveAnAppRestart` | It pinned which storage keys a write touches (C3, implementation detail). What matters for PR-02 was untested: that "Always confirm" and the threshold survive a restart. P1 and P2 below would have passed the old suite. |
+| `PaymentPreferencesRepositoryTest.mutationPersistsOnlyTheChangedPreference` | **Revised: Keep** (restored as `aChangeStoresOnlyThePreferenceThatChanged`) plus a new `confirmationSettingsSurviveAnAppRestart`. First judged an implementation detail, but it is an explicit acceptance criterion of MOB-35. Original reasoning: | It pinned which storage keys a write touches (C3, implementation detail). What matters for PR-02 was untested: that "Always confirm" and the threshold survive a restart. P1 and P2 below would have passed the old suite. |
 | `PaymentPreferencesRepositoryConcurrencyTest.serializesConcurrentPreferenceWrites` | **Delete** | Real threads and `Thread.sleep` (C5, slow and potentially flaky), racing a mutex for a scenario that doesn't occur: every caller writes from the main dispatcher, and the write path has no suspension point. |
 | `PaymentSettingsViewModelTest.updatesSharedPreferencesAndThresholdPreview` | **Improve** → `thresholdIsPreviewedInTheDisplayCurrency` | The fiat preview is what users read when choosing the Auto Pay limit, and the oracle is independent ($60k/BTC: 10,000 sats = $6.00). The `offerToSaveNewTargets` part was trivial delegation and is removed. |
 
@@ -521,9 +527,9 @@ payment.
 
 | | Before | After |
 |---|---|---|
-| Tests | 254 in 63 classes | **203 in 53 classes** |
+| Tests | 254 in 63 classes | **206 in 53 classes** (203 before the Linear cross-check) |
 | Host test time | 26 s | 16 s |
-| Deleted | | 56 |
+| Deleted | | 53 (56 before the Linear cross-check) |
 | Added by splits and the policy decision table | | 5 |
 
 **Verdicts across 13 modules:** most tests were kept as they were. Seven were improved,
@@ -560,4 +566,30 @@ release configuration.
 **Observations for Nicola:** O-08 (capitalised Lightning addresses rejected), O-09
 (already-paid result differs per wallet), O-10 (legacy fallbacks in Spark onboarding and the
 app's stored tab).
+
+## Revision after the Linear cross-check (2026-11-01)
+
+The first pass judged tests by their code alone. It didn't consult Linear or the commit that
+introduced each test. A cross-check of every deleted test against its originating commit
+and the related Linear issues changed three verdicts:
+
+| Test | Origin | Revised verdict |
+|---|---|---|
+| `PaymentPreferencesRepositoryTest.mutationPersistsOnlyTheChangedPreference` | `c1aedd02`, MOB-35 acceptance criterion | Restored as `aChangeStoresOnlyThePreferenceThatChanged` |
+| `NwcOnboardingStateTest.completionSurvivesRestartAndWalletRemoval` | `4c1c0f04`, regression test for MOB-1 (completion not persisted) | Restored. It is the only test that catches the original bug (mutation: completion not written → killed only by this test). |
+| `WidgetHubViewModelTest.contactSelectionReplacesSingleAndEnforcesEachLayoutCapacity` | `e005a3f1`, regression test for the owner-reported Hub editor defects in MOB-54 | Restored: a wrong contact set in a widget is functional, not cosmetic |
+
+Deletions that stay, despite coming from a `fix:` commit:
+- `successReturnsSmoothlyToContinuingIdlePulses` (MOB-66), `detailDropsTheBindingsFieldPrefix`
+  (×2), and the Spark intro-screen, tab and receipt-proof tests from `96980bef`: purely
+  cosmetic, and visible at a glance.
+- `serializesConcurrentPreferenceWrites` (`66b78eea`): verified this time that every
+  preference writer runs on the main dispatcher and no caller overrides it, so the race it
+  tested can't occur in the current app.
+- `coalescesConcurrentCacheMisses` (`abdcf745`): an efficiency detail of the quote fix.
+- `unfinishedStageResumesAfterRestartAndReconnection`, `freshProviderSetupStartsAtConnection`
+  (MOB-62) and the NWC outcome branches (MOB-1): every row of the behaviour they covered is
+  still covered by kept tests.
+
+**Totals after the revision:** 206 tests (203 + 3 restored).
 

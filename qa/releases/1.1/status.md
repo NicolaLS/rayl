@@ -9,7 +9,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 
 | # | Item | State | Artifacts |
 |---|---|---|---|
-| A | Stage 1: audit the existing tests | **Done** (254 → 203 tests) | [test-audit.md](test-audit.md) |
+| A | Stage 1: audit the existing tests | **Done** (254 → 206 tests, after the Linear cross-check) | [test-audit.md](test-audit.md) |
 | B | Stage 2: minimal host-level suite | Next: M3, then M6, M2/M1, S4, S1, M5/S2, M7 ([audit summary](test-audit.md#stage-1-summary-2026-11-01)) | |
 | M1 | Auto Pay decision table | In progress: policy level done; through the flow next; fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest` (6 tests) |
 | M2 | Payment flow component tests | Not started | |
@@ -54,7 +54,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 
 | ID | Summary | Severity | State |
 |---|---|---|---|
-| O-01 | Settings and onboarding copy say the threshold amount pays automatically; it asks for confirmation (decided: the code is right) | S4 | Drafted in [defect-drafts.md](defect-drafts.md), to file |
+| O-01 | Settings and onboarding copy say the threshold amount pays automatically; it asks for confirmation (decided: the code is right) | S4 | Filed: [MOB-88](https://linear.app/nicola-susca/issue/MOB-88) |
 | O-02 | Spark may reset an in-flight payment session | Unknown | To check (M4) |
 | O-04 | Terms and privacy policy don't mention the built-in wallet | S2 (release blocker by exit criterion 6) | To review (M9) |
 | O-05 | No screen-capture protection for credentials on Android | Pending decision | Open (D-06) |

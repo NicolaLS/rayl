@@ -8,6 +8,17 @@ import xyz.lilsus.raylsuite.core.model.PaymentConfirmationMode
 
 class PaymentPreferencesRepositoryTest {
     @Test
+    fun aChangeStoresOnlyThePreferenceThatChanged() = runTest {
+        // Acceptance criterion of MOB-35: a mutation must not rewrite the whole aggregate.
+        val settings = MapSettings()
+        val repository = DefaultPaymentPreferencesRepository(settings)
+
+        repository.setVibrateOnScan(false)
+
+        assertEquals(setOf("payments.vibrateOnScan"), settings.keys)
+    }
+
+    @Test
     fun confirmationSettingsSurviveAnAppRestart() = runTest {
         val settings = MapSettings()
         DefaultPaymentPreferencesRepository(settings).apply {

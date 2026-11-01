@@ -15,6 +15,38 @@ import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 @OptIn(ExperimentalCoroutinesApi::class)
 class WidgetHubViewModelTest {
     @Test
+    fun contactSelectionReplacesSingleAndEnforcesEachLayoutCapacity() = runTest {
+        // Regression test for the owner-reported Hub editor defects fixed in MOB-54.
+        val repo = DefaultPaymentHubRepository(MapSettings())
+        val host = PaymentHubController(repo, this)
+        val vm = WidgetHubViewModel(repo, host, { "USD" }, dispatcher = StandardTestDispatcher(testScheduler))
+        val contacts = (1..7).map {
+            repo.saveContact(assertNotNull(LightningAddress.parse("person$it@example.com")), "Person $it")
+        }
+        advanceUntilIdle()
+        vm.selectDefinition("local.contacts")
+        vm.toggleContact(contacts[0].id)
+        vm.toggleContact(contacts[1].id)
+        assertEquals(listOf(contacts[1].id), vm.state.value.editor?.contactIds)
+        vm.addContact("New", "new@example.com")
+        advanceUntilIdle()
+        assertEquals(1, vm.state.value.editor?.contactIds?.size)
+        for (variant in listOf(LocalHubWidgets.Row, LocalHubWidgets.Card)) {
+            vm.selectDefinition("local.contacts")
+            vm.selectVariant(variant.id)
+            contacts.take(variant.capacity).forEach { vm.toggleContact(it.id) }
+            vm.toggleContact(contacts[variant.capacity].id)
+            assertEquals(variant.capacity, vm.state.value.editor?.contactIds?.size)
+            assertEquals(HubWidgetError.TooManyContacts, vm.state.value.error)
+            vm.toggleContact(contacts[0].id)
+            vm.toggleContact(contacts[variant.capacity].id)
+            assertEquals(variant.capacity, vm.state.value.editor?.contactIds?.size)
+            assertNull(vm.state.value.editorValidationError())
+        }
+        vm.clear()
+    }
+
+    @Test
     fun shortcutRequiresOneContactAndPositivePresetThenSaves() = runTest {
         val repo = DefaultPaymentHubRepository(MapSettings())
         val host = PaymentHubController(repo, this)

@@ -61,6 +61,8 @@ State and logic live in common Kotlin; only the hero animation is shared Compose
   testable.
 - KDoc contracts in code, e.g. `PaymentSettlement`, `PocketKeyStore`, `PaymentOperation`.
 - Stakeholder decisions recorded in §15.
+- Linear issues (team `MOB`): acceptance criteria of done issues, and the defects behind
+  `fix:` commits. Tests that verify them are part of the regression suite.
 - Lightning and LNURL standards (BOLT11, LUD-01/06/09/16/17, BIP21, NIP-47), which act as
   external interoperability requirements.
 
@@ -425,8 +427,9 @@ Resume on a new candidate build, re-running the checklist sections it affects.
 
 ## 10. Defect management
 
-Defects are tracked as Linear issues labelled `bug`, `S1`–`S4` and the risk ID where
-relevant. They are prioritised with the stakeholder.
+Defects are tracked as Linear issues in the Mobile team (`MOB`) with the `Bug` label. The
+workspace has no severity or risk labels, so the severity (`S1`–`S4`) and the risk ID go at
+the top of the description. They are prioritised with the stakeholder.
 
 | Severity | Meaning | Examples |
 |---|---|---|
