@@ -75,7 +75,7 @@ Example: the intended Auto Pay boundary (O-01).
 
 | Area | Main modules |
 |---|---|
-| Payment input: QR, paste; BOLT11, LNURL-pay, Lightning address. Deep links and the custom parser may go (§3.1). | `core/payment`, `core/camera`, `integration/lnurl` |
+| Payment input: QR, paste; BOLT11, LNURL-pay, Lightning address. The custom parser may go (§3.1). | `core/payment`, `core/camera`, `integration/lnurl` |
 | Shared payment flow: admission, amount entry, confirmation or Auto Pay, outcome, session history | `feature/payment-flow`, `feature/payment-ui`, `feature/payment-currency`, `feature/payment-settings` |
 | Rayl pocket: passkey onboarding, key storage, connect/sync, quote/pay/outcome, add funds, balance | `providers/rayl/**` |
 | External wallets: setup, restore, payment, removal | `providers/blink/**`, `providers/nwc/**`, `providers/spark/**` |
@@ -105,7 +105,7 @@ checklist. When a decision is made, update this table and the risk register.
 
 | Change | Status | Effect on testing |
 |---|---|---|
-| **Remove most payment deep links.** Rayl is built for in-person checkout and Hub payments, not to be a general wallet's link handler. | Planned (stakeholder, 2026-11-01) | No new deep-link tests. Test builds need another way to inject payment input, since automated tests can't scan: launch arguments. |
+| **Remove all deep links** (payment and wallet connection). Rayl is built for in-person checkout and Hub payments, not to be a general wallet's link handler. Add funds still hands its invoice to another wallet as a `lightning:` link. | Done (2026-11-01) | Nothing to test for incoming links. Add funds: the handoff, and the invoice sheet when no wallet app is installed. Automated runs need an E2E-only way to inject scanned input (§12, after 1.1); the regtest tool's `--open` is gone. |
 | **Replace the custom payment-input parser with the Breez SDK parser** for every wallet | Under discussion with another engineer | Parser tests deferred (PR-14). Real-world payloads found in the meantime are recorded; they can later check that the new parser accepts everything the old one did. |
 | **Get fiat rates from the Breez SDK** instead of `backend/rayl` | Under consideration | Rate and backend tests deferred (PR-18). The fiat→sats correctness of whatever source ships stays in scope (PR-01). |
 
@@ -182,8 +182,7 @@ isn't.
 1. **Money-path suite** (PR-01 to PR-06). Component tests of the coordinator:
    - input → admission → confirmation or Auto Pay → settlement → outcome, history and Hub
      report
-   - for each payment source (camera, Hub preset, Hub address, manual; deep links only
-     while they exist)
+   - for each payment source (camera, Hub preset, Hub address, manual)
    - for each outcome (Paid, Failed, Unknown, thrown, cancelled)
    - plus the duplicate-input and in-flight cases
 2. **Auto Pay decision table** (PR-02, PR-06). Conditions: source × manual entry × preset
@@ -502,8 +501,8 @@ phase are small, independently mergeable slices.
 - P4.3 Field metrics: platform vitals now; custom telemetry only after D-02.
 
 **After 1.1**
-- Decide on UI automation (D-03). Payment input would come from launch arguments, since
-  automated runs can't scan.
+- Decide on UI automation (D-03). Payment input would come from an E2E-only launch
+  argument that stands in for the camera, since automated runs can't scan.
 - Accessibility depth.
 - Revisit coverage guards.
 
@@ -536,8 +535,8 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
   after, and 1.0 gets only a release-build smoke test.
 - D-09 **Device coverage comes from Browserless App Live**, with manual checklist runs once
   per release candidate.
-- D-10 **Deep links, the custom parser and backend rates are likely to be removed or
-  replaced** (§3.1). No new test investment there until decided.
+- D-10 **The custom parser and backend rates are likely to be replaced** (§3.1). No new
+  test investment there until decided. Deep links were removed.
 
 **Open (stakeholder input needed)**
 - D-01 Target date or milestone for 1.1, to schedule the phases.
@@ -561,7 +560,7 @@ one needs a test or a product decision before it becomes a defect or is closed.
 |---|---|---|---|
 | O-01 | The settings copy says "Above 10,000 sats", but `PaymentConfirmationPolicy` asks for confirmation at `amountSats >= thresholdSats`, i.e. also at exactly 10,000. The code errs on the safe side, but the copy and code disagree at the boundary. | PR-02 | Product decision on the boundary; then a boundary test |
 | O-02 | `SparkExperience` calls `resetPaymentSession()` when the wallet state becomes `NoWallet` or `ResetRequired`, without the `isSubmitting` guard that the Rayl and Blink exit paths use. `resetSession()` cancels the in-flight operation, so if that state change can happen during `settle`, the outcome could be neither shown nor recorded. | PR-04 | Check reachability; write a component test |
-| O-03 | Known FIXME in `App.kt`: on a Spark cold start, a payment deep link can be rejected as "connect to pay" before the asynchronous restore finishes. | PR-14, PR-17 | Not needed if payment deep links are removed (§3.1); otherwise track as a known defect |
+| O-03 | Known FIXME in `App.kt`: on a Spark cold start, a payment deep link can be rejected as "connect to pay" before the asynchronous restore finishes. | PR-14, PR-17 | Resolved: deep links were removed (§3.1) |
 | O-04 | `terms.md` and `privacy.md` describe Rayl as a non-custodial client for external wallets only. They don't mention the built-in pocket, passkeys, the device-held key copy, or Breez. | PR-21 | Review before release; release exit criterion 6 |
 | O-05 | Android has no screen-capture protection on any screen since `975f45f9`, including Spark recovery-phrase, Blink API-key and NWC URI entry. iOS marks the phrase `privacySensitive()`. This is both a security question and a parity deviation. | PR-11, PR-16 | Product decision (accept, or protect only the credential screens) |
 | O-06 | Auto Pay compares the invoice amount with the threshold. Routing fees are not part of the decision. | PR-06 | Became SI-01 (appendix B) |

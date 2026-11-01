@@ -8,14 +8,10 @@ sealed interface PaymentToastMessage {
     data object Bolt12NotSupported : PaymentToastMessage
 
     data object LnurlRequestNotSupported : PaymentToastMessage
-
-    data object PaymentLinkNotSupported : PaymentToastMessage
 }
 
 sealed interface PaymentIntent {
     data class QrCodeScanned(val rawValue: String) : PaymentIntent
-
-    data class DeepLinkReceived(val rawValue: String) : PaymentIntent
 
     /** Raw text typed or pasted into a lens. It uses the app's ordinary parser, never a saved target. */
     data class RawInputSubmitted(val rawValue: String) : PaymentIntent

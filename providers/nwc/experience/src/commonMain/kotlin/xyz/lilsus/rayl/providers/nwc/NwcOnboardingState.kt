@@ -18,21 +18,7 @@ internal class NwcOnboardingState(private val settings: Settings) {
         mutableCompleted.value = true
     }
 
-    fun nwcDeepLinkTarget(): NwcNwcDeepLinkTarget = if (completed.value) {
-        NwcNwcDeepLinkTarget.Settings
-    } else {
-        NwcNwcDeepLinkTarget.Onboarding
-    }
-
-    fun canHandlePaymentDeepLink(walletConnected: Boolean): Boolean =
-        completed.value && walletConnected
-
     private companion object {
         const val KEY_COMPLETED = "onboarding.completed"
     }
-}
-
-internal enum class NwcNwcDeepLinkTarget {
-    Onboarding,
-    Settings
 }

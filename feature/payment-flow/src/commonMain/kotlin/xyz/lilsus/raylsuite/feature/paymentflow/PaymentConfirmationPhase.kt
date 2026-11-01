@@ -37,14 +37,12 @@ internal class PaymentConfirmationPhase<P : SettleablePayment>(
                 }
             }
         currentCoroutineContext().ensureActive()
-        val requiresConfirmation = !request.isManualEntry && (
-            request.source == PaymentRequestSource.DeepLink || (
-                amountMsats != null && confirmationPolicy.shouldConfirm(
-                    amountMsats = amountMsats,
-                    isManualEntry = false,
-                    isPresetTarget = request.targetContext?.isPreset == true
-                )
-                )
+        val requiresConfirmation = !request.isManualEntry &&
+            amountMsats != null &&
+            confirmationPolicy.shouldConfirm(
+                amountMsats = amountMsats,
+                isManualEntry = false,
+                isPresetTarget = request.targetContext?.isPreset == true
             )
         if (!requiresConfirmation) return ConfirmationResult.Execute(prepared.payment)
 

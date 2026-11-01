@@ -45,48 +45,6 @@ class LightningInputParser(
         return parser.parse(input).toParseResult()
     }
 
-    /**
-     * Admits only the two external URL contracts registered by the apps:
-     * `lightning:<BOLT11>` and LUD17 `lnurlp://...`.
-     */
-    suspend fun parseDeepLink(raw: String): ParseResult {
-        val input = raw.trim()
-        if (input.isEmpty()) return ParseResult.Failure(FailureReason.Empty)
-        if (input.length > MAX_DEEP_LINK_LENGTH || input.any(::isUnsafeDeepLinkCharacter)) {
-            return ParseResult.Failure(FailureReason.UnsupportedDeepLink)
-        }
-
-        return when {
-            input.startsWith(LIGHTNING_PREFIX, ignoreCase = true) -> {
-                val payload = input.substring(LIGHTNING_PREFIX.length)
-                if (payload.isEmpty() || payload.startsWith("//") || ':' in payload) {
-                    ParseResult.Failure(FailureReason.UnsupportedDeepLink)
-                } else {
-                    when (val result = parser.parse(payload).toParseResult()) {
-                        is ParseResult.Success ->
-                            result.takeIf { it.target is Target.Bolt11 }
-                                ?: ParseResult.Failure(FailureReason.UnsupportedDeepLink)
-
-                        is ParseResult.Failure -> result
-                    }
-                }
-            }
-
-            input.startsWith(LUD17_PAY_PREFIX, ignoreCase = true) ->
-                when (val result = parser.parse(input).toParseResult()) {
-                    is ParseResult.Success ->
-                        result.takeIf {
-                            (it.target as? Target.Lnurl)?.request?.inputFormat ==
-                                LnurlInputFormat.LUD17_PAY
-                        } ?: ParseResult.Failure(FailureReason.UnsupportedDeepLink)
-
-                    is ParseResult.Failure -> result
-                }
-
-            else -> ParseResult.Failure(FailureReason.UnsupportedDeepLink)
-        }
-    }
-
     sealed interface ParseResult {
         data class Success(val target: Target) : ParseResult
 
@@ -103,8 +61,6 @@ class LightningInputParser(
         data object UnsupportedLnurl : FailureReason
 
         data object InvalidLnurl : FailureReason
-
-        data object UnsupportedDeepLink : FailureReason
 
         data class InvalidInvoice(val reason: String?) : FailureReason
 
@@ -259,9 +215,7 @@ class LightningInputParser(
     private companion object {
         const val LIGHTNING_PREFIX = "lightning:"
         const val BITCOIN_PREFIX = "bitcoin:"
-        const val LUD17_PAY_PREFIX = "lnurlp://"
         const val BOLT12_OFFER_PREFIX = "lno1"
-        const val MAX_DEEP_LINK_LENGTH = 8 * 1024
 
         val BOLT11_PREFIXES = listOf("lnbcrt", "lntbs", "lnbc", "lntb")
         val UNSUPPORTED_LNURL_PREFIXES = listOf("lnurlw://", "lnurlc://", "keyauth://")
@@ -273,8 +227,5 @@ class LightningInputParser(
                 Chain.Signet,
                 Chain.Regtest
             )
-
-        fun isUnsafeDeepLinkCharacter(character: Char): Boolean =
-            character.code <= 0x20 || character.code >= 0x7f
     }
 }

@@ -70,75 +70,6 @@
         }
       }
     },
-    "close" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schließen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cerrar"
-          }
-        }
-      }
-    },
-    "connect_to_pay" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schließe die Verbindung deiner Wallet ab und öffne danach die Zahlungsanfrage erneut."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finish connecting your wallet, then reopen the payment request."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Termina de conectar tu billetera y vuelve a abrir la solicitud de pago."
-          }
-        }
-      }
-    },
-    "connection_exists" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wechsle in den Einstellungen zurück zu Rayl, bevor du eine andere Wallet verbindest."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Go back to Rayl in Settings before connecting another wallet."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vuelve a Rayl en Ajustes antes de conectar otra billetera."
-          }
-        }
-      }
-    },
     "get_started" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -526,29 +457,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reintentar"
-          }
-        }
-      }
-    },
-    "wallet_switch_busy" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warte, bis die aktuelle Zahlung abgeschlossen ist, und öffne den Link dann erneut."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wait for the current payment to finish, then open the link again."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Espera a que termine el pago actual y vuelve a abrir el enlace."
           }
         }
       }

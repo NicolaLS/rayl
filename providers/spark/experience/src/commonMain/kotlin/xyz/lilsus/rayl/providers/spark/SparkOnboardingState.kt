@@ -18,9 +18,6 @@ internal class SparkOnboardingState(private val settings: Settings, startMode: W
         settings.putBoolean(KEY_COMPLETED, completed.value)
     }
 
-    fun canHandlePaymentDeepLink(walletConnected: Boolean): Boolean =
-        completed.value && walletConnected
-
     fun complete() {
         settings.putBoolean(KEY_COMPLETED, true)
         mutableCompleted.value = true

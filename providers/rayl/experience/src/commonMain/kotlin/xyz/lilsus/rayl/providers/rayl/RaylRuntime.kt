@@ -10,7 +10,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.rayl.feature.payment.RaylPaymentSettlement
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketSetup
@@ -19,7 +18,6 @@ import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketTimings
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPocket
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
 import xyz.lilsus.raylsuite.core.ui.platform.HapticFeedbackManager
-import xyz.lilsus.raylsuite.feature.appshell.AppTab
 import xyz.lilsus.raylsuite.feature.appshell.AppTabState
 import xyz.lilsus.raylsuite.feature.currencysettings.DefaultCurrencyPreferences
 import xyz.lilsus.raylsuite.feature.languagesettings.createLanguageRepository
@@ -28,7 +26,6 @@ import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiState
 import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
-import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
 import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
@@ -101,30 +98,6 @@ internal class RaylRuntime(
     init {
         PocketTimings.mark("experience created")
         pocket.start()
-        scope.launch {
-            // A link that arrives while the pocket connects waits in the settlement step.
-            RaylPaymentLinks.events.collect { uri ->
-                PocketTimings.mark("payment link received")
-                if (funding.isOwnInvoice(uri)) {
-                    // No other wallet took the funding invoice; Rayl must not pay itself.
-                    funding.showInvoice()
-                    tabState.select(AppTab.Settings)
-                    return@collect
-                }
-                // Payments present on the Scan tab, which shows once onboarding is complete.
-                onboardingState.step.first { it == RaylOnboardingStep.Complete }
-                if (mutableExit.value == RaylExit.None && !paymentCoordinator.isSubmitting.value) {
-                    tabState.requestScan()
-                    paymentCoordinator.dispatch(PaymentIntent.DeepLinkReceived(uri))
-                }
-            }
-        }
-        scope.launch {
-            // E.g. a wallet connection link opened while Rayl's wallet is in use.
-            RaylWalletRequests.events.collect { walletId ->
-                if (!useWallet(walletId)) RaylWalletRequests.rejected(walletId)
-            }
-        }
         scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.
             paymentCoordinator.uiState.collect { state ->
@@ -204,8 +177,6 @@ internal class RaylRuntime(
         bitcoinPriceProvider.close()
         lnurlPayClient.close()
         languageRepository.close()
-        RaylPaymentLinks.clear()
-        RaylWalletRequests.clear()
         CoroutineScope(SupervisorJob() + Dispatchers.Main).launch(
             start = CoroutineStart.UNDISPATCHED
         ) {

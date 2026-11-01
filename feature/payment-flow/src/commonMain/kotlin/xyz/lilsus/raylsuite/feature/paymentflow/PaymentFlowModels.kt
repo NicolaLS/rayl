@@ -16,7 +16,6 @@ interface SettleablePayment {
 data class PreparedPayment(
     override val invoice: Bolt11Invoice,
     override val amountOverrideMsats: Long?,
-    val source: PaymentRequestSource,
     val isManualEntry: Boolean = false,
     override val targetContext: HubTargetContext? = null,
     override val lnurlPayDisplay: LnurlPayDisplay? = null,

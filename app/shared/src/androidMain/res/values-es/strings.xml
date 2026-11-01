@@ -9,12 +9,8 @@
     <string name="nwc_body">Conecta una billetera compatible con su enlace de conexión NWC.</string>
     <string name="spark_title">Spark</string>
     <string name="spark_body">Importa tu billetera Spark con su frase de recuperación.</string>
-    <string name="connection_exists">Vuelve a Rayl en Ajustes antes de conectar otra billetera.</string>
-    <string name="connect_to_pay">Termina de conectar tu billetera y vuelve a abrir la solicitud de pago.</string>
-    <string name="close">Cerrar</string>
     <string name="wallet_cleanup_failed">Rayl no pudo terminar de borrar la conexión de la cartera anterior. Vuelve a intentarlo para continuar.</string>
     <string name="wallet_cleanup_retry">Reintentar</string>
-    <string name="wallet_switch_busy">Espera a que termine el pago actual y vuelve a abrir el enlace.</string>
     <string name="onboarding_page1_title">Escáner silencioso, resultados rápidos</string>
     <string name="onboarding_page1_subtitle">Funciona, aunque no veas la cámara.</string>
     <string name="onboarding_page1_body">Rayl escanea en segundo plano para que el pago sea fluido. Apunta al código, espera un momento y listo.</string>

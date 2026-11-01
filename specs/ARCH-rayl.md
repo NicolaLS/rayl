@@ -44,5 +44,6 @@ depend on backend implementation.
 Common Kotlin owns application state and payment logic. Android renders with
 Compose; iOS renders with SwiftUI through Kotlin controllers and snapshots
 exported by Rayl's `Shared` framework. Reusable native views live beside
-their feature or provider, with Rayl connecting platform lifecycle and
-incoming links to the selected experience.
+their feature or provider, with Rayl connecting platform lifecycle to the
+selected experience. Rayl registers no URL schemes and handles no incoming
+links; payment input comes from the camera and the app's own UI.

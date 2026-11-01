@@ -18,7 +18,6 @@
     <string name="rayl_balance_unavailable">Nicht verbunden. Tippe, um es erneut zu versuchen.</string>
     <string name="rayl_use_another_wallet_info">Verbinde eine Wallet, die du bereits hast, und bezahle damit. Dein Rayl-Guthaben bleibt auf diesem Gerät, und du kannst jederzeit in den Einstellungen zu Rayl zurückkehren.</string>
     <string name="rayl_balance">Guthaben</string>
-    <string name="rayl_add_funds_with">Aufladen mit</string>
     <string name="rayl_onboarding_agreement_body">Die Nutzung von Rayl erfolgt auf eigenes Risiko. Dein Rayl-Guthaben ist durch einen Passkey geschützt, den Rayl beim Fortfahren erstellt oder öffnet: Wenn du diesen Passkey löschst, ist das Guthaben verloren. Du bist für das Guthaben und alle Zahlungen voll verantwortlich.\n\nBehalte nur kleine Beträge, die du ausgeben willst.</string>
     <string name="rayl_passkey_failed">Dein Passkey konnte nicht geöffnet werden. Versuche es erneut.</string>
     <string name="rayl_accounts_title">Wähle ein Konto</string>

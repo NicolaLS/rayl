@@ -69,19 +69,6 @@ struct ContentView: View {
                 }
                 .id(snapshot.wallet)
                 .preferredColorScheme(colorScheme(snapshot.colorScheme))
-                .background {
-                    // Keep host messages off the provider's alert presentation branch.
-                    Color.clear.alert(
-                        "Rayl",
-                        isPresented: Binding(
-                            get: { snapshot.message != nil },
-                            set: { if !$0 { RaylIosApp.shared.dismissMessage() } })
-                    ) {
-                        Button(snapshot.text["close"] ?? "") { RaylIosApp.shared.dismissMessage() }
-                    } message: {
-                        Text(snapshot.message ?? "")
-                    }
-                }
             } else {
                 ProgressView()
             }

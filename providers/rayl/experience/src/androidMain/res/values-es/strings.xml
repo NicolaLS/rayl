@@ -18,7 +18,6 @@
     <string name="rayl_balance_unavailable">Sin conexión. Toca para reintentar.</string>
     <string name="rayl_use_another_wallet_info">Conecta una billetera que ya tienes y paga con ella. Tu saldo de Rayl se queda en este dispositivo y puedes volver a Rayl en Ajustes cuando quieras.</string>
     <string name="rayl_balance">Saldo</string>
-    <string name="rayl_add_funds_with">Añadir fondos con</string>
     <string name="rayl_onboarding_agreement_body">Usar Rayl es bajo tu propio riesgo. Tu saldo de Rayl está protegido por una passkey, que Rayl crea o abre al continuar: si borras esa passkey, el saldo se pierde. Eres totalmente responsable de los fondos y de los pagos realizados.\n\nGuarda solo importes pequeños que pienses gastar.</string>
     <string name="rayl_passkey_failed">No se pudo abrir tu passkey. Inténtalo de nuevo.</string>
     <string name="rayl_accounts_title">Elige una cuenta</string>

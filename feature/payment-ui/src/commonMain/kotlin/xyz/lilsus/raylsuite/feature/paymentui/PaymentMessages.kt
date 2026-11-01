@@ -13,7 +13,4 @@ internal fun PaymentToastMessage.textKey(): PaymentUiTextKey = when (this) {
 
     PaymentToastMessage.LnurlRequestNotSupported ->
         PaymentUiTextKey.ToastLnurlRequestNotSupported
-
-    PaymentToastMessage.PaymentLinkNotSupported ->
-        PaymentUiTextKey.ToastPaymentLinkNotSupported
 }

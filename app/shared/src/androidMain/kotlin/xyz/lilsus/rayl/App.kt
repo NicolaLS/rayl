@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -14,31 +13,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import xyz.lilsus.rayl.providers.blink.BlinkDeepLinks
 import xyz.lilsus.rayl.providers.blink.BlinkExperience
-import xyz.lilsus.rayl.providers.nwc.NwcDeepLinks
 import xyz.lilsus.rayl.providers.nwc.NwcExperience
 import xyz.lilsus.rayl.providers.rayl.RaylExperience
 import xyz.lilsus.rayl.providers.rayl.RaylPasskeys
-import xyz.lilsus.rayl.providers.rayl.RaylPaymentLinks
 import xyz.lilsus.rayl.providers.rayl.RaylWalletOption
-import xyz.lilsus.rayl.providers.rayl.RaylWalletRequests
 import xyz.lilsus.rayl.providers.rayl.startRaylPocketEarly
-import xyz.lilsus.rayl.providers.spark.SparkDeepLinks
 import xyz.lilsus.rayl.providers.spark.SparkEnvironment
 import xyz.lilsus.rayl.providers.spark.SparkExperience
 import xyz.lilsus.rayl.shared.R
@@ -77,73 +66,14 @@ fun App(
         onDispose = {}
     )
     val appOnboardingStep by appOnboarding.step.collectAsStateWithLifecycle()
-    // Whether the external wallet in use is connected; Rayl's wallet queues links itself.
-    var connected by remember { mutableStateOf<Boolean?>(null) }
-    // A connection link that waits for Rayl's wallet to close before its setup starts.
-    var pendingNwcLink by remember { mutableStateOf<String?>(null) }
     val theme = remember(external, session) { DefaultThemePreferences(settings) }
     val preference by theme.preference.collectAsStateWithLifecycle(
         initialValue = ThemePreference.System
     )
-    var message by remember { mutableStateOf<Int?>(null) }
-    val backToRayl = {
-        RaylDeepLinks.clear()
-        BlinkDeepLinks.clear()
-        NwcDeepLinks.clear()
-        RaylPaymentLinks.clear()
-        SparkDeepLinks.clear()
-        message = null
-        connected = null
-        selection.clear()
-    }
+    val backToRayl = { selection.clear() }
     val useWallet = { id: String ->
         val wallet = ExternalWallet.fromId(id)
-        if (wallet != null && selection.external.value == null) {
-            connected = null
-            RaylPaymentLinks.clear()
-            selection.choose(wallet)
-            if (wallet == ExternalWallet.Nwc) pendingNwcLink?.let(NwcDeepLinks::emit)
-        }
-        pendingNwcLink = null
-    }
-    LaunchedEffect(selection) {
-        RaylWalletRequests.rejections.collect {
-            pendingNwcLink = null
-            message = R.string.wallet_switch_busy
-        }
-    }
-    LaunchedEffect(selection, external) {
-        RaylDeepLinks.events.collect { uri ->
-            // Links wait for Rayl's onboarding; wallets then queue them until they are ready.
-            appOnboarding.step.first { it == AppOnboardingStep.Complete }
-            selection.preparation.first { it == WalletPreparation.Ready }
-            val selected = selection.external.value
-            if (uri.substringBefore(':').equals("nostr+walletconnect", true)) {
-                if (selected == null) {
-                    pendingNwcLink = uri
-                    RaylWalletRequests.request(ExternalWallet.Nwc.id)
-                } else if (selected == ExternalWallet.Nwc &&
-                    !snapshotFlow { connected }.filterNotNull().first()
-                ) {
-                    NwcDeepLinks.emit(uri)
-                } else {
-                    message = R.string.connection_exists
-                }
-            } else if (selected == null) {
-                // Rayl's wallet queues links while it connects or shows its terms.
-                RaylPaymentLinks.emit(uri)
-            } else if (!snapshotFlow { connected }.filterNotNull().first()) {
-                // FIXME: Spark cold-start reports Loading -> false before async restore finishes,
-                // which can reject a cold-start payment deep link as disconnected.
-                message = R.string.connect_to_pay
-            } else {
-                when (selected) {
-                    ExternalWallet.Blink -> BlinkDeepLinks.emit(uri)
-                    ExternalWallet.Nwc -> NwcDeepLinks.emit(uri)
-                    ExternalWallet.Spark -> SparkDeepLinks.emit(uri)
-                }
-            }
-        }
+        if (wallet != null && selection.external.value == null) selection.choose(wallet)
     }
     RaylSuiteTheme(themePreference = preference) {
         if (preparation != WalletPreparation.Ready) {
@@ -188,9 +118,8 @@ fun App(
                     startMode = selection.startMode,
                     onRemoved = backToRayl,
                     onConnectionChanged = {
-                        if (selection.external.value == ExternalWallet.Blink) {
-                            connected = it
-                            if (it) selection.connected(ExternalWallet.Blink)
+                        if (it && selection.external.value == ExternalWallet.Blink) {
+                            selection.connected(ExternalWallet.Blink)
                         }
                     }
                 )
@@ -200,9 +129,8 @@ fun App(
                     startMode = selection.startMode,
                     onRemoved = backToRayl,
                     onConnectionChanged = {
-                        if (selection.external.value == ExternalWallet.Nwc) {
-                            connected = it
-                            if (it) selection.connected(ExternalWallet.Nwc)
+                        if (it && selection.external.value == ExternalWallet.Nwc) {
+                            selection.connected(ExternalWallet.Nwc)
                         }
                     }
                 )
@@ -215,20 +143,12 @@ fun App(
                     onRemoved = backToRayl,
                     onChooseWallet = backToRayl,
                     onConnectionChanged = {
-                        if (selection.external.value == ExternalWallet.Spark) {
-                            connected = it
-                            if (it) selection.connected(ExternalWallet.Spark)
+                        if (it && selection.external.value == ExternalWallet.Spark) {
+                            selection.connected(ExternalWallet.Spark)
                         }
                     }
                 )
             }
-        }
-        message?.let { resource ->
-            AlertDialog(onDismissRequest = {
-                message = null
-            }, text = { Text(stringResource(resource)) }, confirmButton = {
-                TextButton(onClick = { message = null }) { Text(stringResource(R.string.close)) }
-            })
         }
     }
 }

@@ -41,10 +41,7 @@ Usage: regtest <command>
   pay <invoice> [--amount SATS]  Pay a Rayl invoice (e.g. from Add funds)
   pay --from android             Pay the latest Add funds invoice a connected debug
                                  build logged (set ANDROID_SERIAL for several devices)
-  invoice <SATS> [--open android|ios] [--no-wait]
-                                 Create an invoice for Rayl to pay, with a QR; --open
-                                 sends it to the running emulator/simulator as a
-                                 lightning: link
+  invoice <SATS> [--no-wait]     Create an invoice for Rayl to pay, with a QR to scan
 
 State lives in tools/regtest/.local (override with RAYL_REGTEST_HOME). Regtest only."""
 
@@ -76,7 +73,6 @@ fun main(args: Array<String>) {
                 "invoice" -> bank.invoice(
                     amountSats = options.positional(0, "amount in sats").toLongOrNull()
                         ?.takeIf { it > 0 } ?: fail("Amount must be a positive number of sats"),
-                    open = options.value("--open"),
                     wait = !options.flag("--no-wait")
                 )
 
@@ -130,7 +126,7 @@ private class Bank(private val sdk: BreezSdk) {
         return if (payment.status == PaymentStatus.FAILED) 1 else 0
     }
 
-    suspend fun invoice(amountSats: Long, open: String?, wait: Boolean): Int {
+    suspend fun invoice(amountSats: Long, wait: Boolean): Int {
         val received = CompletableDeferred<Unit>()
         var invoice = ""
         events += { event ->
@@ -153,7 +149,6 @@ private class Bank(private val sdk: BreezSdk) {
         // Uppercase invoices encode in the denser alphanumeric mode.
         System.err.print(terminalQr(invoice.uppercase()))
         println(invoice)
-        open?.let { openInApp(it, "lightning:$invoice") }
         if (!wait) return 0
         System.err.println("Waiting for payment (up to 10 minutes)…")
         return if (withTimeoutOrNull(600_000) { received.await() } != null) {
@@ -223,27 +218,6 @@ private class Bank(private val sdk: BreezSdk) {
     }
 }
 
-private fun openInApp(target: String, link: String) {
-    val command = when (target) {
-        "android" -> listOf(
-            "adb",
-            "shell",
-            "am",
-            "start",
-            "-a",
-            "android.intent.action.VIEW",
-            "-d",
-            link
-        )
-
-        "ios" -> listOf("xcrun", "simctl", "openurl", "booted", link)
-
-        else -> fail("--open must be 'android' or 'ios'")
-    }
-    val exit = ProcessBuilder(command).inheritIO().start().waitFor()
-    if (exit != 0) System.err.println("Could not open the link on $target (exit $exit)")
-}
-
 private class Options(private val args: List<String>) {
     fun flag(name: String) = name in args
 
@@ -260,7 +234,7 @@ private class Options(private val args: List<String>) {
     }.getOrNull(index) ?: fail("Missing $name.\n\n$USAGE")
 
     private companion object {
-        val VALUED = setOf("--amount", "--open", "--from")
+        val VALUED = setOf("--amount", "--from")
     }
 }
 

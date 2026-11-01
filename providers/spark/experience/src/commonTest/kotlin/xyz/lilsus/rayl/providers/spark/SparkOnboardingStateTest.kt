@@ -9,15 +9,6 @@ import xyz.lilsus.raylsuite.core.model.WalletStartMode
 
 class SparkOnboardingStateTest {
     @Test
-    fun connectingBeforeAgreementDoesNotAdmitPaymentLinks() {
-        val state = SparkOnboardingState(MapSettings(), WalletStartMode.Fresh)
-        assertFalse(state.canHandlePaymentDeepLink(walletConnected = true))
-        state.complete()
-        assertTrue(state.canHandlePaymentDeepLink(walletConnected = true))
-        assertFalse(state.canHandlePaymentDeepLink(walletConnected = false))
-    }
-
-    @Test
     fun interruptedEducationIsNotMistakenForAnExistingEducatedWallet() {
         val settings = MapSettings()
         assertFalse(SparkOnboardingState(settings, WalletStartMode.Fresh).completed.value)

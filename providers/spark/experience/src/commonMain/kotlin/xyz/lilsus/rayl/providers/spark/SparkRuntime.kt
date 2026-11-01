@@ -8,8 +8,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 import xyz.lilsus.rayl.providers.spark.feature.payment.SparkPaymentSettlement
@@ -25,7 +23,6 @@ import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiState
 import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
-import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
 import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
@@ -86,23 +83,6 @@ internal class SparkRuntime(
 
     init {
         scope.launch {
-            SparkDeepLinks.events.collectLatest { link ->
-                // A link that opens the app arrives while the wallet is still restoring; wait for
-                // the restore to settle instead of dropping it. A newer link replaces it.
-                val settled = walletAccess.state.first {
-                    it != WalletAccessState.Loading && it != WalletAccessState.Connecting
-                }
-                if (onboardingState.canHandlePaymentDeepLink(
-                        walletConnected = settled == WalletAccessState.Connected
-                    ) &&
-                    !paymentCoordinator.isSubmitting.value
-                ) {
-                    tabState.requestScan()
-                    paymentCoordinator.dispatch(PaymentIntent.DeepLinkReceived(link))
-                }
-            }
-        }
-        scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.
             paymentCoordinator.uiState.collect { state ->
                 if (state != PaymentUiState.Active) tabState.requestScan()
@@ -128,7 +108,6 @@ internal class SparkRuntime(
         languageRepository.close()
         bitcoinPriceProvider.close()
         lnurlPayClient.close()
-        SparkDeepLinks.clear()
     }
 
     suspend fun close() {

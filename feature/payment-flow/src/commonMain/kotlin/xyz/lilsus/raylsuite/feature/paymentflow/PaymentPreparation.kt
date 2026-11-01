@@ -55,7 +55,6 @@ internal class PaymentPreparation(lnurlPayClient: LnurlPayClient) {
 internal data class LnurlSession(
     val params: LnurlPayParams,
     val display: LnurlPayDisplay?,
-    val paymentSource: PaymentRequestSource,
     val targetContext: HubTargetContext?,
     val comment: String?
 )
@@ -70,14 +69,8 @@ data class HubTargetContext(
     val isPreset: Boolean
 )
 
-enum class PaymentRequestSource {
-    Camera,
-    DeepLink
-}
-
 internal sealed interface ManualEntryContext {
-    data class Bolt(val invoice: Bolt11Invoice, val source: PaymentRequestSource) :
-        ManualEntryContext
+    data class Bolt(val invoice: Bolt11Invoice) : ManualEntryContext
 
     data class Lnurl(val session: LnurlSession, val inputInfo: CurrencyInfo) :
         ManualEntryContext

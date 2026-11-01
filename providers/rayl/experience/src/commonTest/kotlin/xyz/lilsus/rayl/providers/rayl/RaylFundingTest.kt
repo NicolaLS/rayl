@@ -2,7 +2,6 @@ package xyz.lilsus.rayl.providers.rayl
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -61,17 +60,6 @@ class RaylFundingTest {
             FundingState.Awaiting("lnbcrt2", FundingPresentation.OpenWallet),
             funding.state.value
         )
-    }
-
-    @Test
-    fun theFundingInvoiceComingBackAsAPaymentLinkIsRecognized() = runTest {
-        val funding = funding()
-        assertFalse(funding.isOwnInvoice("lightning:lnbcrt1"))
-        funding.request()
-        assertTrue(funding.isOwnInvoice("lightning:lnbcrt1"))
-        assertTrue(funding.isOwnInvoice("LIGHTNING:LNBCRT1"))
-        assertTrue(funding.isOwnInvoice(" lnbcrt1 "))
-        assertFalse(funding.isOwnInvoice("lightning:lnbcrt9"))
     }
 
     @Test

@@ -143,20 +143,7 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
             is PaymentIntent.QrCodeScanned ->
                 launchOperation {
                     handleAdmissionResult(
-                        admission.handlePaymentInput(
-                            rawInput = intent.rawValue,
-                            source = PaymentRequestSource.Camera
-                        )
-                    )
-                }
-
-            is PaymentIntent.DeepLinkReceived ->
-                launchOperation {
-                    handleAdmissionResult(
-                        admission.handlePaymentInput(
-                            rawInput = intent.rawValue,
-                            source = PaymentRequestSource.DeepLink
-                        )
+                        admission.handlePaymentInput(rawInput = intent.rawValue)
                     )
                 }
 
@@ -177,10 +164,7 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
             is PaymentIntent.RawInputSubmitted ->
                 launchOperation {
                     handleAdmissionResult(
-                        admission.handlePaymentInput(
-                            rawInput = intent.rawValue,
-                            source = PaymentRequestSource.Camera
-                        )
+                        admission.handlePaymentInput(rawInput = intent.rawValue)
                     )
                 }
         }

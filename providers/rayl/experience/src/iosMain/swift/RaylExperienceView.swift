@@ -423,8 +423,8 @@ private struct RaylWalletSettingsActions: View {
         .contentShape(Rectangle())
     }
 
-    /// Hands the amountless invoice to another wallet app, where the user chooses the amount.
-    /// Rayl handles `lightning:` links too; if iOS sends the link back, Rayl shows the invoice.
+    /// Hands the amountless invoice to a wallet app, where the user chooses the amount. Rayl does
+    /// not register `lightning:`, so iOS reports failure when no wallet app is installed.
     private func openInWallet(_ invoice: String) {
         guard let url = URL(string: "lightning:\(invoice)") else {
             model.controller.showInvoice()

@@ -18,7 +18,6 @@
     <string name="rayl_balance_unavailable">Not connected. Tap to retry.</string>
     <string name="rayl_use_another_wallet_info">Connect a wallet you already have and pay with it. Your Rayl balance stays on this device, and you can go back to Rayl in Settings at any time.</string>
     <string name="rayl_balance">Balance</string>
-    <string name="rayl_add_funds_with">Add funds with</string>
     <string name="rayl_onboarding_agreement_body">Using Rayl is at your own risk. Your Rayl balance is protected by a passkey, which Rayl creates or opens when you continue: if you delete that passkey, the balance is lost. You are fully responsible for the funds and any payments made.\n\nKeep only small amounts you plan to spend.</string>
     <string name="rayl_passkey_failed">Couldn\'t open your passkey. Try again.</string>
     <string name="rayl_accounts_title">Choose an account</string>

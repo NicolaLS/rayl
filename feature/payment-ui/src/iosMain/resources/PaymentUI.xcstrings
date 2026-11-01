@@ -1358,29 +1358,6 @@
         }
       }
     },
-    "toast_payment_link_not_supported" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dieser Zahlungslink wird nicht unterstützt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This payment link is not supported."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Este enlace de pago no es compatible."
-          }
-        }
-      }
-    },
     "view_session_transactions" : {
       "extractionState" : "stale",
       "localizations" : {

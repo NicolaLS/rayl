@@ -107,18 +107,6 @@ private fun NwcExperienceContent(runtime: NwcRuntime, onConnectionChanged: (Bool
             }
         }
 
-    LaunchedEffect(runtime, navController) {
-        runtime.onboardingWalletFlow.collect { requested ->
-            if (!requested) return@collect
-            runtime.walletFlowHandled()
-            navController.navigate(
-                NwcOnboardingDestination.ConfirmWallet(fromSettings = false)
-            ) {
-                launchSingleTop = true
-            }
-        }
-    }
-
     val cancellationInsets = if (connected == null) {
         Modifier.windowInsetsPadding(
             WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)

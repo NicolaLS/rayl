@@ -140,7 +140,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
                         addWallet.reset()
                         clearCredentialSnapshot()
                         confirmationPresented = false
-                        runtime.connectionDraft.clear()
                         when (
                             nwcWalletConnectionOutcome(
                                 fromSettings = settingsFlow,
@@ -168,19 +167,10 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
                         addWallet.reset()
                         clearCredentialSnapshot()
                         confirmationPresented = false
-                        runtime.connectionDraft.clear()
                         publishSnapshot()
                         reconcileScanner()
                     }
                 }
-            }
-        }
-        scope.launch {
-            runtime.onboardingWalletFlow.collect { requested ->
-                if (!requested) return@collect
-                val uri = runtime.connectionDraft.uri
-                runtime.walletFlowHandled()
-                uri?.let(::beginConfirmation)
             }
         }
     }
@@ -189,7 +179,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         stopScanner()
         addWallet.clear()
         connectWallet.clear()
-        runtime.connectionDraft.clear()
         clipboard.discard()
         clearCredentialSnapshot()
         observers.clear()
@@ -286,10 +275,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         if (!runtime.canAcceptWalletInput) return
         settingsFlow = true
         currentStep = STEP_WALLET
-        runtime.connectionDraft.uri?.let {
-            beginConfirmation(it)
-            return
-        }
         scope.launch {
             publishSnapshot()
             reconcileScanner()
@@ -300,7 +285,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         resetConnectionInput()
         settingsFlow = false
         confirmationPresented = false
-        runtime.connectionDraft.clear()
         runtime.walletFlowHandled()
         stopScanner()
         currentStep =
@@ -336,7 +320,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         if (!runtime.canAcceptWalletInput) return
         clipboard.retainFor(uri)
         addWallet.reset()
-        runtime.connectionDraft.set(uri)
         confirmationPresented = true
         stopScanner()
         connectWallet.load(uri)
@@ -346,7 +329,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
     private fun resetConnectionInput() {
         addWallet.reset()
         connectWallet.reset()
-        runtime.connectionDraft.clear()
         clipboard.discard()
         clearCredentialSnapshot()
     }

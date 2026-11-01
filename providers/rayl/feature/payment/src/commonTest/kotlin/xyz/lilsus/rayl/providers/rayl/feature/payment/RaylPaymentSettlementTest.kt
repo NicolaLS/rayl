@@ -18,7 +18,6 @@ import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPaymentProblem
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPayments
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketQuote
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketQuoteResult
-import xyz.lilsus.raylsuite.feature.paymentflow.PaymentRequestSource
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiError
 import xyz.lilsus.raylsuite.feature.paymentflow.PreparedPayment
 import xyz.lilsus.raylsuite.feature.paymentflow.SettlementOutcome
@@ -106,8 +105,7 @@ class RaylPaymentSettlementTest {
             ),
             timestampSeconds = 1L
         ),
-        amountOverrideMsats = amountOverrideMsats,
-        source = PaymentRequestSource.Camera
+        amountOverrideMsats = amountOverrideMsats
     )
 }
 

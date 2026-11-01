@@ -22,37 +22,23 @@ class LightningInputParserTest {
     private val parser = LightningInputParser()
 
     @Test
-    fun rawBolt11AndLightningDeepLinkArePayable() = runParser {
+    fun rawAndLightningPrefixedBolt11ArePayable() = runParser {
         val encoded = invoice().write()
 
         assertIs<LightningInputParser.Target.Bolt11>(successTarget(parser.parse(encoded)))
         assertIs<LightningInputParser.Target.Bolt11>(
-            successTarget(parser.parseDeepLink("lightning:$encoded"))
+            successTarget(parser.parse("lightning:$encoded"))
         )
         Unit
     }
 
     @Test
-    fun onlyBolt11MayUseLightningAsADeepLink() = runParser {
-        val lnurl = encodeLnurl("https://pay.example.com/request")
+    fun lud17PayIsAnLnurlTarget() = runParser {
+        val target = successTarget(parser.parse("lnurlp://pay.example.com/request"))
 
-        val result = assertIs<LightningInputParser.ParseResult.Failure>(
-            parser.parseDeepLink("lightning:$lnurl")
-        )
-
-        assertEquals(LightningInputParser.FailureReason.UnsupportedDeepLink, result.reason)
-    }
-
-    @Test
-    fun lud17PayIsTheOnlyLnurlDeepLink() = runParser {
-        val target = successTarget(parser.parseDeepLink("lnurlp://pay.example.com/request"))
-
-        assertEquals(LnurlInputFormat.LUD17_PAY, assertIs<LightningInputParser.Target.Lnurl>(target).request.inputFormat)
         assertEquals(
-            LightningInputParser.FailureReason.UnsupportedDeepLink,
-            assertIs<LightningInputParser.ParseResult.Failure>(
-                parser.parseDeepLink("lnurl:${encodeLnurl("https://pay.example.com/request")}")
-            ).reason
+            LnurlInputFormat.LUD17_PAY,
+            assertIs<LightningInputParser.Target.Lnurl>(target).request.inputFormat
         )
     }
 

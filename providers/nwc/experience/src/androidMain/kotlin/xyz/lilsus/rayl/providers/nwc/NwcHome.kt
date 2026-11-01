@@ -196,26 +196,11 @@ private fun NwcSettingsTab(runtime: NwcRuntime) {
     }
 }
 
-/**
- * Connecting a wallet from settings, including an NWC link opened while a wallet is already
- * connected. It runs inside the Settings tab so the tab bar stays put.
- */
+/** Connecting a wallet from settings. It runs inside the Settings tab so the tab bar stays put. */
 @Composable
 private fun NwcWalletFlow(runtime: NwcRuntime, onFinished: () -> Unit) {
     val clipboard = rememberCredentialClipboard()
     val navController = rememberNavController()
-    val pendingDraft = runtime.connectionDraft.uri
-
-    LaunchedEffect(navController, pendingDraft) {
-        if (pendingDraft != null) {
-            navController.navigate(
-                NwcOnboardingDestination.ConfirmWallet(fromSettings = true)
-            ) {
-                launchSingleTop = true
-            }
-        }
-    }
-
     NavHost(
         navController = navController,
         startDestination = NwcOnboardingDestination.AddWalletFromSettings

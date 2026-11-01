@@ -9,12 +9,8 @@
     <string name="nwc_body">Verbinde eine kompatible Wallet über ihren NWC-Verbindungslink.</string>
     <string name="spark_title">Spark</string>
     <string name="spark_body">Importiere deine Spark-Wallet mit ihrer Wiederherstellungsphrase.</string>
-    <string name="connection_exists">Wechsle in den Einstellungen zurück zu Rayl, bevor du eine andere Wallet verbindest.</string>
-    <string name="connect_to_pay">Schließe die Verbindung deiner Wallet ab und öffne danach die Zahlungsanfrage erneut.</string>
-    <string name="close">Schließen</string>
     <string name="wallet_cleanup_failed">Rayl konnte die vorherige Wallet-Verbindung nicht vollständig entfernen. Versuche es erneut, um fortzufahren.</string>
     <string name="wallet_cleanup_retry">Erneut versuchen</string>
-    <string name="wallet_switch_busy">Warte, bis die aktuelle Zahlung abgeschlossen ist, und öffne den Link dann erneut.</string>
     <string name="onboarding_page1_title">Leiser Scanner, schnelle Ergebnisse</string>
     <string name="onboarding_page1_subtitle">Er arbeitet – auch wenn du die Kamera nicht siehst.</string>
     <string name="onboarding_page1_body">Rayl scannt im Hintergrund, damit der Bezahlvorgang flüssig bleibt. Richte die Kamera auf den Code, warte kurz, und fertig.</string>

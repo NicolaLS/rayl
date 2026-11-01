@@ -116,29 +116,6 @@
         }
       }
     },
-    "rayl_add_funds_with" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aufladen mit"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add funds with"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Añadir fondos con"
-          }
-        }
-      }
-    },
     "rayl_balance" : {
       "extractionState" : "manual",
       "localizations" : {

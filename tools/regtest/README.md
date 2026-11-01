@@ -13,7 +13,7 @@ rebuilds after its sources change.
 tools/regtest/regtest status                 # balance and funding addresses
 tools/regtest/regtest pay <invoice>          # pay a Rayl invoice
 tools/regtest/regtest pay --from android     # pay the latest invoice on the device
-tools/regtest/regtest invoice 500 --open ios # Rayl pays this (scan the QR); waits until paid
+tools/regtest/regtest invoice 500            # Rayl pays this (scan the QR); waits until paid
 ```
 
 ## Manual QA
@@ -29,13 +29,14 @@ tools/regtest/regtest invoice 500 --open ios # Rayl pays this (scan the QR); wai
    `tools/regtest/regtest pay --from android --amount 1000` pays the latest
    invoice: debug builds log it under the `RaylRegtest` logcat tag, so no
    copying is needed (set `ANDROID_SERIAL` when several devices are connected).
-   When no other wallet app opens it, Rayl shows the invoice; on the iOS
+   When no wallet app opens it, Rayl shows the invoice; on the iOS
    simulator, tap Copy invoice and run
    `tools/regtest/regtest pay "$(pbpaste)" --amount 1000`; its clipboard syncs
    with the Mac.
-3. **Pay from Rayl.** `tools/regtest/regtest invoice 500 --open android` (or
-   `ios`) opens the invoice in the running app as a `lightning:` link. Confirm
-   the payment in Rayl; the command reports when it arrives.
+3. **Pay from Rayl.** `tools/regtest/regtest invoice 500` prints the invoice as a
+   QR in the terminal; scan it with Rayl on a physical device. Rayl handles no
+   links, and the iOS simulator has no camera, so simulators cannot pay it yet.
+   The command reports when the payment arrives.
 
 ## Limits
 

@@ -19,7 +19,6 @@ import xyz.lilsus.rayl.providers.spark.application.payment.SparkPaymentProblem
 import xyz.lilsus.rayl.providers.spark.application.payment.SparkPayments
 import xyz.lilsus.rayl.providers.spark.application.payment.SparkQuote
 import xyz.lilsus.rayl.providers.spark.application.payment.SparkQuoteResult
-import xyz.lilsus.raylsuite.feature.paymentflow.PaymentRequestSource
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiError
 import xyz.lilsus.raylsuite.feature.paymentflow.PreparedPayment
 import xyz.lilsus.raylsuite.feature.paymentflow.SettlementOutcome
@@ -116,8 +115,7 @@ class SparkPaymentSettlementTest {
             ),
             timestampSeconds = 1L
         ),
-        amountOverrideMsats = amountOverrideMsats,
-        source = PaymentRequestSource.Camera
+        amountOverrideMsats = amountOverrideMsats
     )
 }
 

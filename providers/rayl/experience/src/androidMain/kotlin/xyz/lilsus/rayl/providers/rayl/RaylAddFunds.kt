@@ -3,12 +3,9 @@ package xyz.lilsus.rayl.providers.rayl
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Parcelable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,7 +45,7 @@ import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
 
 /**
- * Hands a new funding invoice to another wallet app, and presents the invoice when none can take
+ * Hands a new funding invoice to a wallet app, and presents the invoice when none can take
  * it, a payment arrives, or creating the invoice failed.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,13 +53,12 @@ import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
 internal fun RaylFundingEffects(funding: RaylFunding) {
     val state by funding.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val chooserTitle = stringResource(R.string.rayl_add_funds_with)
     val current = state
     LaunchedEffect(current) {
         if (current is FundingState.Awaiting &&
             current.presentation == FundingPresentation.OpenWallet
         ) {
-            if (openInOtherWallet(context, current.invoice, chooserTitle)) {
+            if (openInWallet(context, current.invoice)) {
                 funding.openedInWallet()
             } else {
                 funding.showInvoice()
@@ -164,38 +160,12 @@ private fun FundsAdded(amountSats: Long, onDone: () -> Unit) {
 }
 
 /**
- * Opens `lightning:<invoice>` in a wallet app other than Rayl, which handles such links itself.
- * Returns false when no other app can open it.
+ * Opens `lightning:<invoice>` in the user's wallet app; Android picks their default or asks which
+ * one. Rayl does not handle such links itself. Returns false when no app can open it.
  */
-private fun openInOtherWallet(context: Context, invoice: String, chooserTitle: String): Boolean {
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("lightning:$invoice"))
-    val packageManager = context.packageManager
-    val handlers = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-    val (own, others) = handlers.partition {
-        it.activityInfo.packageName == context.packageName
-    }
-    if (others.isEmpty()) return false
-    val preferred = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-        ?.activityInfo
-        ?.takeIf { info -> others.any { it.activityInfo.name == info.name } }
-    val launch = when {
-        // The user's default wallet, or the only one: open it directly.
-        preferred != null -> intent.setClassName(preferred.packageName, preferred.name)
-
-        others.size == 1 -> others.single().activityInfo.let {
-            intent.setClassName(it.packageName, it.name)
-        }
-
-        else -> Intent.createChooser(intent, chooserTitle).putExtra(
-            Intent.EXTRA_EXCLUDE_COMPONENTS,
-            own.map { ComponentName(it.activityInfo.packageName, it.activityInfo.name) }
-                .toTypedArray<Parcelable>()
-        )
-    }
-    return try {
-        context.startActivity(launch)
-        true
-    } catch (_: ActivityNotFoundException) {
-        false
-    }
+private fun openInWallet(context: Context, invoice: String): Boolean = try {
+    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("lightning:$invoice")))
+    true
+} catch (_: ActivityNotFoundException) {
+    false
 }

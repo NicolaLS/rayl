@@ -30,7 +30,6 @@ import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiState
 import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
-import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
 import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
@@ -78,11 +77,7 @@ internal class NwcRuntime(
     val paymentHubRepository = DefaultPaymentHubRepository(appSettings)
     val tabState = AppTabState()
 
-    /** A pasted or scanned NWC link that still needs confirmation, before a wallet exists. */
-    private val mutableOnboardingWalletFlow = MutableStateFlow(false)
-    val onboardingWalletFlow: StateFlow<Boolean> = mutableOnboardingWalletFlow.asStateFlow()
-
-    /** The same, once a wallet is connected: the Settings tab confirms it. */
+    /** Connecting another wallet from the Settings tab. */
     private val mutableSettingsWalletFlow = MutableStateFlow(false)
     val settingsWalletFlow: StateFlow<Boolean> = mutableSettingsWalletFlow.asStateFlow()
     val paymentHub = PaymentHubController(paymentHubRepository, scope)
@@ -124,9 +119,6 @@ internal class NwcRuntime(
                 appLifecycle.isInForeground.collectLatest(nwcWallet::onAppForegroundChanged)
             }
             scope.launch {
-                NwcDeepLinks.events.collect(::routeDeepLink)
-            }
-            scope.launch {
                 // A payment always presents on the Scan tab, wherever it was started from.
                 paymentCoordinator.uiState.collect { state ->
                     if (state != PaymentUiState.Active) tabState.requestScan()
@@ -146,50 +138,12 @@ internal class NwcRuntime(
     }
 
     fun walletFlowHandled() {
-        mutableOnboardingWalletFlow.value = false
         mutableSettingsWalletFlow.value = false
     }
 
     fun completeOnboarding() {
         if (!canAcceptWalletInput) return
         onboardingState.complete()
-    }
-
-    private fun routeDeepLink(uri: String) {
-        if (closed || mutableRemovalPending.value ||
-            (runtimeStarted && paymentCoordinator.isSubmitting.value)
-        ) {
-            return
-        }
-        val scheme = uri.substringBefore(":", missingDelimiterValue = "")
-        if (scheme.equals(NWC_SCHEME, ignoreCase = true)) {
-            connectionDraft.set(normalizeNwcUri(uri))
-            val target = if (nwcWallet.connection.value == null) {
-                NwcNwcDeepLinkTarget.Onboarding
-            } else {
-                onboardingState.nwcDeepLinkTarget()
-            }
-            when (target) {
-                NwcNwcDeepLinkTarget.Onboarding -> {
-                    mutableOnboardingWalletFlow.value = true
-                }
-
-                NwcNwcDeepLinkTarget.Settings -> {
-                    mutableSettingsWalletFlow.value = true
-                    tabState.select(xyz.lilsus.raylsuite.feature.appshell.AppTab.Settings)
-                }
-            }
-            return
-        }
-        if (
-            !isPaymentScheme(scheme) ||
-            !onboardingState.canHandlePaymentDeepLink(nwcWallet.connection.value != null)
-        ) {
-            return
-        }
-
-        tabState.requestScan()
-        paymentCoordinator.dispatch(PaymentIntent.DeepLinkReceived(uri))
     }
 
     fun removeWallet() {
@@ -204,7 +158,6 @@ internal class NwcRuntime(
                     paymentCoordinator.resetSession()
                     paymentCoordinator.clear()
                 }
-                NwcDeepLinks.clear()
                 connectionDraft.clear()
                 if (runtimeStarted) {
                     nwcWallet.close()
@@ -241,18 +194,3 @@ internal class NwcRuntime(
         }
     }
 }
-
-internal const val NWC_SCHEME = "nostr+walletconnect"
-private const val LIGHTNING_SCHEME = "lightning"
-
-private fun normalizeNwcUri(uri: String): String =
-    if (uri.startsWith("$NWC_SCHEME://", ignoreCase = true)) {
-        uri
-    } else {
-        val value = uri.substringAfter(":", missingDelimiterValue = "").trimStart('/')
-        "$NWC_SCHEME://$value"
-    }
-
-private fun isPaymentScheme(scheme: String): Boolean =
-    scheme.equals(LIGHTNING_SCHEME, ignoreCase = true) ||
-        scheme.equals("lnurlp", ignoreCase = true)

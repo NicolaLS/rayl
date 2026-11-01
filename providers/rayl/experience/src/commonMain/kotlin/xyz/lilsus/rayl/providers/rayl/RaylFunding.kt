@@ -17,7 +17,7 @@ internal enum class FundingPresentation {
     /** It was handed to another wallet app. */
     InWallet,
 
-    /** No other wallet app could open it, so Rayl shows it to be scanned or copied. */
+    /** No wallet app could open it, so Rayl shows it to be scanned or copied. */
     Shown
 }
 
@@ -35,7 +35,8 @@ internal sealed interface FundingState {
 
 /**
  * Adding funds to Rayl's wallet: an amountless invoice that the user's other wallet opens, so the
- * amount is chosen there. Rayl only shows the invoice when no other wallet app can take it.
+ * amount is chosen there. Rayl only shows the invoice when no wallet app can take it; Rayl itself
+ * does not handle `lightning:` links, so the invoice never comes back to the wallet it funds.
  */
 internal class RaylFunding(
     private val createInvoice: suspend (description: String) -> String,
@@ -78,17 +79,6 @@ internal class RaylFunding(
     fun openedInWallet() = present(FundingPresentation.InWallet)
 
     fun showInvoice() = present(FundingPresentation.Shown)
-
-    /**
-     * True for a payment link carrying the unpaid funding invoice. Where Rayl cannot exclude
-     * itself from the apps that open `lightning:` links (iOS), the invoice can come back to Rayl;
-     * it is then shown rather than paid from the wallet it would fund.
-     */
-    fun isOwnInvoice(uri: String): Boolean {
-        val awaiting = mutableState.value as? FundingState.Awaiting ?: return false
-        val invoice = uri.trim().removePrefix("lightning:").removePrefix("LIGHTNING:")
-        return invoice.equals(awaiting.invoice, ignoreCase = true)
-    }
 
     fun reset() {
         mutableState.value = FundingState.Idle

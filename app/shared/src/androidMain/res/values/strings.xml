@@ -9,12 +9,8 @@
     <string name="nwc_body">Connect a compatible wallet using its NWC connection link.</string>
     <string name="spark_title">Spark</string>
     <string name="spark_body">Import your Spark wallet with its recovery phrase.</string>
-    <string name="connection_exists">Go back to Rayl in Settings before connecting another wallet.</string>
-    <string name="connect_to_pay">Finish connecting your wallet, then reopen the payment request.</string>
-    <string name="close">Close</string>
     <string name="wallet_cleanup_failed">Rayl could not finish clearing the previous wallet connection. Retry to continue.</string>
     <string name="wallet_cleanup_retry">Retry</string>
-    <string name="wallet_switch_busy">Wait for the current payment to finish, then open the link again.</string>
     <string name="onboarding_page1_title">Quiet scanner, quick results</string>
     <string name="onboarding_page1_subtitle">It’s working — even if you can’t see the camera.</string>
     <string name="onboarding_page1_body">Rayl scans in the background so checkout stays smooth. Aim at the code, wait a beat, and you’re good.</string>

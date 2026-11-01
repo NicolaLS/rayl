@@ -1,6 +1,6 @@
 package xyz.lilsus.rayl.providers.nwc.feature.onboarding
 
-/** The NWC URI captured from a deep link until the connection flow can confirm it. */
+/** The NWC URI entered, pasted or scanned, held until the confirmation step loads it. */
 class NwcConnectionDraft {
     var uri: String? = null
         private set

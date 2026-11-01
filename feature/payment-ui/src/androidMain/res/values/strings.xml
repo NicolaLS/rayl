@@ -16,7 +16,6 @@
     <string name="toast_bitcoin_address">This is a Bitcoin address. Ask for a Lightning invoice.</string>
     <string name="toast_bolt12_not_supported">BOLT12 offers are not yet supported.</string>
     <string name="toast_lnurl_request_not_supported">This LNURL request cannot be paid.</string>
-    <string name="toast_payment_link_not_supported">This payment link is not supported.</string>
     <string name="enter_amount_title">Enter amount</string>
     <string name="enter_amount_backspace">Delete last character</string>
     <string name="enter_amount_too_low">Amount is too low.</string>

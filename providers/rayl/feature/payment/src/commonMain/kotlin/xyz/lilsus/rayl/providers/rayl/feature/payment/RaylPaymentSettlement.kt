@@ -29,7 +29,7 @@ class RaylPayment internal constructor(
  */
 class RaylPaymentSettlement(private val pocket: PocketPayments) : PaymentSettlement<RaylPayment> {
     override suspend fun prepare(request: PreparedPayment): SettlementPreparation<RaylPayment> {
-        PocketTimings.mark("payment admitted (${request.source})")
+        PocketTimings.mark("payment admitted")
         val overrideMsats = request.amountOverrideMsats
         if (overrideMsats != null && overrideMsats % MSATS_PER_SAT != 0L) {
             return unavailable(RaylPaymentError.SubSatoshiAmount)

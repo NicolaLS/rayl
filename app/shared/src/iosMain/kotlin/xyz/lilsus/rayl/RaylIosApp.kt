@@ -6,22 +6,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import xyz.lilsus.rayl.providers.blink.BlinkDeepLinks
 import xyz.lilsus.rayl.providers.blink.BlinkIosExperience
-import xyz.lilsus.rayl.providers.nwc.NwcDeepLinks
 import xyz.lilsus.rayl.providers.nwc.NwcIosExperience
 import xyz.lilsus.rayl.providers.rayl.RaylIosExperience
-import xyz.lilsus.rayl.providers.rayl.RaylPaymentLinks
 import xyz.lilsus.rayl.providers.rayl.RaylWalletOption
-import xyz.lilsus.rayl.providers.rayl.RaylWalletRequests
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPasskeyAuthenticator
 import xyz.lilsus.rayl.providers.rayl.startRaylPocketEarly
 import xyz.lilsus.rayl.providers.spark.SparkAppHost
-import xyz.lilsus.rayl.providers.spark.SparkDeepLinks
 import xyz.lilsus.rayl.providers.spark.SparkEnvironment
 import xyz.lilsus.rayl.providers.spark.SparkIosExperience
 import xyz.lilsus.rayl.providers.spark.createIOSAppHost
@@ -49,8 +43,7 @@ class RaylSnapshot(
     val closingSpark: Boolean,
     val sparkCloseFailed: Boolean,
     val colorScheme: String,
-    val text: Map<String, String>,
-    val message: String?
+    val text: Map<String, String>
 )
 
 private data class RaylExperienceState(
@@ -71,7 +64,6 @@ object RaylIosApp {
     }
     private val language = createLanguageRepository()
     private val experienceState = MutableStateFlow(RaylExperienceState())
-    private val messageKey = MutableStateFlow<String?>(null)
     private var rayl: RaylIosExperience? = null
     private var blink: BlinkIosExperience? = null
     private var nwc: NwcIosExperience? = null
@@ -80,56 +72,8 @@ object RaylIosApp {
     private var raylFactory: (() -> RaylIosExperience)? = null
     private var cancellations = emptyList<() -> Unit>()
 
-    // A connection link that waits for Rayl's wallet to close before its setup starts.
-    private var pendingNwcLink: String? = null
-
     init {
         retryWalletCleanup()
-        scope.launch {
-            RaylWalletRequests.rejections.collect {
-                pendingNwcLink = null
-                messageKey.value = "wallet_switch_busy"
-            }
-        }
-        scope.launch {
-            RaylDeepLinks.events.collect { uri ->
-                // Links wait for Rayl's onboarding; wallets then queue them until they are ready.
-                appOnboarding.step.first { it == AppOnboardingStep.Complete }
-                selection.preparation.first { it == WalletPreparation.Ready }
-                val selected = selection.external.value
-                val hasConnection = when (selected) {
-                    ExternalWallet.Blink -> blinkExperience()?.isConnected() == true
-
-                    ExternalWallet.Nwc -> nwcExperience()?.isConnected() == true
-
-                    // FIXME: Spark cold-start isConnected() is false while async restore is still
-                    // Loading, which can reject a cold-start payment deep link.
-                    ExternalWallet.Spark -> sparkExperience()?.isConnected() == true
-
-                    // Rayl's wallet queues links while it connects or shows its terms.
-                    null -> true
-                }
-                if (uri.substringBefore(':').equals("nostr+walletconnect", true)) {
-                    if (selected == null) {
-                        pendingNwcLink = uri
-                        RaylWalletRequests.request(ExternalWallet.Nwc.id)
-                    } else if (selected == ExternalWallet.Nwc && !hasConnection) {
-                        NwcDeepLinks.emit(uri)
-                    } else {
-                        messageKey.value = "connection_exists"
-                    }
-                } else if (!hasConnection) {
-                    messageKey.value = "connect_to_pay"
-                } else {
-                    when (selected) {
-                        null -> RaylPaymentLinks.emit(uri)
-                        ExternalWallet.Blink -> BlinkDeepLinks.emit(uri)
-                        ExternalWallet.Nwc -> NwcDeepLinks.emit(uri)
-                        ExternalWallet.Spark -> SparkDeepLinks.emit(uri)
-                    }
-                }
-            }
-        }
     }
 
     /**
@@ -169,20 +113,17 @@ object RaylIosApp {
                 ) { external, _, preparation -> external to preparation },
                 appOnboarding.step.map { it == AppOnboardingStep.Complete },
                 experienceState,
-                language.preference,
-                messageKey
+                language.preference
             ) {
                     selectionState,
                     welcome,
                     experience,
-                    _,
-                    message
+                    _
                 ->
                 val (external, preparation) = selectionState
                 val ready = preparation == WalletPreparation.Ready
                 val keys =
                     listOf(
-                        "close",
                         "wallet_cleanup_failed",
                         "wallet_cleanup_retry"
                     )
@@ -259,10 +200,7 @@ object RaylIosApp {
                     } else {
                         experience.colorScheme
                     },
-                    text,
-                    message?.let {
-                        nativeString(NativeStringResource("RaylApp", it))
-                    }
+                    text
                 )
             }.collect(onChange)
         }
@@ -270,15 +208,10 @@ object RaylIosApp {
     }
 
     fun onboardingController(): RaylAppOnboardingController = onboardingController
-    fun dismissMessage() {
-        messageKey.value = null
-    }
 
     /** Starts setup of an external wallet once Rayl's wallet has closed its session for it. */
     private fun useWallet(id: String) {
         val wallet = ExternalWallet.fromId(id)
-        val link = pendingNwcLink
-        pendingNwcLink = null
         if (wallet == null ||
             selection.external.value != null ||
             selection.preparation.value != WalletPreparation.Ready
@@ -286,9 +219,7 @@ object RaylIosApp {
             return
         }
         unmount()
-        RaylPaymentLinks.clear()
         selection.choose(wallet)
-        if (wallet == ExternalWallet.Nwc) link?.let(NwcDeepLinks::emit)
     }
 
     private fun externalWalletOptions(): List<RaylWalletOption> =
@@ -502,17 +433,11 @@ object RaylIosApp {
                 sparkCloseFailed = false
             )
         }
-        messageKey.value = null
     }
 
     /** After the external wallet was removed or its setup cancelled. */
     private fun backToRayl() {
         unmount()
-        RaylDeepLinks.clear()
-        BlinkDeepLinks.clear()
-        NwcDeepLinks.clear()
-        RaylPaymentLinks.clear()
-        SparkDeepLinks.clear()
         selection.clear()
         retryWalletCleanup()
     }

@@ -33,9 +33,6 @@ fun PaymentUiTextKey.androidStringResource(): Int = when (this) {
     PaymentUiTextKey.ToastLnurlRequestNotSupported ->
         R.string.toast_lnurl_request_not_supported
 
-    PaymentUiTextKey.ToastPaymentLinkNotSupported ->
-        R.string.toast_payment_link_not_supported
-
     PaymentUiTextKey.TransactionFee -> R.string.transaction_fee
 
     PaymentUiTextKey.TransactionStatusAlreadyPaid -> R.string.transaction_status_already_paid

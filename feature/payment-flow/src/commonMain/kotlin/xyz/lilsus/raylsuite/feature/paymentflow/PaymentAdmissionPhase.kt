@@ -33,19 +33,10 @@ internal class PaymentAdmissionPhase(
     private val inputParser = preparation.inputParser
     private val manualAmount = preparation.manualAmount
 
-    suspend fun handlePaymentInput(
-        rawInput: String,
-        source: PaymentRequestSource
-    ): AdmissionResult {
+    suspend fun handlePaymentInput(rawInput: String): AdmissionResult {
         if (presentation.uiState.value != PaymentUiState.Active) return AdmissionResult.Presented
         preparation.manualEntryContext = null
-        val parseResult =
-            if (source == PaymentRequestSource.DeepLink) {
-                inputParser.parseDeepLink(rawInput)
-            } else {
-                inputParser.parse(rawInput)
-            }
-        return when (val result = parseResult) {
+        return when (val result = inputParser.parse(rawInput)) {
             is LightningInputParser.ParseResult.Failure -> {
                 handleParseFailure(result.reason)
                 AdmissionResult.Presented
@@ -61,19 +52,18 @@ internal class PaymentAdmissionPhase(
                             }
                         if (rejectExpiredInvoice(target.invoice)) return AdmissionResult.Presented
                         notifyScanSuccess()
-                        processBoltInvoice(target.invoice, source)
+                        processBoltInvoice(target.invoice)
                     }
 
                     is LightningInputParser.Target.Lnurl -> {
                         notifyScanSuccess()
-                        fetchLnurl(target.endpoint, source)
+                        fetchLnurl(target.endpoint)
                     }
 
                     is LightningInputParser.Target.LightningAddressTarget -> {
                         notifyScanSuccess()
                         resolveLightningAddress(
                             address = target.address,
-                            paymentSource = source,
                             targetContext = HubTargetContext(null, target.address, isPreset = false)
                         )
                     }
@@ -154,7 +144,6 @@ internal class PaymentAdmissionPhase(
                         invoice = context.invoice,
                         amountOverrideMsats = paymentQuote.amountMsats,
                         isManualEntry = true,
-                        source = context.source,
                         paymentQuote = paymentQuote
                     )
                 )
@@ -262,9 +251,6 @@ internal class PaymentAdmissionPhase(
                     PaymentUiError.InvalidInvoice("Invalid LNURL request")
                 )
 
-            LightningInputParser.FailureReason.UnsupportedDeepLink ->
-                presentation.showToast(PaymentToastMessage.PaymentLinkNotSupported)
-
             is LightningInputParser.FailureReason.InvalidInvoice ->
                 presentation.presentError(PaymentUiError.InvalidInvoice(reason.reason))
 
@@ -273,10 +259,7 @@ internal class PaymentAdmissionPhase(
         }
     }
 
-    private fun processBoltInvoice(
-        invoice: Bolt11Invoice,
-        source: PaymentRequestSource
-    ): AdmissionResult {
+    private fun processBoltInvoice(invoice: Bolt11Invoice): AdmissionResult {
         val entry =
             manualAmount.reset(
                 ManualAmountConfig(
@@ -286,33 +269,26 @@ internal class PaymentAdmissionPhase(
                 clearInput = true
             )
         return if (invoice.amount == null) {
-            preparation.manualEntryContext = ManualEntryContext.Bolt(invoice, source)
+            preparation.manualEntryContext = ManualEntryContext.Bolt(invoice)
             presentation.showManualAmount(entry)
             AdmissionResult.Presented
         } else {
             AdmissionResult.Payment(
                 PreparedPayment(
                     invoice = invoice,
-                    amountOverrideMsats = null,
-                    source = source
+                    amountOverrideMsats = null
                 )
             )
         }
     }
 
-    private suspend fun fetchLnurl(
-        endpoint: String,
-        paymentSource: PaymentRequestSource
-    ): AdmissionResult {
+    private suspend fun fetchLnurl(endpoint: String): AdmissionResult {
         presentation.showLoading(LoadingKind.Resolving)
         val result = lnurlPayClient.fetchPayParams(endpoint)
         currentCoroutineContext().ensureActive()
         return when (result) {
             is LnurlResult.Success ->
-                handleLnurlParams(
-                    params = result.data,
-                    paymentSource = paymentSource
-                )
+                handleLnurlParams(params = result.data)
 
             is LnurlResult.Error -> {
                 presentation.presentError(result.error.toPaymentUiError())
@@ -323,7 +299,6 @@ internal class PaymentAdmissionPhase(
 
     private suspend fun resolveLightningAddress(
         address: LightningAddress,
-        paymentSource: PaymentRequestSource,
         targetContext: HubTargetContext? = null,
         presetQuote: PaymentAmountQuote? = null,
         targetComment: String? = null
@@ -335,7 +310,6 @@ internal class PaymentAdmissionPhase(
             is LnurlResult.Success ->
                 handleLnurlParams(
                     params = result.data,
-                    paymentSource = paymentSource,
                     targetContext = targetContext,
                     presetQuote = presetQuote,
                     targetComment = targetComment
@@ -357,7 +331,6 @@ internal class PaymentAdmissionPhase(
         notifyScanSuccess()
         return resolveLightningAddress(
             address = address,
-            paymentSource = PaymentRequestSource.Camera,
             targetContext = context,
             presetQuote = paymentQuote,
             targetComment = comment
@@ -366,7 +339,6 @@ internal class PaymentAdmissionPhase(
 
     private suspend fun handleLnurlParams(
         params: LnurlPayParams,
-        paymentSource: PaymentRequestSource,
         targetContext: HubTargetContext? = null,
         presetQuote: PaymentAmountQuote? = null,
         targetComment: String? = null
@@ -394,7 +366,6 @@ internal class PaymentAdmissionPhase(
             LnurlSession(
                 params = params,
                 display = lnurlPayDisplay,
-                paymentSource = paymentSource,
                 targetContext = targetContext,
                 comment = targetComment
             )
@@ -504,7 +475,6 @@ internal class PaymentAdmissionPhase(
                 invoice = invoice,
                 amountOverrideMsats = null,
                 isManualEntry = isManualEntry,
-                source = session.paymentSource,
                 targetContext = session.targetContext,
                 lnurlPayDisplay = session.display,
                 paymentQuote = paymentQuote

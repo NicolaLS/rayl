@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.blink.feature.blinkcontacts.BlinkContactsImporter
 import xyz.lilsus.rayl.providers.blink.feature.payment.BlinkPaymentSettlement
-import xyz.lilsus.rayl.providers.blink.feature.payment.PaymentDeepLinkEvents
 import xyz.lilsus.rayl.providers.blink.integration.blink.createBlinkWallet
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
@@ -27,7 +26,6 @@ import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiState
 import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
-import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
 import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
@@ -136,17 +134,6 @@ internal class BlinkRuntime(
             }
         }
         scope.launch {
-            PaymentDeepLinkEvents.events.collect { uri ->
-                if (!canConnect || storageReset.pending ||
-                    !onboardingState.canEnterApp(blinkWallet.connection.value != null)
-                ) {
-                    return@collect
-                }
-                tabState.requestScan()
-                paymentCoordinator.dispatch(PaymentIntent.DeepLinkReceived(uri))
-            }
-        }
-        scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.
             paymentCoordinator.uiState.collect { state ->
                 if (state != PaymentUiState.Active) tabState.requestScan()
@@ -181,7 +168,6 @@ internal class BlinkRuntime(
                 blinkWallet.close()
                 blinkWallet.disconnect()
             }
-            PaymentDeepLinkEvents.clear()
             storageReset.finish()
             mutableRemoved.value = true
         } catch (error: Exception) {

@@ -16,7 +16,6 @@
     <string name="toast_bitcoin_address">Esto es una dirección Bitcoin. Pide una factura Lightning.</string>
     <string name="toast_bolt12_not_supported">Las ofertas BOLT12 aún no son compatibles.</string>
     <string name="toast_lnurl_request_not_supported">Esta solicitud LNURL no se puede pagar.</string>
-    <string name="toast_payment_link_not_supported">Este enlace de pago no es compatible.</string>
     <string name="enter_amount_title">Introduce el importe</string>
     <string name="enter_amount_backspace">Borrar el último carácter</string>
     <string name="enter_amount_too_low">El importe es demasiado bajo.</string>
