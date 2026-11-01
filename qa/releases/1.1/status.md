@@ -10,7 +10,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | # | Item | State | Artifacts |
 |---|---|---|---|
 | A | Stage 1: audit the existing tests | **Done** (254 → 206 tests, after the Linear cross-check) | [test-audit.md](test-audit.md) |
-| B | Stage 2: minimal host-level suite | Next: M3, then M6, M2/M1, S4, S1, M5/S2, M7 ([audit summary](test-audit.md#stage-1-summary-2026-11-01)) | |
+| B | Stage 2: minimal host-level suite | In progress, see the stage 2 plan below | |
 | M1 | Auto Pay decision table | In progress: policy level done; through the flow next; fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest` (6 tests) |
 | M2 | Payment flow component tests | Not started | |
 | M3 | Settlement classification, four wallets | Not started | |
@@ -26,6 +26,35 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | S1–S6 | Should items | Not started | |
 
 States: Not started · In progress · Blocked (reason) · Done.
+
+## Stage 2 plan (2026-11-01)
+
+Nicola has deferred decisions on requirements and defect fixes for now. Stage 2 therefore
+pins the **current, documented behaviour**:
+- Where the intended behaviour is open, the test is parked with a reason; it asserts
+  neither option.
+- A test that exposes a defect is not committed in a failing state. The defect is drafted
+  for Linear and not fixed.
+
+Slices, in order:
+
+| # | Slice | Risk | Needs |
+|---|---|---|---|
+| 2.1 | Settlement contract for the Rayl and Spark wallets: an uncertain or thrown outcome after submitting is `Unknown`, a `prepare` failure means not paid, cancellation propagates, fees are reported in msat (M3) | PR-04 | Nothing |
+| 2.2 | The same contract for Blink and NWC (M3) | PR-04 | **A test seam** (an interface the settlement depends on) in both settlements: a small production change, waiting for Nicola's OK |
+| 2.3 | Spark removal waits for the credential delete (M6, W2) | PR-08 | Nothing |
+| 2.4 | An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
+| 2.5 | LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
+| 2.6 | Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (S1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
+| 2.7 | Fiat quote: rounding to whole sats and invalid rates (M5, S2) | PR-01, PR-18 | Nothing |
+| 2.8 | Payment flow component tests: each source and outcome through `PaymentFlowCoordinator`, and the Auto Pay table through the flow (M2, M1); check O-02 (M4) | PR-01–PR-04 | Nothing; fee conditions parked (SI-01) |
+
+**Stop point:** after 2.8, or earlier if every remaining slice is blocked. The last step is a
+short stage 2 summary (risk coverage, what's parked and why). Stage 3 (devices, manual and
+static testing) starts only when Nicola says so.
+
+**Parked:** fee-aware Auto Pay conditions (SI-01, not built), capitalised Lightning
+addresses (O-08), the already-paid result per wallet (O-09).
 
 ## Level 1 risk coverage
 
