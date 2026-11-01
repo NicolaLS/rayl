@@ -5,8 +5,11 @@ Executions: [test-log.md](test-log.md).
 
 ## Work items
 
+Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-plan.md#31-current-focus-host-level-tests-only-decided-2026-11-01)).
+
 | # | Item | State | Artifacts |
 |---|---|---|---|
+| A | Stage 1: audit the existing tests | In progress: 1 of 13 modules | [test-audit.md](test-audit.md) |
 | M1 | Auto Pay decision table | In progress: policy level done; through the flow next; fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest` (6 tests) |
 | M2 | Payment flow component tests | Not started | |
 | M3 | Settlement classification, four wallets | Not started | |
@@ -15,7 +18,7 @@ Executions: [test-log.md](test-log.md).
 | M6 | Wallet lifecycle traceability | Not started | |
 | M7 | Pocket key rules | Not started | |
 | M8 | Static reviews (secrets, release config, SDK pins) | Not started | |
-| M9 | `distribution/` review | Not started | |
+| M9 | `distribution/` review | Deferred to stage 3 | |
 | M10 | Release checklist and App Live run | Not started | |
 | M11 | Mainnet protocol and run | Not started | |
 | M12 | Test summary report | Not started | |
@@ -31,7 +34,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 |---|---|---|---|
 | PR-01 Wrong amount | `AmountConversionTest` (4), `ManualAmountControllerTest`, LNURL resolver | M2, M5, M11 | Partly |
 | PR-02 Confirmation skipped | Policy decision table and msat boundary for every threshold step (`PaymentConfirmationPolicyTest`); nothing through the flow | M1 | Partly |
-| PR-03 Duplicate payment | `PaymentOperationTest` (2), `PaymentHistoryTest` | M4 | Partly |
+| PR-03 Duplicate payment | Operation guard and paid-hash lookup, mutation-checked (`PaymentOperationTest`, `PaymentHistoryTest`) | M4 | Partly |
 | PR-04 Outcome misreported | Per-wallet settlement tests (Rayl 5, Spark 6, Blink payment mapping); not run as one shared suite | M2, M3, M4 | Partly |
 | PR-05 Wrong recipient | `LnurlInvoiceResolverTest` | S4 | Partly |
 | PR-06 Fee surprises | None | M1 (once built), S5 | No |

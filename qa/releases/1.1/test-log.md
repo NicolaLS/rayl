@@ -2,6 +2,18 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of `feature/payment-flow` (pilot)
+
+- **Build:** `main` at `8b4855be` plus the improved `PaymentHistoryTest` (uncommitted)
+- **Ran:** 7 mutation checks with `qa/tools/mutate.sh` against
+  `:feature:payment-flow:testAndroidHostTest`, then the module's tests and ktlint.
+- **Result:** 6 mutations killed, 1 survived (`reset` keeping stored receipts). After the
+  improvement all 7 are killed. The module has 10 tests (was 8), 0 failures.
+- **Tool note:** the first version of `mutate.sh` misreported results (it couldn't parse
+  multi-line JUnit XML or count multi-line matches). It was fixed before any result was
+  recorded.
+- Findings: [test-audit.md §1](test-audit.md#1-featurepayment-flow-2026-11-01-pilot).
+
 ## 2026-11-01: M1 policy decision table
 
 - **Build:** `main` at `c3c00e81` plus the rewritten `PaymentConfirmationPolicyTest`

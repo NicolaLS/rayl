@@ -55,7 +55,7 @@ Modules are audited in risk order: Level 1 modules first.
 
 | # | Module | Tests | Risks | Status | Kept | Improved / merged / replaced | Deleted |
 |---|---|---|---|---|---|---|---|
-| 1 | `feature/payment-flow` | 8 | PR-02–PR-04 | Not audited | | | |
+| 1 | `feature/payment-flow` | 8 → 10 | PR-02–PR-04 | Done (pilot) | 7 | 1 improved (split into 3) | 0 |
 | 2 | `feature/payment-settings` | 6 + 3 classes | PR-02 | Policy test rewritten in `8b4855be`; the other 3 classes not audited | | | |
 | 3 | `core/payment` | 26 | PR-05, PR-14 | Not audited | | | |
 | 4 | `core/model` | 10 | PR-01 | Not audited | | | |
@@ -73,3 +73,40 @@ Modules are audited in risk order: Level 1 modules first.
 
 Each audited module adds a section here: a table of test → verdict → reason, mutation
 checks, and gaps.
+
+### 1. `feature/payment-flow` (2026-11-01, pilot)
+
+The 8 tests cover only three small classes: `PaymentHistory`, `PaymentOperation` and
+`PaymentPresentationPhase`. They are good tests: focused on behaviour that matters,
+deterministic (virtual time), with meaningful assertions. One weakness was found by
+mutation.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `PaymentHistoryTest.recentKeepsTenResolvedReceiptsAndOnlyPaidInvoicesPreventResubmission` | **Improve** → split into `onlyPaidInvoicesAreFoundForResubmissionChecks`, `keepsOnlyTheTenMostRecentPaymentsNewestFirst`, `resetForgetsEarlierPaymentsForTheNextSession` | Three behaviours in one test (C6). The reset check missed retained receipts (M7 survived): it only looked at the display list and lookup, which are empty after reset even when the receipts are still stored. The new reset test records a payment after the reset. |
+| `PaymentHistoryTest.currencyChangesKeepSatsAndReceiptDetails` | Keep | Receipts must switch display currency without losing sats, recipient or proof. The fiat values depend on `core/model`'s rule that a non-zero amount never displays as zero; that coupling is acceptable. |
+| `PaymentHistoryTest.alreadyPaidWithoutOriginalSettlementDoesNotInventAReceipt` | Keep | PR-04: an already-paid invoice must not show a receipt the user never paid (M5 killed) |
+| `PaymentOperationTest.busyOperationRejectsOverlappingInputWithoutQueuingOrReplacingIt` | Keep | PR-03: the duplicate-payment guard (M1 killed) |
+| `PaymentOperationTest.cancelledOperationCannotReleaseTheGateForANewerOperation` | Keep | PR-03: a late completion of a cancelled operation must not open the gate (M2 killed) |
+| `PaymentPresentationPhaseTest.dismissingAResultCannotDismissLoading` | Keep | PR-04: a dismiss tap during payment must not hide the in-flight state (M4 killed) |
+| `PaymentPresentationPhaseTest.transactionNavigationMarksOnlyTheSelectedTransactionAsSeen` | Keep | Level 3 behaviour (the new-transaction badge), but cheap and non-trivial set logic |
+| `PaymentPresentationPhaseTest.resetClearsTransientPresentationWithoutRememberingOldTransactions` | Keep | A session reset (e.g. a wallet switch) must not carry state over |
+
+**Mutation checks** (`qa/tools/mutate.sh`; each reverted):
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | `PaymentOperation.launch` no longer ignores input while busy | Killed |
+| M2 | A completed operation clears the gate even if it was replaced | Killed |
+| M3 | Failed receipts count as paid in the resubmission lookup | Killed |
+| M4 | `dismissResult` also dismisses Loading | Killed |
+| M5 | Already-paid results get a receipt | Killed |
+| M6 | History keeps 11 instead of 10 | Killed |
+| M7 | `reset` keeps stored receipts | **Survived** → killed after the improvement |
+
+**Gaps** (for stage 2; about 1,000 of the module's 1,480 lines have no tests):
+- `PaymentFlowCoordinator`, `PaymentAdmissionPhase` (495 lines), `PaymentConfirmationPhase`
+  and `PaymentPreparation`: the whole scan → admit → confirm or Auto Pay → settle → outcome
+  path (M1 through the flow, M2, M4).
+- `PaymentErrorMapping`: how settlement errors become user-facing errors. This is where an
+  uncertain outcome could be shown as a failure (PR-04, M3).
