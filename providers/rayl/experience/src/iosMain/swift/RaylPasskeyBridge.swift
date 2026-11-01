@@ -1,5 +1,7 @@
+import AuthenticationServices
 import BreezSdkSpark
 import Foundation
+import UIKit
 import Shared
 
 /// Rayl's passkeys on iOS: forwards the Kotlin pocket's passkey calls to Breez's Swift
@@ -17,7 +19,8 @@ final class RaylPasskeyBridge: NSObject, RaylPasskeyAuthenticator {
                 rpName: Self.name,
                 userName: Self.name,
                 userDisplayName: Self.name
-            )
+            ),
+            iosOptions: BreezSdkSpark.IOSOptions(anchorProvider: MainThreadPresentationAnchor())
         )
     }
 
@@ -119,3 +122,23 @@ final class RaylPasskeyBridge: NSObject, RaylPasskeyAuthenticator {
         }
     }
 }
+
+/// The key window for the passkey sheet. Breez asks for it on the thread that starts the ceremony,
+/// which is not the main thread here, and its default reads UIKit state there; this reads it on
+/// the main thread instead.
+private final class MainThreadPresentationAnchor: BreezSdkSpark.PasskeyPresentationAnchorProvider {
+    func presentationAnchor() -> ASPresentationAnchor {
+        if Thread.isMainThread { return MainActor.assumeIsolated { Self.keyWindow() } }
+        return DispatchQueue.main.sync { MainActor.assumeIsolated { Self.keyWindow() } }
+    }
+
+    @MainActor
+    private static func keyWindow() -> ASPresentationAnchor {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let active = scenes.first { $0.activationState == .foregroundActive }
+        return active?.windows.first(where: \.isKeyWindow)
+            ?? scenes.flatMap(\.windows).first
+            ?? ASPresentationAnchor()
+    }
+}
+
