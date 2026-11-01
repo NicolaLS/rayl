@@ -25,14 +25,4 @@ class RaylAppOnboardingTest {
         assertTrue(appOnboarded(settings))
         assertEquals(AppOnboardingStep.Complete, RaylAppOnboarding(settings).step.value)
     }
-
-    @Test
-    fun backGoesToThePreviousStep() {
-        val onboarding = RaylAppOnboarding(MapSettings())
-        onboarding.moveTo(AppOnboardingStep.AutoPay)
-        onboarding.back()
-        assertEquals(AppOnboardingStep.Features, onboarding.step.value)
-        onboarding.back()
-        assertEquals(AppOnboardingStep.Welcome, onboarding.step.value)
-    }
 }

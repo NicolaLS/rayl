@@ -2,6 +2,14 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of wallet selection and storage
+
+- **Build:** `main` at `f88de8c6` plus the audit changes (uncommitted)
+- **Ran:** 3 mutation checks, then the tests and ktlint of `app/shared` and the
+  `core/settings` tests.
+- **Result:** 2 killed, 1 equivalent. Both modules pass.
+- Findings: [test-audit.md §11](test-audit.md#11-wallet-selection-and-storage-appshared-coresettings-2026-11-01).
+
 ## 2026-11-01: Audit of the Spark wallet modules
 
 - **Build:** `main` at `f26b25b7` plus the audit changes (uncommitted)

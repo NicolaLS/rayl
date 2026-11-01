@@ -70,7 +70,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 8 | Settlement: `providers/rayl/feature/payment`, `providers/spark/feature/payment` and `SparkPaymentsTest`, `providers/blink/integration/blink`, `providers/nwc/integration/nwc` | 5, 6 + 3, 16, 3 → 31 | PR-04, PR-07, PR-08 | Done | 31 | 0 | 2 |
 | 9 | Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` | 46 → 38 | PR-09, PR-10 | Done | 38 | 0 | 8 |
 | 10 | Spark wallet: `providers/spark/application` (wallet tests), `integration/wallet`, `feature/wallet-connection`, `experience` | 23, 4, 5, 3 → 22 | PR-08 | Done | 22 | 0 | 13 |
-| 11 | Selection and storage: `app/shared`, `core/settings` | 13, 1 | PR-08, PR-12 | Not audited | | | |
+| 11 | Selection and storage: `app/shared`, `core/settings` | 14 → 12 | PR-08, PR-12 | Done | 12 | 0 | 2 |
 | 12 | Blink and NWC onboarding: `blink/experience`, `blink/feature/blink-contacts`, `nwc/experience`, `nwc/feature/onboarding` | 5, 2, 3, 3 | PR-08, PR-15 | Not audited | | | |
 | 13 | Level 3 areas: `feature/payment-hub`, `core/camera`, `core/ui`, `feature/app-shell`, theme, currency and language settings | 10, 4, 1, 2, 6 | PR-24 and others | Not audited | | | |
 
@@ -436,4 +436,28 @@ tests that pin implementation quirks.
 **Observation O-10** (minor, to Nicola): `SparkOnboardingState` treats a restored wallet
 with no stored flag as having completed the intro screens, a fallback for wallets
 configured before the flag existed. Pre-release policy is no legacy fallbacks.
+
+### 11. Wallet selection and storage: `app/shared`, `core/settings` (2026-11-01)
+
+`RaylSelectionTest` traces SPEC-wallet-lifecycle directly and loops over every external
+wallet, and every pair of wallets for switching.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `RaylSelectionTest` (9 kept) | Keep | Abandoned setups are never restored and orphan credentials are erased before choosing; only the configured wallet is restored (R1 killed); removal and switching require cleanup and start fresh; a failed or cancelled cleanup blocks the wallet chooser; late connection events can't bring back a removed wallet; an unknown stored wallet is ignored; Rayl's wallet stays in use until an external setup succeeds |
+| `RaylSelectionTest.externalWalletIdsRoundTrip` | **Delete** | A trivial enum round trip; the stored selection uses a different field |
+| `ConnectionStorageResetTest` (1) | Keep | An interrupted erasure resumes and never touches preferences, contacts, the Hub or another wallet's storage |
+| `RaylAppOnboardingTest.anInterruptedOnboardingStartsOverAtTheWelcome`, `completionIsRememberedAndFinal` | Keep | App onboarding completion decides whether Rayl's wallet is in use |
+| `RaylAppOnboardingTest.backGoesToThePreviousStep` | **Delete** | Cosmetic navigation |
+
+**Mutation checks**
+
+| # | Mutation | Result |
+|---|---|---|
+| R1 | Cleanup also erases the configured wallet | Killed |
+| R2 | A setup is saved as connected before cleanup finished | Survived: equivalent, since `choose` already requires a finished cleanup and `clear` resets both |
+| R3 | Another external wallet can be chosen while one is active | Killed |
+
+**Gaps:** none at this level. Real secure storage (Android encrypted preferences, iOS
+Keychain) is platform code: stage 3.
 

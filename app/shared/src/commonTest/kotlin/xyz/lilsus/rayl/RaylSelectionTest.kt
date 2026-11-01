@@ -171,10 +171,4 @@ class RaylSelectionTest {
         selection.restartRaylWallet()
         assertEquals(external, selection.sessionId)
     }
-
-    @Test
-    fun externalWalletIdsRoundTrip() {
-        ExternalWallet.entries.forEach { assertEquals(it, ExternalWallet.fromId(it.id)) }
-        assertNull(ExternalWallet.fromId("rayl"))
-    }
 }
