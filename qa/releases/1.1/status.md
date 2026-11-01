@@ -45,7 +45,7 @@ Slices, in order:
 | 2.3 | **Done.** Spark removal waits for the credential delete (M6, W2) | PR-08 | Nothing |
 | 2.4 | **Done.** An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
 | 2.5 | **Done.** LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
-| 2.6 | Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (S1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
+| 2.6 | **Done.** Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (S1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
 | 2.7 | Fiat quote: rounding to whole sats and invalid rates (M5, S2) | PR-01, PR-18 | Nothing |
 | 2.8 | Payment flow component tests: each source and outcome through `PaymentFlowCoordinator`, and the Auto Pay table through the flow (M2, M1); check O-02 (M4) | PR-01–PR-04 | Nothing; fee conditions parked (SI-01) |
 
@@ -73,7 +73,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-10 Passkey onboarding | `RaylOnboardingStateTest`, `PocketSetupTest` (no-PRF path) | S3, M10 | Partly |
 | PR-11 Secrets exposed | None | M8 | No |
 | PR-13 Speed | `perfCheck` macrobenchmarks, not run regularly | One lab measurement (optional) | No |
-| PR-14 Unparseable input | Parser and LNURL parsing tests; uppercase, untrimmed and Lightning-address input untested (audit §3) | S1, M10 | Partly |
+| PR-14 Unparseable input | `PaymentInputCorpusTest`: one table of real-world input forms, plus a never-throws property test over 3,000 random inputs (2.6). Camera and real QR codes need stage 3. | S1, M10 | Partly (host level done) |
 | PR-17 Interruptions | None | S3, M10 | No |
 | PR-19 Dependency change | None | M8 (SDK pins) | No |
 | PR-20 Release misconfigured | None | M8, M10 | No |

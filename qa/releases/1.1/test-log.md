@@ -2,6 +2,20 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Stage 2.6, payment input corpus
+
+- **Build:** `main` at `fd3c85c9` plus `PaymentInputCorpusTest` (uncommitted)
+- **Ran:** `core/payment` tests and ktlint, then 8 mutation checks.
+- **Result:** pass. L1, L2, L3 and L5 from the audit are killed by the corpus, and so is
+  dropping the LUD-01 fallback. Removing the bech32 decode guard is killed *only* by the
+  never-throws property test, so the random inputs reach paths the rows don't. Removing the
+  guard around URL-decoding is an equivalent mutant (`Uri.decode` doesn't throw on bad
+  escapes).
+- **Finding (not a defect):** `bitcoin:…?lightning=%zz` is rejected as Unrecognized rather
+  than as a Bitcoin address, because the fallback follows the undecodable value. Only the
+  rejection message differs; the row pins today's result.
+- `LightningInputParserTest` (5 tests) was folded into the corpus, as planned in the audit.
+
 ## 2026-11-01: Stage 2.5, LNURL invoice binding
 
 - **Build:** `main` at `041db645` plus 3 new tests (uncommitted)
