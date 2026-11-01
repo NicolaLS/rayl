@@ -2,6 +2,13 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Stage 2.3, Spark removal and the credential delete
+
+- **Build:** `main` at `599ba873` plus 1 new test (uncommitted)
+- **Ran:** `providers/spark/application` tests and ktlint, then mutation W2.
+- **Result:** pass, which confirms the current code is correct. W2 (removal completes
+  although the credential delete failed) is now killed.
+
 ## 2026-11-01: Stage 2.1, settlement contract for Rayl and Spark
 
 - **Build:** `main` at `750959f4` plus 4 new tests (uncommitted)

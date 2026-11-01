@@ -42,7 +42,7 @@ Slices, in order:
 |---|---|---|---|
 | 2.1 | **Done.** Settlement contract for the Rayl and Spark wallets: an uncertain or thrown outcome after submitting is `Unknown`, a `prepare` failure means not paid, cancellation propagates, fees are reported in msat (M3) | PR-04 | Nothing |
 | 2.2 | The same contract for Blink and NWC (M3) | PR-04 | **A test seam** (an interface the settlement depends on) in both settlements: a small production change, waiting for Nicola's OK |
-| 2.3 | Spark removal waits for the credential delete (M6, W2) | PR-08 | Nothing |
+| 2.3 | **Done.** Spark removal waits for the credential delete (M6, W2) | PR-08 | Nothing |
 | 2.4 | An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
 | 2.5 | LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
 | 2.6 | Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (S1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
@@ -68,7 +68,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-04 Outcome misreported | The Unknown-never-Failed rule and cancellation are protected for Rayl and Spark (2.1). Blink's payment client is well covered, but its settlement and NWC's have no tests (2.2). | M3, M2, M4 | Partly |
 | PR-05 Wrong recipient | LNURL client and resolver, mutation-checked; `description_hash` check untested (audit §3); the code checks it | S4 | Partly |
 | PR-06 Fee surprises | None | M1 (once built), S5 | No |
-| PR-08 Credentials retained | Spark lifecycle and removal, mutation-checked. Test gap: nothing checks that removal waits for the credential delete to succeed (audit §10, W2); the code does. | M6, M10 | Partly |
+| PR-08 Credentials retained | Spark lifecycle and removal, mutation-checked. Removal waiting for the credential delete is now tested (2.3). | M6, M10 | Partly |
 | PR-09 Pocket key lost | Pocket rules and passkey account selection, mutation-checked. The never-replace rule lives only in the platform stores, which have no tests (audit §9). | M7, M10 | Partly |
 | PR-10 Passkey onboarding | `RaylOnboardingStateTest`, `PocketSetupTest` (no-PRF path) | S3, M10 | Partly |
 | PR-11 Secrets exposed | None | M8 | No |

@@ -72,6 +72,29 @@ class WalletRemovalTest {
         assertEquals(1, directories.finishAttempts)
     }
 
+    @Test
+    fun aFailedCredentialDeleteKeepsRemovalPendingUntilItSucceeds() = runTest {
+        // SPEC-wallet-lifecycle: a removed wallet's recovery phrase must not stay on the device.
+        // Deleting the wallet data alone must not complete the removal.
+        val directories = TestDirectories()
+        val vault = TestVault().apply { canDelete = false }
+        val access = newAccess(backgroundScope, vault, directories)
+
+        assertEquals(RemoveWalletResult.RESET_REQUIRED, access.removeWallet())
+        assertEquals(WalletAccessState.ResetRequired, access.state.value)
+        assertFalse(access.removed.value)
+        assertTrue(directories.pending)
+        assertEquals(0, directories.finishAttempts)
+
+        vault.canDelete = true
+        access.retryConnection()
+
+        assertEquals(WalletAccessState.NoWallet, access.state.value)
+        assertTrue(access.removed.value)
+        assertFalse(directories.pending)
+        assertEquals(2, vault.deleteAttempts)
+    }
+
     private fun newAccess(scope: CoroutineScope, vault: CredentialVault, directories: WalletDirectories): DefaultWalletAccess {
         val payments = SparkPayments()
         return DefaultWalletAccess(
@@ -89,6 +112,7 @@ class WalletRemovalTest {
 
 private class TestVault : CredentialVault {
     var deleteAttempts = 0
+    var canDelete = true
 
     override suspend fun load(): CredentialLoadResult = error("Cleanup must not load credentials")
 
@@ -96,7 +120,7 @@ private class TestVault : CredentialVault {
 
     override suspend fun delete(): CredentialDeleteResult {
         deleteAttempts += 1
-        return CredentialDeleteResult.DELETED
+        return if (canDelete) CredentialDeleteResult.DELETED else CredentialDeleteResult.FAILED
     }
 }
 
