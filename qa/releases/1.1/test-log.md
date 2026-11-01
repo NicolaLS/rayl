@@ -2,6 +2,33 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: End of stage 2, full gate
+
+- **Build:** `main` at `d60fac41` plus slice 2.8 (uncommitted, committed right after)
+- **Ran:** `./gradlew cleanTestAndroidHostTest testAndroidHostTest :backend:rayl:cleanTest :backend:rayl:test ktlintCheck verifyModuleDependencies verifyNativeLocalizations`
+- **Result:** all checks pass. **227 tests in 54 classes, 0 failures, 17 s.**
+
+## 2026-11-01: Stage 2.8, payment flow component tests
+
+- **Build:** `main` at `d60fac41` plus `PaymentFlowCoordinatorTest` (12 tests) and the
+  `multiplatform-settings` test dependencies for `feature/payment-flow`
+- **Ran:** the module's tests and ktlint, then 9 mutation checks (F1–F9) over confirmation,
+  manual entry, outcome recording, duplicate lookup, expiry and Hub presets.
+- **Result:** pass; every mutation killed by the test meant for it.
+
+## 2026-11-01: `mutate.sh` fix and re-verification
+
+- **Problem:** a mutant that didn't compile (the first F4) ran no tests, and `mutate.sh`
+  read the previous run's result files as fresh: it compared file times against a start
+  time rounded to whole seconds. So F4 was reported as killed by the wrong test.
+- **Fix:** the tool now deletes the module's result files before each run, forces a fresh
+  run with `--rerun`, and reports a mutant that doesn't compile as INVALID.
+- **Re-verified** every earlier result where consecutive mutations in one module reported
+  the same tests: P2, N1b, L2, L3, L5 and L6 still hold. **A2 (audit §5) was invalid**:
+  that mutant never compiled. A compilable A2 is killed by
+  `roundTripPreservesExactSatsUntilTheUserEditsFiat`, so the audit's verdict stands. F4 redone
+  with a compilable mutant: killed by `aPaidInvoiceScannedAgainOpensItsReceiptInsteadOfPaying`.
+
 ## 2026-11-01: Stage 2.7, fiat quote rounding and invalid rates
 
 - **Build:** `main` at `82b3d8ef` plus 2 new tests (uncommitted)

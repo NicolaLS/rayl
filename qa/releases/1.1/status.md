@@ -11,10 +11,10 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 |---|---|---|---|
 | A | Stage 1: audit the existing tests | **Done** (254 → 206 tests, after the Linear cross-check) | [test-audit.md](test-audit.md) |
 | B | Stage 2: minimal host-level suite | In progress, see the stage 2 plan below | |
-| M1 | Auto Pay decision table | In progress: policy level done; through the flow next; fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest` (6 tests) |
-| M2 | Payment flow component tests | Not started | |
+| M1 | Auto Pay decision table | Done for today's rules (policy and through the flow); fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest`, `PaymentFlowCoordinatorTest` |
+| M2 | Payment flow component tests | Done (2.8): camera, manual entry and Hub preset sources; Paid, Failed, Unknown, unavailable and expired outcomes | `PaymentFlowCoordinatorTest` (12) |
 | M3 | Settlement classification, four wallets | In progress: Rayl and Spark done (2.1); Blink and NWC need a test seam (2.2) | `RaylPaymentSettlementTest`, `SparkPaymentSettlementTest` |
-| M4 | Duplicate payment, O-02 | Not started | |
+| M4 | Duplicate payment, O-02 | Host level done: in-flight guard and paid-invoice rescan through the flow (2.8). O-02 parked for stage 3. | `PaymentFlowCoordinatorTest` |
 | M5 | Conversion boundaries | Fiat quote rounding done (2.7); amount entry was already covered (audit §5) | `PaymentCurrencyManagerTest` |
 | M6 | Wallet lifecycle traceability | Not started | |
 | M7 | Pocket key rules | Host-level part done (2.4); the platform stores need stage 3 | `RaylPocketTest` |
@@ -47,7 +47,7 @@ Slices, in order:
 | 2.5 | **Done.** LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
 | 2.6 | **Done.** Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (S1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
 | 2.7 | **Done.** Fiat quote: rounding to whole sats and invalid rates (M5, S2) | PR-01, PR-18 | Nothing |
-| 2.8 | Payment flow component tests: each source and outcome through `PaymentFlowCoordinator`, and the Auto Pay table through the flow (M2, M1); check O-02 (M4) | PR-01–PR-04 | Nothing; fee conditions parked (SI-01) |
+| 2.8 | **Done.** Payment flow component tests: each source and outcome through `PaymentFlowCoordinator`, and the Auto Pay table through the flow (M2, M1); check O-02 (M4) | PR-01–PR-04 | Nothing; fee conditions parked (SI-01). O-02 can't be checked on the host (below). |
 
 **Stop point:** after 2.8, or earlier if every remaining slice is blocked. The last step is a
 short stage 2 summary (risk coverage, what's parked and why). Stage 3 (devices, manual and
@@ -62,9 +62,9 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 
 | Risk | Today | Planned for 1.1 | Covered? |
 |---|---|---|---|
-| PR-01 Wrong amount | `AmountConversionTest` (4), `ManualAmountControllerTest`, LNURL resolver | M2, M5, M11 | Partly |
-| PR-02 Confirmation skipped | Policy decision table and msat boundary for every threshold step (`PaymentConfirmationPolicyTest`); nothing through the flow | M1 | Partly |
-| PR-03 Duplicate payment | Operation guard and paid-hash lookup, mutation-checked (`PaymentOperationTest`, `PaymentHistoryTest`) | M4 | Partly |
+| PR-01 Wrong amount | Amount entry, display and fiat quote rounding; the entered amount is paid exactly through the flow (2.7, 2.8). Real wallets and mainnet need stage 3. | M2, M5, M11 | Partly (host level done) |
+| PR-02 Confirmation skipped | Policy decision table, and through the flow: threshold, Always mode, dismissal, manual entry, Hub preset (2.8). Fee conditions wait for SI-01. | M1 | Yes for today's rules |
+| PR-03 Duplicate payment | Operation guard, paid-hash lookup and QR presence gate, also through the flow (2.8). After a restart, protection relies on each wallet (O-07, stage 3). | M4 | Partly (host level done) |
 | PR-04 Outcome misreported | The Unknown-never-Failed rule and cancellation are protected for Rayl and Spark (2.1). Blink's payment client is well covered, but its settlement and NWC's have no tests (2.2). | M3, M2, M4 | Partly |
 | PR-05 Wrong recipient | LNURL client and resolver, mutation-checked, including `description_hash` binding and amountless invoices (2.5) | S4 | Partly |
 | PR-06 Fee surprises | None | M1 (once built), S5 | No |
@@ -84,10 +84,34 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | ID | Summary | Severity | State |
 |---|---|---|---|
 | O-01 | Settings and onboarding copy say the threshold amount pays automatically; it asks for confirmation (decided: the code is right) | S4 | Filed: [MOB-88](https://linear.app/nicola-susca/issue/MOB-88) |
-| O-02 | Spark may reset an in-flight payment session | Unknown | To check (M4) |
+| O-02 | Spark may reset an in-flight payment session | Unknown | Parked for stage 3: the unguarded reset is called from Android Compose code (`SparkExperience.kt`), which host tests can't drive. Rayl and Blink guard it in common code. |
 | O-04 | Terms and privacy policy don't mention the built-in wallet | S2 (release blocker by exit criterion 6) | To review (M9) |
 | O-05 | No screen-capture protection for credentials on Android | Pending decision | Open (D-06) |
 | O-07 | Duplicate detection after a restart relies on each wallet | Unknown | To check (M11) |
 | O-09 | Rescanning an already-paid invoice: Blink shows success (already paid), Rayl and Spark show an error | S3 (parity) | Product decision needed |
 | O-10 | Legacy default in `SparkOnboardingState` (restored wallets skip the intro screens) | S4 | For Nicola: remove under the pre-release policy |
 | O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 if the decision is to accept it | Product decision needed |
+
+## Stage 2 summary (2026-11-01)
+
+Stage 2 stopped here as planned. Done: 2.1 and 2.3 to 2.8. Waiting: 2.2.
+
+- **Suite:** 227 tests in 54 classes, all passing, 17 s of test time (206 after stage 1).
+  Every new test was mutation-checked: each slice's target mutations are killed.
+- **Closed gaps from the audit:** the Unknown-never-Failed rule for Rayl and Spark (S1, S2),
+  Spark removal waiting for the credential delete (W2), the unreadable pocket key (K3),
+  LNURL `description_hash` and amountless invoices (R1, R4), uppercase, untrimmed and
+  Lightning-address input (L1–L5), fiat quote rounding and invalid rates (Q1, Q2), and the
+  whole payment flow, which had no tests before.
+- **Waiting for Nicola:**
+  - 2.2, the settlement contract for Blink and NWC. `BlinkWallet` and `NwcWallet` are final
+    classes with internal constructors, so the settlements can't be tested without a seam
+    (an interface the settlement depends on). That is a small production change, not a
+    requirement decision.
+- **Parked until a decision:** fee-aware Auto Pay (SI-01), capitalised Lightning addresses
+  (O-08), the already-paid result per wallet (O-09).
+- **Left for stage 3:** O-02 (Android UI code), the platform key and credential stores,
+  the real Breez SDK, devices, and everything manual and static.
+- **No new defects found.** One harmless finding: `bitcoin:…?lightning=%zz` is rejected as
+  unrecognised rather than as a Bitcoin address (test log, 2.6).
+
