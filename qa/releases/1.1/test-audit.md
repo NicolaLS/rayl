@@ -71,7 +71,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 9 | Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` | 46 → 38 | PR-09, PR-10 | Done | 38 | 0 | 8 |
 | 10 | Spark wallet: `providers/spark/application` (wallet tests), `integration/wallet`, `feature/wallet-connection`, `experience` | 23, 4, 5, 3 → 22 | PR-08 | Done | 22 | 0 | 13 |
 | 11 | Selection and storage: `app/shared`, `core/settings` | 14 → 12 | PR-08, PR-12 | Done | 12 | 0 | 2 |
-| 12 | Blink and NWC onboarding: `blink/experience`, `blink/feature/blink-contacts`, `nwc/experience`, `nwc/feature/onboarding` | 5, 2, 3, 3 | PR-08, PR-15 | Not audited | | | |
+| 12 | Blink and NWC onboarding: `blink/experience`, `blink/feature/blink-contacts`, `nwc/experience`, `nwc/feature/onboarding` | 13 → 6 | PR-02, PR-05, PR-21 | Done | 6 | 0 | 7 |
 | 13 | Level 3 areas: `feature/payment-hub`, `core/camera`, `core/ui`, `feature/app-shell`, theme, currency and language settings | 10, 4, 1, 2, 6 | PR-24 and others | Not audited | | | |
 
 ## Module findings
@@ -460,4 +460,33 @@ wallet, and every pair of wallets for switching.
 
 **Gaps:** none at this level. Real secure storage (Android encrypted preferences, iOS
 Keychain) is platform code: stage 3.
+
+### 12. Blink and NWC onboarding (2026-11-01)
+
+Mostly onboarding state. What matters is the legal gate (no app entry with a wallet but
+without accepting the terms, PR-21), the onboarding's payment choices (PR-02), and Blink's
+contact import, which builds the Lightning addresses that Hub payments go to.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `BlinkOnboardingStateTest.connectingBeforeInterruptionDoesNotCompleteOnboarding` | Keep | No app entry before the agreement, even with a connected wallet (G1 killed) |
+| `BlinkOnboardingStateTest.completionSurvivesWalletRemovalAndAllowsOnlyConnectedAppEntry` | Keep | App entry needs both completion and a wallet |
+| `BlinkOnboardingStateTest.unfinishedStageResumesAfterRestartAndReconnection`, `freshProviderSetupStartsAtConnection` | **Delete** | The same step matrix checked again |
+| `BlinkOnboardingStateTest.paymentChoicesSurviveAnInterruptedConfigurationStep` | Keep | The only test of the onboarding view model: an "Always confirm" choice made during onboarding is kept (PR-02) |
+| `NwcOnboardingStateTest.interruptedOnboardingRemainsIncompleteAcrossRestart` | Keep | An interrupted onboarding must not count as agreed |
+| `NwcOnboardingStateTest.freshInstallStartsIncomplete`, `completionSurvivesRestartAndWalletRemoval` | **Delete** | A stored boolean's default and round trip |
+| `NwcWalletConnectionOutcomeTest.earlyConnectionResumesOnboarding` | Keep | A connection before the agreement must not complete onboarding (G2 killed) |
+| `NwcWalletConnectionOutcomeTest.connectionAfterAgreementCompletesOnboarding`, `settingsConnectionFinishesSettingsFlow` | **Delete** | The other branches of a two-input `when`; a mistake there is immediately visible |
+| `BlinkContactStorageTest.automaticImportAddsEveryValidDistinctNewContact` | Keep | Imported contacts get the right address: a handle with its own domain keeps it (C1 killed), duplicates and invalid handles are skipped, existing contacts are not overwritten. A wrong domain would send Hub payments to the wrong recipient. |
+| `BlinkContactStorageTest.importingAndRemovingAWidgetDoesNotMutateContacts` | **Delete** | Tests the Hub repository from inside the Blink module; Hub behaviour belongs to module 13 |
+
+**Mutation checks**
+
+| # | Mutation | Result |
+|---|---|---|
+| G1 | Blink allows app entry with a wallet but without the agreement | Killed |
+| G2 | An NWC connection completes onboarding without the agreement | Killed |
+| C1 | An imported handle with its own domain gets Blink's domain | Killed |
+
+**Gaps:** none at this level.
 

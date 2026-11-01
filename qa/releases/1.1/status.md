@@ -9,7 +9,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 
 | # | Item | State | Artifacts |
 |---|---|---|---|
-| A | Stage 1: audit the existing tests | In progress: 11 of 13 modules | [test-audit.md](test-audit.md) |
+| A | Stage 1: audit the existing tests | In progress: 12 of 13 modules | [test-audit.md](test-audit.md) |
 | M1 | Auto Pay decision table | In progress: policy level done; through the flow next; fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest` (6 tests) |
 | M2 | Payment flow component tests | Not started | |
 | M3 | Settlement classification, four wallets | Not started | |

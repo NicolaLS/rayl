@@ -11,20 +11,4 @@ class NwcWalletConnectionOutcomeTest {
             nwcWalletConnectionOutcome(fromSettings = false, hasAgreed = false)
         )
     }
-
-    @Test
-    fun connectionAfterAgreementCompletesOnboarding() {
-        assertEquals(
-            NwcWalletConnectionOutcome.CompleteOnboarding,
-            nwcWalletConnectionOutcome(fromSettings = false, hasAgreed = true)
-        )
-    }
-
-    @Test
-    fun settingsConnectionFinishesSettingsFlow() {
-        assertEquals(
-            NwcWalletConnectionOutcome.FinishSettings,
-            nwcWalletConnectionOutcome(fromSettings = true, hasAgreed = false)
-        )
-    }
 }

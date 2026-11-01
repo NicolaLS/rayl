@@ -2,6 +2,13 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of Blink and NWC onboarding
+
+- **Build:** `main` at `90c1b1b1` plus the audit changes (uncommitted)
+- **Ran:** 3 mutation checks, then the tests and ktlint of the four modules.
+- **Result:** all 3 killed. The modules pass (6 tests).
+- Findings: [test-audit.md §12](test-audit.md#12-blink-and-nwc-onboarding-2026-11-01).
+
 ## 2026-11-01: Audit of wallet selection and storage
 
 - **Build:** `main` at `f88de8c6` plus the audit changes (uncommitted)

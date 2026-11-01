@@ -43,26 +43,4 @@ class BlinkContactStorageTest {
             hub.hub.value.contacts.map { it.title to it.address.full }
         )
     }
-
-    @Test
-    fun importingAndRemovingAWidgetDoesNotMutateContacts() = runTest {
-        val settings = MapSettings()
-        val hub = DefaultPaymentHubRepository(settings)
-        val contact = hub.saveContact(assertNotNull(LightningAddress.parse("alice@example.com")), "Alice")
-        assertTrue(hub.hub.value.widgets.isEmpty())
-        assertTrue(hub.hub.value.targets.isEmpty())
-        val widget = assertNotNull(
-            hub.saveWidget(
-                HubWidgetDraft(
-                    "local.contacts",
-                    HubWidgetKind.Contacts,
-                    LocalHubWidgets.Single,
-                    contactIds = listOf(contact.id)
-                )
-            )
-        )
-        hub.deleteWidget(widget.id)
-        assertEquals(listOf(contact), DefaultPaymentHubRepository(settings).hub.value.contacts)
-        assertTrue(hub.hub.value.widgets.isEmpty())
-    }
 }

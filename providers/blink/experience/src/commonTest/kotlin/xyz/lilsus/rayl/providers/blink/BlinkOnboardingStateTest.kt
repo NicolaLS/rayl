@@ -26,19 +26,6 @@ class BlinkOnboardingStateTest {
     }
 
     @Test
-    fun unfinishedStageResumesAfterRestartAndReconnection() {
-        val settings = MapSettings()
-        BlinkOnboardingState(settings).moveTo(BlinkOnboardingStep.Agreement)
-
-        val restarted = BlinkOnboardingState(settings)
-
-        assertEquals(BlinkOnboardingStep.Agreement, restarted.step.value.destination(walletConnected = true))
-        assertEquals(BlinkOnboardingStep.Connect, restarted.step.value.destination(walletConnected = false))
-        assertFalse(restarted.canEnterApp(walletConnected = false))
-        assertEquals(BlinkOnboardingStep.Agreement, restarted.step.value.destination(walletConnected = true))
-    }
-
-    @Test
     fun completionSurvivesWalletRemovalAndAllowsOnlyConnectedAppEntry() {
         val settings = MapSettings()
         BlinkOnboardingState(settings).moveTo(BlinkOnboardingStep.Complete)
@@ -49,16 +36,6 @@ class BlinkOnboardingStateTest {
         assertFalse(restarted.canEnterApp(walletConnected = false))
         assertTrue(restarted.canEnterApp(walletConnected = true))
         assertEquals(BlinkOnboardingStep.Complete, restarted.step.value.destination(walletConnected = true))
-    }
-
-    @Test
-    fun freshProviderSetupStartsAtConnection() {
-        val state = BlinkOnboardingState(MapSettings())
-
-        assertEquals(BlinkOnboardingStep.Connect, state.step.value)
-        assertEquals(BlinkOnboardingStep.Connect, state.step.value.destination(walletConnected = false))
-        assertEquals(BlinkOnboardingStep.Agreement, state.step.value.destination(walletConnected = true))
-        assertFalse(state.canEnterApp(walletConnected = true))
     }
 
     @Test
