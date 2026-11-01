@@ -10,7 +10,8 @@ import Shared
 /// party, then use `PasskeyProvider.BREEZ_RP_ID` ("keys.breez.technology") in Release builds and
 /// add `webcredentials:keys.breez.technology` to the entitlements. Send Breez the team ID
 /// (TA77463BFV) and bundle ID (com.nicolasusca.rayl). Changing the relying party later changes
-/// every user's wallet, so it must be final before release.
+/// every user's wallet, so it must be final before release. Until then, Release builds offer only
+/// the external wallets (`ReleasePasskeysUnavailable`), like Android release builds.
 private let developmentRelyingParty = "www.nicolasusca.com"
 
 func configureRaylSpark() {
@@ -23,8 +24,11 @@ func configureRaylSpark() {
 #if RAYL_E2E
     // Simulators in automated runs cannot complete passkey ceremonies: use the stand-in passkey.
     let passkeys: RaylPasskeyAuthenticator? = nil
-#else
+#elseif DEBUG
     let passkeys: RaylPasskeyAuthenticator? = RaylPasskeyBridge(rpId: developmentRelyingParty)
+#else
+    // Wallets derived from the development relying party would change when it does.
+    let passkeys: RaylPasskeyAuthenticator? = ReleasePasskeysUnavailable()
 #endif
 #if RAYL_DEBUG && RAYL_PRODUCTION
 #error("Rayl environment conditions are contradictory")
@@ -53,4 +57,31 @@ func configureRaylSpark() {
 #else
 #error("A Rayl environment compilation condition is required")
 #endif
+}
+
+/// Passkeys for Release builds until Rayl has a final relying party: the domain reports as not
+/// associated, so Rayl's wallet is unavailable and onboarding offers the external wallets.
+private final class ReleasePasskeysUnavailable: NSObject, RaylPasskeyAuthenticator {
+    private static let reason = "Rayl has no final passkey relying party yet"
+
+    func deriveSeeds(
+        salts: [String],
+        allowCredentials: [Data],
+        preferImmediatelyAvailable: KotlinBoolean?,
+        completion: @escaping (RaylPasskeySeeds?, RaylPasskeyError?) -> Void
+    ) {
+        completion(nil, RaylPasskeyError(kind: .configuration, message: Self.reason))
+    }
+
+    func createPasskey(
+        excludeCredentials: [Data],
+        salts: [String],
+        completion: @escaping (RaylPasskeyCreated?, RaylPasskeyError?) -> Void
+    ) {
+        completion(nil, RaylPasskeyError(kind: .configuration, message: Self.reason))
+    }
+
+    func checkDomainAssociation(completion: @escaping (RaylPasskeyDomain) -> Void) {
+        completion(RaylPasskeyDomain(kind: .notassociated, source: "Rayl", reason: Self.reason))
+    }
 }
