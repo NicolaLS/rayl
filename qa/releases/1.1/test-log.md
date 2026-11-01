@@ -2,6 +2,15 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Stage 2.1, settlement contract for Rayl and Spark
+
+- **Build:** `main` at `750959f4` plus 4 new tests (uncommitted)
+- **Ran:** the tests and ktlint of `providers/rayl/feature/payment` and
+  `providers/spark/feature/payment`, then 4 mutation checks.
+- **Result:** pass. S1 and S2 from the audit (an exception after submitting becomes
+  `Failed`) and two new ones (cancellation swallowed during `settle`) are all killed by the
+  new tests.
+
 ## 2026-11-01: Linear cross-check of deleted tests
 
 - **Build:** `main` at `902bea96` plus the restored tests (uncommitted)

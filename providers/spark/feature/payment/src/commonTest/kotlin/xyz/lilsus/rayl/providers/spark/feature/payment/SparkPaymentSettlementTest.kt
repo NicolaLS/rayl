@@ -11,7 +11,9 @@ import fr.acinq.lightning.payment.Bolt11Invoice
 import fr.acinq.lightning.utils.toByteVector32
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import xyz.lilsus.rayl.providers.spark.application.payment.SparkPayOutcome
 import xyz.lilsus.rayl.providers.spark.application.payment.SparkPaymentClient
@@ -25,6 +27,29 @@ import xyz.lilsus.raylsuite.feature.paymentflow.SettlementOutcome
 import xyz.lilsus.raylsuite.feature.paymentflow.SettlementPreparation
 
 class SparkPaymentSettlementTest {
+    @Test
+    fun anErrorAfterSubmittingIsUnknownNeverFailed() = runTest {
+        // PaymentSettlement contract: once submitted, a payment that ended without a verdict may
+        // have paid. Reporting it as failed would invite the user to pay again (PR-04).
+        val client = FakeClient(SparkQuoteResult.Quoted(Quote(feeSats = 1)))
+        val settlement = settlement(client)
+        val ready = settlement.prepare(payment()) as SettlementPreparation.Ready<SparkPayment>
+        client.payFailure = IllegalStateException("connection reset after submit")
+
+        assertIs<SettlementOutcome.Unknown>(settlement.settle(ready.payment))
+    }
+
+    @Test
+    fun cancellationDuringSettleIsPropagatedNotReported() = runTest {
+        // A cancelled session must not record an outcome for a payment it no longer observes.
+        val client = FakeClient(SparkQuoteResult.Quoted(Quote(feeSats = 1)))
+        val settlement = settlement(client)
+        val ready = settlement.prepare(payment()) as SettlementPreparation.Ready<SparkPayment>
+        client.payFailure = CancellationException("session reset")
+
+        assertFailsWith<CancellationException> { settlement.settle(ready.payment) }
+    }
+
     @Test
     fun quotesAmountlessInvoicesInWholeSats() = runTest {
         val client = FakeClient(SparkQuoteResult.Quoted(Quote(feeSats = 3)))
@@ -125,6 +150,7 @@ private class FakeClient(private val quoteResult: SparkQuoteResult) : SparkPayme
     var quotes = 0
     var quotedAmountSats: Long? = null
     var outcome: SparkPayOutcome = SparkPayOutcome.Failed(SparkPaymentProblem.Other, null)
+    var payFailure: Throwable? = null
 
     override suspend fun quote(invoice: String, amountSats: Long?): SparkQuoteResult {
         quotes++
@@ -132,5 +158,8 @@ private class FakeClient(private val quoteResult: SparkQuoteResult) : SparkPayme
         return quoteResult
     }
 
-    override suspend fun pay(quote: SparkQuote): SparkPayOutcome = outcome
+    override suspend fun pay(quote: SparkQuote): SparkPayOutcome {
+        payFailure?.let { throw it }
+        return outcome
+    }
 }

@@ -11,7 +11,9 @@ import fr.acinq.lightning.payment.Bolt11Invoice
 import fr.acinq.lightning.utils.toByteVector32
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPayOutcome
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPaymentProblem
@@ -24,6 +26,29 @@ import xyz.lilsus.raylsuite.feature.paymentflow.SettlementOutcome
 import xyz.lilsus.raylsuite.feature.paymentflow.SettlementPreparation
 
 class RaylPaymentSettlementTest {
+    @Test
+    fun anErrorAfterSubmittingIsUnknownNeverFailed() = runTest {
+        // PaymentSettlement contract: once submitted, a payment that ended without a verdict may
+        // have paid. Reporting it as failed would invite the user to pay again (PR-04).
+        val pocket = FakePocket(PocketQuoteResult.Quoted(Quote(feeSats = 1)))
+        val settlement = RaylPaymentSettlement(pocket)
+        val ready = settlement.prepare(payment()) as SettlementPreparation.Ready<RaylPayment>
+        pocket.payFailure = IllegalStateException("connection reset after submit")
+
+        assertIs<SettlementOutcome.Unknown>(settlement.settle(ready.payment))
+    }
+
+    @Test
+    fun cancellationDuringSettleIsPropagatedNotReported() = runTest {
+        // A cancelled session must not record an outcome for a payment it no longer observes.
+        val pocket = FakePocket(PocketQuoteResult.Quoted(Quote(feeSats = 1)))
+        val settlement = RaylPaymentSettlement(pocket)
+        val ready = settlement.prepare(payment()) as SettlementPreparation.Ready<RaylPayment>
+        pocket.payFailure = CancellationException("session reset")
+
+        assertFailsWith<CancellationException> { settlement.settle(ready.payment) }
+    }
+
     @Test
     fun quotesAmountlessInvoicesInWholeSats() = runTest {
         val pocket = FakePocket(PocketQuoteResult.Quoted(Quote(feeSats = 3)))
@@ -115,6 +140,7 @@ private class FakePocket(private val quoteResult: PocketQuoteResult) : PocketPay
     var quotes = 0
     var quotedAmountSats: Long? = null
     var outcome: PocketPayOutcome = PocketPayOutcome.Failed(PocketPaymentProblem.Other, null)
+    var payFailure: Throwable? = null
 
     override suspend fun quote(invoice: String, amountSats: Long?): PocketQuoteResult {
         quotes++
@@ -122,5 +148,8 @@ private class FakePocket(private val quoteResult: PocketQuoteResult) : PocketPay
         return quoteResult
     }
 
-    override suspend fun pay(quote: PocketQuote): PocketPayOutcome = outcome
+    override suspend fun pay(quote: PocketQuote): PocketPayOutcome {
+        payFailure?.let { throw it }
+        return outcome
+    }
 }

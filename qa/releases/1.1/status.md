@@ -13,7 +13,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | B | Stage 2: minimal host-level suite | In progress, see the stage 2 plan below | |
 | M1 | Auto Pay decision table | In progress: policy level done; through the flow next; fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest` (6 tests) |
 | M2 | Payment flow component tests | Not started | |
-| M3 | Settlement classification, four wallets | Not started | |
+| M3 | Settlement classification, four wallets | In progress: Rayl and Spark done (2.1); Blink and NWC need a test seam (2.2) | `RaylPaymentSettlementTest`, `SparkPaymentSettlementTest` |
 | M4 | Duplicate payment, O-02 | Not started | |
 | M5 | Conversion boundaries | Not started | |
 | M6 | Wallet lifecycle traceability | Not started | |
@@ -40,7 +40,7 @@ Slices, in order:
 
 | # | Slice | Risk | Needs |
 |---|---|---|---|
-| 2.1 | Settlement contract for the Rayl and Spark wallets: an uncertain or thrown outcome after submitting is `Unknown`, a `prepare` failure means not paid, cancellation propagates, fees are reported in msat (M3) | PR-04 | Nothing |
+| 2.1 | **Done.** Settlement contract for the Rayl and Spark wallets: an uncertain or thrown outcome after submitting is `Unknown`, a `prepare` failure means not paid, cancellation propagates, fees are reported in msat (M3) | PR-04 | Nothing |
 | 2.2 | The same contract for Blink and NWC (M3) | PR-04 | **A test seam** (an interface the settlement depends on) in both settlements: a small production change, waiting for Nicola's OK |
 | 2.3 | Spark removal waits for the credential delete (M6, W2) | PR-08 | Nothing |
 | 2.4 | An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
@@ -65,7 +65,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-01 Wrong amount | `AmountConversionTest` (4), `ManualAmountControllerTest`, LNURL resolver | M2, M5, M11 | Partly |
 | PR-02 Confirmation skipped | Policy decision table and msat boundary for every threshold step (`PaymentConfirmationPolicyTest`); nothing through the flow | M1 | Partly |
 | PR-03 Duplicate payment | Operation guard and paid-hash lookup, mutation-checked (`PaymentOperationTest`, `PaymentHistoryTest`) | M4 | Partly |
-| PR-04 Outcome misreported | Blink's own payment client is well covered. The Unknown-never-Failed rule is unprotected in all four settlements (audit §8). | M3 (first), M2, M4 | **No** for the central rule |
+| PR-04 Outcome misreported | The Unknown-never-Failed rule and cancellation are protected for Rayl and Spark (2.1). Blink's payment client is well covered, but its settlement and NWC's have no tests (2.2). | M3, M2, M4 | Partly |
 | PR-05 Wrong recipient | LNURL client and resolver, mutation-checked; `description_hash` check untested (audit §3); the code checks it | S4 | Partly |
 | PR-06 Fee surprises | None | M1 (once built), S5 | No |
 | PR-08 Credentials retained | Spark lifecycle and removal, mutation-checked. Test gap: nothing checks that removal waits for the credential delete to succeed (audit §10, W2); the code does. | M6, M10 | Partly |
