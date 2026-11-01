@@ -237,7 +237,7 @@ real PR-01 guards; several others were redundant or exotic.
 | # | Mutation | Result |
 |---|---|---|
 | A1 | The sats equivalent rounds down instead of up | Killed |
-| A2 | A currency round trip doesn't restore the original entry | Killed |
+| A2 | A currency round trip doesn't restore the original entry | Killed (by `roundTripPreservesExactSatsUntilTheUserEditsFiat`). The first A2 mutant didn't compile and was misreported from stale results; redone 2026-11-01 with the fixed tool. |
 | A3 | The range check uses unrounded msats | Killed |
 | A4 | Below-minimum isn't reported | Killed |
 | A5 | Above-maximum isn't reported | Killed |

@@ -33,19 +33,29 @@ trap 'git checkout -- "$file"' EXIT
 # Results are written by the module that owns the test task, which may differ from the mutated
 # file's module (e.g. a settlement test exercising another module's code).
 module_dir=$(echo "$task" | sed -E 's#^:##; s#:[^:]+$##; s#:#/#g')
-started=$(date +%s)
-if ./gradlew "$task" --quiet >/dev/null 2>&1; then
+results_dir="$module_dir/build/test-results"
+# Old result files must never be mistaken for this run's (a mutant that doesn't compile runs no
+# tests at all).
+rm -rf "$results_dir"
+log=$(mktemp)
+if ./gradlew "$task" --rerun --quiet >"$log" 2>&1; then
   echo "SURVIVED: no test failed"
+  rm -f "$log"
   exit 0
 fi
+if grep -qE '^e: ' "$log"; then
+  echo "INVALID: the mutant does not compile"
+  grep -E '^e: ' "$log" | head -3 | sed 's/^/  /'
+  rm -f "$log"
+  exit 0
+fi
+rm -f "$log"
 
-python3 -I - "$module_dir/build/test-results" "$started" <<'EOF'
-import glob, os, sys, xml.etree.ElementTree as ET
-results, started = sys.argv[1], int(sys.argv[2])
-fresh = [p for p in glob.glob(f"{results}/*/TEST-*.xml") if os.path.getmtime(p) >= started]
+python3 -I - "$results_dir" <<'PY'
+import glob, sys, xml.etree.ElementTree as ET
 failed = [
     f"{case.get('classname').rsplit('.', 1)[-1]}.{case.get('name')}"
-    for path in fresh
+    for path in glob.glob(f"{sys.argv[1]}/*/TEST-*.xml")
     for case in ET.parse(path).getroot().iter("testcase")
     if case.find("failure") is not None or case.find("error") is not None
 ]
@@ -54,5 +64,5 @@ if failed:
     for name in sorted(failed):
         print(f"  {name}")
 else:
-    print("NOT A TEST FAILURE: the build failed before tests reported (e.g. compile error)")
-EOF
+    print("NOT A TEST FAILURE: the build failed for another reason")
+PY
