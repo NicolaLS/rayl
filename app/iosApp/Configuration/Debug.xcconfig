@@ -4,3 +4,5 @@
 RAYL_BREEZ_API_KEY =
 
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) RAYL_DEBUG
+// Rayl's own relying party: its apple-app-site-association lists the development apps.
+RAYL_PASSKEY_RP_ID = www.nicolasusca.com

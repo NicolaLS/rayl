@@ -1,18 +1,15 @@
 package xyz.lilsus.rayl
 
+import xyz.lilsus.rayl.providers.rayl.RaylPasskeys
 import xyz.lilsus.rayl.providers.spark.SparkEnvironment
 
 /**
- * TODO(breez): Before release, register the production app with Breez for its shared relying
- * party, then use `RaylPasskeys.Platform(PasskeyProvider.BREEZ_RP_ID)` ("keys.breez.technology").
- * Send Breez the package `com.nicolasusca.rayl` and the SHA-256 fingerprint of the certificate
- * that signs installed builds (Google's app signing key with Play App Signing). Changing the
- * relying party later changes every user's wallet, so it must be final before release. Until
- * then, release builds use the development relying party, whose `assetlinks.json` does not list
- * this package yet, so they offer only external wallets.
+ * Breez's shared relying party (the SDK's `PasskeyProvider.BREEZ_RP_ID`). Breez lists
+ * `com.nicolasusca.rayl` with the SHA-256 fingerprint of the certificate that signs installed
+ * builds. Changing the relying party changes every user's wallet.
  */
 internal fun androidRaylConfiguration(): AndroidRaylConfiguration = AndroidRaylConfiguration(
     environment = SparkEnvironment.PRODUCTION,
-    passkeys = DEVELOPMENT_PASSKEYS,
+    passkeys = RaylPasskeys.Platform(rpId = "keys.breez.technology"),
     breezApiKey = BuildConfig.BREEZ_API_KEY
 )

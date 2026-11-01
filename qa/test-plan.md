@@ -400,7 +400,8 @@ onboard, and one small mainnet payment per shipped provider on each platform. De
 - *Entry:*
   - release branch cut with provider gating applied
   - PR gate and nightly green on that branch
-  - final Breez passkey relying party configured for the release build, if the Rayl wallet
+  - the release build uses the Breez passkey relying party (`keys.breez.technology`), and its
+    association files list the shipped app IDs and signing certificate, if the Rayl wallet
     ships (PJ-05)
   - release notes list the changed areas
 - *Exit:*
@@ -525,7 +526,7 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
 - D-00a The plan targets a release with **Rayl's wallet plus the external wallets**.
   `release/1.0` (in store review) builds only Blink and NWC. Its Spark sources are not
   included in the build. So this scope means **1.1**: `main` has Blink, NWC, Spark and the
-  built-in Rayl wallet. The Rayl wallet depends on Breez registering the passkey relying party (PJ-05).
+  built-in Rayl wallet. Its release builds use Breez's passkey relying party, registered on 2026-11-01 (PJ-05).
 - D-00b Top quality priorities: **money correctness** and **wallet/credential safety**.
 - D-03 **UI automation: decide later** (revisit after 1.1). Until then, system testing is manual, and
   automation targets the levels below the UI.

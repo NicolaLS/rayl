@@ -1,19 +1,6 @@
 import Foundation
 import Shared
 
-/// Rayl's own relying party for passkeys while it is not registered with Breez. Its
-/// `/.well-known/apple-app-site-association` lists the app, and the app's entitlements name it
-/// (`webcredentials:www.nicolasusca.com`). The site lives in the nicolasusca.com repository; the
-/// apex domain redirects to `www`, and association files must not redirect.
-///
-/// TODO(breez): Before release, register the production app with Breez for its shared relying
-/// party, then use `PasskeyProvider.BREEZ_RP_ID` ("keys.breez.technology") in Release builds and
-/// add `webcredentials:keys.breez.technology` to the entitlements. Send Breez the team ID
-/// (TA77463BFV) and bundle ID (com.nicolasusca.rayl). Changing the relying party later changes
-/// every user's wallet, so it must be final before release. Until then, Release builds offer only
-/// the external wallets (`ReleasePasskeysUnavailable`), like Android release builds.
-private let developmentRelyingParty = "www.nicolasusca.com"
-
 func configureRaylSpark() {
 #if DEBUG
     RaylEarlyStartKt.enableRaylTimings()
@@ -24,11 +11,8 @@ func configureRaylSpark() {
 #if RAYL_E2E
     // Simulators in automated runs cannot complete passkey ceremonies: use the stand-in passkey.
     let passkeys: RaylPasskeyAuthenticator? = nil
-#elseif DEBUG
-    let passkeys: RaylPasskeyAuthenticator? = RaylPasskeyBridge(rpId: developmentRelyingParty)
 #else
-    // Wallets derived from the development relying party would change when it does.
-    let passkeys: RaylPasskeyAuthenticator? = ReleasePasskeysUnavailable()
+    let passkeys: RaylPasskeyAuthenticator? = RaylPasskeyBridge(rpId: passkeyRelyingParty())
 #endif
 #if RAYL_DEBUG && RAYL_PRODUCTION
 #error("Rayl environment conditions are contradictory")
@@ -59,29 +43,15 @@ func configureRaylSpark() {
 #endif
 }
 
-/// Passkeys for Release builds until Rayl has a final relying party: the domain reports as not
-/// associated, so Rayl's wallet is unavailable and onboarding offers the external wallets.
-private final class ReleasePasskeysUnavailable: NSObject, RaylPasskeyAuthenticator {
-    private static let reason = "Rayl has no final passkey relying party yet"
-
-    func deriveSeeds(
-        salts: [String],
-        allowCredentials: [Data],
-        preferImmediatelyAvailable: KotlinBoolean?,
-        completion: @escaping (RaylPasskeySeeds?, RaylPasskeyError?) -> Void
-    ) {
-        completion(nil, RaylPasskeyError(kind: .configuration, message: Self.reason))
+/// The passkey relying party, `RAYL_PASSKEY_RP_ID` in the build configuration, which the
+/// entitlements name too (`webcredentials:`): Breez's shared one in Release builds and Rayl's own
+/// (www.nicolasusca.com, whose site lives in the nicolasusca.com repository) in debug builds.
+/// Changing it changes every user's wallet.
+private func passkeyRelyingParty() -> String {
+    let rpId = (Bundle.main.object(forInfoDictionaryKey: "RaylPasskeyRPID") as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let rpId, !rpId.isEmpty else {
+        fatalError("Set RAYL_PASSKEY_RP_ID in the build configuration")
     }
-
-    func createPasskey(
-        excludeCredentials: [Data],
-        salts: [String],
-        completion: @escaping (RaylPasskeyCreated?, RaylPasskeyError?) -> Void
-    ) {
-        completion(nil, RaylPasskeyError(kind: .configuration, message: Self.reason))
-    }
-
-    func checkDomainAssociation(completion: @escaping (RaylPasskeyDomain) -> Void) {
-        completion(RaylPasskeyDomain(kind: .notassociated, source: "Rayl", reason: Self.reason))
-    }
+    return rpId
 }

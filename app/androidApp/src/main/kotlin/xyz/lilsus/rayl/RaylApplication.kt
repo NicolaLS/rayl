@@ -34,7 +34,7 @@ internal data class AndroidRaylConfiguration(
 )
 
 /**
- * Rayl's own relying party for passkeys while it is not registered with Breez. Its
+ * The relying party for passkeys in development builds; release builds use Breez's. Its
  * `/.well-known/assetlinks.json` lists the development packages and their signing certificates;
  * the site lives in the nicolasusca.com repository. The apex domain redirects to `www`, and
  * association files must not redirect.

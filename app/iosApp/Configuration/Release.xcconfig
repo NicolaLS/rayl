@@ -1,4 +1,7 @@
 #include "Config.xcconfig"
+// Breez's shared relying party (PasskeyProvider.BREEZ_RP_ID), which lists TA77463BFV.com.nicolasusca.rayl.
+// Changing it changes every user's wallet.
+RAYL_PASSKEY_RP_ID = keys.breez.technology
 #include? "Local.xcconfig"
 
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) RAYL_PRODUCTION
