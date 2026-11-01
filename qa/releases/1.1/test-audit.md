@@ -42,7 +42,9 @@ cosmetic or low-value behaviour, or costs more attention than the bug it could c
 worth, is deleted even if it works.
 
 The audit also records **gaps**: important behaviour of the audited code that no test
-covers. Gaps feed stage 2. They are not filled during the audit.
+covers. A gap is not a defect. The code behaves correctly today, but if it broke, no test
+would notice. Real defects found along the way are reported separately (observations and
+[defect drafts](defect-drafts.md)). Gaps feed stage 2. They are not filled during the audit.
 
 ## Process
 
@@ -262,7 +264,7 @@ aggregates prices from four public sources and serves the median.
 
 | # | Mutation | Result |
 |---|---|---|
-| Q1 | `quote` accepts zero, NaN or infinite rates | **Survived**. Today most of these still fail safe further down, but NaN makes `roundToLong` throw. |
+| Q1 | `quote` accepts zero, NaN or infinite rates | **Survived**. The real code filters them out. Without the filter, most would still fail safe further down, but a NaN rate would make `roundToLong` throw. |
 | Q2 | `quote` rounds down to whole sats instead of up | **Survived** |
 | Q3 | `quote` reuses the displayed (possibly stale) rate | Survived → killed after the improvement |
 | B1 | The backend serves the mean instead of the median | Killed |
@@ -385,9 +387,10 @@ value. The deletions are a test of the fake, dev-only code, and cosmetic state.
 | F1 | Funding counts a payment to another invoice | Killed |
 
 **Gaps** (for stage 2, M7):
-- K3: with an unreadable key, onboarding would run passkey setup again instead of offering
-  recovery, then fail with "the key could not be stored". Nothing is lost (the store
-  refuses), but the recovery path is broken.
+- K3: `hasKey()` correctly counts an unreadable key as a key today, but no test checks it.
+  If it regressed, onboarding would run passkey setup again instead of offering recovery,
+  then fail with "the key could not be stored". Nothing would be lost (the store refuses),
+  but the recovery path would break.
 - `BreezPocketWallet.pay` classifies SDK errors after submitting (network and unknown →
   `Unknown`). It depends on the Breez SDK class directly, so testing it needs a seam or the
   regtest level.
@@ -429,9 +432,10 @@ tests that pin implementation quirks.
 | W3 | Removal starts without writing the crash-safety marker | Killed |
 
 **Gaps** (for stage 2, M6):
-- **W2 (PR-08, Critical):** if the vault fails to delete the credential while the data is
-  deleted, removal still completes and the credential stays on the device. No test makes the
-  vault's delete fail. This contradicts SPEC-wallet-lifecycle.
+- **W2 (PR-08, Critical):** removal correctly completes only when the credential delete
+  succeeded (`credentialDeleted && dataDeleted && …`), but no test makes the vault's delete
+  fail. If that condition regressed, removal would complete while the recovery phrase stayed
+  on the device, contrary to SPEC-wallet-lifecycle, and nothing would catch it.
 
 **Observation O-10** (minor, to Nicola): `SparkOnboardingState` treats a restored wallet
 with no stored flag as having completed the intro screens, a fallback for wallets
@@ -531,21 +535,23 @@ tautologies, tests of fakes or libraries, dev-only code, pinned quirks, and dupl
 partitions. About 60 mutation checks were run; every survivor is either an equivalent
 mutant or a recorded gap.
 
-**What the audit found that matters most**, in priority order for stage 2:
+**What the audit found that matters most**, in priority order for stage 2. These are test
+gaps: in each case the code is correct today, but a regression would ship unnoticed.
 1. **M3, PR-04:** no wallet protects the rule that an uncertain outcome after submitting
    is `Unknown`, never `Failed` (§8, S1–S5). Blink's and NWC's settlements have no tests.
-2. **M6, PR-08:** a failed credential delete still completes Spark removal and leaves the
-   credential on the device (§10, W2).
+2. **M6, PR-08:** nothing checks that Spark removal waits for the credential delete to
+   succeed (§10, W2). The code does; a regression would leave the recovery phrase on the
+   device.
 3. **M2 and M1 through the flow, PR-01 to PR-04:** `PaymentFlowCoordinator` and the
    admission and confirmation phases (about 1,000 lines) have no tests at all (§1).
-4. **S4, PR-05:** LNURL invoices bound by `description_hash`, the common case in
-   production, and amountless invoices from LNURL servers are not checked (§3, R1, R4).
+4. **S4, PR-05:** the resolver's `description_hash` check (the common case in production)
+   and its rejection of amountless invoices from LNURL servers are untested (§3, R1, R4).
 5. **S1, PR-14:** uppercase BOLT11 and `LIGHTNING:`, untrimmed scans and Lightning address
    targets are untested (§3, L1–L5).
 6. **M5 and S2, PR-01 and PR-18:** rounding to whole sats in the fiat quote, and invalid
    rates (§6, Q1, Q2).
-7. **M7, PR-09:** an unreadable key counted as no key sends users into setup instead of
-   recovery (§9, K3).
+7. **M7, PR-09:** nothing checks that an unreadable key still counts as a key (§9, K3);
+   a regression would send users into setup instead of recovery.
 
 **Residual risk that host tests can't cover** (stage 3): the platform key and credential
 stores (Android Keystore, iOS Keychain), the Breez SDK's real error behaviour, and the

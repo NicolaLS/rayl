@@ -37,9 +37,9 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-02 Confirmation skipped | Policy decision table and msat boundary for every threshold step (`PaymentConfirmationPolicyTest`); nothing through the flow | M1 | Partly |
 | PR-03 Duplicate payment | Operation guard and paid-hash lookup, mutation-checked (`PaymentOperationTest`, `PaymentHistoryTest`) | M4 | Partly |
 | PR-04 Outcome misreported | Blink's own payment client is well covered. The Unknown-never-Failed rule is unprotected in all four settlements (audit §8). | M3 (first), M2, M4 | **No** for the central rule |
-| PR-05 Wrong recipient | LNURL client and resolver, mutation-checked; `description_hash` binding untested (audit §3) | S4 | Partly |
+| PR-05 Wrong recipient | LNURL client and resolver, mutation-checked; `description_hash` check untested (audit §3); the code checks it | S4 | Partly |
 | PR-06 Fee surprises | None | M1 (once built), S5 | No |
-| PR-08 Credentials retained | Spark lifecycle and removal, mutation-checked. Gap: a failed credential delete still completes removal (audit §10, W2). | M6, M10 | Partly |
+| PR-08 Credentials retained | Spark lifecycle and removal, mutation-checked. Test gap: nothing checks that removal waits for the credential delete to succeed (audit §10, W2); the code does. | M6, M10 | Partly |
 | PR-09 Pocket key lost | Pocket rules and passkey account selection, mutation-checked. The never-replace rule lives only in the platform stores, which have no tests (audit §9). | M7, M10 | Partly |
 | PR-10 Passkey onboarding | `RaylOnboardingStateTest`, `PocketSetupTest` (no-PRF path) | S3, M10 | Partly |
 | PR-11 Secrets exposed | None | M8 | No |
