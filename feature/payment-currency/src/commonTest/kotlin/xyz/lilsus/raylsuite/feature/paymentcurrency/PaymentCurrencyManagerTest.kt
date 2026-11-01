@@ -33,6 +33,27 @@ class PaymentCurrencyManagerTest {
     }
 
     @Test
+    fun aFiatAmountIsPaidInWholeSatsRoundedUp() = runTest {
+        // $1.00 at $60,000 per bitcoin is 1,666.67 sats. Wallets pay whole sats; rounding up
+        // never pays less than the user entered (PR-01).
+        val manager = PaymentCurrencyManager(BitcoinPriceProvider { 60_000.0 }, backgroundScope)
+
+        val quote = manager.quote(DisplayAmount(100, DisplayCurrency.Fiat("USD")))
+
+        assertEquals(1_667_000L, quote?.amountMsats)
+    }
+
+    @Test
+    fun anInvalidRateGivesNoQuote() = runTest {
+        // A broken price must block fiat payment rather than convert with it (PR-18).
+        for (rate in listOf(0.0, -60_000.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            val manager = PaymentCurrencyManager(BitcoinPriceProvider { rate }, backgroundScope)
+
+            assertNull(manager.quote(DisplayAmount(100, DisplayCurrency.Fiat("USD"))), "rate $rate")
+        }
+    }
+
+    @Test
     fun fiatQuoteFailsClosedWithoutRate() = runTest {
         val manager =
             PaymentCurrencyManager(

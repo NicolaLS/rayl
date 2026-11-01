@@ -15,7 +15,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | M2 | Payment flow component tests | Not started | |
 | M3 | Settlement classification, four wallets | In progress: Rayl and Spark done (2.1); Blink and NWC need a test seam (2.2) | `RaylPaymentSettlementTest`, `SparkPaymentSettlementTest` |
 | M4 | Duplicate payment, O-02 | Not started | |
-| M5 | Conversion boundaries | Not started | |
+| M5 | Conversion boundaries | Fiat quote rounding done (2.7); amount entry was already covered (audit §5) | `PaymentCurrencyManagerTest` |
 | M6 | Wallet lifecycle traceability | Not started | |
 | M7 | Pocket key rules | Host-level part done (2.4); the platform stores need stage 3 | `RaylPocketTest` |
 | M8 | Static reviews (secrets, release config, SDK pins) | Not started | |
@@ -46,7 +46,7 @@ Slices, in order:
 | 2.4 | **Done.** An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
 | 2.5 | **Done.** LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
 | 2.6 | **Done.** Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (S1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
-| 2.7 | Fiat quote: rounding to whole sats and invalid rates (M5, S2) | PR-01, PR-18 | Nothing |
+| 2.7 | **Done.** Fiat quote: rounding to whole sats and invalid rates (M5, S2) | PR-01, PR-18 | Nothing |
 | 2.8 | Payment flow component tests: each source and outcome through `PaymentFlowCoordinator`, and the Auto Pay table through the flow (M2, M1); check O-02 (M4) | PR-01–PR-04 | Nothing; fee conditions parked (SI-01) |
 
 **Stop point:** after 2.8, or earlier if every remaining slice is blocked. The last step is a

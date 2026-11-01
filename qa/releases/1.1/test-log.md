@@ -2,6 +2,12 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Stage 2.7, fiat quote rounding and invalid rates
+
+- **Build:** `main` at `82b3d8ef` plus 2 new tests (uncommitted)
+- **Ran:** `feature/payment-currency` tests and ktlint, then mutations Q1 and Q2.
+- **Result:** pass (current code correct); Q1 and Q2 are now killed.
+
 ## 2026-11-01: Stage 2.6, payment input corpus
 
 - **Build:** `main` at `fd3c85c9` plus `PaymentInputCorpusTest` (uncommitted)
