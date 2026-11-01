@@ -10,7 +10,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import xyz.lilsus.rayl.providers.spark.application.AppBootstrapConfig
 import xyz.lilsus.rayl.providers.spark.application.AppEnvironment
-import xyz.lilsus.rayl.providers.spark.application.payment.DefaultPaymentEngine
+import xyz.lilsus.rayl.providers.spark.application.payment.SparkPayments
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -73,12 +73,12 @@ class WalletRemovalTest {
     }
 
     private fun newAccess(scope: CoroutineScope, vault: CredentialVault, directories: WalletDirectories): DefaultWalletAccess {
-        val payments = DefaultPaymentEngine(AppEnvironment.DEBUG)
+        val payments = SparkPayments()
         return DefaultWalletAccess(
             bootstrapConfig = AppBootstrapConfig(AppEnvironment.DEBUG),
             vault = vault,
             directories = directories,
-            connector = SparkSdkConnector { _, _, _ -> error("Cleanup must not reconnect the SDK") },
+            connector = SparkSdkConnector { _, _, _, _ -> error("Cleanup must not reconnect the SDK") },
             payments = payments,
             paymentLifecycle = payments,
             applicationScope = scope,
@@ -102,6 +102,8 @@ private class TestVault : CredentialVault {
 
 private class TestDirectories : WalletDirectories {
     override val sdkDirectory = "unused-test-sdk-directory"
+
+    override fun sdkStorageIsEmpty(): Boolean = false
     var pending = false
     var canBegin = true
     var canDeleteData = true

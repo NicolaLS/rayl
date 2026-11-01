@@ -22,6 +22,7 @@ private final class SparkNativeOnboardingModel: ObservableObject {
 
 struct SparkNativeOnboardingView: View {
     @StateObject private var model: SparkNativeOnboardingModel
+    @State private var showsPassphrase = false
 
     init(controller: SparkNativeOnboardingController) {
         _model = StateObject(wrappedValue: SparkNativeOnboardingModel(controller: controller))
@@ -157,6 +158,7 @@ struct SparkNativeOnboardingView: View {
                         if snapshot.canImport { model.controller.importWallet() }
                     }
                 )
+                passphrase(snapshot)
                 Text(snapshot.storageNote)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -183,6 +185,36 @@ struct SparkNativeOnboardingView: View {
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle(snapshot.walletTitle)
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    /// The optional BIP-39 passphrase, behind a link since most wallets have none.
+    @ViewBuilder
+    private func passphrase(_ snapshot: SparkNativeOnboardingSnapshot) -> some View {
+        let enabled = snapshot.walletKind == "import"
+        if showsPassphrase || !snapshot.passphrase.isEmpty {
+            NativeCredentialInput(
+                value: Binding(
+                    get: { snapshot.passphrase },
+                    set: model.controller.updatePassphrase
+                ),
+                label: snapshot.passphraseLabel,
+                placeholder: snapshot.passphraseHint,
+                showTitle: snapshot.credentialText.show,
+                hideTitle: snapshot.credentialText.hide,
+                pasteTitle: snapshot.credentialText.paste,
+                enabled: enabled,
+                onPaste: model.controller.pastePassphrase,
+                onSubmit: {
+                    if snapshot.canImport { model.controller.importWallet() }
+                }
+            )
+            Text(snapshot.passphraseNote)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            Button(snapshot.passphraseToggle) { showsPassphrase = true }
+                .disabled(!enabled)
         }
     }
 

@@ -1,10 +1,12 @@
 <resources>
-    <string name="spark_transaction_status_success">Bezahlt</string>
-    <string name="spark_transaction_status_failure">Fehlgeschlagen</string>
-    <string name="spark_transaction_fee">Gebühr %1$s</string>
-    <string name="spark_error_missing_wallet_connection">Verbinde zuerst eine Wallet.</string>
-    <string name="spark_error_payment_rejected_generic">Zahlung wurde abgewiesen.</string>
-    <string name="spark_error_payment_rejected_message">Zahlung wurde abgewiesen: %1$s</string>
-    <string name="spark_error_relay_connection_failed">Verbindung zum Wallet fehlgeschlagen. Bitte erneut versuchen.</string>
-    <string name="spark_error_payment_unconfirmed">Diese Zahlung konnte nicht bestätigt werden. Prüfe ihren Status, bevor du erneut bezahlst.</string>
+    <string name="error_insufficient_funds">Nicht genug Guthaben in deiner Spark-Wallet.</string>
+    <string name="error_wallet_not_ready">Deine Spark-Wallet war nicht erreichbar, es wurde nichts bezahlt. Prüfe deine Verbindung und versuche es erneut.</string>
+    <string name="error_sub_satoshi_amount">Spark kann nur ganze Satoshi-Beträge bezahlen.</string>
+    <string name="error_payment_rejected_generic">Zahlung fehlgeschlagen.</string>
+    <string name="error_payment_rejected_message">Zahlung fehlgeschlagen: %1$s</string>
+    <string name="error_payment_unconfirmed">Zahlungsstatus unbekannt. Die Zahlung ist möglicherweise erfolgt.</string>
+    <string name="error_payment_unconfirmed_message">Zahlungsstatus unbekannt: %1$s</string>
+    <string name="error_invoice_already_paid">Diese Rechnung wurde bereits bezahlt.</string>
+    <string name="error_invoice_expired">Diese Rechnung ist abgelaufen. Bitte den Empfänger um eine neue.</string>
+    <string name="error_balance_settling">Dein Guthaben wird noch abgeglichen. Versuche es in ein paar Minuten erneut.</string>
 </resources>

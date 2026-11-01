@@ -1,17 +1,19 @@
 package xyz.lilsus.rayl.providers.spark.application.wallet
 
 import kotlinx.coroutines.flow.StateFlow
-import xyz.lilsus.rayl.providers.spark.application.payment.PaymentEngine
+import xyz.lilsus.rayl.providers.spark.application.payment.SparkPayments
 
 interface WalletAccess {
     val state: StateFlow<WalletAccessState>
 
     /** Successful removal, including cleanup resumed after restart; initial absence is not removal. */
     val removed: StateFlow<Boolean>
-    val payments: PaymentEngine
+    val payments: SparkPayments
 
     fun start()
-    suspend fun importWallet(mnemonic: String): ImportWalletResult
+
+    /** [passphrase] is the optional BIP-39 passphrase; empty means none. */
+    suspend fun importWallet(mnemonic: String, passphrase: String = ""): ImportWalletResult
     suspend fun retryConnection()
     suspend fun removeWallet(): RemoveWalletResult
 

@@ -2,6 +2,7 @@ package xyz.lilsus.rayl.providers.spark.application.wallet
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -17,9 +18,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import xyz.lilsus.rayl.providers.spark.application.AppBootstrapConfig
-import xyz.lilsus.rayl.providers.spark.application.payment.PaymentEngine
 import xyz.lilsus.rayl.providers.spark.application.payment.PaymentSessionLifecycle
 import xyz.lilsus.rayl.providers.spark.application.payment.SparkPaymentClient
+import xyz.lilsus.rayl.providers.spark.application.payment.SparkPayments
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
 
 interface SparkSdkSession {
@@ -28,15 +29,24 @@ interface SparkSdkSession {
 }
 
 fun interface SparkSdkConnector {
+    /**
+     * [freshStorage] means the SDK starts without local data (a new import or reinstall), so its
+     * balance is unknown until the first sync.
+     */
     suspend fun connect(
         credential: WalletCredential,
         storageDirectory: String,
+        freshStorage: Boolean,
         bootstrapConfig: AppBootstrapConfig
     ): SparkSdkSession
 }
 
 interface WalletDirectories {
     val sdkDirectory: String
+
+    /** Whether the SDK has no local data yet; checked before [sdkDirectory] creates it. */
+    fun sdkStorageIsEmpty(): Boolean
+
     fun beginReset(): Boolean
     fun resetPending(): Boolean
     fun deleteWalletData(): Boolean
@@ -48,18 +58,24 @@ class DefaultWalletAccess(
     private val vault: CredentialVault,
     private val directories: WalletDirectories,
     private val connector: SparkSdkConnector,
-    override val payments: PaymentEngine,
+    override val payments: SparkPayments,
     private val paymentLifecycle: PaymentSessionLifecycle,
     applicationScope: CoroutineScope,
     startMode: WalletStartMode
 ) : WalletAccess {
     private val lifecycleJob = SupervisorJob(applicationScope.coroutineContext[Job])
     private val lifecycleScope = CoroutineScope(applicationScope.coroutineContext + lifecycleJob)
+
+    // The SDK keeps running after a cancelled connect, so attempts run outside the lifecycle and
+    // are never cancelled: whoever stops waiting still owns the late session and disconnects it.
+    private val connectionScope = CoroutineScope(
+        applicationScope.coroutineContext + SupervisorJob(applicationScope.coroutineContext[Job])
+    )
     private val operationMutex = Mutex()
     private val mutableState = MutableStateFlow<WalletAccessState>(WalletAccessState.Loading)
     private val mutableRemoved = MutableStateFlow(false)
     private var sdk: SparkSdkSession? = null
-    private var connectingSdk: SparkSdkSession? = null
+    private var connecting: Deferred<SparkSdkSession>? = null
     private var hasCredential = startMode == WalletStartMode.Restore
     private var started = false
     private var closeCompleted = false
@@ -77,49 +93,50 @@ class DefaultWalletAccess(
         }
     }
 
-    override suspend fun importWallet(mnemonic: String): ImportWalletResult = runOperation {
-        operationMutex.withLock {
-            mutableRemoved.value = false
-            if (!started) {
-                started = true
-                restoreOrResumeReset()
-            }
-            if (hasCredential || directories.resetPending() ||
-                mutableState.value == WalletAccessState.ResetRequired
-            ) {
-                return@withLock ImportWalletResult.ALREADY_CONFIGURED
-            }
-
-            val credential = try {
-                WalletCredential.fromMnemonic(mnemonic)
-            } catch (_: IllegalArgumentException) {
-                mutableState.value = WalletAccessState.NoWallet
-                return@withLock ImportWalletResult.INVALID_MNEMONIC
-            }
-
-            mutableState.value = WalletAccessState.Connecting
-            if (!connectApplicationSession(credential)) {
-                discardUnstoredSession()
-                return@withLock ImportWalletResult.CONNECTION_FAILED
-            }
-
-            when (vault.store(credential)) {
-                CredentialStoreResult.STORED -> {
-                    hasCredential = true
-                    mutableState.value = WalletAccessState.Connected
-                    return@withLock ImportWalletResult.IMPORTED
+    override suspend fun importWallet(mnemonic: String, passphrase: String): ImportWalletResult =
+        runOperation {
+            operationMutex.withLock {
+                mutableRemoved.value = false
+                if (!started) {
+                    started = true
+                    restoreOrResumeReset()
+                }
+                if (hasCredential || directories.resetPending() ||
+                    mutableState.value == WalletAccessState.ResetRequired
+                ) {
+                    return@withLock ImportWalletResult.ALREADY_CONFIGURED
                 }
 
-                CredentialStoreResult.ALREADY_EXISTS,
-                CredentialStoreResult.UNAVAILABLE,
-                CredentialStoreResult.INVALIDATED,
-                CredentialStoreResult.FAILED -> {
+                val credential = try {
+                    WalletCredential.fromMnemonic(mnemonic, passphrase)
+                } catch (_: IllegalArgumentException) {
+                    mutableState.value = WalletAccessState.NoWallet
+                    return@withLock ImportWalletResult.INVALID_MNEMONIC
+                }
+
+                mutableState.value = WalletAccessState.Connecting
+                if (!connectApplicationSession(credential)) {
                     discardUnstoredSession()
-                    return@withLock ImportWalletResult.CREDENTIAL_STORE_FAILED
+                    return@withLock ImportWalletResult.CONNECTION_FAILED
+                }
+
+                when (vault.store(credential)) {
+                    CredentialStoreResult.STORED -> {
+                        hasCredential = true
+                        mutableState.value = WalletAccessState.Connected
+                        return@withLock ImportWalletResult.IMPORTED
+                    }
+
+                    CredentialStoreResult.ALREADY_EXISTS,
+                    CredentialStoreResult.UNAVAILABLE,
+                    CredentialStoreResult.INVALIDATED,
+                    CredentialStoreResult.FAILED -> {
+                        discardUnstoredSession()
+                        return@withLock ImportWalletResult.CREDENTIAL_STORE_FAILED
+                    }
                 }
             }
         }
-    }
 
     override suspend fun retryConnection(): Unit = runOperation {
         operationMutex.withLock {
@@ -146,8 +163,7 @@ class DefaultWalletAccess(
                 paymentLifecycle.detach()
                 sdk?.disconnect()
                 sdk = null
-                connectingSdk?.disconnect()
-                connectingSdk = null
+                check(discardConnectingSession()) { "The wallet is still connecting" }
                 closeCompleted = true
             }
         }
@@ -225,15 +241,22 @@ class DefaultWalletAccess(
         if (!discardConnectingSession()) return false
         currentCoroutineContext().ensureActive()
         return try {
-            val connected = withTimeoutOrNull(CONNECTION_TIMEOUT_MILLIS) {
-                connector.connect(credential, directories.sdkDirectory, bootstrapConfig).also {
-                    connectingSdk = it
-                }
-            } ?: return false
+            val pending = connectionScope.async {
+                val freshStorage = directories.sdkStorageIsEmpty()
+                connector.connect(
+                    credential,
+                    directories.sdkDirectory,
+                    freshStorage,
+                    bootstrapConfig
+                )
+            }
+            connecting = pending
+            val connected =
+                withTimeoutOrNull(CONNECTION_TIMEOUT_MILLIS) { pending.await() } ?: return false
             currentCoroutineContext().ensureActive()
             paymentLifecycle.attach(connected.paymentClient)
             sdk = connected
-            connectingSdk = null
+            connecting = null
             true
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -241,21 +264,37 @@ class DefaultWalletAccess(
             false
         } finally {
             // close owns cleanup after lifetime cancellation, including a session whose attachment
-            // was interrupted. Until then, retain failed cleanup for a later retry or close.
-            if (lifecycleJob.isActive) discardConnectingSession()
+            // was interrupted. Until then, retain failed cleanup, or an attempt still running after
+            // the timeout, for a later retry or close.
+            if (lifecycleJob.isActive) discardConnectingSession(waitForAttempt = false)
         }
     }
 
-    private suspend fun discardConnectingSession(): Boolean = withContext(NonCancellable) {
-        val connecting = connectingSdk ?: return@withContext true
-        try {
-            connecting.disconnect()
-            connectingSdk = null
-            true
-        } catch (_: Throwable) {
-            false
+    /**
+     * Releases the session of an attempt that did not become the wallet's session. A running
+     * attempt is awaited (or, without [waitForAttempt], kept) so no second SDK starts on the same
+     * storage; false means it still runs or its disconnect failed.
+     */
+    private suspend fun discardConnectingSession(waitForAttempt: Boolean = true): Boolean =
+        withContext(NonCancellable) {
+            val pending = connecting ?: return@withContext true
+            if (!waitForAttempt && !pending.isCompleted) return@withContext false
+            val session = try {
+                withTimeoutOrNull(CONNECTION_TIMEOUT_MILLIS) { pending.await() }
+                    ?: return@withContext false
+            } catch (_: Throwable) {
+                // The attempt failed, so it owns no session.
+                connecting = null
+                return@withContext true
+            }
+            try {
+                session.disconnect()
+                connecting = null
+                true
+            } catch (_: Throwable) {
+                false
+            }
         }
-    }
 
     private suspend fun discardUnstoredSession() {
         // A failed import still owns its SDK until teardown completes. Persist cleanup before

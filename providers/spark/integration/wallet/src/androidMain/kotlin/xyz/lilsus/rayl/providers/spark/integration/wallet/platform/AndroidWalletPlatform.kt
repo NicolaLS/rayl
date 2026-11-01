@@ -17,7 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import xyz.lilsus.rayl.providers.spark.application.AppBootstrapConfig
-import xyz.lilsus.rayl.providers.spark.application.payment.DefaultPaymentEngine
+import xyz.lilsus.rayl.providers.spark.application.payment.SparkPayments
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialDeleteResult
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialLoadResult
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialStoreResult
@@ -37,16 +37,14 @@ fun createAndroidWalletAccess(
 ): WalletAccess {
     val appContext = context.applicationContext
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    val paymentEngine = DefaultPaymentEngine(
-        environment = bootstrapConfig.environment
-    )
+    val payments = SparkPayments()
     val walletAccess = DefaultWalletAccess(
         bootstrapConfig = bootstrapConfig,
         vault = AndroidCredentialVault(appContext),
         directories = AndroidWalletDirectories(appContext),
         connector = BreezSparkSdkConnector,
-        payments = paymentEngine,
-        paymentLifecycle = paymentEngine,
+        payments = payments,
+        paymentLifecycle = payments,
         applicationScope = applicationScope,
         startMode = startMode
     ).also(WalletAccess::start)
@@ -61,6 +59,9 @@ private class AndroidWalletDirectories(context: Context) : WalletDirectories {
         get() = File(filesDirectory, "breez-spark").also {
             check(it.isDirectory || it.mkdirs()) { "Could not create wallet directory" }
         }.absolutePath
+
+    override fun sdkStorageIsEmpty(): Boolean =
+        File(filesDirectory, "breez-spark").list().isNullOrEmpty()
 
     override fun beginReset(): Boolean = runCatching {
         resetMarker.parentFile?.mkdirs()
@@ -95,7 +96,7 @@ private class AndroidCredentialVault(private val context: Context) : CredentialV
                 updateAAD(associatedData)
             }
             val mnemonic = cipher.doFinal(ciphertext).decodeToString()
-            CredentialLoadResult.Available(WalletCredential.fromMnemonic(mnemonic))
+            CredentialLoadResult.Available(WalletCredential.decode(mnemonic))
         } catch (_: KeyPermanentlyInvalidatedException) {
             CredentialLoadResult.Invalidated
         } catch (_: UserNotAuthenticatedException) {
@@ -116,7 +117,7 @@ private class AndroidCredentialVault(private val context: Context) : CredentialV
                 init(Cipher.ENCRYPT_MODE, getOrCreateKey())
                 updateAAD(associatedData)
             }
-            val payload = cipher.iv + cipher.doFinal(credential.value.encodeToByteArray())
+            val payload = cipher.iv + cipher.doFinal(credential.encoded().encodeToByteArray())
             check(cipher.iv.size == IV_SIZE)
             payloadDirectory.mkdirs()
             val temporary = File(payloadDirectory, "v1.tmp")

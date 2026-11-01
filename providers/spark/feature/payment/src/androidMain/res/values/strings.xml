@@ -1,10 +1,12 @@
 <resources>
-    <string name="spark_transaction_status_success">Paid</string>
-    <string name="spark_transaction_status_failure">Failed</string>
-    <string name="spark_transaction_fee">Fee %1$s</string>
-    <string name="spark_error_missing_wallet_connection">Connect a wallet to continue.</string>
-    <string name="spark_error_payment_rejected_generic">Payment was rejected.</string>
-    <string name="spark_error_payment_rejected_message">Payment was rejected: %1$s</string>
-    <string name="spark_error_relay_connection_failed">Could not connect to wallet. Try again.</string>
-    <string name="spark_error_payment_unconfirmed">Unable to confirm this payment. Verify its status before paying again.</string>
+    <string name="error_insufficient_funds">Not enough balance in your Spark wallet.</string>
+    <string name="error_wallet_not_ready">Couldn\'t reach your Spark wallet, so nothing was paid. Check your connection and try again.</string>
+    <string name="error_sub_satoshi_amount">Spark can only pay whole satoshi amounts.</string>
+    <string name="error_payment_rejected_generic">Payment failed.</string>
+    <string name="error_payment_rejected_message">Payment failed: %1$s</string>
+    <string name="error_payment_unconfirmed">Payment status unknown. It may have succeeded.</string>
+    <string name="error_payment_unconfirmed_message">Payment status unknown: %1$s</string>
+    <string name="error_invoice_already_paid">This invoice has already been paid.</string>
+    <string name="error_invoice_expired">This invoice has expired. Ask the recipient for a new one.</string>
+    <string name="error_balance_settling">Your balance is still settling. Try again in a few minutes.</string>
 </resources>

@@ -1,186 +1,232 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "spark_error_missing_wallet_connection" : {
+    "error_balance_settling" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbinde zuerst eine Wallet."
+            "value" : "Dein Guthaben wird noch abgeglichen. Versuche es in ein paar Minuten erneut."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connect a wallet to continue."
+            "value" : "Your balance is still settling. Try again in a few minutes."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Conecta una billetera para continuar."
+            "value" : "Tu saldo aún se está actualizando. Inténtalo de nuevo en unos minutos."
           }
         }
       }
     },
-    "spark_error_payment_rejected_generic" : {
+    "error_insufficient_funds" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zahlung wurde abgewiesen."
+            "value" : "Nicht genug Guthaben in deiner Spark-Wallet."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Payment was rejected."
+            "value" : "Not enough balance in your Spark wallet."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El pago fue rechazado."
+            "value" : "No tienes saldo suficiente en tu billetera Spark."
           }
         }
       }
     },
-    "spark_error_payment_rejected_message" : {
+    "error_invoice_already_paid" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zahlung wurde abgewiesen: %1$@"
+            "value" : "Diese Rechnung wurde bereits bezahlt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Payment was rejected: %1$@"
+            "value" : "This invoice has already been paid."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El pago fue rechazado: %1$@"
+            "value" : "Esta factura ya se ha pagado."
           }
         }
       }
     },
-    "spark_error_payment_unconfirmed" : {
+    "error_invoice_expired" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diese Zahlung konnte nicht bestätigt werden. Prüfe ihren Status, bevor du erneut bezahlst."
+            "value" : "Diese Rechnung ist abgelaufen. Bitte den Empfänger um eine neue."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unable to confirm this payment. Verify its status before paying again."
+            "value" : "This invoice has expired. Ask the recipient for a new one."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudo confirmar este pago. Verifica su estado antes de volver a pagar."
+            "value" : "Esta factura ha caducado. Pide una nueva al destinatario."
           }
         }
       }
     },
-    "spark_error_relay_connection_failed" : {
+    "error_payment_rejected_generic" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbindung zum Wallet fehlgeschlagen. Bitte erneut versuchen."
+            "value" : "Zahlung fehlgeschlagen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Could not connect to wallet. Try again."
+            "value" : "Payment failed."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudo conectar a la billetera. Inténtalo de nuevo."
+            "value" : "El pago falló."
           }
         }
       }
     },
-    "spark_transaction_fee" : {
+    "error_payment_rejected_message" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gebühr %1$@"
+            "value" : "Zahlung fehlgeschlagen: %1$@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fee %1$@"
+            "value" : "Payment failed: %1$@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Comisión %1$@"
+            "value" : "El pago falló: %1$@"
           }
         }
       }
     },
-    "spark_transaction_status_failure" : {
+    "error_payment_unconfirmed" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fehlgeschlagen"
+            "value" : "Zahlungsstatus unbekannt. Die Zahlung ist möglicherweise erfolgt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Failed"
+            "value" : "Payment status unknown. It may have succeeded."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fallido"
+            "value" : "Estado de pago desconocido. Es posible que el pago haya sido exitoso."
           }
         }
       }
     },
-    "spark_transaction_status_success" : {
+    "error_payment_unconfirmed_message" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bezahlt"
+            "value" : "Zahlungsstatus unbekannt: %1$@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paid"
+            "value" : "Payment status unknown: %1$@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pagado"
+            "value" : "Estado de pago desconocido: %1$@"
+          }
+        }
+      }
+    },
+    "error_sub_satoshi_amount" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spark kann nur ganze Satoshi-Beträge bezahlen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spark can only pay whole satoshi amounts."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spark solo puede pagar importes en satoshis enteros."
+          }
+        }
+      }
+    },
+    "error_wallet_not_ready" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Spark-Wallet war nicht erreichbar, es wurde nichts bezahlt. Prüfe deine Verbindung und versuche es erneut."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't reach your Spark wallet, so nothing was paid. Check your connection and try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo conectar con tu billetera Spark, así que no se pagó nada. Comprueba tu conexión e inténtalo de nuevo."
           }
         }
       }

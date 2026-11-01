@@ -323,6 +323,98 @@
         }
       }
     },
+    "spark_wallet_passphrase_hint" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BIP39-Passphrase"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BIP39 passphrase"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frase de contraseña BIP39"
+          }
+        }
+      }
+    },
+    "spark_wallet_passphrase_label" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passphrase (optional)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passphrase (optional)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frase de contraseña (opcional)"
+          }
+        }
+      }
+    },
+    "spark_wallet_passphrase_note" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur wenn deine Wallet mit einer erstellt wurde, manchmal 25. Wort genannt. Groß- und Kleinschreibung zählen, und eine andere Passphrase öffnet eine andere, leere Wallet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only if your wallet was created with one, sometimes called a 25th word. It is case-sensitive, and a different passphrase opens a different, empty wallet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo si tu billetera se creó con una, a veces llamada la palabra 25. Distingue mayúsculas de minúsculas, y una frase distinta abre otra billetera vacía."
+          }
+        }
+      }
+    },
+    "spark_wallet_passphrase_toggle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erweitert: Passphrase verwenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced: use a passphrase"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avanzado: usar una frase de contraseña"
+          }
+        }
+      }
+    },
     "spark_wallet_phrase_hint" : {
       "extractionState" : "stale",
       "localizations" : {

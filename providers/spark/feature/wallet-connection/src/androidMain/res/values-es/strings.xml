@@ -29,4 +29,8 @@
     <string name="spark_wallet_error_connection">No se pudo abrir esta billetera. Revisa la frase de recuperación y la conexión a internet, e inténtalo de nuevo.</string>
     <string name="spark_wallet_error_storage">La billetera se abrió, pero su frase de recuperación no se pudo proteger en este dispositivo.</string>
     <string name="spark_wallet_error_reset">La limpieza está incompleta. Reintenta el restablecimiento antes de importar otra billetera.</string>
+    <string name="spark_wallet_passphrase_toggle">Avanzado: usar una frase de contraseña</string>
+    <string name="spark_wallet_passphrase_label">Frase de contraseña (opcional)</string>
+    <string name="spark_wallet_passphrase_hint">Frase de contraseña BIP39</string>
+    <string name="spark_wallet_passphrase_note">Solo si tu billetera se creó con una, a veces llamada la palabra 25. Distingue mayúsculas de minúsculas, y una frase distinta abre otra billetera vacía.</string>
 </resources>

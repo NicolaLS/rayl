@@ -45,7 +45,7 @@ import platform.Security.kSecMatchLimitOne
 import platform.Security.kSecReturnData
 import platform.Security.kSecValueData
 import xyz.lilsus.rayl.providers.spark.application.AppBootstrapConfig
-import xyz.lilsus.rayl.providers.spark.application.payment.DefaultPaymentEngine
+import xyz.lilsus.rayl.providers.spark.application.payment.SparkPayments
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialDeleteResult
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialLoadResult
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialStoreResult
@@ -66,16 +66,14 @@ fun createIOSWalletAccess(
     val directories = IOSWalletDirectories()
     val vault = IOSCredentialVault()
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    val paymentEngine = DefaultPaymentEngine(
-        environment = bootstrapConfig.environment
-    )
+    val payments = SparkPayments()
     val walletAccess = DefaultWalletAccess(
         bootstrapConfig = bootstrapConfig,
         vault = vault,
         directories = directories,
         connector = BreezSparkSdkConnector,
-        payments = paymentEngine,
-        paymentLifecycle = paymentEngine,
+        payments = payments,
+        paymentLifecycle = payments,
         applicationScope = applicationScope,
         startMode = startMode
     ).also(WalletAccess::start)
@@ -109,6 +107,10 @@ private class IOSWalletDirectories : WalletDirectories {
         )
     }
 
+    override fun sdkStorageIsEmpty(): Boolean =
+        fileManager.contentsOfDirectoryAtPath("$baseDirectory/breez-spark", null)
+            .isNullOrEmpty()
+
     override fun beginReset(): Boolean = NSData().writeToFile(resetMarker, atomically = true)
 
     override fun resetPending(): Boolean = fileManager.fileExistsAtPath(resetMarker)
@@ -134,7 +136,7 @@ private class IOSCredentialVault(
                     val value = NSString.create(data, NSUTF8StringEncoding)?.toString()
                         ?: return@memScoped CredentialLoadResult.Corrupt
                     try {
-                        CredentialLoadResult.Available(WalletCredential.fromMnemonic(value))
+                        CredentialLoadResult.Available(WalletCredential.decode(value))
                     } catch (_: IllegalArgumentException) {
                         CredentialLoadResult.Corrupt
                     }
@@ -158,7 +160,7 @@ private class IOSCredentialVault(
 
     override suspend fun store(credential: WalletCredential): CredentialStoreResult {
         val data =
-            NSString.create(string = credential.value).dataUsingEncoding(NSUTF8StringEncoding)
+            NSString.create(string = credential.encoded()).dataUsingEncoding(NSUTF8StringEncoding)
                 ?: return CredentialStoreResult.FAILED
         val attributes = baseMap() + mapOf(
             kSecAttrAccessible to kSecAttrAccessibleWhenUnlockedThisDeviceOnly,

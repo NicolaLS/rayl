@@ -9,6 +9,10 @@ data class NativeSparkWalletConnectionText(
     val phraseLabel: String,
     val phraseHint: String,
     val storageNote: String,
+    val passphraseToggle: String,
+    val passphraseLabel: String,
+    val passphraseHint: String,
+    val passphraseNote: String,
     val importAction: String,
     val removeTitle: String,
     val removeBody: String,
@@ -49,6 +53,30 @@ suspend fun nativeSparkWalletConnectionText(appName: String): NativeSparkWalletC
         ),
         phraseHint = nativeString(
             NativeStringResource(table = "SparkWalletConnection", key = "spark_wallet_phrase_hint")
+        ),
+        passphraseToggle = nativeString(
+            NativeStringResource(
+                table = "SparkWalletConnection",
+                key = "spark_wallet_passphrase_toggle"
+            )
+        ),
+        passphraseLabel = nativeString(
+            NativeStringResource(
+                table = "SparkWalletConnection",
+                key = "spark_wallet_passphrase_label"
+            )
+        ),
+        passphraseHint = nativeString(
+            NativeStringResource(
+                table = "SparkWalletConnection",
+                key = "spark_wallet_passphrase_hint"
+            )
+        ),
+        passphraseNote = nativeString(
+            NativeStringResource(
+                table = "SparkWalletConnection",
+                key = "spark_wallet_passphrase_note"
+            )
         ),
         storageNote = nativeString(
             NativeStringResource(table = "SparkWalletConnection", key = "spark_wallet_storage_note")

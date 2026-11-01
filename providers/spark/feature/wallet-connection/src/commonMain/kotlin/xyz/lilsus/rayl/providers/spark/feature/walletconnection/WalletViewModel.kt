@@ -17,6 +17,8 @@ import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 data class WalletUiState(
     val access: WalletAccessState = WalletAccessState.Loading,
     val recoveryPhrase: String = "",
+    /** The optional BIP-39 passphrase, kept exactly as typed. */
+    val passphrase: String = "",
     val message: WalletMessage? = null,
     val confirmRemoval: Boolean = false
 )
@@ -31,6 +33,7 @@ enum class WalletMessage {
 
 sealed interface WalletAction {
     data class RecoveryPhraseChanged(val value: String) : WalletAction
+    data class PassphraseChanged(val value: String) : WalletAction
     data object Import : WalletAction
     data object Retry : WalletAction
     data object RequestRemoval : WalletAction
@@ -59,13 +62,17 @@ class WalletViewModel(private val walletAccess: WalletAccess) : ViewModel() {
 
     fun dispose() {
         viewModelScope.cancel()
-        mutableState.value = mutableState.value.copy(recoveryPhrase = "")
+        mutableState.value = mutableState.value.copy(recoveryPhrase = "", passphrase = "")
     }
 
     private suspend fun reduce(action: WalletAction) {
         when (action) {
             is WalletAction.RecoveryPhraseChanged -> update {
                 it.copy(recoveryPhrase = action.value, message = null)
+            }
+
+            is WalletAction.PassphraseChanged -> update {
+                it.copy(passphrase = action.value, message = null)
             }
 
             WalletAction.Import -> importWallet()
@@ -77,7 +84,7 @@ class WalletViewModel(private val walletAccess: WalletAccess) : ViewModel() {
             WalletAction.CancelRemoval -> update { it.copy(confirmRemoval = false) }
 
             WalletAction.ConfirmRemoval -> {
-                update { it.copy(confirmRemoval = false, recoveryPhrase = "") }
+                update { it.copy(confirmRemoval = false, recoveryPhrase = "", passphrase = "") }
                 removeWallet()
             }
         }
@@ -85,8 +92,9 @@ class WalletViewModel(private val walletAccess: WalletAccess) : ViewModel() {
 
     private suspend fun importWallet() {
         val phrase = state.value.recoveryPhrase
-        update { it.copy(recoveryPhrase = "", message = null) }
-        val message = when (walletAccess.importWallet(phrase)) {
+        val passphrase = state.value.passphrase
+        update { it.copy(recoveryPhrase = "", passphrase = "", message = null) }
+        val message = when (walletAccess.importWallet(phrase, passphrase)) {
             ImportWalletResult.IMPORTED -> null
             ImportWalletResult.ALREADY_CONFIGURED -> WalletMessage.ALREADY_CONFIGURED
             ImportWalletResult.INVALID_MNEMONIC -> WalletMessage.INVALID_MNEMONIC

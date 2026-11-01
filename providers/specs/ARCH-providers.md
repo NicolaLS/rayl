@@ -14,14 +14,15 @@ capability-specific controls, and execution callbacks.
 
 ## Composition and execution
 
-Blink and NWC assemble their runtimes in their `experience` modules around the
+Blink, NWC, and Spark assemble their runtimes in their `experience` modules around the
 provider-neutral [`feature/payment-flow`](../../feature/payment-flow), which owns
 admission, LNURL resolution, confirmation, session history, and presentation.
 Each provider's `feature/payment` supplies a `PaymentSettlement` that chooses
 funding and submits payments through its own integration.
 [Blink](../blink/integration/blink) wraps a GraphQL API and BTC or USD funding
-wallets; [NWC](../nwc/integration/nwc) wraps the Nostr Wallet Connect client.
-Their integrations own connection credentials.
+wallets; [NWC](../nwc/integration/nwc) wraps the Nostr Wallet Connect client;
+[Spark](../spark/integration/wallet) wraps the Breez SDK for an imported recovery
+phrase. Their integrations own connection credentials.
 Providers receive an explicit fresh-setup or restore mode. Fresh setup never
 loads prior credentials. Platform storage cleanup is available independently of
 runtime creation, so Rayl can enforce
@@ -38,13 +39,10 @@ invoices, and creates funding invoices. It shares no code with the Spark provide
 provider session as defined by
 [SPEC-wallet-lifecycle](../../specs/SPEC-wallet-lifecycle.md).
 
-Spark defines wallet and payment interfaces in
-[`application`](../spark/application): `WalletAccess` controls wallet/session
-access and `PaymentEngine` controls preparation and submission. Its payment
-feature consumes `PaymentEngine`; [`integration/wallet`](../spark/integration/wallet)
-provides platform credential/storage implementations and the Breez Spark adapter.
-Spark's [`experience`](../spark/experience) assembles these parts and their platform
-presentations; Rayl supplies product configuration and platform entry points.
+Spark's [`application`](../spark/application) defines `WalletAccess`, which
+controls the wallet session, and `SparkPayments`, which its settlement pays
+through while a session is connected; [`integration/wallet`](../spark/integration/wallet)
+provides the platform credential and storage implementations.
 The experience owns its wallet session lifetime. Disposal stops operations and
 releases SDK resources while preserving credentials. The suspending `close()` API
 reports cleanup failures and permits retry; non-suspending platform teardown is
@@ -64,9 +62,9 @@ sources compile together in the app target.
 
 ## Shared services
 
-Rayl, Blink, and NWC resolve LNURL through `integration/lnurl` and the shared
-`LnurlInvoiceResolver`. Spark extends the shared input parser for Spark invoices
-and delegates LNURL preparation to Breez.
+Every provider resolves LNURL through `integration/lnurl` and the shared
+`LnurlInvoiceResolver`, and pays only Lightning invoices: Spark invoices are not
+payable, even by the Spark-based wallets.
 
 The [shared Hub](../../feature/payment-hub/specs/ARCH-payment-hub.md) emits
 payment requests to provider coordinators. Providers execute them and report

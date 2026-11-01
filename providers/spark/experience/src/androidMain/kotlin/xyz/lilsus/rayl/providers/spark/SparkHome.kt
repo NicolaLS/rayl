@@ -8,13 +8,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
-import xyz.lilsus.rayl.providers.spark.feature.payment.rememberPaymentFlowState
-import xyz.lilsus.rayl.providers.spark.feature.payment.rememberPaymentMessages
+import xyz.lilsus.rayl.providers.spark.feature.payment.sparkPaymentStringResource
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletAction
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletViewModel
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.feature.appshell.AppTab
 import xyz.lilsus.raylsuite.feature.appshell.AppTabScaffold
+import xyz.lilsus.raylsuite.feature.paymentflow.rememberPaymentFlowState
+import xyz.lilsus.raylsuite.feature.paymentflow.rememberPaymentMessages
 import xyz.lilsus.raylsuite.feature.paymenthub.PaymentHubTab
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentScanFlow
 import xyz.lilsus.raylsuite.feature.settings.SettingsFlow
@@ -71,8 +72,8 @@ internal fun SparkTabContent(
     val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
     val tabState = runtime.tabState
     val selectedTransactionId by tabState.selectedTransactionId.collectAsStateWithLifecycle()
-    val flowState = rememberPaymentFlowState(coordinator)
-    val messages = rememberPaymentMessages(coordinator)
+    val flowState = rememberPaymentFlowState(coordinator, ::sparkPaymentStringResource)
+    val messages = rememberPaymentMessages(coordinator, ::sparkPaymentStringResource)
     val hubState by runtime.paymentHub.state.collectAsStateWithLifecycle()
     val currencyCode by runtime.currencyPreferences.code.collectAsStateWithLifecycle(
         CurrencyCatalog.DEFAULT_CODE

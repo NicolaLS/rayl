@@ -23,7 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -108,6 +111,7 @@ fun WalletConnectionScreen(
                 enabled = state.access == WalletAccessState.NoWallet,
                 multiline = true
             )
+            PassphraseInput(state = state, dispatch = dispatch, onPaste = clipboard::read)
             Text(
                 text = stringResource(R.string.spark_wallet_storage_note),
                 style = MaterialTheme.typography.bodySmall,
@@ -140,6 +144,44 @@ fun WalletConnectionScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp)
         )
     }
+}
+
+/** The optional BIP-39 passphrase, behind a link since most wallets have none. */
+@Composable
+private fun PassphraseInput(
+    state: WalletUiState,
+    dispatch: (WalletAction) -> Unit,
+    onPaste: () -> String?
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val enabled = state.access == WalletAccessState.NoWallet
+    if (!expanded && state.passphrase.isEmpty()) {
+        TextButton(onClick = { expanded = true }, enabled = enabled) {
+            Text(stringResource(R.string.spark_wallet_passphrase_toggle))
+        }
+        return
+    }
+    CredentialInput(
+        value = state.passphrase,
+        onValueChange = { dispatch(WalletAction.PassphraseChanged(it)) },
+        label = stringResource(R.string.spark_wallet_passphrase_label),
+        placeholder = stringResource(R.string.spark_wallet_passphrase_hint),
+        // Kept exactly as copied: spaces are part of a passphrase.
+        onPaste = {
+            onPaste()?.takeIf(String::isNotEmpty)?.let {
+                dispatch(WalletAction.PassphraseChanged(it))
+            }
+        },
+        onSubmit = {
+            if (enabled && state.recoveryPhrase.isNotBlank()) dispatch(WalletAction.Import)
+        },
+        enabled = enabled
+    )
+    Text(
+        text = stringResource(R.string.spark_wallet_passphrase_note),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable

@@ -8,21 +8,27 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
-import xyz.lilsus.rayl.providers.spark.feature.payment.PaymentCoordinator
-import xyz.lilsus.rayl.providers.spark.feature.payment.PaymentUiState
+import xyz.lilsus.rayl.providers.spark.feature.payment.SparkPaymentSettlement
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletViewModel
+import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
 import xyz.lilsus.raylsuite.core.ui.platform.HapticFeedbackManager
 import xyz.lilsus.raylsuite.feature.appshell.AppTabState
 import xyz.lilsus.raylsuite.feature.currencysettings.DefaultCurrencyPreferences
 import xyz.lilsus.raylsuite.feature.languagesettings.createLanguageRepository
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
+import xyz.lilsus.raylsuite.feature.paymentflow.PaymentFlowCoordinator
+import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiState
 import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
+import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
+import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
 
 /**
  * Spark experience objects, held outside composition so both the Compose host and the native
@@ -57,10 +63,13 @@ internal class SparkRuntime(
     val tabState = AppTabState()
     val paymentHub = PaymentHubController(repository = paymentHubRepository, scope = scope)
 
+    private val networkConnectivity by lazy { createNetworkConnectivity() }
+    private val lnurlPayClient = KtorLnurlPayClient(networkConnectivity)
+
     val paymentCoordinator =
-        PaymentCoordinator(
-            engine = walletAccess.payments,
-            paymentLinks = host.paymentLinks,
+        PaymentFlowCoordinator(
+            settlement = SparkPaymentSettlement(walletAccess.payments),
+            lnurlPayClient = lnurlPayClient,
             bitcoinPriceProvider = bitcoinPriceProvider,
             currencyPreferences = currencyPreferences,
             paymentPreferences = paymentPreferences,
@@ -77,14 +86,19 @@ internal class SparkRuntime(
 
     init {
         scope.launch {
-            SparkDeepLinks.events.collect { link ->
-                // FIXME: On cold start, walletAccess.state is Loading until async restore finishes,
-                // so a payment deep link arriving during restore is dropped here.
+            SparkDeepLinks.events.collectLatest { link ->
+                // A link that opens the app arrives while the wallet is still restoring; wait for
+                // the restore to settle instead of dropping it. A newer link replaces it.
+                val settled = walletAccess.state.first {
+                    it != WalletAccessState.Loading && it != WalletAccessState.Connecting
+                }
                 if (onboardingState.canHandlePaymentDeepLink(
-                        walletConnected = walletAccess.state.value == WalletAccessState.Connected
-                    )
+                        walletConnected = settled == WalletAccessState.Connected
+                    ) &&
+                    !paymentCoordinator.isSubmitting.value
                 ) {
-                    host.paymentLinks.offer(link)
+                    tabState.requestScan()
+                    paymentCoordinator.dispatch(PaymentIntent.DeepLinkReceived(link))
                 }
             }
         }
@@ -113,7 +127,7 @@ internal class SparkRuntime(
         onboardingViewModel.clear()
         languageRepository.close()
         bitcoinPriceProvider.close()
-        host.paymentLinks.clear()
+        lnurlPayClient.close()
         SparkDeepLinks.clear()
     }
 

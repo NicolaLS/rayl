@@ -47,8 +47,14 @@ data class SparkNativeOnboardingSnapshot(
     val phraseLabel: String,
     val phraseHint: String,
     val storageNote: String,
+    val passphraseToggle: String,
+    val passphraseLabel: String,
+    val passphraseHint: String,
+    val passphraseNote: String,
     val importTitle: String,
     val recoveryPhrase: String,
+    /** The optional BIP-39 passphrase, kept exactly as typed. */
+    val passphrase: String,
     val canImport: Boolean,
     val walletStatus: String?,
     val walletError: String?,
@@ -137,6 +143,19 @@ class SparkNativeOnboardingController internal constructor(
         if (closed || wallet.state.value.access != WalletAccessState.NoWallet) return
         clipboard.read()?.trim()?.takeIf(String::isNotEmpty)?.let {
             wallet.dispatch(WalletAction.RecoveryPhraseChanged(it))
+        }
+    }
+
+    fun updatePassphrase(value: String) {
+        if (closed || wallet.state.value.access != WalletAccessState.NoWallet) return
+        wallet.dispatch(WalletAction.PassphraseChanged(value))
+    }
+
+    /** Kept exactly as copied: spaces are part of a passphrase. */
+    fun pastePassphrase() {
+        if (closed || wallet.state.value.access != WalletAccessState.NoWallet) return
+        clipboard.read()?.takeIf(String::isNotEmpty)?.let {
+            wallet.dispatch(WalletAction.PassphraseChanged(it))
         }
     }
 
@@ -231,8 +250,13 @@ class SparkNativeOnboardingController internal constructor(
                 phraseLabel = walletText.phraseLabel,
                 phraseHint = walletText.phraseHint,
                 storageNote = walletText.storageNote,
+                passphraseToggle = walletText.passphraseToggle,
+                passphraseLabel = walletText.passphraseLabel,
+                passphraseHint = walletText.passphraseHint,
+                passphraseNote = walletText.passphraseNote,
                 importTitle = walletText.importAction,
                 recoveryPhrase = walletState.recoveryPhrase,
+                passphrase = walletState.passphrase,
                 canImport =
                     walletState.access == WalletAccessState.NoWallet &&
                         walletState.recoveryPhrase.isNotBlank(),

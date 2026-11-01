@@ -1,10 +1,12 @@
 <resources>
-    <string name="spark_transaction_status_success">Pagado</string>
-    <string name="spark_transaction_status_failure">Fallido</string>
-    <string name="spark_transaction_fee">Comisión %1$s</string>
-    <string name="spark_error_missing_wallet_connection">Conecta una billetera para continuar.</string>
-    <string name="spark_error_payment_rejected_generic">El pago fue rechazado.</string>
-    <string name="spark_error_payment_rejected_message">El pago fue rechazado: %1$s</string>
-    <string name="spark_error_relay_connection_failed">No se pudo conectar a la billetera. Inténtalo de nuevo.</string>
-    <string name="spark_error_payment_unconfirmed">No se pudo confirmar este pago. Verifica su estado antes de volver a pagar.</string>
+    <string name="error_insufficient_funds">No tienes saldo suficiente en tu billetera Spark.</string>
+    <string name="error_wallet_not_ready">No se pudo conectar con tu billetera Spark, así que no se pagó nada. Comprueba tu conexión e inténtalo de nuevo.</string>
+    <string name="error_sub_satoshi_amount">Spark solo puede pagar importes en satoshis enteros.</string>
+    <string name="error_payment_rejected_generic">El pago falló.</string>
+    <string name="error_payment_rejected_message">El pago falló: %1$s</string>
+    <string name="error_payment_unconfirmed">Estado de pago desconocido. Es posible que el pago haya sido exitoso.</string>
+    <string name="error_payment_unconfirmed_message">Estado de pago desconocido: %1$s</string>
+    <string name="error_invoice_already_paid">Esta factura ya se ha pagado.</string>
+    <string name="error_invoice_expired">Esta factura ha caducado. Pide una nueva al destinatario.</string>
+    <string name="error_balance_settling">Tu saldo aún se está actualizando. Inténtalo de nuevo en unos minutos.</string>
 </resources>

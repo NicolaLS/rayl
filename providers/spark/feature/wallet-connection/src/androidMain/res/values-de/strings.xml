@@ -29,4 +29,8 @@
     <string name="spark_wallet_error_connection">Diese Wallet konnte nicht geöffnet werden. Prüfe die Wiederherstellungsphrase und Internetverbindung und versuche es erneut.</string>
     <string name="spark_wallet_error_storage">Die Wallet wurde geöffnet, aber ihre Wiederherstellungsphrase konnte auf diesem Gerät nicht geschützt werden.</string>
     <string name="spark_wallet_error_reset">Die Bereinigung ist unvollständig. Wiederhole das Zurücksetzen, bevor du eine andere Wallet importierst.</string>
+    <string name="spark_wallet_passphrase_toggle">Erweitert: Passphrase verwenden</string>
+    <string name="spark_wallet_passphrase_label">Passphrase (optional)</string>
+    <string name="spark_wallet_passphrase_hint">BIP39-Passphrase</string>
+    <string name="spark_wallet_passphrase_note">Nur wenn deine Wallet mit einer erstellt wurde, manchmal 25. Wort genannt. Groß- und Kleinschreibung zählen, und eine andere Passphrase öffnet eine andere, leere Wallet.</string>
 </resources>

@@ -12,8 +12,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import xyz.lilsus.rayl.providers.spark.application.AppEnvironment
-import xyz.lilsus.rayl.providers.spark.application.payment.DefaultPaymentEngine
+import xyz.lilsus.rayl.providers.spark.application.payment.SparkPayments
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialProblemKind
 import xyz.lilsus.rayl.providers.spark.application.wallet.ImportWalletResult
 import xyz.lilsus.rayl.providers.spark.application.wallet.RemoveWalletResult
@@ -55,11 +54,11 @@ class WalletViewModelTest {
 private class ErrorWalletAccess : WalletAccess {
     override val state = MutableStateFlow<WalletAccessState>(WalletAccessState.CredentialProblem(CredentialProblemKind.UNAVAILABLE))
     override val removed = MutableStateFlow(false)
-    override val payments = DefaultPaymentEngine(AppEnvironment.DEBUG)
+    override val payments = SparkPayments()
     var retries = 0
     var removals = 0
     override fun start() = Unit
-    override suspend fun importWallet(mnemonic: String) = ImportWalletResult.CONNECTION_FAILED
+    override suspend fun importWallet(mnemonic: String, passphrase: String) = ImportWalletResult.CONNECTION_FAILED
     override suspend fun retryConnection() {
         retries++
     }
