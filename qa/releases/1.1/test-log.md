@@ -2,6 +2,15 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of `core/payment`
+
+- **Build:** `main` at `65cad36c` plus the audit change (uncommitted)
+- **Ran:** 9 mutation checks against `:core:payment:testAndroidHostTest`, then the module's
+  tests and ktlint.
+- **Result:** 2 killed, 7 survived (6 of them significant; all become stage 2 gaps). The
+  module passes with 25 tests.
+- Findings and observation O-08: [test-audit.md §3](test-audit.md#3-corepayment-2026-11-01).
+
 ## 2026-11-01: Audit of `feature/payment-settings`; pilot revised
 
 - **Build:** `main` at `2f7d2d23` plus the audit changes (uncommitted)

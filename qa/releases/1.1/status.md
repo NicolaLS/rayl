@@ -9,7 +9,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 
 | # | Item | State | Artifacts |
 |---|---|---|---|
-| A | Stage 1: audit the existing tests | In progress: 2 of 13 modules | [test-audit.md](test-audit.md) |
+| A | Stage 1: audit the existing tests | In progress: 3 of 13 modules | [test-audit.md](test-audit.md) |
 | M1 | Auto Pay decision table | In progress: policy level done; through the flow next; fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest` (6 tests) |
 | M2 | Payment flow component tests | Not started | |
 | M3 | Settlement classification, four wallets | Not started | |
@@ -58,3 +58,4 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | O-04 | Terms and privacy policy don't mention the built-in wallet | S2 (release blocker by exit criterion 6) | To review (M9) |
 | O-05 | No screen-capture protection for credentials on Android | Pending decision | Open (D-06) |
 | O-07 | Duplicate detection after a restart relies on each wallet | Unknown | To check (M11) |
+| O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 if the decision is to accept it | Product decision needed |

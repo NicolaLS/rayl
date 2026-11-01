@@ -554,7 +554,7 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
   or platform vitals only?
 - D-04 Mainnet test budget per release candidate.
 - D-05 Which App Live devices form the standard matrix (proposal in §7).
-- D-06 Observation O-05: intended behaviour (O-01 is decided, D-06a).
+- D-06 Observations O-05 and O-08: intended behaviour (O-01 is decided, D-06a).
 - D-07 Add a property-testing library (e.g. kotest-property) or use hand-rolled
   generators?
 
@@ -573,6 +573,7 @@ one needs a test or a product decision before it becomes a defect or is closed.
 | O-04 | `terms.md` and `privacy.md` describe Rayl as a non-custodial client for external wallets only. They don't mention the built-in pocket, passkeys, the device-held key copy, or Breez. | PR-21 | Review before release; release exit criterion 6 |
 | O-05 | Android has no screen-capture protection on any screen since `975f45f9`, including Spark recovery-phrase, Blink API-key and NWC URI entry. iOS marks the phrase `privacySensitive()`. This is both a security question and a parity deviation. | PR-11, PR-16 | Product decision (accept, or protect only the credential screens) |
 | O-06 | Auto Pay compares the invoice amount with the threshold. Routing fees are not part of the decision. | PR-06 | Became SI-01 (appendix B) |
+| O-08 | A Lightning address with uppercase letters in the user part (`Alice@example.com`) is rejected as unrecognised. `LightningAddress.parse` accepts it, but `DefaultLnurlParser` rejects it. Phone keyboards capitalise the first letter. LUD-16 allows only lowercase; many wallets lowercase instead of rejecting. | PR-14 | Product decision: lowercase or reject. Then a corpus row. |
 | O-07 | Client-side duplicate detection for re-scanned BOLT11 invoices uses only the in-memory session history, which keeps the last 10 payments (`MAX_RECENT_PAYMENTS`). After a restart, or once more than 10 payments have been made, protection depends on each wallet rejecting an already-paid invoice. | PR-03 | Verify per provider (regtest for the pocket and Spark, mainnet for Blink and NWC) |
 
 ## Appendix B: Specification issues

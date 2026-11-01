@@ -62,7 +62,7 @@ Modules are audited in risk order: Level 1 modules first.
 |---|---|---|---|---|---|---|---|
 | 1 | `feature/payment-flow` | 8 → 9 | PR-02–PR-04 | Done | 6 | 1 improved (split into 3) | 1 |
 | 2 | `feature/payment-settings` | 9 → 8 | PR-02 | Done | 0 | 1 rewritten (policy, `8b4855be`), 1 replaced, 1 improved | 1 |
-| 3 | `core/payment` | 26 | PR-05, PR-14 | Not audited | | | |
+| 3 | `core/payment` | 26 → 25 | PR-05, PR-14 | Done | 25 | 0 | 1 |
 | 4 | `core/model` | 10 | PR-01 | Not audited | | | |
 | 5 | `feature/payment-ui` | 15 | PR-01 | Not audited | | | |
 | 6 | `feature/payment-currency`, `integration/exchange-rate`, `backend/rayl` | 3, 4, 11 | PR-01, PR-18 | Not audited | | | |
@@ -135,3 +135,44 @@ mutation.
 
 **Gaps:** none worth a test now. The stale-price guard in the preview (a slow price for the
 previous currency must not overwrite the new one) only affects display.
+
+### 3. `core/payment` (2026-11-01)
+
+The LNURL tests are the strongest in the suite so far: they pin security rules (https only,
+no credentials or fragments in the URL, no IP-address hosts, bech32m and wrong prefixes
+rejected) and the invoice checks that protect against a hostile server (amount, metadata,
+expiry, range). The input parser tests are sound but thin: they assert only the target
+type, and miss the partitions most common in real QR codes.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `LightningInputParserTest` (5 tests) | Keep | Cover the routing of raw and `lightning:` BOLT11, LUD-17, BIP21 and LUD-01 fallbacks, and the unsupported formats. In stage 2 they become rows of the S1 input corpus, which adds the missing partitions (L1–L5). |
+| `OrderedPaymentInputParserTest` (3 tests) | Keep | The priority contract of the parser composition, which Spark extends: first match wins, a redirect restarts at the top, unsupported recognisers never shadow payable input. |
+| `LnurlParserTest` (9 tests) | Keep | Security-relevant parsing rules with independent oracles (LUD-01/16/17). `rejectsNonCanonicalLightningAddresses` pins a behaviour that awaits a product decision (O-08). |
+| `LnurlInvoiceResolverTest.returnsClientError` | **Delete** | Restates a one-line pass-through of the client error. |
+| `LnurlInvoiceResolverTest` (other 8) | Keep | PR-05 and PR-01: the invoice an LNURL server returns must match the requested amount and metadata and must not be expired; out-of-range amounts are refused before any request. |
+
+**Mutation checks**
+
+| # | Mutation | Result |
+|---|---|---|
+| R1 | An invoice's `description_hash` is never compared with the metadata | **Survived** |
+| R2 | An invoice for a different amount is accepted | Killed |
+| R3 | An expired invoice is accepted | Killed |
+| R4 | An amountless invoice from an LNURL server is accepted | **Survived** |
+| L1 | Uppercase BOLT11 (common in QR codes) is not recognised | **Survived** |
+| L2 | An uppercase `LIGHTNING:` scheme is not recognised | **Survived** |
+| L3 | Whitespace around scanned input is not trimmed | **Survived** |
+| L4 | A BIP21 URI with two `lightning=` values pays the first | Survived (minor) |
+| L5 | A Lightning address is returned as a generic LNURL target (the Hub then can't offer to save it) | **Survived** |
+
+**Gaps** (for stage 2):
+- **PR-05, S4 (hostile LNURL):** R1 and R4. Real LNURL servers mostly bind the invoice
+  with `description_hash`, so the path that matters most in production is the untested one.
+- **PR-14, S1 (input corpus):** L1, L2, L3, L5, plus Lightning addresses (none of the parser
+  tests use one) and a never-throws property test.
+
+**Observation O-08** (to the stakeholder): `Alice@example.com` is rejected as unrecognised.
+`LightningAddress.parse` accepts it, but the LNURL parser's own user-part check rejects
+uppercase. Phone keyboards capitalise the first letter, so this will happen. LUD-16 allows
+only lowercase, but many wallets lowercase the user part instead of rejecting it.

@@ -32,19 +32,6 @@ class LnurlInvoiceResolverTest {
     }
 
     @Test
-    fun returnsClientError() = runTest {
-        val expected = LnurlError.Protocol("rejected")
-        val client = FakeLnurlPayClient { _, _ -> LnurlResult.Error(expected) }
-
-        val result = resolver(client).resolve(request())
-
-        assertEquals(
-            expected,
-            assertIs<LnurlInvoiceResolutionError.Client>(failure(result)).error
-        )
-    }
-
-    @Test
     fun rejectsUnsupportedCommentBeforeRequestingInvoice() = runTest {
         val client = FakeLnurlPayClient { _, _ -> error("invoice must not be requested") }
 
