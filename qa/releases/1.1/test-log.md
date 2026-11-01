@@ -2,6 +2,12 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Stage 2.4, unreadable pocket key
+
+- **Build:** `main` at `ccfcbf42` plus 1 new test (uncommitted)
+- **Ran:** `providers/rayl/integration/pocket` tests and ktlint, then mutation K3.
+- **Result:** pass; K3 is now killed.
+
 ## 2026-11-01: Stage 2.3, Spark removal and the credential delete
 
 - **Build:** `main` at `599ba873` plus 1 new test (uncommitted)

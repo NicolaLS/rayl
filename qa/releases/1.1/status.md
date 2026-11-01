@@ -17,7 +17,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | M4 | Duplicate payment, O-02 | Not started | |
 | M5 | Conversion boundaries | Not started | |
 | M6 | Wallet lifecycle traceability | Not started | |
-| M7 | Pocket key rules | Not started | |
+| M7 | Pocket key rules | Host-level part done (2.4); the platform stores need stage 3 | `RaylPocketTest` |
 | M8 | Static reviews (secrets, release config, SDK pins) | Not started | |
 | M9 | `distribution/` review | Deferred to stage 3 | |
 | M10 | Release checklist and App Live run | Not started | |
@@ -43,7 +43,7 @@ Slices, in order:
 | 2.1 | **Done.** Settlement contract for the Rayl and Spark wallets: an uncertain or thrown outcome after submitting is `Unknown`, a `prepare` failure means not paid, cancellation propagates, fees are reported in msat (M3) | PR-04 | Nothing |
 | 2.2 | The same contract for Blink and NWC (M3) | PR-04 | **A test seam** (an interface the settlement depends on) in both settlements: a small production change, waiting for Nicola's OK |
 | 2.3 | **Done.** Spark removal waits for the credential delete (M6, W2) | PR-08 | Nothing |
-| 2.4 | An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
+| 2.4 | **Done.** An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
 | 2.5 | LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
 | 2.6 | Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (S1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
 | 2.7 | Fiat quote: rounding to whole sats and invalid rates (M5, S2) | PR-01, PR-18 | Nothing |

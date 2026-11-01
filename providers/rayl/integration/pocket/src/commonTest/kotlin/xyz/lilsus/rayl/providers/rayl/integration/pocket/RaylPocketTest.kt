@@ -73,6 +73,16 @@ class RaylPocketTest {
     }
 
     @Test
+    fun anUnreadableKeyStillCountsAsAKey() = runTest {
+        // Onboarding asks hasKey() to choose between setup and recovery. A key that exists but
+        // can't be read (e.g. after the OS invalidated the Keystore) needs recovery: setup would
+        // only fail because the store refuses to replace it (PR-09).
+        val pocket = pocket(FakeKeyStore(unavailable = true), FakeConnector())
+
+        assertTrue(pocket.hasKey())
+    }
+
+    @Test
     fun doesNotConnectWithAKeyThatWasNotStored() = runTest {
         val keys = FakeKeyStore(acceptAdds = false)
         val connector = FakeConnector()
