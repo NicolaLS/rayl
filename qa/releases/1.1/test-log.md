@@ -2,6 +2,16 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-01: Audit of settlement in each wallet
+
+- **Build:** `main` at `84e54e3c` plus the audit changes (uncommitted)
+- **Ran:** 8 mutation checks across the Rayl, Spark, NWC and Blink payment modules, then
+  the tests and ktlint of the changed modules.
+- **Result:** all 5 mutations of the Unknown-never-Failed rule survived (the headline
+  finding); the other 3 were killed. The changed modules pass.
+- **Tool fix:** `mutate.sh` now finds results through the task path (see the audit §8).
+- Findings and observation O-09: [test-audit.md §8](test-audit.md#8-settlement-in-each-wallet-2026-11-01).
+
 ## 2026-11-01: Audit of `integration/lnurl`
 
 - **Build:** `main` at `7f972deb` plus the audit changes (uncommitted)

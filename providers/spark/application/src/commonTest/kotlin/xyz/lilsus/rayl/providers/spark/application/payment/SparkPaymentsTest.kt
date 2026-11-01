@@ -7,13 +7,6 @@ import kotlinx.coroutines.test.runTest
 
 class SparkPaymentsTest {
     @Test
-    fun quotesNeedAnAttachedSession() = runTest {
-        val payments = SparkPayments()
-
-        assertEquals(SparkQuoteResult.NotReady, payments.quote("lnbcrt1", null))
-    }
-
-    @Test
     fun paysThroughTheSessionThatQuoted() = runTest {
         val client = FakeClient()
         val payments = SparkPayments().apply { attach(client) }

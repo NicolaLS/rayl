@@ -30,7 +30,9 @@ open(path, "w").write(text.replace(os.environ["ORIGINAL"], os.environ["REPLACEME
 EOF
 trap 'git checkout -- "$file"' EXIT
 
-module_dir=$(echo "$file" | sed -E 's#/src/.*##')
+# Results are written by the module that owns the test task, which may differ from the mutated
+# file's module (e.g. a settlement test exercising another module's code).
+module_dir=$(echo "$task" | sed -E 's#^:##; s#:[^:]+$##; s#:#/#g')
 started=$(date +%s)
 if ./gradlew "$task" --quiet >/dev/null 2>&1; then
   echo "SURVIVED: no test failed"

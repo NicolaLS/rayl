@@ -67,7 +67,7 @@ Modules are audited in risk order: Level 1 modules first.
 | 5 | `feature/payment-ui` | 15 → 10 | PR-01, PR-05 | Done | 10 | 0 | 5 |
 | 6 | `feature/payment-currency`, `integration/exchange-rate`, `backend/rayl` | 18 → 17 | PR-01, PR-18 | Done | 16 | 1 improved | 1 |
 | 7 | `integration/lnurl` | 7 | PR-05, PR-11 | Done | 4 | 2 merged into 1, 1 split into 2 | 0 |
-| 8 | Settlement: `providers/rayl/feature/payment`, `providers/spark/feature/payment`, `providers/blink/integration/blink`, `providers/nwc/integration/nwc` | 5, 6, 16, 3 | PR-04, PR-07 | Not audited | | | |
+| 8 | Settlement: `providers/rayl/feature/payment`, `providers/spark/feature/payment` and `SparkPaymentsTest`, `providers/blink/integration/blink`, `providers/nwc/integration/nwc` | 5, 6 + 3, 16, 3 → 31 | PR-04, PR-07, PR-08 | Done | 31 | 0 | 2 |
 | 9 | Pocket: `providers/rayl/integration/pocket`, `providers/rayl/experience` | 31, 15 | PR-09, PR-10 | Not audited | | | |
 | 10 | Spark wallet: `providers/spark/application`, `integration/wallet`, `feature/wallet-connection`, `experience` | 26, 4, 5, 3 | PR-08 | Not audited | | | |
 | 11 | Selection and storage: `app/shared`, `core/settings` | 13, 1 | PR-08, PR-12 | Not audited | | | |
@@ -302,4 +302,56 @@ and redaction of remote error text.
 | N5 | The server's error reason is shown to the user | Killed |
 
 **Gaps:** none at this level.
+
+### 8. Settlement in each wallet (2026-11-01)
+
+**Headline finding:** PR-04's central rule, *an outcome that is uncertain after
+submitting is `Unknown`, never `Failed`*, is not protected in any wallet. In all four
+settlements, turning a thrown exception into `Failed` goes unnoticed (S1–S4 below).
+`BlinkPaymentSettlement` and `NwcPaymentSettlement` have no tests at all, and the Rayl and
+Spark tests never throw during `settle`. A "failed" message after a payment that actually
+went through invites the user to pay again. This makes the settlement contract suite (M3)
+the first stage 2 item.
+
+| Test | Verdict | Reason |
+|---|---|---|
+| `RaylPaymentSettlementTest` (5) and `SparkPaymentSettlementTest` (6) | Keep, to be replaced by M3 | Near-identical tests for two mirrored implementations: whole-sat quoting for amountless invoices, refusing sub-sat amounts instead of truncating them, insufficient funds before confirmation, outcome and refusal mapping. Not redundant (different code), but exactly what one shared contract suite should cover. |
+| `SparkPaymentsTest.quotesNeedAnAttachedSession` | **Delete** | Redundant with `SparkPaymentSettlementTest.aDisconnectedWalletPaysNothing`, which still kills the mutation |
+| `SparkPaymentsTest.paysThroughTheSessionThatQuoted` | Keep | The only check that the quoted fee survives the session wrapper; fee-aware Auto Pay (SI-01) will depend on it |
+| `SparkPaymentsTest.aQuoteFromAnEarlierSessionIsNeverSubmitted` | Keep | A quote must never be paid through a reconnected session |
+| `BlinkWalletPaymentTest` (13) | Keep | The strongest settlement tests: a pending payment stays unconfirmed and is never resubmitted; a failed status query never becomes "failed"; the confirmed funding wallet is used; a USD wallet pays amountless invoices in cents; a fresh setup never reads old credentials |
+| `BlinkApiClientTest.fetchAuthorizationScopesReturnsScopes` | **Delete** | Checks that Apollo parses a JSON list (library behaviour) |
+| `BlinkApiClientTest.payInvoiceParsesTransaction` | Keep | Blink reports the fee as a negative settlement amount; it must become a positive fee in msat (PR-06) |
+| `BlinkCredentialStoreTest.storesAndClearsOneCredentialSet` | Keep | Clearing must remove the credentials (PR-08) |
+| `NwcWalletConnectionTest` (3) | Keep | A regression test for a real lifecycle race (introduced with `08b9ed15`, "enforce single-wallet lifecycle"); a fresh setup never reads old credentials; a connection without `pay_invoice` or `lookup_invoice` can't be saved |
+
+**Mutation checks**
+
+| # | Mutation | Result |
+|---|---|---|
+| S1 | Rayl: an exception during `settle` becomes `Failed` | **Survived** |
+| S2 | Spark: the same | **Survived** |
+| S3 | NWC: the same | **Survived** (no tests) |
+| S4 | Blink: the same | **Survived** (no tests) |
+| S5 | Blink: `StatusUnknown` maps to `Failed` | **Survived** (no tests) |
+| S6 | Spark: a missing session returns "insufficient funds" instead of "not ready" | Killed (after the deletion) |
+| S7 | Spark: a quote from an earlier session is submitted | Killed |
+| S8 | Rayl: a sub-sat amount is truncated | Killed |
+
+**Gaps** (for stage 2):
+- **M3 (first):** one contract suite run against all four settlements: thrown or uncertain
+  after submit → `Unknown`; `prepare` failures → not paid; cancellation propagates;
+  already-paid, expired and insufficient funds → shared errors; fee reported in msat.
+- NWC outcome classification (`WalletRejected`, `DefinitelyNotSent`, `Uncertain`) and
+  Blink's USD funding amount: untested.
+
+**Observation O-09** (PR-15, to the stakeholder): rescanning an already-paid invoice gives
+different results per wallet. Blink returns `Paid(wasAlreadyPaid = true)`, a success screen
+saying it was already paid. Rayl and Spark return `Failed(AlreadyPaid)`, an error screen.
+REQ-provider-experience asks for the same experience. Which one is intended?
+
+**Tool fix:** `mutate.sh` looked for test results in the mutated file's module. When the
+test task belongs to another module, it misreported the result as a build failure. It now
+derives the results directory from the task path. No earlier result was affected: they all
+used the same module for both.
 

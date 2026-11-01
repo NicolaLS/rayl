@@ -10,23 +10,6 @@ import kotlinx.coroutines.test.runTest
 
 class BlinkApiClientTest {
     @Test
-    fun fetchAuthorizationScopesReturnsScopes() = runTest {
-        val client = createClient(
-            responseJson = """{
-                "data": {
-                    "authorization": {
-                        "scopes": ["READ", "WRITE", "RECEIVE"]
-                    }
-                }
-            }"""
-        )
-
-        val scopes = client.fetchAuthorizationScopes("test-api-key")
-
-        assertEquals(listOf("READ", "WRITE", "RECEIVE"), scopes)
-    }
-
-    @Test
     fun payInvoiceParsesTransaction() = runTest {
         val client = createClient(
             responseJson = """{
