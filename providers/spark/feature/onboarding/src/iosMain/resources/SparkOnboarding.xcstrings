@@ -53,19 +53,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gib die vollständige Phrase mit 12, 15, 18, 21 oder 24 Wörtern in %1$@ ein."
+            "value" : "Gib ihre 12 oder 24 Wörter der Reihe nach in %1$@ ein."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter the complete 12, 15, 18, 21, or 24-word phrase in %1$@."
+            "value" : "Enter its 12 or 24 words in %1$@, in order."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ingresa en %1$@ la frase completa de 12, 15, 18, 21 o 24 palabras."
+            "value" : "Ingresa sus 12 o 24 palabras en %1$@, en orden."
           }
         }
       }

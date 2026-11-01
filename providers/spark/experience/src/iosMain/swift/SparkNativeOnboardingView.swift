@@ -141,22 +141,10 @@ struct SparkNativeOnboardingView: View {
                 onInstructions: model.controller.showWalletInstructions,
                 onSubmit: model.controller.importWallet
             ) {
-                NativeCredentialInput(
-                    value: Binding(
-                        get: { snapshot.recoveryPhrase },
-                        set: model.controller.updateRecoveryPhrase
-                    ),
-                    label: snapshot.phraseLabel,
-                    placeholder: snapshot.phraseHint,
-                    showTitle: snapshot.credentialText.show,
-                    hideTitle: snapshot.credentialText.hide,
-                    pasteTitle: snapshot.credentialText.paste,
-                    enabled: snapshot.walletKind == "import",
-                    multiline: true,
-                    onPaste: model.controller.pasteRecoveryPhrase,
-                    onSubmit: {
-                        if snapshot.canImport { model.controller.importWallet() }
-                    }
+                RecoveryPhraseGrid(
+                    snapshot: snapshot,
+                    controller: model.controller,
+                    enabled: snapshot.walletKind == "import"
                 )
                 passphrase(snapshot)
                 Text(snapshot.storageNote)
@@ -268,3 +256,95 @@ struct SparkNativeOnboardingView: View {
     }
 
 }
+
+/// The recovery phrase as numbered word fields. Words show in plain text and are hidden from
+/// screenshots of the app switcher; each field completes to its only possible BIP-39 word on
+/// Return or when left, and a pasted phrase fills every field.
+private struct RecoveryPhraseGrid: View {
+    let snapshot: SparkNativeOnboardingSnapshot
+    let controller: SparkNativeOnboardingController
+    let enabled: Bool
+    @FocusState private var focused: Int?
+
+    private let columns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(snapshot.phraseLabel)
+                .font(.subheadline.weight(.semibold))
+            Picker(snapshot.phraseLabel, selection: Binding(
+                get: { snapshot.words.count },
+                set: { controller.setWordCount(count: Int32($0)) }
+            )) {
+                ForEach(Array(snapshot.wordCounts.enumerated()), id: \.offset) { index, count in
+                    Text(snapshot.wordCountTitles[index]).tag(count.intValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(!enabled)
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(snapshot.words.indices, id: \.self) { index in
+                    field(index)
+                }
+            }
+            HStack {
+                Spacer()
+                Button(action: controller.pasteRecoveryPhrase) {
+                    Label(snapshot.credentialText.paste, systemImage: "doc.on.clipboard")
+                }
+                .disabled(!enabled)
+            }
+            if snapshot.wrongWords.contains(where: { $0.boolValue }) {
+                Text(snapshot.wordsWrong)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        }
+        .onChange(of: focused) { previous, _ in
+            if let previous { controller.completeWord(index: Int32(previous)) }
+        }
+    }
+
+    private func field(_ index: Int) -> some View {
+        let wrong = snapshot.wrongWords[index].boolValue && focused != index
+        let completion = focused == index ? snapshot.wordCompletions[index] : ""
+        return HStack(spacing: 6) {
+            Text("\(index + 1).")
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+            HStack(spacing: 0) {
+                TextField("", text: Binding(
+                    get: { snapshot.words[index] },
+                    set: { controller.updateWord(index: Int32(index), value: $0) }
+                ))
+                .fixedSize(horizontal: !completion.isEmpty, vertical: false)
+                if !completion.isEmpty {
+                    Text(completion).foregroundStyle(.tertiary)
+                    Spacer(minLength: 0)
+                }
+            }
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(.asciiCapable)
+            .focused($focused, equals: index)
+            .submitLabel(index == snapshot.words.count - 1 ? .done : .next)
+            .onSubmit {
+                focused = index + 1 < snapshot.words.count ? index + 1 : nil
+            }
+            .accessibilityLabel(snapshot.wordLabels[index])
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 44)
+        .background(
+            Color(uiColor: .secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 12)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(wrong ? Color.red : Color.clear, lineWidth: 1)
+        )
+        .privacySensitive()
+        .disabled(!enabled)
+    }
+}
+

@@ -2,16 +2,15 @@
     <string name="spark_wallet_brand">%1$s / 01</string>
     <string name="spark_wallet_import_title">Añadir billetera Spark</string>
     <string name="spark_wallet_import_body">Importar una frase de recuperación otorga a %1$s autorización para gastar. Conserva tu billetera principal instalada para recuperar y administrar la billetera por completo.</string>
-    <string name="spark_wallet_phrase_label">Frase de recuperación BIP39</string>
-    <string name="spark_wallet_phrase_hint">doce o veinticuatro palabras…</string>
+    <string name="spark_wallet_phrase_label">Frase de recuperación</string>
     <string name="spark_wallet_storage_note">Protegida con el almacenamiento seguro de credenciales de este dispositivo.</string>
     <string name="spark_wallet_import_action">Conectar</string>
     <string name="spark_wallet_remove_title">¿Quitar esta billetera de %1$s?</string>
     <string name="spark_wallet_remove_body">Esto elimina la frase protegida, la actividad de pagos y los datos locales del SDK.</string>
-    <string name="spark_wallet_remove_confirm">CONFIRMAR ELIMINACIÓN</string>
-    <string name="spark_wallet_cancel">CANCELAR</string>
-    <string name="spark_wallet_retry">REINTENTAR</string>
-    <string name="spark_wallet_reset_action">QUITAR BILLETERA DE %1$s</string>
+    <string name="spark_wallet_remove_confirm">Quitar</string>
+    <string name="spark_wallet_cancel">Cancelar</string>
+    <string name="spark_wallet_retry">Reintentar</string>
+    <string name="spark_wallet_reset_action">Quitar billetera de %1$s</string>
     <string name="spark_wallet_progress_loading">Comprobando acceso a la billetera…</string>
     <string name="spark_wallet_progress_connecting">Conectando billetera…</string>
     <string name="spark_wallet_progress_removing">Quitando acceso local a la billetera…</string>
@@ -25,7 +24,7 @@
     <string name="spark_wallet_credential_invalidated">La seguridad del dispositivo cambió y la frase de recuperación protegida ya no se puede descifrar.</string>
     <string name="spark_wallet_credential_corrupt">La frase de recuperación protegida o su clave del dispositivo son inconsistentes.</string>
     <string name="spark_wallet_error_already_configured">Ya hay una billetera configurada. Quítala antes de importar otra.</string>
-    <string name="spark_wallet_error_invalid_mnemonic">Ingresa una frase de recuperación válida de 12, 15, 18, 21 o 24 palabras.</string>
+    <string name="spark_wallet_error_invalid_mnemonic">Esta frase de recuperación no es válida. Revisa las palabras y su orden.</string>
     <string name="spark_wallet_error_connection">No se pudo abrir esta billetera. Revisa la frase de recuperación y la conexión a internet, e inténtalo de nuevo.</string>
     <string name="spark_wallet_error_storage">La billetera se abrió, pero su frase de recuperación no se pudo proteger en este dispositivo.</string>
     <string name="spark_wallet_error_reset">La limpieza está incompleta. Reintenta el restablecimiento antes de importar otra billetera.</string>
@@ -33,4 +32,7 @@
     <string name="spark_wallet_passphrase_label">Frase de contraseña (opcional)</string>
     <string name="spark_wallet_passphrase_hint">Frase de contraseña BIP39</string>
     <string name="spark_wallet_passphrase_note">Solo si tu billetera se creó con una, a veces llamada la palabra 25. Distingue mayúsculas de minúsculas, y una frase distinta abre otra billetera vacía.</string>
+    <string name="spark_wallet_word_count">%1$d palabras</string>
+    <string name="spark_wallet_word_label">Palabra %1$d</string>
+    <string name="spark_wallet_words_wrong">Revisa las palabras marcadas.</string>
 </resources>

@@ -2,16 +2,15 @@
     <string name="spark_wallet_brand">%1$s / 01</string>
     <string name="spark_wallet_import_title">Add Spark Wallet</string>
     <string name="spark_wallet_import_body">Importing a recovery phrase gives %1$s spending authority. Keep your primary wallet installed for recovery and full wallet management.</string>
-    <string name="spark_wallet_phrase_label">BIP39 recovery phrase</string>
-    <string name="spark_wallet_phrase_hint">twelve or twenty-four words…</string>
+    <string name="spark_wallet_phrase_label">Recovery phrase</string>
     <string name="spark_wallet_storage_note">Protected using this device\'s secure credential storage.</string>
     <string name="spark_wallet_import_action">Connect</string>
     <string name="spark_wallet_remove_title">Remove this wallet from %1$s?</string>
     <string name="spark_wallet_remove_body">This deletes its protected phrase, payment activity, and local SDK data.</string>
-    <string name="spark_wallet_remove_confirm">CONFIRM REMOVAL</string>
-    <string name="spark_wallet_cancel">CANCEL</string>
-    <string name="spark_wallet_retry">RETRY</string>
-    <string name="spark_wallet_reset_action">REMOVE WALLET FROM %1$s</string>
+    <string name="spark_wallet_remove_confirm">Remove</string>
+    <string name="spark_wallet_cancel">Cancel</string>
+    <string name="spark_wallet_retry">Try again</string>
+    <string name="spark_wallet_reset_action">Remove wallet from %1$s</string>
     <string name="spark_wallet_progress_loading">Checking wallet access…</string>
     <string name="spark_wallet_progress_connecting">Connecting wallet…</string>
     <string name="spark_wallet_progress_removing">Removing local wallet access…</string>
@@ -25,7 +24,7 @@
     <string name="spark_wallet_credential_invalidated">Device security changed and the protected recovery phrase can no longer be decrypted.</string>
     <string name="spark_wallet_credential_corrupt">The protected recovery phrase or its device key is inconsistent.</string>
     <string name="spark_wallet_error_already_configured">A wallet is already configured. Remove it before importing another.</string>
-    <string name="spark_wallet_error_invalid_mnemonic">Enter a valid 12, 15, 18, 21, or 24 word recovery phrase.</string>
+    <string name="spark_wallet_error_invalid_mnemonic">This recovery phrase isn\'t valid. Check the words and their order.</string>
     <string name="spark_wallet_error_connection">Could not open this wallet. Check the recovery phrase and internet connection, then try again.</string>
     <string name="spark_wallet_error_storage">The wallet opened, but its recovery phrase could not be protected on this device.</string>
     <string name="spark_wallet_error_reset">Cleanup is incomplete. Retry reset before importing another wallet.</string>
@@ -33,4 +32,7 @@
     <string name="spark_wallet_passphrase_label">Passphrase (optional)</string>
     <string name="spark_wallet_passphrase_hint">BIP39 passphrase</string>
     <string name="spark_wallet_passphrase_note">Only if your wallet was created with one, sometimes called a 25th word. It is case-sensitive, and a different passphrase opens a different, empty wallet.</string>
+    <string name="spark_wallet_word_count">%1$d words</string>
+    <string name="spark_wallet_word_label">Word %1$d</string>
+    <string name="spark_wallet_words_wrong">Check the highlighted words.</string>
 </resources>

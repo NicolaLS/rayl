@@ -30,19 +30,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ABBRECHEN"
+            "value" : "Abbrechen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CANCEL"
+            "value" : "Cancel"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CANCELAR"
+            "value" : "Cancelar"
           }
         }
       }
@@ -191,19 +191,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gib eine gültige Wiederherstellungsphrase mit 12, 15, 18, 21 oder 24 Wörtern ein."
+            "value" : "Diese Wiederherstellungsphrase ist ungültig. Prüfe die Wörter und ihre Reihenfolge."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter a valid 12, 15, 18, 21, or 24 word recovery phrase."
+            "value" : "This recovery phrase isn't valid. Check the words and their order."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ingresa una frase de recuperación válida de 12, 15, 18, 21 o 24 palabras."
+            "value" : "Esta frase de recuperación no es válida. Revisa las palabras y su orden."
           }
         }
       }
@@ -415,48 +415,25 @@
         }
       }
     },
-    "spark_wallet_phrase_hint" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "zwölf oder vierundzwanzig Wörter…"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "twelve or twenty-four words…"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "doce o veinticuatro palabras…"
-          }
-        }
-      }
-    },
     "spark_wallet_phrase_label" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "BIP39-Wiederherstellungsphrase"
+            "value" : "Wiederherstellungsphrase"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "BIP39 recovery phrase"
+            "value" : "Recovery phrase"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Frase de recuperación BIP39"
+            "value" : "Frase de recuperación"
           }
         }
       }
@@ -628,19 +605,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ENTFERNEN BESTÄTIGEN"
+            "value" : "Entfernen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CONFIRM REMOVAL"
+            "value" : "Remove"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CONFIRMAR ELIMINACIÓN"
+            "value" : "Quitar"
           }
         }
       }
@@ -674,19 +651,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "WALLET AUS %1$@ ENTFERNEN"
+            "value" : "Wallet aus %1$@ entfernen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "REMOVE WALLET FROM %1$@"
+            "value" : "Remove wallet from %1$@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "QUITAR BILLETERA DE %1$@"
+            "value" : "Quitar billetera de %1$@"
           }
         }
       }
@@ -743,19 +720,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ERNEUT VERSUCHEN"
+            "value" : "Erneut versuchen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RETRY"
+            "value" : "Try again"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "REINTENTAR"
+            "value" : "Reintentar"
           }
         }
       }
@@ -779,6 +756,75 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Protegida con el almacenamiento seguro de credenciales de este dispositivo."
+          }
+        }
+      }
+    },
+    "spark_wallet_word_count" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld Wörter"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld words"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld palabras"
+          }
+        }
+      }
+    },
+    "spark_wallet_word_label" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wort %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Word %1$lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Palabra %1$lld"
+          }
+        }
+      }
+    },
+    "spark_wallet_words_wrong" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prüfe die markierten Wörter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the highlighted words."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revisa las palabras marcadas."
           }
         }
       }

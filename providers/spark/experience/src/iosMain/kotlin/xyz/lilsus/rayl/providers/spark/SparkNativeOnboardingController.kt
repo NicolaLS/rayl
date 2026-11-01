@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialProblemKind
+import xyz.lilsus.rayl.providers.spark.application.wallet.RecoveryPhraseWords
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccess
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 import xyz.lilsus.rayl.providers.spark.feature.onboarding.nativeSparkOnboardingText
@@ -45,14 +46,23 @@ data class SparkNativeOnboardingSnapshot(
     val walletTitle: String,
     val walletBody: String,
     val phraseLabel: String,
-    val phraseHint: String,
     val storageNote: String,
     val passphraseToggle: String,
     val passphraseLabel: String,
     val passphraseHint: String,
     val passphraseNote: String,
     val importTitle: String,
-    val recoveryPhrase: String,
+    /** The recovery phrase, one entry per numbered field. */
+    val words: List<String>,
+    /** Per field: no BIP-39 word starts with what was typed. */
+    val wrongWords: List<Boolean>,
+    /** Per field: the rest of the only word it can become, shown inline and accepted on Return. */
+    val wordCompletions: List<String>,
+    val wordLabels: List<String>,
+    /** The offered phrase lengths and their labels, e.g. 12 and "12 words". */
+    val wordCounts: List<Int>,
+    val wordCountTitles: List<String>,
+    val wordsWrong: String,
     /** The optional BIP-39 passphrase, kept exactly as typed. */
     val passphrase: String,
     val canImport: Boolean,
@@ -133,15 +143,25 @@ class SparkNativeOnboardingController internal constructor(
         moveTo(STEP_INSTRUCTIONS)
     }
 
-    fun updateRecoveryPhrase(value: String) {
+    fun updateWord(index: Int, value: String) {
         if (closed || wallet.state.value.access != WalletAccessState.NoWallet) return
-        clipboard.retainFor(value)
-        wallet.dispatch(WalletAction.RecoveryPhraseChanged(value))
+        wallet.dispatch(WalletAction.WordChanged(index, value))
+    }
+
+    /** Accepts the only word field [index] can become, e.g. on Return or when leaving it. */
+    fun completeWord(index: Int) {
+        if (closed || wallet.state.value.access != WalletAccessState.NoWallet) return
+        wallet.dispatch(WalletAction.WordCompleted(index))
+    }
+
+    fun setWordCount(count: Int) {
+        if (closed || wallet.state.value.access != WalletAccessState.NoWallet) return
+        wallet.dispatch(WalletAction.WordCountChanged(count))
     }
 
     fun pasteRecoveryPhrase() {
         if (closed || wallet.state.value.access != WalletAccessState.NoWallet) return
-        clipboard.read()?.trim()?.takeIf(String::isNotEmpty)?.let {
+        clipboard.read()?.takeIf(String::isNotBlank)?.let {
             wallet.dispatch(WalletAction.RecoveryPhraseChanged(it))
         }
     }
@@ -248,18 +268,24 @@ class SparkNativeOnboardingController internal constructor(
                 walletTitle = recovery?.first ?: walletText.importTitle,
                 walletBody = recovery?.second ?: walletText.importBody,
                 phraseLabel = walletText.phraseLabel,
-                phraseHint = walletText.phraseHint,
                 storageNote = walletText.storageNote,
                 passphraseToggle = walletText.passphraseToggle,
                 passphraseLabel = walletText.passphraseLabel,
                 passphraseHint = walletText.passphraseHint,
                 passphraseNote = walletText.passphraseNote,
                 importTitle = walletText.importAction,
-                recoveryPhrase = walletState.recoveryPhrase,
+                words = walletState.words,
+                wrongWords = walletState.words.indices.map {
+                    walletState.isWordWrong(it) ||
+                        (walletState.words[it].isNotEmpty() && !walletState.isWordComplete(it))
+                },
+                wordCompletions = walletState.words.indices.map(walletState::completionSuffix),
+                wordLabels = walletText.wordLabels,
+                wordCounts = RecoveryPhraseWords.OFFERED_COUNTS,
+                wordCountTitles = walletText.wordCountOptions,
+                wordsWrong = walletText.wordsWrong,
                 passphrase = walletState.passphrase,
-                canImport =
-                    walletState.access == WalletAccessState.NoWallet &&
-                        walletState.recoveryPhrase.isNotBlank(),
+                canImport = walletState.canImport,
                 walletStatus = walletStatus(walletState.access, walletText),
                 walletError = walletState.message?.message(walletText),
                 retryTitle = walletText.retry,

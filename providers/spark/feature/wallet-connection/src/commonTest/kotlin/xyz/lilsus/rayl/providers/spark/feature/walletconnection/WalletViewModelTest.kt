@@ -49,6 +49,60 @@ class WalletViewModelTest {
             Dispatchers.resetMain()
         }
     }
+
+    @Test
+    fun aPastedPhraseFillsEveryFieldAndSetsItsLength() = withModel { model ->
+        model.dispatch(WalletAction.RecoveryPhraseChanged(" ${PHRASE_24.uppercase()}\n"))
+        runCurrent()
+
+        assertEquals(PHRASE_24.split(" "), model.state.value.words)
+        assertTrue(model.state.value.isPhraseComplete)
+    }
+
+    @Test
+    fun severalWordsTypedIntoAFieldFillTheFollowingOnes() = withModel { model ->
+        model.dispatch(WalletAction.WordChanged(10, "legal winner thank"))
+        runCurrent()
+
+        val words = model.state.value.words
+        assertEquals(12, words.size)
+        assertEquals(listOf("legal", "winner"), words.subList(10, 12))
+    }
+
+    @Test
+    fun aFieldCompletesToItsOnlyWordAndFlagsDeadEnds() = withModel { model ->
+        model.dispatch(WalletAction.WordChanged(0, "aban"))
+        model.dispatch(WalletAction.WordChanged(1, "zz"))
+        runCurrent()
+        assertEquals("don", model.state.value.completionSuffix(0))
+        assertTrue(model.state.value.isWordWrong(1))
+
+        model.dispatch(WalletAction.WordCompleted(0))
+        runCurrent()
+        assertEquals("abandon", model.state.value.words[0])
+    }
+
+    @Test
+    fun changingTheLengthKeepsTheWordsAlreadyEntered() = withModel { model ->
+        model.dispatch(WalletAction.WordChanged(0, "legal"))
+        model.dispatch(WalletAction.WordCountChanged(24))
+        runCurrent()
+
+        assertEquals(24, model.state.value.words.size)
+        assertEquals("legal", model.state.value.words[0])
+    }
+
+    private fun withModel(block: suspend kotlinx.coroutines.test.TestScope.(WalletViewModel) -> Unit) = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val access = ErrorWalletAccess().apply { state.value = WalletAccessState.NoWallet }
+        val model = WalletViewModel(access)
+        try {
+            block(model)
+        } finally {
+            model.dispose()
+            Dispatchers.resetMain()
+        }
+    }
 }
 
 private class ErrorWalletAccess : WalletAccess {
@@ -69,3 +123,7 @@ private class ErrorWalletAccess : WalletAccess {
     }
     override suspend fun close() = Unit
 }
+
+private const val PHRASE_24 =
+    "legal winner thank year wave sausage worth useful legal winner thank year " +
+        "wave sausage worth useful legal winner thank year wave sausage worth title"

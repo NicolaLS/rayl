@@ -1,5 +1,6 @@
 package xyz.lilsus.rayl.providers.spark.feature.walletconnection
 
+import xyz.lilsus.rayl.providers.spark.application.wallet.RecoveryPhraseWords
 import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
 import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 
@@ -7,7 +8,11 @@ data class NativeSparkWalletConnectionText(
     val importTitle: String,
     val importBody: String,
     val phraseLabel: String,
-    val phraseHint: String,
+    /** "Word 1" … "Word 24", for each field's accessibility label. */
+    val wordLabels: List<String>,
+    /** Labels for [RecoveryPhraseWords.OFFERED_COUNTS], e.g. "12 words". */
+    val wordCountOptions: List<String>,
+    val wordsWrong: String,
     val storageNote: String,
     val passphraseToggle: String,
     val passphraseLabel: String,
@@ -51,8 +56,26 @@ suspend fun nativeSparkWalletConnectionText(appName: String): NativeSparkWalletC
         phraseLabel = nativeString(
             NativeStringResource(table = "SparkWalletConnection", key = "spark_wallet_phrase_label")
         ),
-        phraseHint = nativeString(
-            NativeStringResource(table = "SparkWalletConnection", key = "spark_wallet_phrase_hint")
+        wordLabels = (1..RecoveryPhraseWords.OFFERED_COUNTS.max()).map {
+            nativeString(
+                NativeStringResource(
+                    table = "SparkWalletConnection",
+                    key = "spark_wallet_word_label"
+                ),
+                it
+            )
+        },
+        wordCountOptions = RecoveryPhraseWords.OFFERED_COUNTS.map {
+            nativeString(
+                NativeStringResource(
+                    table = "SparkWalletConnection",
+                    key = "spark_wallet_word_count"
+                ),
+                it
+            )
+        },
+        wordsWrong = nativeString(
+            NativeStringResource(table = "SparkWalletConnection", key = "spark_wallet_words_wrong")
         ),
         passphraseToggle = nativeString(
             NativeStringResource(
@@ -114,7 +137,7 @@ suspend fun nativeSparkWalletConnectionText(appName: String): NativeSparkWalletC
                 table = "SparkWalletConnection",
                 key = "spark_wallet_reset_action"
             ),
-            appName.uppercase()
+            appName
         ),
         loading = nativeString(
             NativeStringResource(

@@ -2,16 +2,15 @@
     <string name="spark_wallet_brand">%1$s / 01</string>
     <string name="spark_wallet_import_title">Spark-Wallet hinzufügen</string>
     <string name="spark_wallet_import_body">Durch den Import einer Wiederherstellungsphrase erhält %1$s Ausgabeberechtigung. Behalte deine primäre Wallet für Wiederherstellung und vollständige Verwaltung installiert.</string>
-    <string name="spark_wallet_phrase_label">BIP39-Wiederherstellungsphrase</string>
-    <string name="spark_wallet_phrase_hint">zwölf oder vierundzwanzig Wörter…</string>
+    <string name="spark_wallet_phrase_label">Wiederherstellungsphrase</string>
     <string name="spark_wallet_storage_note">Mit dem sicheren Anmeldedatenspeicher dieses Geräts geschützt.</string>
     <string name="spark_wallet_import_action">Verbinden</string>
     <string name="spark_wallet_remove_title">Diese Wallet aus %1$s entfernen?</string>
     <string name="spark_wallet_remove_body">Dadurch werden die geschützte Phrase, Zahlungsaktivitäten und lokale SDK-Daten gelöscht.</string>
-    <string name="spark_wallet_remove_confirm">ENTFERNEN BESTÄTIGEN</string>
-    <string name="spark_wallet_cancel">ABBRECHEN</string>
-    <string name="spark_wallet_retry">ERNEUT VERSUCHEN</string>
-    <string name="spark_wallet_reset_action">WALLET AUS %1$s ENTFERNEN</string>
+    <string name="spark_wallet_remove_confirm">Entfernen</string>
+    <string name="spark_wallet_cancel">Abbrechen</string>
+    <string name="spark_wallet_retry">Erneut versuchen</string>
+    <string name="spark_wallet_reset_action">Wallet aus %1$s entfernen</string>
     <string name="spark_wallet_progress_loading">Wallet-Zugriff wird geprüft…</string>
     <string name="spark_wallet_progress_connecting">Wallet wird verbunden…</string>
     <string name="spark_wallet_progress_removing">Lokaler Wallet-Zugriff wird entfernt…</string>
@@ -25,7 +24,7 @@
     <string name="spark_wallet_credential_invalidated">Die Gerätesicherheit wurde geändert und die geschützte Wiederherstellungsphrase kann nicht mehr entschlüsselt werden.</string>
     <string name="spark_wallet_credential_corrupt">Die geschützte Wiederherstellungsphrase oder ihr Geräteschlüssel ist inkonsistent.</string>
     <string name="spark_wallet_error_already_configured">Eine Wallet ist bereits eingerichtet. Entferne sie, bevor du eine andere importierst.</string>
-    <string name="spark_wallet_error_invalid_mnemonic">Gib eine gültige Wiederherstellungsphrase mit 12, 15, 18, 21 oder 24 Wörtern ein.</string>
+    <string name="spark_wallet_error_invalid_mnemonic">Diese Wiederherstellungsphrase ist ungültig. Prüfe die Wörter und ihre Reihenfolge.</string>
     <string name="spark_wallet_error_connection">Diese Wallet konnte nicht geöffnet werden. Prüfe die Wiederherstellungsphrase und Internetverbindung und versuche es erneut.</string>
     <string name="spark_wallet_error_storage">Die Wallet wurde geöffnet, aber ihre Wiederherstellungsphrase konnte auf diesem Gerät nicht geschützt werden.</string>
     <string name="spark_wallet_error_reset">Die Bereinigung ist unvollständig. Wiederhole das Zurücksetzen, bevor du eine andere Wallet importierst.</string>
@@ -33,4 +32,7 @@
     <string name="spark_wallet_passphrase_label">Passphrase (optional)</string>
     <string name="spark_wallet_passphrase_hint">BIP39-Passphrase</string>
     <string name="spark_wallet_passphrase_note">Nur wenn deine Wallet mit einer erstellt wurde, manchmal 25. Wort genannt. Groß- und Kleinschreibung zählen, und eine andere Passphrase öffnet eine andere, leere Wallet.</string>
+    <string name="spark_wallet_word_count">%1$d Wörter</string>
+    <string name="spark_wallet_word_label">Wort %1$d</string>
+    <string name="spark_wallet_words_wrong">Prüfe die markierten Wörter.</string>
 </resources>

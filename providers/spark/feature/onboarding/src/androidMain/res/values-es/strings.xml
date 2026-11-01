@@ -3,6 +3,6 @@
     <string name="spark_onboarding_add_wallet_title">Importa tu billetera Spark</string>
     <string name="spark_onboarding_add_wallet_intro">Ten lista la frase de recuperación de la billetera que quieres usar con %1$s.</string>
     <string name="spark_onboarding_add_wallet_step1">Abre la billetera o copia de seguridad donde guardas tu frase de recuperación.</string>
-    <string name="spark_onboarding_add_wallet_step2">Ingresa en %1$s la frase completa de 12, 15, 18, 21 o 24 palabras.</string>
+    <string name="spark_onboarding_add_wallet_step2">Ingresa sus 12 o 24 palabras en %1$s, en orden.</string>
     <string name="spark_onboarding_add_wallet_step3">%1$s abre esa billetera Spark y protege la frase con el almacenamiento seguro de este dispositivo.</string>
 </resources>

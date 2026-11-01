@@ -3,6 +3,6 @@
     <string name="spark_onboarding_add_wallet_title">Spark-Wallet importieren</string>
     <string name="spark_onboarding_add_wallet_intro">Halte die Wiederherstellungsphrase der Wallet bereit, die %1$s verwenden soll.</string>
     <string name="spark_onboarding_add_wallet_step1">Öffne die Wallet oder Sicherung, in der deine Wiederherstellungsphrase gespeichert ist.</string>
-    <string name="spark_onboarding_add_wallet_step2">Gib die vollständige Phrase mit 12, 15, 18, 21 oder 24 Wörtern in %1$s ein.</string>
+    <string name="spark_onboarding_add_wallet_step2">Gib ihre 12 oder 24 Wörter der Reihe nach in %1$s ein.</string>
     <string name="spark_onboarding_add_wallet_step3">%1$s öffnet diese Spark-Wallet und schützt die Phrase im sicheren Speicher dieses Geräts.</string>
 </resources>

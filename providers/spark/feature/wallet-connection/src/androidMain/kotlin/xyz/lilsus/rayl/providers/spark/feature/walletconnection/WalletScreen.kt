@@ -3,10 +3,13 @@ package xyz.lilsus.rayl.providers.spark.feature.walletconnection
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -16,7 +19,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,17 +31,28 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialProblemKind
+import xyz.lilsus.rayl.providers.spark.application.wallet.RecoveryPhraseWords
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.R
+import xyz.lilsus.raylsuite.core.ui.R as CoreUiR
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
 import xyz.lilsus.raylsuite.core.ui.components.CredentialConnectionScreen
 import xyz.lilsus.raylsuite.core.ui.components.CredentialInput
@@ -72,8 +90,7 @@ fun WalletConnectionScreen(
                 xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
             ),
             actionTitle = stringResource(R.string.spark_wallet_import_action),
-            canSubmit =
-                state.access == WalletAccessState.NoWallet && state.recoveryPhrase.isNotBlank(),
+            canSubmit = state.canImport,
             isSubmitting = state.access == WalletAccessState.Connecting,
             onSubmit = { dispatch(WalletAction.Import) },
             onBack = onBack,
@@ -88,28 +105,14 @@ fun WalletConnectionScreen(
             termsUrl = termsUrl,
             modifier = modifier
         ) {
-            CredentialInput(
-                value = state.recoveryPhrase,
-                onValueChange = {
-                    clipboard.retainFor(it)
-                    dispatch(WalletAction.RecoveryPhraseChanged(it))
-                },
-                label = stringResource(R.string.spark_wallet_phrase_label),
-                placeholder = stringResource(R.string.spark_wallet_phrase_hint),
+            RecoveryPhraseInput(
+                state = state,
+                dispatch = dispatch,
                 onPaste = {
-                    clipboard.read()?.trim()?.takeIf(String::isNotEmpty)?.let {
+                    clipboard.read()?.takeIf(String::isNotBlank)?.let {
                         dispatch(WalletAction.RecoveryPhraseChanged(it))
                     }
-                },
-                onSubmit = {
-                    if (state.access == WalletAccessState.NoWallet &&
-                        state.recoveryPhrase.isNotBlank()
-                    ) {
-                        dispatch(WalletAction.Import)
-                    }
-                },
-                enabled = state.access == WalletAccessState.NoWallet,
-                multiline = true
+                }
             )
             PassphraseInput(state = state, dispatch = dispatch, onPaste = clipboard::read)
             Text(
@@ -146,6 +149,130 @@ fun WalletConnectionScreen(
     }
 }
 
+/**
+ * The recovery phrase as numbered word fields. Words show in plain text (the app blocks screen
+ * capture); each field completes to its only possible BIP-39 word on Next or when left, and a
+ * pasted phrase fills every field.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecoveryPhraseInput(
+    state: WalletUiState,
+    dispatch: (WalletAction) -> Unit,
+    onPaste: () -> Unit
+) {
+    val enabled = state.access == WalletAccessState.NoWallet
+    val focusManager = LocalFocusManager.current
+    val offered = RecoveryPhraseWords.OFFERED_COUNTS
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.spark_wallet_phrase_label),
+            style = MaterialTheme.typography.titleSmall
+        )
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            offered.forEachIndexed { index, count ->
+                SegmentedButton(
+                    selected = state.words.size == count,
+                    onClick = { dispatch(WalletAction.WordCountChanged(count)) },
+                    shape = SegmentedButtonDefaults.itemShape(index, offered.size),
+                    enabled = enabled
+                ) {
+                    Text(stringResource(R.string.spark_wallet_word_count, count))
+                }
+            }
+        }
+        state.words.indices.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { index ->
+                    WordField(
+                        index = index,
+                        state = state,
+                        dispatch = dispatch,
+                        enabled = enabled,
+                        isLast = index == state.words.lastIndex,
+                        onDone = { focusManager.clearFocus() },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+        TextButton(
+            onClick = onPaste,
+            enabled = enabled,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text(stringResource(CoreUiR.string.credential_paste))
+        }
+        if (state.words.indices.any(state::isWordWrong)) {
+            Text(
+                text = stringResource(R.string.spark_wallet_words_wrong),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+@Composable
+private fun WordField(
+    index: Int,
+    state: WalletUiState,
+    dispatch: (WalletAction) -> Unit,
+    enabled: Boolean,
+    isLast: Boolean,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val focusManager = LocalFocusManager.current
+    var focused by remember { mutableStateOf(false) }
+    val word = state.words[index]
+    val suffix = state.completionSuffix(index)
+    val label = stringResource(R.string.spark_wallet_word_label, index + 1)
+    OutlinedTextField(
+        value = word,
+        onValueChange = { dispatch(WalletAction.WordChanged(index, it)) },
+        modifier = modifier
+            .semantics { contentDescription = label }
+            .onFocusChanged {
+                if (focused && !it.isFocused) dispatch(WalletAction.WordCompleted(index))
+                focused = it.isFocused
+            },
+        enabled = enabled,
+        singleLine = true,
+        prefix = {
+            Text(
+                text = "${index + 1}.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        // The only word this can become, accepted by Next or by leaving the field.
+        suffix = if (focused && suffix.isNotEmpty()) {
+            { Text(suffix, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        } else {
+            null
+        },
+        isError = state.isWordWrong(index) ||
+            (!focused && word.isNotEmpty() && !state.isWordComplete(index)),
+        keyboardOptions = KeyboardOptions(
+            // No suggestions or learning: a password keyboard, without masking.
+            keyboardType = KeyboardType.Password,
+            autoCorrectEnabled = false,
+            capitalization = KeyboardCapitalization.None,
+            imeAction = if (isLast) ImeAction.Done else ImeAction.Next
+        ),
+        keyboardActions = KeyboardActions(
+            onNext = {
+                dispatch(WalletAction.WordCompleted(index))
+                focusManager.moveFocus(FocusDirection.Next)
+            },
+            onDone = {
+                dispatch(WalletAction.WordCompleted(index))
+                onDone()
+            }
+        )
+    )
+}
+
 /** The optional BIP-39 passphrase, behind a link since most wallets have none. */
 @Composable
 private fun PassphraseInput(
@@ -173,7 +300,7 @@ private fun PassphraseInput(
             }
         },
         onSubmit = {
-            if (enabled && state.recoveryPhrase.isNotBlank()) dispatch(WalletAction.Import)
+            if (state.canImport) dispatch(WalletAction.Import)
         },
         enabled = enabled
     )
@@ -299,7 +426,7 @@ private fun RecoveryContent(
             Text(
                 stringResource(
                     R.string.spark_wallet_reset_action,
-                    xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current.uppercase()
+                    xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
                 )
             )
         }
