@@ -110,6 +110,29 @@ class LnurlInvoiceResolverTest {
     }
 
     @Test
+    fun theServersExactLimitsAreAccepted() = runTest {
+        // The minimum, the maximum and a comment of exactly the allowed length are all valid.
+        val client = FakeLnurlPayClient { amount, _ -> LnurlResult.Success(invoice(amount).write()) }
+        val resolver = resolver(client)
+
+        listOf(1_000L, 1_000_000L).forEach { amount ->
+            assertIs<LnurlInvoiceResolution.Success>(resolver.resolve(request(amountMsats = amount)), "amount $amount")
+        }
+        assertIs<LnurlInvoiceResolution.Success>(
+            resolver.resolve(request(comment = "abc", params = params(commentAllowed = 3)))
+        )
+    }
+
+    @Test
+    fun aFailedInvoiceRequestIsReportedAndPaysNothing() = runTest {
+        val client = FakeLnurlPayClient { _, _ -> LnurlResult.Error(LnurlError.NetworkUnavailable) }
+
+        val result = resolver(client).resolve(request())
+
+        assertEquals(LnurlInvoiceResolutionError.Client(LnurlError.NetworkUnavailable), failure(result))
+    }
+
+    @Test
     fun rejectsAbsentPlaintextInsteadOfAcceptingAnArbitraryInvoiceDescription() = runTest {
         val client = FakeLnurlPayClient { amount, _ -> LnurlResult.Success(invoice(amount).write()) }
         val params = params().let { it.copy(metadata = it.metadata.copy(plainText = null)) }

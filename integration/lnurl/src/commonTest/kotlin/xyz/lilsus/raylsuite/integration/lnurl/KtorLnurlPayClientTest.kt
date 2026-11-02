@@ -23,6 +23,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import xyz.lilsus.raylsuite.core.model.LightningAddress
 import xyz.lilsus.raylsuite.core.network.NetworkConnectivity
 import xyz.lilsus.raylsuite.core.payment.LnurlError
+import xyz.lilsus.raylsuite.core.payment.LnurlPayParams
 import xyz.lilsus.raylsuite.core.payment.LnurlResult
 
 class KtorLnurlPayClientTest {
@@ -137,7 +138,11 @@ class KtorLnurlPayClientTest {
         assertIs<LnurlResult.Error>(oversizedClient.requestInvoice("https://example.com/pay", 1_000, null))
         oversizedClient.close()
 
-        val nestedClient = client(MockEngine { respond("[".repeat(64) + "0" + "]".repeat(64)) })
+        // Deep nesting inside an otherwise valid response, after text with an escaped quote: the
+        // depth guard must still see it (a bare array would be rejected for its shape anyway).
+        val nested = "[".repeat(64) + "0" + "]".repeat(64)
+        val nestedResponse = PAY_PARAMS.replace("\"tag\"", "\"note\": \"say \\\"hi\\\"\", \"x\": $nested, \"tag\"")
+        val nestedClient = client(MockEngine { respond(nestedResponse) })
         assertIs<LnurlResult.Error>(nestedClient.fetchPayParams("https://example.com/pay"))
         nestedClient.close()
     }
@@ -155,7 +160,12 @@ class KtorLnurlPayClientTest {
             JsonObject(valid + ("metadata" to JsonPrimitive("[]"))),
             JsonObject(valid + ("metadata" to JsonPrimitive("[[\"text/plain\", {}]]"))),
             JsonObject(valid + ("metadata" to JsonPrimitive("[[\"text/plain\",\" \" ]]"))),
-            JsonObject(valid + ("metadata" to JsonPrimitive("[[\"text/plain\",\"one\"],[\"text/plain\",\"two\"]]")))
+            JsonObject(valid + ("metadata" to JsonPrimitive("[[\"text/plain\",\"one\"],[\"text/plain\",\"two\"]]"))),
+            // Limits a payment can't satisfy (S4).
+            JsonObject(valid + ("minSendable" to JsonPrimitive(2_000)) + ("maxSendable" to JsonPrimitive(1_000))),
+            JsonObject(valid + ("minSendable" to JsonPrimitive(0))),
+            JsonObject(valid + ("maxSendable" to JsonPrimitive(0))),
+            JsonObject(valid + ("minSendable" to JsonPrimitive(-1_000)))
         )
         invalid.forEach { response ->
             val client = client(MockEngine { respond(response.toString()) })
@@ -180,6 +190,64 @@ class KtorLnurlPayClientTest {
 
         assertEquals(listOf("1000"), parameters?.getAll("amount"))
         assertEquals(listOf("approved comment"), parameters?.getAll("comment"))
+        client.close()
+    }
+
+    @Test
+    fun aHostResolvingToAnyPrivateAddressOrToNoneIsNeverContacted() = runTest {
+        // DNS rebinding: one public answer must not hide a private one (PR-05, S4).
+        listOf(
+            listOf(byteArrayOf(8, 8, 8, 8), byteArrayOf(10, 0, 0, 1)),
+            emptyList()
+        ).forEach { answers ->
+            var requests = 0
+            val client = KtorLnurlPayClient(
+                networkConnectivity = AlwaysOnline,
+                client = HttpClient(
+                    MockEngine {
+                        requests++
+                        respond(PAY_PARAMS)
+                    }
+                ),
+                resolveHostAddresses = { answers }
+            )
+
+            assertIs<LnurlResult.Error>(client.fetchPayParams("https://example.com/pay"))
+            assertIs<LnurlResult.Error>(client.requestInvoice("https://example.com/callback", 1_000, null))
+            assertEquals(0, requests, "answers $answers")
+            client.close()
+        }
+    }
+
+    @Test
+    fun aCallbackWithoutAnInvoiceIsAnError() = runTest {
+        listOf("{}", "{\"pr\":\"\"}", "{\"pr\":42}").forEach { response ->
+            val client = client(MockEngine { respond(response) })
+
+            assertIs<LnurlResult.Error>(client.requestInvoice("https://example.com/callback", 1_000, null), response)
+            client.close()
+        }
+    }
+
+    @Test
+    fun bracketsInsideTextDoNotCountTowardsTheNestingLimit() = runTest {
+        // A merchant description may contain brackets and escaped quotes; only real nesting is
+        // limited.
+        val text = "[".repeat(100) + "\\\"" + "{".repeat(100)
+        val response = PAY_PARAMS.replace("\"tag\"", "\"description\": \"$text\", \"tag\"")
+        val client = client(MockEngine { respond(response) })
+
+        assertIs<LnurlResult.Success<*>>(client.fetchPayParams("https://example.com/pay"))
+        client.close()
+    }
+
+    @Test
+    fun aServerThatAllowsNoCommentIsStillPayable() = runTest {
+        // commentAllowed = 0 means "no comment", not an invalid response.
+        val client = client(MockEngine { respond(PAY_PARAMS.replace("\"tag\"", "\"commentAllowed\": 0, \"tag\"")) })
+
+        val params = assertIs<LnurlResult.Success<LnurlPayParams>>(client.fetchPayParams("https://example.com/pay")).data
+        assertEquals(0, params.commentAllowed)
         client.close()
     }
 
