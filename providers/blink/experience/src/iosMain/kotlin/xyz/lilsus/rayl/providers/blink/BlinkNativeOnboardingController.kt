@@ -69,7 +69,11 @@ data class BlinkNativeOnboardingSnapshot(
     val canConnect: Boolean,
     val isConnecting: Boolean,
     val connectionError: String?
-)
+) {
+    override fun toString(): String =
+        "BlinkNativeOnboardingSnapshot(apiKey=<redacted>, canConnect=$canConnect, " +
+            "isConnecting=$isConnecting, connectionError=$connectionError)"
+}
 
 /**
  * Blink-owned state bridge for native onboarding. Kotlin retains provider behavior and settings;

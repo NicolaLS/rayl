@@ -7,7 +7,10 @@ import xyz.lilsus.raylsuite.core.settings.SecureStringStore
 internal data class BlinkCredentials(
     val apiKey: String,
     val selectedFundingWallet: BlinkFundingWallet?
-)
+) {
+    override fun toString(): String =
+        "BlinkCredentials(apiKey=<redacted>, selectedFundingWallet=$selectedFundingWallet)"
+}
 
 internal class BlinkCredentialStore(
     private val settings: SecureStringStore,

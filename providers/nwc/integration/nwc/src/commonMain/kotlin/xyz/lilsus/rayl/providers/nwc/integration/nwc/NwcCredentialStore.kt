@@ -8,7 +8,11 @@ internal data class NwcCredentials(
     val connectionUri: String,
     val alias: String?,
     val metadata: NwcWalletMetadata
-)
+) {
+    /** The connection URI carries the wallet secret. */
+    override fun toString(): String =
+        "NwcCredentials(connectionUri=<redacted>, alias=$alias, metadata=$metadata)"
+}
 
 internal class NwcCredentialStore(
     private val settings: SecureStringStore,

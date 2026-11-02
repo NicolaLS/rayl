@@ -31,6 +31,10 @@ data class WalletUiState(
 
     val canImport: Boolean get() = access == WalletAccessState.NoWallet && isPhraseComplete
 
+    override fun toString(): String =
+        "WalletUiState(access=$access, words=<${words.size} redacted>, passphrase=<redacted>, " +
+            "message=$message, confirmRemoval=$confirmRemoval)"
+
     /** A word no BIP-39 word starts with, so it is wrong however it continues. */
     fun isWordWrong(index: Int): Boolean =
         words[index].isNotEmpty() && !RecoveryPhraseWords.isPrefix(words[index])
@@ -56,15 +60,21 @@ enum class WalletMessage {
 
 sealed interface WalletAction {
     /** Replaces the whole phrase, e.g. pasted; empty clears it. */
-    data class RecoveryPhraseChanged(val value: String) : WalletAction
+    data class RecoveryPhraseChanged(val value: String) : WalletAction {
+        override fun toString(): String = "RecoveryPhraseChanged(<redacted>)"
+    }
 
     /** Text typed into one numbered field; several words fill the following fields. */
-    data class WordChanged(val index: Int, val value: String) : WalletAction
+    data class WordChanged(val index: Int, val value: String) : WalletAction {
+        override fun toString(): String = "WordChanged(index=$index, value=<redacted>)"
+    }
 
     /** Accepts the only word field [index] can become, e.g. when moving to the next field. */
     data class WordCompleted(val index: Int) : WalletAction
     data class WordCountChanged(val count: Int) : WalletAction
-    data class PassphraseChanged(val value: String) : WalletAction
+    data class PassphraseChanged(val value: String) : WalletAction {
+        override fun toString(): String = "PassphraseChanged(<redacted>)"
+    }
     data object Import : WalletAction
     data object Retry : WalletAction
     data object RequestRemoval : WalletAction

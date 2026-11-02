@@ -114,6 +114,9 @@ data class AddBlinkWalletUiState(
 ) {
     val canSubmit: Boolean
         get() = apiKey.isNotBlank() && !isSaving
+
+    override fun toString(): String =
+        "AddBlinkWalletUiState(apiKey=<redacted>, isSaving=$isSaving, error=$error)"
 }
 
 sealed interface AddBlinkWalletEvent {

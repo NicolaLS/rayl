@@ -101,8 +101,14 @@ data class AddNwcWalletUiState(
     val uri: String = "",
     val error: NwcConnectionError? = null,
     val isUriValid: Boolean = false
-)
+) {
+    /** The connection URI carries the wallet secret. */
+    override fun toString(): String =
+        "AddNwcWalletUiState(uri=<redacted>, error=$error, isUriValid=$isUriValid)"
+}
 
 sealed interface AddNwcWalletEvent {
-    data class Confirm(val uri: String) : AddNwcWalletEvent
+    data class Confirm(val uri: String) : AddNwcWalletEvent {
+        override fun toString(): String = "Confirm(uri=<redacted>)"
+    }
 }

@@ -59,6 +59,21 @@ class WalletViewModelTest {
         assertTrue(model.state.value.isPhraseComplete)
     }
 
+    @Test
+    fun theRecoveryPhraseAndPassphraseAreNeverPrinted() {
+        // Whoever holds the phrase holds the funds (MOB-95).
+        val printed = listOf(
+            WalletUiState(words = listOf("abandon", "zebra"), passphrase = "hunter2").toString(),
+            WalletAction.RecoveryPhraseChanged("abandon zebra").toString(),
+            WalletAction.WordChanged(0, "zebra").toString(),
+            WalletAction.PassphraseChanged("hunter2").toString()
+        )
+
+        printed.forEach { text ->
+            listOf("abandon", "zebra", "hunter2").forEach { secret -> assertFalse(secret in text, text) }
+        }
+    }
+
     private fun withModel(block: suspend kotlinx.coroutines.test.TestScope.(WalletViewModel) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val access = ErrorWalletAccess().apply { state.value = WalletAccessState.NoWallet }

@@ -66,6 +66,12 @@ data class NwcWalletDiscovery(
 
     val usesLegacyEncryption: Boolean
         get() = metadata.negotiatedEncryption?.equals("nip04", ignoreCase = true) == true
+
+    /** The connection URI carries the wallet secret. */
+    override fun toString(): String =
+        "NwcWalletDiscovery(connectionUri=<redacted>, walletPublicKey=$walletPublicKey, " +
+            "relayUrls=$relayUrls, lightningAddress=$lightningAddress, " +
+            "aliasSuggestion=$aliasSuggestion, metadata=$metadata)"
 }
 
 data class NwcWalletMetadata(
