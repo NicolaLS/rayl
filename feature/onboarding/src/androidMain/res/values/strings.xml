@@ -4,7 +4,7 @@
     <string name="onboarding_autopay_title">Auto Pay settings</string>
     <string name="onboarding_autopay_always">Always ask for confirmation</string>
     <string name="onboarding_autopay_threshold">Auto-pay below a threshold</string>
-    <string name="onboarding_autopay_threshold_label">Auto-pay up to %1$s</string>
+    <string name="onboarding_autopay_threshold_label">Auto-pay below %1$s</string>
     <string name="onboarding_autopay_hint">You can change this anytime in Settings.</string>
     <string name="onboarding_autopay_continue">Continue</string>
     <string name="onboarding_agreement_title">Before you begin</string>

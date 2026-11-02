@@ -1,7 +1,7 @@
 <resources>
     <string name="settings_payments">Payments</string>
     <string name="settings_payments_confirm_label">Confirm Payment</string>
-    <string name="settings_payments_confirm_threshold">Above %1$s</string>
+    <string name="settings_payments_confirm_threshold">%1$s or more</string>
     <string name="settings_payments_option_always">Always</string>
     <string name="settings_payments_option_above">Above</string>
     <string name="settings_payments_haptics_title">Vibrations</string>

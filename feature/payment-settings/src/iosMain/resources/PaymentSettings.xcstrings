@@ -53,19 +53,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Über %1$@"
+            "value" : "%1$@ oder mehr"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Above %1$@"
+            "value" : "%1$@ or more"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Por encima de %1$@"
+            "value" : "%1$@ o más"
           }
         }
       }

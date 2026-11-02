@@ -191,19 +191,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auto-Pay bis %1$@"
+            "value" : "Auto-Pay unter %1$@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auto-pay up to %1$@"
+            "value" : "Auto-pay below %1$@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auto-pagar hasta %1$@"
+            "value" : "Auto-pagar por debajo de %1$@"
           }
         }
       }
