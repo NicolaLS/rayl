@@ -11,10 +11,16 @@ import fr.acinq.lightning.Features
 import fr.acinq.lightning.payment.Bolt11Invoice
 import fr.acinq.lightning.utils.msat
 import fr.acinq.lightning.utils.toByteVector32
-import kotlin.random.Random
+import io.kotest.property.Arb
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.choice
+import io.kotest.property.arbitrary.element
+import io.kotest.property.arbitrary.list
+import io.kotest.property.arbitrary.map
+import io.kotest.property.arbitrary.string
+import io.kotest.property.checkAll
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.fail
 import kotlinx.coroutines.test.runTest
 import xyz.lilsus.raylsuite.core.payment.LightningInputParser.FailureReason
 import xyz.lilsus.raylsuite.core.payment.LightningInputParser.ParseResult
@@ -103,28 +109,18 @@ class PaymentInputCorpusTest {
 
     @Test
     fun theParserNeverThrowsOnArbitraryInput() = runTest {
-        // A scanned QR code can contain anything. A crash here takes down the scanner.
-        val random = Random(seed = 20261101)
-        val fragments = listOf(
+        // A scanned QR code can contain anything. A crash here takes down the scanner. Inputs mix
+        // payment-shaped fragments with arbitrary text; a failure is shrunk to a minimal input.
+        val fragments = Arb.element(
             "lightning:", "LIGHTNING:", "bitcoin:", "lnbc", "lntb", "lnbcrt", "lno1", "lnurl", "LNURL",
             "lnurlp://", "lnurlw://", "keyauth://", "https://", "@", "?", "&", "=", "%", "%zz", "+",
-            "lightning=", ":", "//", "#", " ", "\n", "‮", "1", "0", "q", "é", bolt11.take(20), lnurl.take(12)
+            "lightning=", ":", "//", "#", " ", "\n", "\u202E", "é", bolt11.take(20), lnurl.take(12)
         )
-        repeat(3_000) { iteration ->
-            val input = buildString {
-                repeat(random.nextInt(0, 12)) {
-                    if (random.nextBoolean()) {
-                        append(fragments.random(random))
-                    } else {
-                        repeat(random.nextInt(1, 8)) { append(Char(random.nextInt(0x20, 0x7f))) }
-                    }
-                }
-            }
-            try {
-                parser.parse(input)
-            } catch (error: Throwable) {
-                fail("iteration $iteration threw ${error::class.simpleName} for input \"$input\": ${error.message}")
-            }
+        val inputs = Arb.list(Arb.choice(fragments, Arb.string(1..8)), 0..12)
+            .map { parts -> parts.joinToString("") }
+
+        checkAll(PropTestConfig(seed = 20261101, iterations = 3_000), inputs) { input ->
+            parser.parse(input)
         }
     }
 
