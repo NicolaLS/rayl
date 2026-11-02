@@ -18,12 +18,12 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | M5 | Conversion boundaries | Fiat quote rounding done (2.7); amount entry was already covered (audit §5) | `PaymentCurrencyManagerTest` |
 | M6 | Wallet lifecycle traceability | Done at host level (2026-11-02): 22 rules traced; gap P5/P8 closed with `RaylWalletExitTest`; L6 partly (O-11); L10, L11, L13 go to the checklist and mainnet protocol | [lifecycle-traceability.md](lifecycle-traceability.md) |
 | M7 | Pocket key rules | Host-level part done (2.4, and when the copy may be erased: `RaylWalletExitTest`); the platform stores need stage 3 | `RaylPocketTest`, `RaylWalletExitTest` |
-| M8 | Static reviews (secrets, release config, SDK pins) | Not started | |
+| M8 | Static reviews (secrets, release config, SDK pins) | Done (2026-11-02): MOB-95 fixed, `verifyBreezSdkPins` added to the gate, version bump for the 1.1 cut goes on the checklist | [static-review.md](static-review.md) |
 | M9 | `distribution/` review | Deferred to stage 3 | |
 | M10 | Release checklist and App Live run | Not started | |
 | M11 | Mainnet protocol and run | Not started | |
 | M12 | Test summary report | Not started | |
-| S1–S6 | Should items | Not started | |
+| S1–S6 | Should items | Done at host level (2026-11-02): S1 (2.6), S2 price degradation and backend response shape, S4 hostile LNURL, S5 fee mapping and receipt (MOB-94 open), S6 formatting per language. S3 (exploratory charters) is stage 3. | `RaylBitcoinPriceProviderTest`, `RaylServerTest`, `KtorLnurlPayClientTest`, `LnurlInvoiceResolverTest`, `AmountFormatterTest` |
 
 States: Not started · In progress · Blocked (reason) · Done.
 
@@ -86,17 +86,17 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-02 Confirmation skipped | Policy decision table, and through the flow: threshold, Always mode, dismissal, manual entry, Hub preset (2.8). Fee limit not in 1.1 (MOB-93). | M1 | Yes |
 | PR-03 Duplicate payment | Operation guard, paid-hash lookup and QR presence gate, also through the flow (2.8). After a restart, protection relies on each wallet (O-07, stage 3). | M4 | Partly (host level done) |
 | PR-04 Outcome misreported | The Unknown-never-Failed rule and cancellation are protected for all four wallets (2.1, 2.2), and each wallet verdict's meaning is pinned. | M3, M2, M4 | Yes (host level) |
-| PR-05 Wrong recipient | LNURL client and resolver, mutation-checked, including `description_hash` binding and amountless invoices (2.5) | S4 | Partly |
-| PR-06 Fee surprises | None | M1 (once built), S5 | No |
+| PR-05 Wrong recipient | LNURL client and resolver, mutation-checked: `description_hash` binding, amountless invoices (2.5), DNS rebinding, impossible limits, missing invoice, nesting guard (S4) | S4 | Yes (host level) |
+| PR-06 Fee surprises | Each wallet's fee mapping and the receipt's fee are tested. Open: a fee the wallet doesn't report is shown as 0 (MOB-94). Fee limit is MOB-93, after 1.1. | S5 | Partly |
 | PR-08 Credentials retained | Every SPEC-wallet-lifecycle rule traced (M6): fresh setup never reads old credentials (all three wallets), cleanup before switching, failed cleanup blocks and resumes. Platform wiring checked statically. Open: O-11, Keychain after reinstall (checklist). | M6, M10 | Yes at host level |
 | PR-09 Pocket key lost | Pocket rules, passkey account selection, and when the key copy may be erased (`RaylWalletExitTest`), mutation-checked. External cleanup can't reach the pocket (static check). The platform stores have no tests (audit §9). | M7, M10 | Partly (host level done) |
 | PR-10 Passkey onboarding | `RaylOnboardingStateTest`, `PocketSetupTest` (no-PRF path) | S3, M10 | Partly |
-| PR-11 Secrets exposed | None | M8 | No |
+| PR-11 Secrets exposed | Static review (M8): release logging, `toString()` redaction (MOB-95 fixed, tested), no secrets in the repository. Screen capture accepted (O-05). | M8 | Yes (static) |
 | PR-13 Speed | `perfCheck` macrobenchmarks, not run regularly | One lab measurement (optional) | No |
 | PR-14 Unparseable input | `PaymentInputCorpusTest`: one table of real-world input forms, plus a never-throws property test over 3,000 random inputs (2.6). Camera and real QR codes need stage 3. | S1, M10 | Partly (host level done) |
 | PR-17 Interruptions | None | S3, M10 | No |
-| PR-19 Dependency change | None | M8 (SDK pins) | No |
-| PR-20 Release misconfigured | None | M8, M10 | No |
+| PR-19 Dependency change | `verifyBreezSdkPins` in the gate | M8 | Yes |
+| PR-20 Release misconfigured | Static review (M8): minify, debuggable, backup, signing, debug tools. Version bump for the cut is a checklist item. | M8, M10 | Partly (M10 open) |
 | PR-21 Legal documents | None (O-04 known) | M9 | No |
 
 ## Open defects and observations
@@ -110,6 +110,8 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | O-07 | Duplicate detection after a restart relies on each wallet | Unknown | To check (M11) |
 | O-09 | Rescanning an already-paid invoice: Blink shows success (already paid), Rayl and Spark show an error | S3 (parity) | Fixed: [MOB-90](https://linear.app/nicola-susca/issue/MOB-90) (NWC can't tell) |
 | O-10 | Legacy default in `SparkOnboardingState` (restored wallets skip the intro screens) | S4 | Fixed: [MOB-91](https://linear.app/nicola-susca/issue/MOB-91) |
+| MOB-94 | A fee the wallet doesn't report (Blink, NWC) is shown as 0 sats | S4 | Open: presentation to decide (hide or "unknown"); a known-defect test needs that API change first |
+| MOB-95 | Credentials printed by `toString()` | S3 | Fixed (`eb5edce6`) |
 | O-11 | Android's secure store reports an undecryptable credential as absent, so Blink and NWC show setup instead of recovery | Unknown | Stage 3: check on a device whether that meets SPEC-wallet-lifecycle (see M6) |
 | O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 | Fixed: [MOB-89](https://linear.app/nicola-susca/issue/MOB-89) |
 
@@ -117,7 +119,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 
 Stage 2 stopped here as planned. Done: 2.1 and 2.3 to 2.8. Waiting: 2.2.
 
-- **Suite:** 252 tests in 57 classes, all passing (227 at the end of stage 2, 206 after stage 1).
+- **Suite:** 270 tests in 59 classes, all passing (227 at the end of stage 2, 206 after stage 1).
   Every new test was mutation-checked: each slice's target mutations are killed.
 - **Closed gaps from the audit:** the Unknown-never-Failed rule for Rayl and Spark (S1, S2),
   Spark removal waiting for the credential delete (W2), the unreadable pocket key (K3),

@@ -505,7 +505,9 @@ val verifyBreezSdkPins = tasks.register("verifyBreezSdkPins") {
         "Checks that Android and iOS use the same Breez SDK version (Gradle and Xcode pins)."
     val project = file("app/iosApp/iosApp.xcodeproj/project.pbxproj")
     val resolved =
-        file("app/iosApp/iosApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved")
+        file(
+            "app/iosApp/iosApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+        )
     inputs.files(project, resolved)
     inputs.property("gradleVersion", breezSparkVersion)
 

@@ -2,6 +2,23 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-02: Should items S2, S4, S5, S6 and M8 static review
+
+- **S4 hostile LNURL:** 7 tests from PIT survivors (DNS rebinding, impossible limits, missing
+  invoice, exact limits, no-comment servers, nesting). The old nesting test sent a bare array,
+  which is rejected for its shape anyway, so the depth guard was never exercised; fixed.
+- **S2 prices:** 4 client tests (retry after failure, broken bodies, one bad currency,
+  cancellation); the cache test started at clock 0 and missed expiry mutants, fixed; the
+  backend response shape is pinned for released apps.
+- **S6:** formatting per language and catalog currency (JVM locale data on the host).
+- **S5:** found MOB-94 (fee 0 shown when unknown), filed, open.
+- **M8:** found MOB-95 (credentials in `toString()`), fixed. Added `verifyBreezSdkPins` to the
+  gate. Version bump for the 1.1 cut noted for the checklist. While testing the pin check, Xcode
+  (open) re-resolved `Package.resolved` to a planted version; restored, nothing committed.
+  `b2b31c2d` failed ktlint on the build script (the pre-commit hook only lints `.kt`); fixed in
+  the next commit.
+- **Ran:** the full gate including `verifyBreezSdkPins`. **270 tests in 59 classes, 0 failures.**
+
 ## 2026-11-02: M6 wallet lifecycle traceability, MOB-89
 
 - **Build:** `main` from `43420709` (MOB-89 fix) to the `RaylWalletExit` commit
