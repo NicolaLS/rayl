@@ -22,6 +22,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import xyz.lilsus.raylsuite.core.model.DisplayAmount
+import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.model.LightningAddress
 import xyz.lilsus.raylsuite.core.model.PaymentConfirmationMode
 import xyz.lilsus.raylsuite.core.model.StoredAmount
@@ -91,6 +93,31 @@ class PaymentFlowCoordinatorTest {
 
         assertIs<PaymentUiState.Confirm>(coordinator.uiState.value)
         assertEquals(0, settlement.settled.size)
+    }
+
+    @Test
+    fun theReceiptShowsTheAmountPaidAndTheFee() = flowTest {
+        settlement.outcome = SettlementOutcome.Paid(feeMsats = 3_000, preimage = null)
+
+        scan(invoice(sats = 9_999))
+
+        assertEquals(
+            PaymentUiState.Success(
+                amountPaid = DisplayAmount(9_999, DisplayCurrency.Satoshi),
+                feePaid = DisplayAmount(3, DisplayCurrency.Satoshi)
+            ),
+            coordinator.uiState.value
+        )
+    }
+
+    @Test
+    fun payingANewLightningAddressOffersToSaveItAsAContact() = flowTest {
+        dispatch(PaymentIntent.QrCodeScanned("bob@example.com"))
+        listOf(1, 0, 0).forEach { dispatch(PaymentIntent.ManualAmountKeyPress(ManualAmountKey.Digit(it))) }
+        dispatch(PaymentIntent.ManualAmountSubmit)
+
+        assertIs<PaymentUiState.Success>(coordinator.uiState.value)
+        assertEquals("bob@example.com", hub.state.value.savePrompt?.address?.full)
     }
 
     @Test
