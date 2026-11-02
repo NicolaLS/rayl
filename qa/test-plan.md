@@ -62,7 +62,10 @@ State and logic live in common Kotlin; only the hero animation is shared Compose
 - KDoc contracts in code, e.g. `PaymentSettlement`, `PocketKeyStore`, `PaymentOperation`.
 - Stakeholder decisions recorded in §15.
 - Linear issues (team `MOB`): acceptance criteria of done issues, and the defects behind
-  `fix:` commits. Tests that verify them are part of the regression suite.
+  `fix:` commits. Tests that verify them are part of the regression suite. The tracker
+  wasn't kept in sync with a fast-changing code base, so an issue is checked against the
+  current code and specs before it is used as test basis; issues found wrong or outdated
+  are reported to Nicola (e.g. `2de24546` contradicted LUD-16).
 - Lightning and LNURL standards (BOLT11, LUD-01/06/09/16/17, BIP21, NIP-47), which act as
   external interoperability requirements.
 
@@ -108,7 +111,7 @@ update this table and the risk register.
 | **Remove all deep links** (payment and wallet connection). Rayl is built for in-person checkout and Hub payments, not to be a general wallet's link handler. Add funds still hands its invoice to another wallet as a `lightning:` link. | Done (2026-11-01) | Nothing to test for incoming links. Add funds: the handoff, and the invoice sheet when no wallet app is installed. Automated runs need an E2E-only way to inject scanned input (§12, after 1.1); the regtest tool's `--open` is gone. |
 | Replace the custom payment-input parser with the Breez SDK parser | Not pursued (2026-11-01, D-10) | The custom parser stays: corpus and property tests are in scope (P1.9, PR-14). |
 | Get fiat rates from the Breez SDK instead of `backend/rayl` | Not pursued (2026-11-01, D-10) | The backend stays: contract and degradation tests are in scope (P1.8, PR-18). |
-| **Fee-aware Auto Pay** (SI-01 decision) | Decided, to be built for 1.1 | New decision-table conditions (P1.2) and fee checks (P1.7). Blocked until implemented. |
+| **Fee limit setting** (SI-01, MOB-93) | Decided 2026-11-02, not scheduled (no feature work now) | New decision-table conditions (P1.2) once built. Not in 1.1. |
 
 ## 4. Risk-based approach
 
@@ -571,7 +574,7 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
   the Breez SDK, so both get normal test investment (P1.8, P1.9).
 - D-06a **O-01: confirmation is required at exactly the threshold.** The code is right; the
   "Above 10,000 sats" copy is wrong.
-- SI-01 **The threshold caps amount + fee where the fee is known** (appendix B).
+- SI-01 ~~The threshold caps amount + fee where the fee is known~~, replaced 2026-11-02 (appendix B).
 
 **Decided (review of open questions, 2026-11-02)**
 - D-02 **Telemetry is out of scope for 1.1.** High priority afterwards: privacy-aligned
@@ -586,12 +589,16 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
   allow this).
 - D-07 Random-input (property) tests use a widely used library rather than hand-written
   generators.
+- SI-01 (replaces the 2026-11-01 decision): **the Auto Pay threshold compares the amount
+  only; fees aren't estimated by default.** Users can set a fee limit in Settings above which
+  a payment asks for confirmation (MOB-93; form of the limit open, not scheduled).
+- O-08 confirmed: LUD-16 allows only lowercase user names, so `2de24546` (preserve case) was
+  wrong. Fixed in MOB-89.
 - O-10: **remove the legacy fallbacks.**
 - From 2026-11-02 QA also fixes defects. Every defect is filed in Linear first and closed when
   the fix is committed (§10).
 
 **Open (stakeholder input needed)**
-- SI-01 follow-up: whether fees are estimated by default (appendix B).
 
 ---
 
@@ -661,9 +668,12 @@ before submitting**:
 
 Still open: question 4 (estimate vs actual labelling), and whether Blink should probe later.
 
-**Reopened (2026-11-02).** The owner leans towards not estimating fees by default (most
-users don't care about a few sats, and it saves time), with fee estimation as an opt-in
-setting where the wallet supports it. The decision above is on hold until this is settled.
+**Replaced (2026-11-02).** The threshold compares the payment amount only, and fees are
+not estimated by default: most users don't care about a few sats, and it keeps paying fast.
+Instead users can set a **fee limit** in Settings; a payment whose fee is above it asks for
+confirmation. Whether the limit is flat, a percentage or both (recommended: whichever is
+higher) is open. Feature MOB-93, not scheduled; PR-06 stays a residual risk for 1.1, limited
+by the receipt showing the actual fee.
 
 The rule spans the shared flow and every provider's settlement, so it probably qualifies as
 a Linked Specs `SPEC-*` record (owner: Nicola). Tests follow from it: decision table

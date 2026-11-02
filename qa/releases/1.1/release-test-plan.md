@@ -14,7 +14,7 @@ Progress is tracked in [status.md](status.md).
 | Branch | `release/1.1`, cut from `main` (not yet cut) |
 | Wallets | Rayl's built-in wallet (default, Breez relying party `keys.breez.technology`), plus Blink, NWC and Spark as external wallets. Assumption: all four ship; the release branch removes any that aren't ready. |
 | Platforms | Android and iOS |
-| New since 1.0 | Rayl's built-in wallet (passkeys, pocket key, add funds, balance), Spark as an external wallet, Spark recovery phrase entered word by word, Spark paying through the shared flow, deep links removed, fee-aware Auto Pay (SI-01, to be built) |
+| New since 1.0 | Rayl's built-in wallet (passkeys, pocket key, add funds, balance), Spark as an external wallet, Spark recovery phrase entered word by word, Spark paying through the shared flow, deep links removed, fee limit setting (SI-01, MOB-93) not in 1.1 |
 
 Assumption to confirm: "ships" means submitted to both stores, so the release candidate
 must be cut early in week 2.
@@ -23,7 +23,7 @@ must be cut early in week 2.
 
 | When | QA | Nicola |
 |---|---|---|
-| **Week 1** (Nov 2–8) | Automated Level 1 tests below the UI (Must items, §3); static reviews; draft the release checklist and mainnet protocol | Build fee-aware Auto Pay (SI-01) and fix the O-01 copy; restore CI or run the local gate before merging; decide D-04, D-05, O-05 |
+| **Week 1** (Nov 2–8) | Automated Level 1 tests below the UI (Must items, §3); static reviews; draft the release checklist and mainnet protocol | Fix the O-01 copy (done); restore CI or run the local gate before merging; decide D-04, D-05, O-05 |
 | **RC1 cut** (target Nov 10) | Entry check (master plan §9) | Cut `release/1.1`, apply provider gating, build signed release builds |
 | **Week 2** (Nov 10–14) | Analyse runs and triage defects; confirmation tests for fixes; test summary report | Run the checklist on App Live (both platforms), the mainnet protocol and the exploratory charters, with QA preparing each |
 | **Go/no-go** (Nov 14) | Report residual risk against the exit criteria | Accept the residual risk or hold the release |
@@ -81,7 +81,7 @@ covers the host-level parts of M1–M7 and S1–S2.
 
 | # | Item | Risks | Roadmap |
 |---|---|---|---|
-| M1 | Auto Pay decision table on the policy and through the flow, including the threshold boundary (O-01) and the fee-aware conditions once built | PR-02, PR-06 | P1.2 |
+| M1 | Auto Pay decision table on the policy and through the flow, including the threshold boundary (O-01); fee conditions come with MOB-93, after 1.1 | PR-02, PR-06 | P1.2 |
 | M2 | Payment flow component tests: each source and each outcome through `PaymentFlowCoordinator` | PR-01–PR-04 | P1.1 |
 | M3 | Settlement classification on all four wallets: an uncertain outcome is never `Failed`; a `prepare` failure means not paid | PR-04, PR-15 | P1.5 (core) |
 | M4 | Duplicate payment: the single-operation guard, and O-02 (a Spark session reset during settle) | PR-03, PR-04 | P1.4 (part) |
@@ -122,9 +122,7 @@ can be fully covered in two weeks:
 
 | Item | Needed by | Blocks |
 |---|---|---|
-| Fee-aware Auto Pay built (SI-01) | Nov 8 | M1 fee conditions |
 | O-01 copy fixed ("Above" → "From") | RC1 | M10 |
 | Local PR gate before each merge, or CI restored (PJ-01) | Ongoing | Regression on every change |
 | D-04 mainnet budget, D-05 App Live matrix, O-05 screen protection | Nov 8 | M10, M11, M8 |
 | `release/1.1` cut with provider gating | Nov 10 | M10, M11 |
-| A Linked Specs record for the SI-01 rule (recommended) | Before the feature merges | Traceability for M1 |
