@@ -13,7 +13,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | B | Stage 2: minimal host-level suite | In progress, see the stage 2 plan below | |
 | M1 | Auto Pay decision table | Done for today's rules (policy and through the flow); fee conditions wait for SI-01 | `PaymentConfirmationPolicyTest`, `PaymentFlowCoordinatorTest` |
 | M2 | Payment flow component tests | Done (2.8): camera, manual entry and Hub preset sources; Paid, Failed, Unknown, unavailable and expired outcomes | `PaymentFlowCoordinatorTest` (12) |
-| M3 | Settlement classification, four wallets | In progress: Rayl and Spark done (2.1); Blink and NWC need a test seam (2.2) | `RaylPaymentSettlementTest`, `SparkPaymentSettlementTest` |
+| M3 | Settlement classification, four wallets | Done: all four wallets (2.1, 2.2), plus already-paid as success (MOB-90) | `RaylPaymentSettlementTest`, `SparkPaymentSettlementTest`, `BlinkPaymentSettlementTest`, `NwcPaymentSettlementTest` |
 | M4 | Duplicate payment, O-02 | Host level done: in-flight guard and paid-invoice rescan through the flow (2.8). O-02 parked for stage 3. | `PaymentFlowCoordinatorTest` |
 | M5 | Conversion boundaries | Fiat quote rounding done (2.7); amount entry was already covered (audit §5) | `PaymentCurrencyManagerTest` |
 | M6 | Wallet lifecycle traceability | Not started | |
@@ -41,7 +41,7 @@ Slices, in order:
 | # | Slice | Risk | Needs |
 |---|---|---|---|
 | 2.1 | **Done.** Settlement contract for the Rayl and Spark wallets: an uncertain or thrown outcome after submitting is `Unknown`, a `prepare` failure means not paid, cancellation propagates, fees are reported in msat (M3) | PR-04 | Nothing |
-| 2.2 | The same contract for Blink and NWC (M3) | PR-04 | **A test seam** (an interface the settlement depends on) in both settlements: a small production change, waiting for Nicola's OK |
+| 2.2 | **Done (2026-11-02).** The same contract for Blink and NWC (M3) | PR-04 | Done with test seams, see below |
 | 2.3 | **Done.** Spark removal waits for the credential delete (M6, W2) | PR-08 | Nothing |
 | 2.4 | **Done.** An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
 | 2.5 | **Done.** LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
@@ -66,14 +66,14 @@ Nicola answered the open questions (test plan §15) and changed two rules:
 | # | Slice | Risk | State |
 |---|---|---|---|
 | 2.9 | Record the decisions; file the telemetry issue and the defects from O-08, O-09, O-10 | | **Done:** MOB-89–MOB-92 |
-| 2.10 | PIT as the mutation tool for the host suite; retire `mutate.sh` | | |
-| 2.11 | Fix MOB-88 (threshold copy) | PR-02 | |
-| 2.12 | Fix O-10 (remove legacy fallbacks) | | |
-| 2.13 | Fix O-08 (lowercase capitalised Lightning addresses) | PR-14 | |
-| 2.2 | Blink and NWC settlement contract, with test seams | PR-04 | |
-| 2.14 | Fix O-09 (already paid is success in every wallet that can tell) | PR-15 | |
-| 2.15 | A property-testing library for random-input tests (D-07) | PR-14 | |
-| — | O-05: code comment that a screen-protection strategy is still to be found | PR-11 | |
+| 2.10 | PIT as the mutation tool for the host suite; retire `mutate.sh` | | **Done** (`58ba3f68`) |
+| 2.11 | Fix MOB-88 (threshold copy) | PR-02 | **Done** (`0af25e32`), closed |
+| 2.12 | Fix O-10 (remove legacy fallbacks) | | **Done** (`5da46668`), MOB-91 closed |
+| 2.13 | Fix O-08 (lowercase capitalised Lightning addresses) | PR-14 | **On hold:** conflicts with `2de24546`, which deliberately preserves the case; question to Nicola in MOB-89. Patch ready. |
+| 2.2 | Blink and NWC settlement contract, with test seams | PR-04 | **Done** (`ebc6cc6e`) |
+| 2.14 | Fix O-09 (already paid is success in every wallet that can tell) | PR-15 | **Done** (`53aaf5c2`), MOB-90 closed. NWC unchanged (no reliable signal). Plus receipt and save-offer flow tests from PIT findings. |
+| 2.15 | A property-testing library for random-input tests (D-07) | PR-14 | **Done:** kotest-property |
+| — | O-05: code comment that a screen-protection strategy is still to be found | PR-11 | **Done** (`MainActivity`) |
 
 ## Level 1 risk coverage
 
@@ -84,7 +84,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-01 Wrong amount | Amount entry, display and fiat quote rounding; the entered amount is paid exactly through the flow (2.7, 2.8). Real wallets and mainnet need stage 3. | M2, M5, M11 | Partly (host level done) |
 | PR-02 Confirmation skipped | Policy decision table, and through the flow: threshold, Always mode, dismissal, manual entry, Hub preset (2.8). Fee conditions wait for SI-01. | M1 | Yes for today's rules |
 | PR-03 Duplicate payment | Operation guard, paid-hash lookup and QR presence gate, also through the flow (2.8). After a restart, protection relies on each wallet (O-07, stage 3). | M4 | Partly (host level done) |
-| PR-04 Outcome misreported | The Unknown-never-Failed rule and cancellation are protected for Rayl and Spark (2.1). Blink's payment client is well covered, but its settlement and NWC's have no tests (2.2). | M3, M2, M4 | Partly |
+| PR-04 Outcome misreported | The Unknown-never-Failed rule and cancellation are protected for all four wallets (2.1, 2.2), and each wallet verdict's meaning is pinned. | M3, M2, M4 | Yes (host level) |
 | PR-05 Wrong recipient | LNURL client and resolver, mutation-checked, including `description_hash` binding and amountless invoices (2.5) | S4 | Partly |
 | PR-06 Fee surprises | None | M1 (once built), S5 | No |
 | PR-08 Credentials retained | Spark lifecycle and removal, mutation-checked. Removal waiting for the credential delete is now tested (2.3). | M6, M10 | Partly |
@@ -102,20 +102,20 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 
 | ID | Summary | Severity | State |
 |---|---|---|---|
-| O-01 | Settings and onboarding copy say the threshold amount pays automatically; it asks for confirmation (decided: the code is right) | S4 | Filed: [MOB-88](https://linear.app/nicola-susca/issue/MOB-88) |
+| O-01 | Settings and onboarding copy say the threshold amount pays automatically; it asks for confirmation (decided: the code is right) | S4 | Fixed: [MOB-88](https://linear.app/nicola-susca/issue/MOB-88) |
 | O-02 | Spark may reset an in-flight payment session | Unknown | Parked for stage 3: the unguarded reset is called from Android Compose code (`SparkExperience.kt`), which host tests can't drive. Rayl and Blink guard it in common code. |
 | O-04 | Terms and privacy policy don't mention the built-in wallet | S2 (release blocker by exit criterion 6) | To review (M9) |
 | O-05 | No screen-capture protection for credentials on Android | Accepted for now | Decided (D-06): no protection while remote-device testing and store review take priority |
 | O-07 | Duplicate detection after a restart relies on each wallet | Unknown | To check (M11) |
-| O-09 | Rescanning an already-paid invoice: Blink shows success (already paid), Rayl and Spark show an error | S3 (parity) | Filed: [MOB-90](https://linear.app/nicola-susca/issue/MOB-90) |
-| O-10 | Legacy default in `SparkOnboardingState` (restored wallets skip the intro screens) | S4 | Filed: [MOB-91](https://linear.app/nicola-susca/issue/MOB-91) |
-| O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 | Filed: [MOB-89](https://linear.app/nicola-susca/issue/MOB-89) |
+| O-09 | Rescanning an already-paid invoice: Blink shows success (already paid), Rayl and Spark show an error | S3 (parity) | Fixed: [MOB-90](https://linear.app/nicola-susca/issue/MOB-90) (NWC can't tell) |
+| O-10 | Legacy default in `SparkOnboardingState` (restored wallets skip the intro screens) | S4 | Fixed: [MOB-91](https://linear.app/nicola-susca/issue/MOB-91) |
+| O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 | On hold: [MOB-89](https://linear.app/nicola-susca/issue/MOB-89) (case-preserving fix `2de24546` conflicts) |
 
 ## Stage 2 summary (2026-11-01)
 
 Stage 2 stopped here as planned. Done: 2.1 and 2.3 to 2.8. Waiting: 2.2.
 
-- **Suite:** 227 tests in 54 classes, all passing, 17 s of test time (206 after stage 1).
+- **Suite:** 245 tests in 56 classes, all passing (227 at the end of stage 2, 206 after stage 1).
   Every new test was mutation-checked: each slice's target mutations are killed.
 - **Closed gaps from the audit:** the Unknown-never-Failed rule for Rayl and Spark (S1, S2),
   Spark removal waiting for the credential delete (W2), the unreadable pocket key (K3),

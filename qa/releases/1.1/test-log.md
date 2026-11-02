@@ -2,6 +2,25 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-02: Stage 2, continued: PIT, fixes and Blink/NWC contract
+
+- **Build:** `main` from `a1b4fd20` to the kotest-property commit
+- **PIT across all modules** (`./gradlew pitestAndroidMain`, 3.5 min for 25 modules): two
+  modules first failed with "did not pass without mutation" because the plugin leaves the host
+  tests' runtime classpath off PIT's classpath (e.g. `kotlinx-serialization-json` through a
+  test-only dependency). Fixed in the convention plugin; all modules run.
+- **Fixed and closed:** MOB-88 (copy), MOB-91 (Spark onboarding default), MOB-90 (already
+  paid shown as success in the Rayl wallet and Spark). **On hold:** MOB-89, see status.
+- **2.2:** Blink (8 tests) and NWC (5 tests) settlement contracts behind new seams. PIT showed
+  that a first version of the USD test passed for the wrong reason: the helper prepared the
+  payment with a second settlement at a different rate, where the conversion happened to land
+  on $5.00. Fixed: one settlement per test.
+- **PIT findings on the flow (2.8):** the success screen's amount and fee, and the offer to
+  save a new address, were unpinned (a receipt showing 0 sats survived). Two tests added.
+- **kotest-property:** a planted crash was found after 328 inputs and shrunk to `"%zz@"`.
+- **Ran:** `./gradlew cleanTestAndroidHostTest testAndroidHostTest :backend:rayl:cleanTest :backend:rayl:test ktlintCheck verifyModuleDependencies verifyNativeLocalizations :app:androidApp:compileDebugKotlin`, plus iOS simulator compilation of the changed payment modules.
+- **Result:** all pass. **245 tests in 56 classes, 0 failures.**
+
 ## 2026-11-02: Trial of PIT as the mutation testing tool
 
 - **Why:** `qa/tools/mutate.sh` is hand-made and already had one bug (stale results). PIT is
