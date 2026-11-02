@@ -12,6 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
@@ -26,7 +27,9 @@ import xyz.lilsus.raylsuite.core.payment.LnurlResult
 
 class KtorLnurlPayClientTest {
     @Test
-    fun lightningAddressRequestPreservesUsernameAndTagCase() = runTest {
+    fun aLightningAddressIsFetchedFromItsLowercaseWellKnownUrl() = runTest {
+        // LUD-16: user names are lowercase. A capitalised address, as phone keyboards type it, is
+        // normalised when parsed (MOB-89); the tag stays part of the user name.
         var requestedHost: String? = null
         var requestedPath: String? = null
         val engine =
@@ -57,16 +60,12 @@ class KtorLnurlPayClientTest {
 
         val result =
             client.fetchPayParams(
-                LightningAddress(
-                    username = "Alice",
-                    domain = "Example.com",
-                    tag = "Tips"
-                )
+                assertNotNull(LightningAddress.parse("Alice+Tips@Example.com"))
             )
 
         assertIs<LnurlResult.Success<*>>(result)
         assertEquals("example.com", requestedHost)
-        assertEquals("/.well-known/lnurlp/Alice+Tips", requestedPath)
+        assertEquals("/.well-known/lnurlp/alice+tips", requestedPath)
     }
 
     @Test

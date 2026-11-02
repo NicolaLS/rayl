@@ -10,8 +10,8 @@ class LightningAddressTest {
         val supported =
             mapOf(
                 "pay@lilsus.xyz" to "pay@lilsus.xyz",
-                "lightning:LiLsUs+Tips@BliNk.sv" to "LiLsUs+Tips@blink.sv",
-                "http://JuM@BliNk.sv/" to "JuM@blink.sv"
+                "lightning:LiLsUs+Tips@BliNk.sv" to "lilsus+tips@blink.sv",
+                "http://JuM@BliNk.sv/" to "jum@blink.sv"
             )
 
         supported.forEach { (input, expected) ->

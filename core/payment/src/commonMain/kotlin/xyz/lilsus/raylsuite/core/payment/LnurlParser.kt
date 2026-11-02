@@ -76,7 +76,7 @@ class DefaultLnurlParser : LnurlParser {
         if (candidate.count { it == '@' } != 1) return null
 
         val address = LightningAddress.parse(candidate) ?: return null
-        val userPart = candidate.substringBefore('@')
+        val userPart = candidate.substringBefore('@').lowercase()
         if (!isValidLightningAddressUserPart(userPart)) return null
 
         val protocol =

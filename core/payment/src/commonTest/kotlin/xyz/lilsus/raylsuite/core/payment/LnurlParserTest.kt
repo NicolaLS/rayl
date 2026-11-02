@@ -70,8 +70,7 @@ class LnurlParserTest {
     }
 
     @Test
-    fun rejectsNonCanonicalLightningAddresses() {
-        assertNull(parser.parseOrNull("Alice@example.com"))
+    fun rejectsLightningAddressesOnAnIpAddress() {
         assertNull(parser.parseOrNull("alice@127.0.0.1"))
     }
 

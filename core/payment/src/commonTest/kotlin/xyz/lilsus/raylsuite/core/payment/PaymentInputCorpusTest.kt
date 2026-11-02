@@ -31,9 +31,6 @@ import xyz.lilsus.raylsuite.core.payment.LightningInputParser.Target
  *
  * Add a row whenever a real-world payment string fails or looks unusual (merchants, PoS
  * terminals, LNURL services, other wallets' QR codes), together with what it should become.
- *
- * Parked until decided (O-08): a Lightning address with capital letters, e.g.
- * `Alice@example.com`, is rejected today. Whether it should be lowercased is open.
  */
 class PaymentInputCorpusTest {
     private val parser = LightningInputParser()
@@ -69,6 +66,8 @@ class PaymentInputCorpusTest {
             "alice@example.com" to Expected.LightningAddress,
             "alice+tips@example.com" to Expected.LightningAddress,
             " alice@example.com " to Expected.LightningAddress,
+            // Phone keyboards capitalise the first letter (MOB-89).
+            "Alice@example.com" to Expected.LightningAddress,
             // Rejected with a reason the user can act on.
             "" to FailureReason.Empty,
             "   " to FailureReason.Empty,
@@ -95,6 +94,16 @@ class PaymentInputCorpusTest {
             }
             assertEquals(expected, actual, "input: \"$input\"")
         }
+    }
+
+    @Test
+    fun aCapitalisedLightningAddressIsPaidInLowercase() = runTest {
+        // LUD-16 user names are lowercase, and the LNURL endpoint is looked up by that name
+        // (MOB-89).
+        val result = parser.parse("Alice+Tips@Example.COM")
+
+        val target = (result as? ParseResult.Success)?.target as? Target.LightningAddressTarget
+        assertEquals("alice+tips@example.com", target?.address?.full, "$result")
     }
 
     @Test

@@ -24,7 +24,8 @@ data class LightningAddress(val username: String, val domain: String, val tag: S
             if (candidate.any { it == '/' || it == '?' || it == '#' }) return null
             if (candidate.count { it == '@' } != 1) return null
 
-            val userPart = candidate.substringBefore('@')
+            // LUD-16 user names are lowercase; phone keyboards capitalise the first letter.
+            val userPart = candidate.substringBefore('@').lowercase()
             val domain = candidate.substringAfter('@').lowercase()
             if (!userPart.isValidUserPart() || !domain.isValidDomain()) return null
 
@@ -71,7 +72,7 @@ private fun String.unwrapAddressUrl(): String? {
 }
 
 private fun String.isValidUserPart(): Boolean = isNotEmpty() &&
-    lowercase().all { character ->
+    all { character ->
         character in 'a'..'z' ||
             character in '0'..'9' ||
             character == '-' ||
