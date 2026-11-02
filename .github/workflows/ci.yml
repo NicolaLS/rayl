@@ -40,7 +40,7 @@ jobs:
 
       - name: Check formatting, module boundaries, localizations, and unit tests
         run: |
-          ./gradlew ktlintCheck verifyModuleDependencies verifyNativeLocalizations testAndroidHostTest :backend:rayl:test
+          ./gradlew ktlintCheck verifyModuleDependencies verifyNativeLocalizations verifyBreezSdkPins testAndroidHostTest :backend:rayl:test
           ./gradlew -p build-logic ktlintCheck
 
   android:

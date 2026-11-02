@@ -498,11 +498,42 @@ subprojects {
     }
 }
 
+val breezSparkVersion = libs.versions.breezSpark
+val verifyBreezSdkPins = tasks.register("verifyBreezSdkPins") {
+    group = "verification"
+    description =
+        "Checks that Android and iOS use the same Breez SDK version (Gradle and Xcode pins)."
+    val project = file("app/iosApp/iosApp.xcodeproj/project.pbxproj")
+    val resolved =
+        file("app/iosApp/iosApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved")
+    inputs.files(project, resolved)
+    inputs.property("gradleVersion", breezSparkVersion)
+
+    doLast {
+        val gradleVersion = breezSparkVersion.get()
+        val xcodePin =
+            Regex(
+                """breez-sdk-spark-swift\.git";\s*requirement = \{\s*kind = exactVersion;\s*version = ([^;]+);"""
+            ).find(project.readText())?.groupValues?.get(1)?.trim()
+        val resolvedPins =
+            (JsonSlurper().parse(resolved) as Map<*, *>)["pins"] as List<*>
+        val resolvedVersion =
+            resolvedPins.map { it as Map<*, *> }
+                .firstOrNull { it["identity"] == "breez-sdk-spark-swift" }
+                ?.let { (it["state"] as Map<*, *>)["version"] as String? }
+        check(xcodePin == gradleVersion && resolvedVersion == gradleVersion) {
+            "Breez SDK pins differ: Gradle $gradleVersion, Xcode exactVersion $xcodePin, " +
+                "Package.resolved $resolvedVersion. Bump them together (gradle/libs.versions.toml)."
+        }
+    }
+}
+
 tasks.register("check") {
     group = "verification"
     description = "Runs the root architecture checks."
     dependsOn(verifyModuleDependencies)
     dependsOn(verifyNativeLocalizations)
+    dependsOn(verifyBreezSdkPins)
 }
 
 tasks.register("perfCheck") {

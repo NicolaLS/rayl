@@ -301,7 +301,7 @@ OEM skins and camera stacks, passkey providers, and low-end hardware.
   - Can an uncertain outcome become `Failed`?
   - Can a payment slip past confirmation?
   - Does a secret reach a log?
-- **Existing gates stay:** ktlint, `verifyModuleDependencies`, `verifyNativeLocalizations`.
+- **Existing gates stay:** ktlint, `verifyModuleDependencies`, `verifyNativeLocalizations`, and `verifyBreezSdkPins` (added 2026-11-02, M8).
 
 ### 6.6 Regression and confirmation testing
 
@@ -399,7 +399,7 @@ A prerequisite for all of this is **restoring CI (PJ-01)**. Until then, the foun
 the PR gate locally:
 
 ```shell
-./gradlew ktlintCheck verifyModuleDependencies verifyNativeLocalizations testAndroidHostTest :backend:rayl:test
+./gradlew ktlintCheck verifyModuleDependencies verifyNativeLocalizations verifyBreezSdkPins testAndroidHostTest :backend:rayl:test
 ```
 
 Test design rules for automated tests:
