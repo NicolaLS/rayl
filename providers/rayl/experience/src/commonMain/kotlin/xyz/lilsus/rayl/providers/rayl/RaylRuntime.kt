@@ -30,16 +30,6 @@ import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
 import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
 
-internal enum class RaylExit { None, Working, Failed, Done }
-
-internal sealed interface RaylExitTarget {
-    /** The user chose an external wallet offered by the host. */
-    data class Wallet(val id: String) : RaylExitTarget
-
-    /** A debug build erased the wallet; the host mounts a new one. */
-    data object Erased : RaylExitTarget
-}
-
 /**
  * Objects of Rayl's built-in wallet experience, held outside composition so both the Compose host
  * and the native iOS shell share one instance. The pocket starts as soon as it mounts; only its
@@ -58,12 +48,6 @@ internal class RaylRuntime(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val networkConnectivity by lazy { createNetworkConnectivity() }
     private var closed = false
-
-    /** Where the host goes once [exit] is [RaylExit.Done]. */
-    var exitTarget: RaylExitTarget? = null
-        private set
-
-    val canErase = debugTools
 
     val themePreferences = DefaultThemePreferences(appSettings)
     val currencyPreferences = DefaultCurrencyPreferences(appSettings)
@@ -92,8 +76,23 @@ internal class RaylRuntime(
         onInvoice = onFundingInvoice
     )
 
-    private val mutableExit = MutableStateFlow(RaylExit.None)
-    val exit: StateFlow<RaylExit> = mutableExit.asStateFlow()
+    private val walletExit = RaylWalletExit(
+        scope = scope,
+        canErase = debugTools,
+        keyUnreadable = { pocket.status.value == PocketStatus.KeyUnreadable },
+        isBusy = { closed || paymentCoordinator.isSubmitting.value },
+        stopSession = {
+            paymentCoordinator.resetSession()
+            funding.reset()
+        },
+        closePocket = { pocket.close() },
+        erasePocket = { pocket.erase().also { erased -> if (erased) onboardingState.reset() } }
+    )
+    val exit: StateFlow<RaylExit> = walletExit.state
+    val canErase: Boolean = walletExit.canErase
+
+    /** Where the host goes once [exit] is [RaylExit.Done]. */
+    val exitTarget: RaylExitTarget? get() = walletExit.target
 
     init {
         PocketTimings.mark("experience created")
@@ -107,65 +106,19 @@ internal class RaylRuntime(
     }
 
     fun retryPocket() {
-        if (mutableExit.value == RaylExit.None) pocket.start()
+        if (exit.value == RaylExit.None) pocket.start()
     }
 
-    /**
-     * Closes Rayl's wallet so the host can set up the external wallet [walletId]. Its key and funds
-     * stay on this device, and the host returns here when the external wallet is removed.
-     * Returns false while a payment is being submitted.
-     */
-    fun useWallet(walletId: String): Boolean = leave(RaylExitTarget.Wallet(walletId))
+    /** See [RaylWalletExit.useWallet]. */
+    fun useWallet(walletId: String): Boolean = walletExit.useWallet(walletId)
 
-    /** Debug builds only: deletes this device's wallet key and data, then sets the wallet up again. */
-    fun erase() {
-        if (canErase) leave(RaylExitTarget.Erased)
-    }
+    /** See [RaylWalletExit.erase]. */
+    fun erase() = walletExit.erase()
 
-    /**
-     * When this device can no longer read its key copy, deletes it and sets the wallet up again:
-     * the same passkey and account derive the same wallet. See SPEC-wallet-lifecycle.
-     */
-    fun setUpAgain() {
-        if (pocket.status.value == PocketStatus.KeyUnreadable) leave(RaylExitTarget.Erased)
-    }
+    /** See [RaylWalletExit.setUpAgain] and SPEC-wallet-lifecycle. */
+    fun setUpAgain() = walletExit.setUpAgain()
 
-    private fun leave(target: RaylExitTarget): Boolean {
-        if (closed || paymentCoordinator.isSubmitting.value) return false
-        if (mutableExit.value == RaylExit.Working ||
-            mutableExit.value == RaylExit.Done
-        ) {
-            return false
-        }
-        exitTarget = target
-        mutableExit.value = RaylExit.Working
-        scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            mutableExit.value = try {
-                paymentCoordinator.resetSession()
-                funding.reset()
-                val finished = if (target == RaylExitTarget.Erased) {
-                    pocket.erase().also { erased -> if (erased) onboardingState.reset() }
-                } else {
-                    pocket.close()
-                    true
-                }
-                if (finished) RaylExit.Done else RaylExit.Failed
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                RaylExit.Failed
-            }
-        }
-        return true
-    }
-
-    fun retryLeave() {
-        val target = exitTarget
-        if (mutableExit.value == RaylExit.Failed && target != null) {
-            mutableExit.value = RaylExit.None
-            leave(target)
-        }
-    }
+    fun retryLeave() = walletExit.retry()
 
     /** Best-effort platform teardown; [leave] awaits the pocket before the host moves on. */
     fun clear() {
