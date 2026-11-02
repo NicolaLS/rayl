@@ -26,5 +26,16 @@ change), PR-20 (release misconfigured).
 |---|---|
 | Breez SDK on both platforms | Gradle, Xcode `exactVersion` and `Package.resolved` all pin 0.27.2. Only a comment kept them in sync, so `verifyBreezSdkPins` now checks it in the gate (`b2b31c2d`). Verified against a planted mismatch. |
 
+## Upgrade from 1.0 (PR-12)
+
+1.0 is in store review, so 1.1 must keep working with what 1.0 stores. Compared with
+`release/1.0`: the storage names (`rayl_preferences`, `rayl_blink_*`, `rayl_nwc_*`), the
+selected-wallet key `rayl.wallet` and its values (`Blink`, `Nwc`) are unchanged, and every
+settings key 1.0 writes is still read, except 1.0's welcome flag and its "NWC onboarding
+step in progress" key (at worst an onboarding starts over). A 1.0 user with Blink or NWC
+connected gets that wallet mounted directly, without Rayl's onboarding. **OK statically;**
+checklist U2/U3 test the real upgrade. From the day 1.0 is published, the pre-release rule
+"no migrations" no longer covers data 1.0 writes.
+
 Not covered here: Linked Specs and the `distribution/` documents (M9), and anything that
 needs a running build (stage 3).

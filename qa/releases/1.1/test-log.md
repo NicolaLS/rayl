@@ -2,6 +2,18 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-02: M9 distribution review, M10/M11 drafts, upgrade check
+
+- **M9:** all four `distribution/` documents describe 1.0. Filed MOB-96 (privacy, S2), MOB-97
+  (terms, S2: the passkey is the only backup), MOB-98 (store listings, S3), MOB-99 (iOS
+  encryption reassessment, S2).
+- **Upgrade from 1.0 (static):** storage names, the selected-wallet key and its values are
+  unchanged; every key 1.0 writes is still read except two harmless ones. Real upgrade test
+  is checklist U2/U3.
+- **Drafted:** release regression checklist (M10), mainnet acceptance protocol (M11), stub
+  assumption register (11 assumptions, each mapped to a verification step).
+- Corrected invented build hashes in MOB-94 and MOB-96–MOB-99 after filing.
+
 ## 2026-11-02: Should items S2, S4, S5, S6 and M8 static review
 
 - **S4 hostile LNURL:** 7 tests from PIT survivors (DNS rebinding, impossible limits, missing

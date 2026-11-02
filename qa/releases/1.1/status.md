@@ -19,9 +19,9 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | M6 | Wallet lifecycle traceability | Done at host level (2026-11-02): 22 rules traced; gap P5/P8 closed with `RaylWalletExitTest`; L6 partly (O-11); L10, L11, L13 go to the checklist and mainnet protocol | [lifecycle-traceability.md](lifecycle-traceability.md) |
 | M7 | Pocket key rules | Host-level part done (2.4, and when the copy may be erased: `RaylWalletExitTest`); the platform stores need stage 3 | `RaylPocketTest`, `RaylWalletExitTest` |
 | M8 | Static reviews (secrets, release config, SDK pins) | Done (2026-11-02): MOB-95 fixed, `verifyBreezSdkPins` added to the gate, version bump for the 1.1 cut goes on the checklist | [static-review.md](static-review.md) |
-| M9 | `distribution/` review | Deferred to stage 3 | |
-| M10 | Release checklist and App Live run | Not started | |
-| M11 | Mainnet protocol and run | Not started | |
+| M9 | `distribution/` review | Done (2026-11-02): all four documents still describe 1.0. Filed MOB-96 privacy (S2), MOB-97 terms (S2, passkey is the only backup), MOB-98 store listings (S3), MOB-99 iOS encryption reassessment (S2). Text changes are Nicola's. | [distribution-review.md](distribution-review.md) |
+| M10 | Release checklist and App Live run | Checklist drafted; run needs Nicola (App Live) | [release-regression.md](../../checklists/release-regression.md) |
+| M11 | Mainnet protocol and run | Protocol drafted (1,000 sats); run needs Nicola (funded wallets) | [mainnet-acceptance.md](../../checklists/mainnet-acceptance.md), [stub-assumptions.md](../../stub-assumptions.md) |
 | M12 | Test summary report | Not started | |
 | S1–S6 | Should items | Done at host level (2026-11-02): S1 (2.6), S2 price degradation and backend response shape, S4 hostile LNURL, S5 fee mapping and receipt (MOB-94 open), S6 formatting per language. S3 (exploratory charters) is stage 3. | `RaylBitcoinPriceProviderTest`, `RaylServerTest`, `KtorLnurlPayClientTest`, `LnurlInvoiceResolverTest`, `AmountFormatterTest` |
 
@@ -97,7 +97,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-17 Interruptions | None | S3, M10 | No |
 | PR-19 Dependency change | `verifyBreezSdkPins` in the gate | M8 | Yes |
 | PR-20 Release misconfigured | Static review (M8): minify, debuggable, backup, signing, debug tools. Version bump for the cut is a checklist item. | M8, M10 | Partly (M10 open) |
-| PR-21 Legal documents | None (O-04 known) | M9 | No |
+| PR-21 Legal documents | Reviewed (M9): MOB-96–MOB-99 open | M9 | No (blockers open) |
 
 ## Open defects and observations
 
@@ -105,7 +105,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 |---|---|---|---|
 | O-01 | Settings and onboarding copy say the threshold amount pays automatically; it asks for confirmation (decided: the code is right) | S4 | Fixed: [MOB-88](https://linear.app/nicola-susca/issue/MOB-88) |
 | O-02 | Spark may reset an in-flight payment session | Unknown | Parked for stage 3: the unguarded reset is called from Android Compose code (`SparkExperience.kt`), which host tests can't drive. Rayl and Blink guard it in common code. |
-| O-04 | Terms and privacy policy don't mention the built-in wallet | S2 (release blocker by exit criterion 6) | To review (M9) |
+| O-04 | Terms and privacy policy don't mention the built-in wallet | S2 (release blocker by exit criterion 6) | Filed: MOB-96, MOB-97 (and MOB-98, MOB-99 from the same review) |
 | O-05 | No screen-capture protection for credentials on Android | Accepted for now | Decided (D-06): no protection while remote-device testing and store review take priority |
 | O-07 | Duplicate detection after a restart relies on each wallet | Unknown | To check (M11) |
 | O-09 | Rescanning an already-paid invoice: Blink shows success (already paid), Rayl and Spark show an error | S3 (parity) | Fixed: [MOB-90](https://linear.app/nicola-susca/issue/MOB-90) (NWC can't tell) |
