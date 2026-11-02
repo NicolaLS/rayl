@@ -1,6 +1,6 @@
 # 1.1 test status
 
-Updated: 2026-11-01. Plan: [release-test-plan.md](release-test-plan.md).
+Updated: 2026-11-02. Plan: [release-test-plan.md](release-test-plan.md).
 Executions: [test-log.md](test-log.md).
 
 ## Work items
@@ -56,6 +56,25 @@ static testing) starts only when Nicola says so.
 **Parked:** fee-aware Auto Pay conditions (SI-01, not built), capitalised Lightning
 addresses (O-08), the already-paid result per wallet (O-09).
 
+## Stage 2, continued (2026-11-02)
+
+Nicola answered the open questions (test plan §15) and changed two rules:
+- QA may change production code for testability without asking, explaining why in the commit.
+- QA fixes defects as well. Every defect is filed in Linear, fixed with a regression test in
+  its own commit, then closed.
+
+| # | Slice | Risk | State |
+|---|---|---|---|
+| 2.9 | Record the decisions; file the telemetry issue and the defects from O-08, O-09, O-10 | | **Done:** MOB-89–MOB-92 |
+| 2.10 | PIT as the mutation tool for the host suite; retire `mutate.sh` | | |
+| 2.11 | Fix MOB-88 (threshold copy) | PR-02 | |
+| 2.12 | Fix O-10 (remove legacy fallbacks) | | |
+| 2.13 | Fix O-08 (lowercase capitalised Lightning addresses) | PR-14 | |
+| 2.2 | Blink and NWC settlement contract, with test seams | PR-04 | |
+| 2.14 | Fix O-09 (already paid is success in every wallet that can tell) | PR-15 | |
+| 2.15 | A property-testing library for random-input tests (D-07) | PR-14 | |
+| — | O-05: code comment that a screen-protection strategy is still to be found | PR-11 | |
+
 ## Level 1 risk coverage
 
 The main progress indicator (master plan §11). "Today" is what existing tests cover.
@@ -86,11 +105,11 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | O-01 | Settings and onboarding copy say the threshold amount pays automatically; it asks for confirmation (decided: the code is right) | S4 | Filed: [MOB-88](https://linear.app/nicola-susca/issue/MOB-88) |
 | O-02 | Spark may reset an in-flight payment session | Unknown | Parked for stage 3: the unguarded reset is called from Android Compose code (`SparkExperience.kt`), which host tests can't drive. Rayl and Blink guard it in common code. |
 | O-04 | Terms and privacy policy don't mention the built-in wallet | S2 (release blocker by exit criterion 6) | To review (M9) |
-| O-05 | No screen-capture protection for credentials on Android | Pending decision | Open (D-06) |
+| O-05 | No screen-capture protection for credentials on Android | Accepted for now | Decided (D-06): no protection while remote-device testing and store review take priority |
 | O-07 | Duplicate detection after a restart relies on each wallet | Unknown | To check (M11) |
-| O-09 | Rescanning an already-paid invoice: Blink shows success (already paid), Rayl and Spark show an error | S3 (parity) | Product decision needed |
-| O-10 | Legacy default in `SparkOnboardingState` (restored wallets skip the intro screens) | S4 | For Nicola: remove under the pre-release policy |
-| O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 if the decision is to accept it | Product decision needed |
+| O-09 | Rescanning an already-paid invoice: Blink shows success (already paid), Rayl and Spark show an error | S3 (parity) | Filed: [MOB-90](https://linear.app/nicola-susca/issue/MOB-90) |
+| O-10 | Legacy default in `SparkOnboardingState` (restored wallets skip the intro screens) | S4 | Filed: [MOB-91](https://linear.app/nicola-susca/issue/MOB-91) |
+| O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 | Filed: [MOB-89](https://linear.app/nicola-susca/issue/MOB-89) |
 
 ## Stage 2 summary (2026-11-01)
 

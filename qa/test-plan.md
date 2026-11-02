@@ -441,6 +441,11 @@ the top of the description. They are prioritised with the stakeholder.
 Each report contains: build and commit, platform and device, provider, steps, expected
 versus actual, and evidence (logs, `RaylTiming`, screenshots).
 
+**Who fixes (from 2026-11-02).** QA fixes defects too, so testing doesn't wait for fixes:
+file the issue, fix it with a regression test in its own commit that names the issue, then
+close the issue. A defect is filed even when it's fixed minutes later. Questions about the
+intended behaviour still go to the stakeholder before the fix.
+
 ## 11. Metrics and reporting
 
 Kept to what drives decisions:
@@ -552,14 +557,25 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
   "Above 10,000 sats" copy is wrong.
 - SI-01 **The threshold caps amount + fee where the fee is known** (appendix B).
 
+**Decided (review of open questions, 2026-11-02)**
+- D-02 **Telemetry is out of scope for 1.1.** High priority afterwards: privacy-aligned
+  insight into what happens in the app (MOB-92).
+- D-04 **Mainnet budget: 1,000 sats per release candidate.**
+- D-05 **The App Live matrix in §7 is accepted.**
+- D-06 O-05: **no screen-capture protection for now.** It blocks testing on remote devices
+  and slows store review, which matter more right now. A strategy is still to be found (code
+  comment in the Android app). O-08: **lowercase capitalised Lightning addresses.** O-09:
+  **every wallet reports an already-paid invoice as success marked "already paid"**, when
+  the session history knows it or the wallet's response says so unambiguously (NWC may not
+  allow this).
+- D-07 Random-input (property) tests use a widely used library rather than hand-written
+  generators.
+- O-10: **remove the legacy fallbacks.**
+- From 2026-11-02 QA also fixes defects. Every defect is filed in Linear first and closed when
+  the fix is committed (§10).
+
 **Open (stakeholder input needed)**
-- D-02 Field performance telemetry: opt-in custom metrics (needs a privacy policy change)
-  or platform vitals only?
-- D-04 Mainnet test budget per release candidate.
-- D-05 Which App Live devices form the standard matrix (proposal in §7).
-- D-06 Observations O-05, O-08 and O-09: intended behaviour (O-01 is decided, D-06a).
-- D-07 Add a property-testing library (e.g. kotest-property) or use hand-rolled
-  generators?
+- SI-01 follow-up: whether fees are estimated by default (appendix B).
 
 ---
 
@@ -574,11 +590,11 @@ one needs a test or a product decision before it becomes a defect or is closed.
 | O-02 | `SparkExperience` calls `resetPaymentSession()` when the wallet state becomes `NoWallet` or `ResetRequired`, without the `isSubmitting` guard that the Rayl and Blink exit paths use. `resetSession()` cancels the in-flight operation, so if that state change can happen during `settle`, the outcome could be neither shown nor recorded. | PR-04 | Check reachability; write a component test |
 | O-03 | Known FIXME in `App.kt`: on a Spark cold start, a payment deep link can be rejected as "connect to pay" before the asynchronous restore finishes. | PR-14, PR-17 | Resolved: deep links were removed (§3.1) |
 | O-04 | `terms.md` and `privacy.md` describe Rayl as a non-custodial client for external wallets only. They don't mention the built-in pocket, passkeys, the device-held key copy, or Breez. | PR-21 | Review before release; release exit criterion 6 |
-| O-05 | Android has no screen-capture protection on any screen since `975f45f9`, including Spark recovery-phrase, Blink API-key and NWC URI entry. iOS marks the phrase `privacySensitive()`. This is both a security question and a parity deviation. | PR-11, PR-16 | Product decision (accept, or protect only the credential screens) |
+| O-05 | Android has no screen-capture protection on any screen since `975f45f9`, including Spark recovery-phrase, Blink API-key and NWC URI entry. iOS marks the phrase `privacySensitive()`. This is both a security question and a parity deviation. | PR-11, PR-16 | Decided (D-06): no protection for now; strategy to be found |
 | O-06 | Auto Pay compares the invoice amount with the threshold. Routing fees are not part of the decision. | PR-06 | Became SI-01 (appendix B) |
-| O-08 | A Lightning address with uppercase letters in the user part (`Alice@example.com`) is rejected as unrecognised. `LightningAddress.parse` accepts it, but `DefaultLnurlParser` rejects it. Phone keyboards capitalise the first letter. LUD-16 allows only lowercase; many wallets lowercase instead of rejecting. | PR-14 | Product decision: lowercase or reject. Then a corpus row. |
-| O-09 | Rescanning an already-paid invoice: Blink returns `Paid(wasAlreadyPaid = true)` (success screen), Rayl and Spark return `Failed(AlreadyPaid)` (error screen), contrary to REQ-provider-experience. | PR-15 | Product decision on the intended result, then a contract test (M3) |
-| O-10 | Legacy fallbacks, contrary to the pre-release policy: `SparkOnboardingState` treats restored wallets as having seen the intro screens, and `AppTab.fromStoredValue` maps an obsolete `"recent"` tab. | none | For Nicola: remove |
+| O-08 | A Lightning address with uppercase letters in the user part (`Alice@example.com`) is rejected as unrecognised. `LightningAddress.parse` accepts it, but `DefaultLnurlParser` rejects it. Phone keyboards capitalise the first letter. LUD-16 allows only lowercase; many wallets lowercase instead of rejecting. | PR-14 | Decided (D-06): lowercase. MOB-89 |
+| O-09 | Rescanning an already-paid invoice: Blink returns `Paid(wasAlreadyPaid = true)` (success screen), Rayl and Spark return `Failed(AlreadyPaid)` (error screen), contrary to REQ-provider-experience. | PR-15 | Decided (D-06): success marked "already paid" in every wallet that can tell. MOB-90 |
+| O-10 | Legacy fallback, contrary to the pre-release policy: `SparkOnboardingState` treats restored wallets as having seen the intro screens. (The `"recent"` tab mapping this row also named was already removed in `96980bef`; the observation was out of date.) | none | Decided: remove. MOB-91 |
 | O-07 | Client-side duplicate detection for re-scanned BOLT11 invoices uses only the in-memory session history, which keeps the last 10 payments (`MAX_RECENT_PAYMENTS`). After a restart, or once more than 10 payments have been made, protection depends on each wallet rejecting an already-paid invoice. | PR-03 | Verify per provider (regtest for the pocket and Spark, mainnet for Blink and NWC) |
 
 ## Appendix B: Specification issues
@@ -628,6 +644,10 @@ before submitting**:
 - Blink and NWC: compare the amount only, and the setting says that fees may be added.
 
 Still open: question 4 (estimate vs actual labelling), and whether Blink should probe later.
+
+**Reopened (2026-11-02).** The owner leans towards not estimating fees by default (most
+users don't care about a few sats, and it saves time), with fee estimation as an opt-in
+setting where the wallet supports it. The decision above is on hold until this is settled.
 
 The rule spans the shared flow and every provider's settlement, so it probably qualifies as
 a Linked Specs `SPEC-*` record (owner: Nicola). Tests follow from it: decision table
