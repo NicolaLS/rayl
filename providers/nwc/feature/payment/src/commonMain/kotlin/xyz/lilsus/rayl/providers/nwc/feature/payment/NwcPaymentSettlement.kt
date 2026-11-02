@@ -4,7 +4,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import xyz.lilsus.rayl.providers.nwc.integration.nwc.NwcPayOutcome
-import xyz.lilsus.rayl.providers.nwc.integration.nwc.NwcWallet
+import xyz.lilsus.rayl.providers.nwc.integration.nwc.NwcPayments
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentSettlement
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiError
 import xyz.lilsus.raylsuite.feature.paymentflow.PreparedPayment
@@ -12,7 +12,8 @@ import xyz.lilsus.raylsuite.feature.paymentflow.SettlementOutcome
 import xyz.lilsus.raylsuite.feature.paymentflow.SettlementPreparation
 
 /** Pays admitted invoices through the connected Nostr Wallet Connect wallet. */
-class NwcPaymentSettlement(private val nwcWallet: NwcWallet) : PaymentSettlement<PreparedPayment> {
+class NwcPaymentSettlement(private val nwcWallet: NwcPayments) :
+    PaymentSettlement<PreparedPayment> {
     override suspend fun prepare(request: PreparedPayment): SettlementPreparation<PreparedPayment> =
         SettlementPreparation.Ready(request)
 

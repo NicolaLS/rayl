@@ -57,12 +57,20 @@ sealed interface BlinkConnectionError {
 
 class BlinkConnectionException(val error: BlinkConnectionError) : Exception(error.toString())
 
+/** The payment half of [BlinkWallet], so a settlement can be tested without the Blink API. */
+interface BlinkPayments {
+    /** Throws [BlinkConnectionException] or [BlinkApiException] when no balance can pay. */
+    fun prepareFundingWallet(): BlinkFundingWallet
+
+    suspend fun submitPayment(request: BlinkPaymentRequest): BlinkPaymentOutcome
+}
+
 class BlinkWallet internal constructor(
     private val apiClient: BlinkApiClient,
     private val credentialStore: BlinkCredentialStore,
     private val isNetworkAvailable: () -> Boolean,
     startMode: WalletStartMode = WalletStartMode.Restore
-) {
+) : BlinkPayments {
     private var closed = false
     private val initialCredentials = if (startMode ==
         WalletStartMode.Restore
@@ -157,15 +165,16 @@ class BlinkWallet internal constructor(
         mutableSelectedFundingWallet.value = wallet
     }
 
-    fun prepareFundingWallet(): BlinkFundingWallet = requireCredentials().selectedFundingWallet
-        ?: throw BlinkApiException(BlinkApiError.FundingWalletUnavailable)
+    override fun prepareFundingWallet(): BlinkFundingWallet =
+        requireCredentials().selectedFundingWallet
+            ?: throw BlinkApiException(BlinkApiError.FundingWalletUnavailable)
 
     suspend fun fetchContacts(): List<BlinkContact> {
         val credentials = requireCredentials()
         return apiClient.fetchContacts(credentials.apiKey)
     }
 
-    suspend fun submitPayment(request: BlinkPaymentRequest): BlinkPaymentOutcome {
+    override suspend fun submitPayment(request: BlinkPaymentRequest): BlinkPaymentOutcome {
         if (!isNetworkAvailable()) {
             return BlinkPaymentOutcome.DefinitiveFailure(BlinkApiError.NetworkUnavailable)
         }

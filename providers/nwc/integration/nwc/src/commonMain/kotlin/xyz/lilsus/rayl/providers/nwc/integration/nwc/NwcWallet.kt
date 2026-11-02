@@ -103,6 +103,11 @@ sealed interface NwcPayOutcome {
     data class Uncertain(val detail: String?) : NwcPayOutcome
 }
 
+/** The payment half of [NwcWallet], so a settlement can be tested without a relay. */
+fun interface NwcPayments {
+    suspend fun payInvoice(invoice: String, amountMsats: Long?, paymentHash: String): NwcPayOutcome
+}
+
 private sealed interface NwcLookupOutcome {
     data class Settled(val preimage: String?, val feesPaidMsats: Long?) : NwcLookupOutcome
 
@@ -121,7 +126,7 @@ class NwcWallet internal constructor(
     startMode: WalletStartMode = WalletStartMode.Restore,
     private val ownsHttpClient: Boolean,
     private val closeClient: suspend (NwcClient) -> Unit = { it.close() }
-) {
+) : NwcPayments {
     private var closed = false
     private val clientMutex = Mutex()
     private var client: NwcClient? = null
@@ -204,7 +209,7 @@ class NwcWallet internal constructor(
         }
     }
 
-    suspend fun payInvoice(
+    override suspend fun payInvoice(
         invoice: String,
         amountMsats: Long?,
         paymentHash: String

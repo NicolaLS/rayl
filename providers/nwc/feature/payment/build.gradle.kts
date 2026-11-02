@@ -18,5 +18,10 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.secp256k1.kmp.jni.android)
         }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.lightning.kmp.core)
+        }
     }
 }

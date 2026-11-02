@@ -11,7 +11,7 @@ import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkFundingWallet
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkPaymentAmount
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkPaymentOutcome
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkPaymentRequest
-import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWallet
+import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkPayments
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWalletCurrency
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.model.DisplayCurrency
@@ -29,7 +29,7 @@ import xyz.lilsus.raylsuite.feature.paymentui.LnurlPayDisplay
 
 /** Pays admitted invoices from the Blink balance selected in wallet settings. */
 class BlinkPaymentSettlement(
-    private val blinkWallet: BlinkWallet,
+    private val blinkWallet: BlinkPayments,
     private val bitcoinPriceProvider: BitcoinPriceProvider
 ) : PaymentSettlement<BlinkPayment> {
     override suspend fun prepare(request: PreparedPayment): SettlementPreparation<BlinkPayment> {
