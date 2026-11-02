@@ -42,7 +42,7 @@ internal class SparkRuntime(
     private val mutableCloseFailed = MutableStateFlow(false)
     val closeFailed = mutableCloseFailed.asStateFlow()
 
-    val onboardingState = SparkOnboardingState(appSettings, host.startMode)
+    val onboardingState = SparkOnboardingState(appSettings)
     val onboardingCompleted = onboardingState.completed
 
     val walletAccess = host.walletAccess
