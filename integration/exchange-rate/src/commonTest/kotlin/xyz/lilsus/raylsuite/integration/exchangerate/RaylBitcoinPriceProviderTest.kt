@@ -8,7 +8,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -48,16 +50,20 @@ class RaylBitcoinPriceProviderTest {
     }
 
     @Test
-    fun refetchesAfterTheCacheExpires() = runTest {
+    fun pricesAreReusedForAMinuteThenFetchedAgain() = runTest {
         var requestCount = 0
-        var now = 0L
+        var now = 1_790_705_710_000L
+        val start = now
         val client = backend(onRequest = { requestCount += 1 })
         val provider = RaylBitcoinPriceProvider(client = client, baseUrl = "https://rayl.test", clock = { now })
 
         provider.pricePerBitcoin("USD")
-        now = 60_000L
+        now = start + 59_999L
         provider.pricePerBitcoin("USD")
+        assertEquals(1, requestCount)
 
+        now = start + 60_000L
+        provider.pricePerBitcoin("USD")
         assertEquals(2, requestCount)
         client.close()
     }
@@ -68,6 +74,64 @@ class RaylBitcoinPriceProviderTest {
         val provider = RaylBitcoinPriceProvider(client = client, baseUrl = "https://rayl.test", clock = { 100L })
 
         assertNull(provider.pricePerBitcoin("USD"))
+        client.close()
+    }
+
+    @Test
+    fun aFailedFetchIsRetriedOnTheNextRequest() = runTest {
+        // A failure must not be cached for a minute: the next payment tries again (PR-18).
+        var status = HttpStatusCode.ServiceUnavailable
+        val client = HttpClient(
+            MockEngine {
+                respond(
+                    content = if (status == HttpStatusCode.OK) prices else "",
+                    status = status,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+            }
+        )
+        val provider = RaylBitcoinPriceProvider(client = client, baseUrl = "https://rayl.test", clock = { 100L })
+
+        assertNull(provider.pricePerBitcoin("USD"))
+        status = HttpStatusCode.OK
+        assertEquals(60_000.0, provider.pricePerBitcoin("USD"))
+        client.close()
+    }
+
+    @Test
+    fun aBrokenResponseOrNetworkErrorYieldsNoPrice() = runTest {
+        val bodies = listOf("<html>Bad gateway</html>", "{}", """{"asOf":1}""", """{"asOf":1,"prices":"60000"}""")
+        bodies.forEach { body ->
+            val client = HttpClient(MockEngine { respond(body, headers = headersOf(HttpHeaders.ContentType, "application/json")) })
+            val provider = RaylBitcoinPriceProvider(client = client, baseUrl = "https://rayl.test", clock = { 100L })
+
+            assertNull(provider.pricePerBitcoin("USD"), body)
+            client.close()
+        }
+        val offline = HttpClient(MockEngine { throw IllegalStateException("connection reset") })
+        assertNull(RaylBitcoinPriceProvider(client = offline, baseUrl = "https://rayl.test").pricePerBitcoin("USD"))
+        offline.close()
+    }
+
+    @Test
+    fun anUnusablePriceForOneCurrencyLeavesTheOthersUsable() = runTest {
+        val body = """{"asOf":1,"prices":{"USD":0.0,"EUR":-55000.0,"GBP":50000.0}}"""
+        val client = HttpClient(MockEngine { respond(body, headers = headersOf(HttpHeaders.ContentType, "application/json")) })
+        val provider = RaylBitcoinPriceProvider(client = client, baseUrl = "https://rayl.test", clock = { 100L })
+
+        assertNull(provider.pricePerBitcoin("USD"))
+        assertNull(provider.pricePerBitcoin("EUR"))
+        assertEquals(50_000.0, provider.pricePerBitcoin("GBP"))
+        client.close()
+    }
+
+    @Test
+    fun cancellationIsPropagatedInsteadOfBecomingAMissingPrice() = runTest {
+        // A cancelled payment session must not continue as "no rate".
+        val client = HttpClient(MockEngine { throw CancellationException("session reset") })
+        val provider = RaylBitcoinPriceProvider(client = client, baseUrl = "https://rayl.test")
+
+        assertFailsWith<CancellationException> { provider.pricePerBitcoin("USD") }
         client.close()
     }
 }

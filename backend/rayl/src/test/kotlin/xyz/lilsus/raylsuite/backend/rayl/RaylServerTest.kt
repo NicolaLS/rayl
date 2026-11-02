@@ -24,6 +24,22 @@ class RaylServerTest {
     }
 
     @Test
+    fun theResponseKeepsTheShapeReleasedAppsParse() = testApplication {
+        // Apps in the stores (1.0 onwards) parse exactly this. The data class is shared with the
+        // app, so a renamed field would still round-trip here while breaking every released app.
+        application {
+            raylModule { BitcoinPrices(asOf = 1_790_705_710, prices = mapOf("USD" to 83_428.0)) }
+        }
+
+        val body = client.get(RaylApi.BITCOIN_PRICES_PATH).bodyAsText()
+
+        assertEquals(
+            Json.parseToJsonElement("""{"asOf":1790705710,"prices":{"USD":83428.0}}"""),
+            Json.parseToJsonElement(body)
+        )
+    }
+
+    @Test
     fun reportsWhenNoSourceIsFresh() = testApplication {
         application { raylModule { null } }
 

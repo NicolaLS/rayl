@@ -332,6 +332,10 @@ test fails.
 - A surviving mutant in a Level 1 module is looked at: a missing test, a test gap to note, or
   an equivalent mutant. Known equivalent mutants: "replaced return value with null" on a
   Kotlin lambda or `suspend` function returning `Unit`.
+- Mutants inside Kotlin **inline functions** (`takeIf`, `isFinite`, `forEach`, our own `fail`)
+  are reported at the call site or under line numbers past the end of the file, and are often
+  equivalent. Before acting on such a survivor, check it by hand: edit the code, run the
+  module's tests, revert.
 - A specific realistic bug that PIT's operators don't produce (a wrong constant, swapped
   arguments, a wrong key) is checked by hand: edit the code, run the module's tests, revert
   with `git checkout`.
