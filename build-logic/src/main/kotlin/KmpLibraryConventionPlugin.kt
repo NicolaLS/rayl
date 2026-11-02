@@ -13,6 +13,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             pluginManager.apply("com.android.kotlin.multiplatform.library")
             pluginManager.apply("xyz.lilsus.raylsuite.kover")
             pluginManager.apply("org.jlleitschuh.gradle.ktlint")
+            if (file("src/commonTest").isDirectory) {
+                pluginManager.apply("xyz.lilsus.raylsuite.pitest")
+            }
 
             extensions.configure<KotlinMultiplatformExtension> {
                 jvmToolchain(21)

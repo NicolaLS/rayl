@@ -31,6 +31,9 @@ dependencies {
         "org.jetbrains.kotlinx:kover-gradle-plugin:${libs.versions.kover.get()}"
     )
     implementation("org.jlleitschuh.gradle:ktlint-gradle:${libs.versions.ktlint.get()}")
+    implementation(
+        "pl.droidsonroids.gradle:gradle-pitest-plugin:${libs.versions.pitestGradle.get()}"
+    )
 }
 
 gradlePlugin {
@@ -42,6 +45,10 @@ gradlePlugin {
         register("kover") {
             id = "xyz.lilsus.raylsuite.kover"
             implementationClass = "KoverConventionPlugin"
+        }
+        register("pitest") {
+            id = "xyz.lilsus.raylsuite.pitest"
+            implementationClass = "PitestConventionPlugin"
         }
         register("kmpComposeLibrary") {
             id = "xyz.lilsus.raylsuite.kmp.compose"

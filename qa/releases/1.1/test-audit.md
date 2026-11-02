@@ -26,6 +26,10 @@ When a test's bug-catching power is doubtful (C1), it is checked by **mutation**
 code under test in a plausible way and see whether the test fails. The change is always
 reverted, and the result is noted in the module's row.
 
+The audit's mutation checks were made with `qa/tools/mutate.sh`, a small script that applied
+one text replacement, ran a test task and restored the file. It was retired on 2026-11-02 in
+favour of PIT (test plan §6.7) and remains in git history (`cd6a6046`).
+
 ## Verdicts
 
 | Verdict | Meaning |
@@ -50,7 +54,7 @@ worth, is deleted even if it works.
 The audit also records **gaps**: important behaviour of the audited code that no test
 covers. A gap is not a defect. The code behaves correctly today, but if it broke, no test
 would notice. Real defects found along the way are reported separately (observations and
-[defect drafts](defect-drafts.md)). Gaps feed stage 2. They are not filled during the audit.
+Linear issues). Gaps feed stage 2. They are not filled during the audit.
 
 ## Process
 

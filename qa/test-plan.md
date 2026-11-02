@@ -226,7 +226,7 @@ isn't.
 | Equivalence partitioning and boundary value analysis | Amounts (0, 1 msat, sub-sat, min/max sendable, Auto Pay threshold ± 1 sat, threshold steps 500…100,000), invoice expiry (just before and after) |
 | Decision tables | Confirmation policy; error-to-message mapping per provider |
 | State-transition testing | Wallet lifecycle, pocket status, `PaymentUiState`, onboarding steps |
-| Property-based testing | Fiat↔sats round trips and monotonicity; the parser never throws on arbitrary input; amount entry never produces negative or sub-sat amounts. Can start with hand-rolled generators; whether to add a library is open decision D-07. |
+| Property-based testing | Fiat↔sats round trips and monotonicity; the parser never throws on arbitrary input; amount entry never produces negative or sub-sat amounts. Can start with generators from a widely used library (D-07). |
 | Fault injection and error guessing | A network drop at each step (resolve, quote, send, await); an SDK exception during each phase; hostile LNURL responses (wrong amount, metadata mismatch, huge images, invalid ranges) |
 | Pairwise (combinatorial) testing | Release checklist configurations: provider × platform × display currency × confirmation mode × locale |
 | Exploratory testing (session-based) | Chartered 45–60 min sessions with notes kept in `qa/sessions/` |
@@ -316,6 +316,22 @@ QA reviews uncovered branches in Level 1 modules: `feature/payment-flow`, `core/
 `providers/*/feature/payment`, `providers/rayl/integration/pocket`, `app/shared`. A
 regression guard ("coverage must not drop") may be added for those modules once the
 suites exist. There is no global percentage gate.
+
+**Mutation testing** measures whether tests catch bugs, which coverage can't: PIT changes the
+compiled code (flips a condition, removes a call, changes a return value) and checks that a
+test fails.
+- Run per module: `./gradlew :feature:payment-flow:pitestAndroidMain`, or `pitestAndroidMain`
+  for every module with host tests. The report is in the module's
+  `build/reports/pitest/androidMain/`. Set up by the `xyz.lilsus.raylsuite.pitest`
+  convention plugin.
+- Run it when the tests or code of a Level 1 module change, and before each release
+  candidate. It isn't a gate: the score is information, like coverage.
+- A surviving mutant in a Level 1 module is looked at: a missing test, a test gap to note, or
+  an equivalent mutant. Known equivalent mutants: "replaced return value with null" on a
+  Kotlin lambda or `suspend` function returning `Unit`.
+- A specific realistic bug that PIT's operators don't produce (a wrong constant, swapped
+  arguments, a wrong key) is checked by hand: edit the code, run the module's tests, revert
+  with `git checkout`.
 
 ## 7. Test environments and data
 
