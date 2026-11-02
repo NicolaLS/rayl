@@ -6,7 +6,6 @@
     <string name="error_payment_rejected_message">Zahlung fehlgeschlagen: %1$s</string>
     <string name="error_payment_unconfirmed">Zahlungsstatus unbekannt. Die Zahlung ist möglicherweise erfolgt.</string>
     <string name="error_payment_unconfirmed_message">Zahlungsstatus unbekannt: %1$s</string>
-    <string name="error_invoice_already_paid">Diese Rechnung wurde bereits bezahlt.</string>
     <string name="error_invoice_expired">Diese Rechnung ist abgelaufen. Bitte den Empfänger um eine neue.</string>
     <string name="error_balance_settling">Dein Guthaben wird noch abgeglichen. Versuche es in ein paar Minuten erneut.</string>
 </resources>

@@ -39,4 +39,6 @@ internal sealed interface ConfirmationResult<out P> {
     data object Presented : ConfirmationResult<Nothing>
 
     data class Execute<P>(val payment: P) : ConfirmationResult<P>
+
+    data class AlreadyPaid(val payment: PreparedPayment) : ConfirmationResult<Nothing>
 }

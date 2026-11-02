@@ -47,29 +47,6 @@
         }
       }
     },
-    "error_invoice_already_paid" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diese Rechnung wurde bereits bezahlt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This invoice has already been paid."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Esta factura ya se ha pagado."
-          }
-        }
-      }
-    },
     "error_invoice_expired" : {
       "extractionState" : "stale",
       "localizations" : {

@@ -22,6 +22,9 @@ sealed interface SettlementPreparation<out P> {
         SettlementPreparation<P>
 
     data class Unavailable(val error: PaymentUiError) : SettlementPreparation<Nothing>
+
+    /** The wallet says the invoice is already paid, so there is nothing left to pay. */
+    data object AlreadyPaid : SettlementPreparation<Nothing>
 }
 
 sealed interface SettlementOutcome {

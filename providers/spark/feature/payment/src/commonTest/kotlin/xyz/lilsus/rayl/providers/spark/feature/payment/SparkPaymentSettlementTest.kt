@@ -104,14 +104,23 @@ class SparkPaymentSettlementTest {
         val offline = settlement(FakeClient(SparkQuoteResult.Rejected(SparkPaymentProblem.Network, "x")))
             .prepare(payment())
         assertEquals(PaymentUiError.NetworkUnavailable, (offline as SettlementPreparation.Unavailable).error)
+    }
 
-        val quote = Quote(feeSats = 1)
-        val client = FakeClient(SparkQuoteResult.Quoted(quote))
+    @Test
+    fun anAlreadyPaidInvoiceIsReportedAsPaidNotAsAnError() = runTest {
+        // Every wallet shows success marked "already paid" when it can tell (MOB-90). Breez can
+        // refuse while quoting or when sending.
+        val atQuote = settlement(FakeClient(SparkQuoteResult.Rejected(SparkPaymentProblem.AlreadyPaid, "x"))).prepare(payment())
+        assertEquals(SettlementPreparation.AlreadyPaid, atQuote)
+
+        val client = FakeClient(SparkQuoteResult.Quoted(Quote(feeSats = 1)))
         val settlement = settlement(client)
         val ready = settlement.prepare(payment()) as SettlementPreparation.Ready<SparkPayment>
         client.outcome = SparkPayOutcome.Failed(SparkPaymentProblem.AlreadyPaid, "x")
-        val failed = assertIs<SettlementOutcome.Failed>(settlement.settle(ready.payment))
-        assertEquals(SparkPaymentError.AlreadyPaid, (failed.error as PaymentUiError.Provider).error)
+        assertEquals(
+            SettlementOutcome.Paid(feeMsats = 0, preimage = null, wasAlreadyPaid = true),
+            settlement.settle(ready.payment)
+        )
     }
 
     private suspend fun settlement(client: SparkPaymentClient) = SparkPaymentSettlement(SparkPayments().apply { attach(client) })

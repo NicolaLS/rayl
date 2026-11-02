@@ -9,7 +9,6 @@ internal enum class SparkPaymentTextKey(override val key: String) : LocalizedTex
     ErrorInsufficientFunds("error_insufficient_funds"),
     ErrorWalletNotReady("error_wallet_not_ready"),
     ErrorSubSatoshiAmount("error_sub_satoshi_amount"),
-    ErrorInvoiceAlreadyPaid("error_invoice_already_paid"),
     ErrorInvoiceExpired("error_invoice_expired"),
     ErrorBalanceSettling("error_balance_settling"),
     ErrorPaymentRejectedGeneric("error_payment_rejected_generic"),
@@ -27,8 +26,6 @@ sealed interface SparkPaymentError : ProviderPaymentError {
 
     data object SubSatoshiAmount : SparkPaymentError
 
-    data object AlreadyPaid : SparkPaymentError
-
     data object InvoiceExpired : SparkPaymentError
 
     data object BalanceSettling : SparkPaymentError
@@ -43,8 +40,6 @@ sealed interface SparkPaymentError : ProviderPaymentError {
         WalletNotReady -> LocalizedText(SparkPaymentTextKey.ErrorWalletNotReady)
 
         SubSatoshiAmount -> LocalizedText(SparkPaymentTextKey.ErrorSubSatoshiAmount)
-
-        AlreadyPaid -> LocalizedText(SparkPaymentTextKey.ErrorInvoiceAlreadyPaid)
 
         InvoiceExpired -> LocalizedText(SparkPaymentTextKey.ErrorInvoiceExpired)
 

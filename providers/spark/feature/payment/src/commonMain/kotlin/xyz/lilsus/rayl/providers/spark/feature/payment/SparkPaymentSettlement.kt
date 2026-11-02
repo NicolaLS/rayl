@@ -44,7 +44,11 @@ class SparkPaymentSettlement(private val payments: SparkPayments) :
             SparkQuoteResult.NotReady -> unavailable(SparkPaymentError.WalletNotReady)
 
             is SparkQuoteResult.Rejected ->
-                SettlementPreparation.Unavailable(result.problem.toUiError(result.detail))
+                if (result.problem == SparkPaymentProblem.AlreadyPaid) {
+                    SettlementPreparation.AlreadyPaid
+                } else {
+                    SettlementPreparation.Unavailable(result.problem.toUiError(result.detail))
+                }
         }
     }
 
@@ -64,7 +68,12 @@ class SparkPaymentSettlement(private val payments: SparkPayments) :
                 )
 
             is SparkPayOutcome.Failed ->
-                SettlementOutcome.Failed(outcome.problem.toUiError(outcome.detail))
+                if (outcome.problem == SparkPaymentProblem.AlreadyPaid) {
+                    // Breez refuses a second send to a paid hash (MOB-90).
+                    SettlementOutcome.Paid(feeMsats = 0L, preimage = null, wasAlreadyPaid = true)
+                } else {
+                    SettlementOutcome.Failed(outcome.problem.toUiError(outcome.detail))
+                }
 
             is SparkPayOutcome.Unknown ->
                 SettlementOutcome.Unknown(
@@ -79,7 +88,10 @@ class SparkPaymentSettlement(private val payments: SparkPayments) :
         SparkPaymentProblem.InsufficientFunds ->
             PaymentUiError.Provider(SparkPaymentError.InsufficientFunds)
 
-        SparkPaymentProblem.AlreadyPaid -> PaymentUiError.Provider(SparkPaymentError.AlreadyPaid)
+        // Reported as already paid before this mapping; kept only for exhaustiveness.
+        SparkPaymentProblem.AlreadyPaid -> PaymentUiError.Provider(
+            SparkPaymentError.Rejected(detail)
+        )
 
         SparkPaymentProblem.Expired -> PaymentUiError.Provider(SparkPaymentError.InvoiceExpired)
 

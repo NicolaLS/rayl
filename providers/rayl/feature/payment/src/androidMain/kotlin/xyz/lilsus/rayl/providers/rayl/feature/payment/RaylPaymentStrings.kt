@@ -11,8 +11,6 @@ fun raylPaymentStringResource(key: LocalizedTextKey): Int = when (key) {
 
         RaylPaymentTextKey.ErrorSubSatoshiAmount -> R.string.error_sub_satoshi_amount
 
-        RaylPaymentTextKey.ErrorInvoiceAlreadyPaid -> R.string.error_invoice_already_paid
-
         RaylPaymentTextKey.ErrorInvoiceExpired -> R.string.error_invoice_expired
 
         RaylPaymentTextKey.ErrorBalanceSettling -> R.string.error_balance_settling

@@ -35,6 +35,8 @@ internal class PaymentConfirmationPhase<P : SettleablePayment>(
                     presentation.presentError(preparation.error)
                     return ConfirmationResult.Presented
                 }
+
+                SettlementPreparation.AlreadyPaid -> return ConfirmationResult.AlreadyPaid(request)
             }
         currentCoroutineContext().ensureActive()
         val requiresConfirmation = !request.isManualEntry &&

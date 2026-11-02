@@ -11,8 +11,6 @@ fun sparkPaymentStringResource(key: LocalizedTextKey): Int = when (key) {
 
         SparkPaymentTextKey.ErrorSubSatoshiAmount -> R.string.error_sub_satoshi_amount
 
-        SparkPaymentTextKey.ErrorInvoiceAlreadyPaid -> R.string.error_invoice_already_paid
-
         SparkPaymentTextKey.ErrorInvoiceExpired -> R.string.error_invoice_expired
 
         SparkPaymentTextKey.ErrorBalanceSettling -> R.string.error_balance_settling

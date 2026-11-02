@@ -173,6 +173,22 @@ class PaymentFlowCoordinatorTest {
     }
 
     @Test
+    fun aWalletThatKnowsTheInvoiceIsPaidShowsAlreadyPaidWithoutPaying() = flowTest {
+        // MOB-90: e.g. after a restart, when the session no longer remembers the payment.
+        settlement.preparation = { SettlementPreparation.AlreadyPaid }
+        val invoice = invoice(sats = 100)
+
+        scan(invoice)
+
+        assertEquals(0, settlement.settled.size)
+        assertEquals(true, (coordinator.uiState.value as? PaymentUiState.Success)?.wasAlreadyPaid)
+        // Recorded, so the next scan in this session opens the receipt.
+        dispatch(PaymentIntent.DismissResult)
+        scan(invoice)
+        assertNotNull(coordinator.transactionDetailNavigationTarget.value)
+    }
+
+    @Test
     fun anExpiredInvoiceIsRejectedBeforeTheWalletIsAsked() = flowTest {
         scan(invoice(sats = 100, createdSecondsAgo = 7_200, expirySeconds = 3_600))
 

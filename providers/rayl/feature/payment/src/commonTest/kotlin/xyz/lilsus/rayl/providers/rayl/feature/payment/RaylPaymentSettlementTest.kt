@@ -103,14 +103,25 @@ class RaylPaymentSettlementTest {
         val offline = RaylPaymentSettlement(FakePocket(PocketQuoteResult.Rejected(PocketPaymentProblem.Network, "x")))
             .prepare(payment())
         assertEquals(PaymentUiError.NetworkUnavailable, (offline as SettlementPreparation.Unavailable).error)
+    }
 
-        val quote = Quote(feeSats = 1)
-        val pocket = FakePocket(PocketQuoteResult.Quoted(quote))
+    @Test
+    fun anAlreadyPaidInvoiceIsReportedAsPaidNotAsAnError() = runTest {
+        // Every wallet shows success marked "already paid" when it can tell (MOB-90). Breez can
+        // refuse while quoting or when sending.
+        val atQuote = RaylPaymentSettlement(
+            FakePocket(PocketQuoteResult.Rejected(PocketPaymentProblem.AlreadyPaid, "x"))
+        ).prepare(payment())
+        assertEquals(SettlementPreparation.AlreadyPaid, atQuote)
+
+        val pocket = FakePocket(PocketQuoteResult.Quoted(Quote(feeSats = 1)))
         val settlement = RaylPaymentSettlement(pocket)
         val ready = settlement.prepare(payment()) as SettlementPreparation.Ready<RaylPayment>
         pocket.outcome = PocketPayOutcome.Failed(PocketPaymentProblem.AlreadyPaid, "x")
-        val failed = assertIs<SettlementOutcome.Failed>(settlement.settle(ready.payment))
-        assertEquals(RaylPaymentError.AlreadyPaid, (failed.error as PaymentUiError.Provider).error)
+        assertEquals(
+            SettlementOutcome.Paid(feeMsats = 0, preimage = null, wasAlreadyPaid = true),
+            settlement.settle(ready.payment)
+        )
     }
 
     private fun providerError(preparation: SettlementPreparation<RaylPayment>) =

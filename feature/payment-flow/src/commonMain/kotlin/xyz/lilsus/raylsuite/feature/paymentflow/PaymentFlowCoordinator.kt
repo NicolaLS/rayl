@@ -189,15 +189,25 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
 
             is ConfirmationResult.Execute ->
                 executePayment(result.payment)
+
+            is ConfirmationResult.AlreadyPaid ->
+                finishPayment(
+                    result.payment,
+                    SettlementOutcome.Paid(feeMsats = 0L, preimage = null, wasAlreadyPaid = true)
+                )
         }
     }
 
     private suspend fun executePayment(payment: P) {
         presentation.showLoading()
-        val amountMsats = payment.amountOverrideMsats ?: payment.invoice.amount?.msat ?: 0L
-        val paymentHash = payment.invoice.paymentHash.toHex()
         val outcome = settlement.settle(payment)
         currentCoroutineContext().ensureActive()
+        finishPayment(payment, outcome)
+    }
+
+    private fun finishPayment(payment: SettleablePayment, outcome: SettlementOutcome) {
+        val amountMsats = payment.amountOverrideMsats ?: payment.invoice.amount?.msat ?: 0L
+        val paymentHash = payment.invoice.paymentHash.toHex()
         admission.reset(currencyManager.state.value)
         when (outcome) {
             is SettlementOutcome.Paid -> {

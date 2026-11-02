@@ -48,7 +48,11 @@ class RaylPaymentSettlement(private val pocket: PocketPayments) : PaymentSettlem
             PocketQuoteResult.NotReady -> unavailable(RaylPaymentError.PocketNotReady)
 
             is PocketQuoteResult.Rejected ->
-                SettlementPreparation.Unavailable(result.problem.toUiError(result.detail))
+                if (result.problem == PocketPaymentProblem.AlreadyPaid) {
+                    SettlementPreparation.AlreadyPaid
+                } else {
+                    SettlementPreparation.Unavailable(result.problem.toUiError(result.detail))
+                }
         }
     }
 
@@ -69,7 +73,12 @@ class RaylPaymentSettlement(private val pocket: PocketPayments) : PaymentSettlem
                 )
 
             is PocketPayOutcome.Failed ->
-                SettlementOutcome.Failed(outcome.problem.toUiError(outcome.detail))
+                if (outcome.problem == PocketPaymentProblem.AlreadyPaid) {
+                    // Breez refuses a second send to a paid hash (MOB-90).
+                    SettlementOutcome.Paid(feeMsats = 0L, preimage = null, wasAlreadyPaid = true)
+                } else {
+                    SettlementOutcome.Failed(outcome.problem.toUiError(outcome.detail))
+                }
 
             is PocketPayOutcome.Unknown ->
                 SettlementOutcome.Unknown(
@@ -84,7 +93,10 @@ class RaylPaymentSettlement(private val pocket: PocketPayments) : PaymentSettlem
         PocketPaymentProblem.InsufficientFunds ->
             PaymentUiError.Provider(RaylPaymentError.InsufficientFunds)
 
-        PocketPaymentProblem.AlreadyPaid -> PaymentUiError.Provider(RaylPaymentError.AlreadyPaid)
+        // Reported as already paid before this mapping; kept only for exhaustiveness.
+        PocketPaymentProblem.AlreadyPaid -> PaymentUiError.Provider(
+            RaylPaymentError.Rejected(detail)
+        )
 
         PocketPaymentProblem.Expired -> PaymentUiError.Provider(RaylPaymentError.InvoiceExpired)
 
