@@ -2,6 +2,18 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-02: M6 wallet lifecycle traceability, MOB-89
+
+- **Build:** `main` from `43420709` (MOB-89 fix) to the `RaylWalletExit` commit
+- **M6:** traced the 22 rules of SPEC-wallet-lifecycle to tests
+  ([lifecycle-traceability.md](lifecycle-traceability.md)). One host-level gap: nothing
+  pinned when Rayl's wallet may erase its key copy. Closed with `RaylWalletExitTest` (6 tests,
+  behind a behaviour-preserving extraction from `RaylRuntime`); PIT found two weak spots in
+  the first version (double request, the leaving state), fixed. Static check: external
+  cleanup can't reach the pocket's files or Keychain items. New observation O-11.
+- **Ran:** the full local gate (host tests, backend, ktlint, module dependencies,
+  localisations). **252 tests in 57 classes, 0 failures.**
+
 ## 2026-11-02: Stage 2, continued: PIT, fixes and Blink/NWC contract
 
 - **Build:** `main` from `a1b4fd20` to the kotest-property commit

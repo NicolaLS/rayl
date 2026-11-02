@@ -460,10 +460,19 @@ the top of the description. They are prioritised with the stakeholder.
 Each report contains: build and commit, platform and device, provider, steps, expected
 versus actual, and evidence (logs, `RaylTiming`, screenshots).
 
-**Who fixes (from 2026-11-02).** QA fixes defects too, so testing doesn't wait for fixes:
-file the issue, fix it with a regression test in its own commit that names the issue, then
-close the issue. A defect is filed even when it's fixed minutes later. Questions about the
-intended behaviour still go to the stakeholder before the fix.
+**Who fixes and when (decided 2026-11-02).** QA fixes defects too, so testing doesn't wait
+for fixes. A defect is always filed in Linear first, even when it's fixed minutes later.
+- **S1/S2 (money, wallet safety, blocked paying):** fixed right away, with a regression test,
+  in its own commit that names the issue; then the issue is closed.
+- **S3/S4:** the test that shows the defect is committed at once as a **known-defect test**
+  (`knownDefect("MOB-123") { … }`): it runs on every build and passes while the defect
+  exists. When the defect is fixed, the test fails with "MOB-123 seems fixed", so the fix
+  commit removes the marker and the test becomes a normal regression test. Defects are fixed
+  later in batches, adding tests where useful.
+- `main` is never red: a red suite hides the next regression, the local gate decides merges,
+  and PIT needs a green suite. Skipping a test (`@Ignore`) is not used for defects, because a
+  skipped test stops running and rots.
+- Questions about the intended behaviour go to the stakeholder before the fix.
 
 ## 11. Metrics and reporting
 
@@ -618,6 +627,7 @@ one needs a test or a product decision before it becomes a defect or is closed.
 | O-08 | A Lightning address with uppercase letters in the user part (`Alice@example.com`) is rejected as unrecognised. `LightningAddress.parse` accepts it, but `DefaultLnurlParser` rejects it. Phone keyboards capitalise the first letter. LUD-16 allows only lowercase; many wallets lowercase instead of rejecting. | PR-14 | Decided (D-06): lowercase. MOB-89 |
 | O-09 | Rescanning an already-paid invoice: Blink returns `Paid(wasAlreadyPaid = true)` (success screen), Rayl and Spark return `Failed(AlreadyPaid)` (error screen), contrary to REQ-provider-experience. | PR-15 | Decided (D-06): success marked "already paid" in every wallet that can tell. MOB-90 |
 | O-10 | Legacy fallback, contrary to the pre-release policy: `SparkOnboardingState` treats restored wallets as having seen the intro screens. (The `"recent"` tab mapping this row also named was already removed in `96980bef`; the observation was out of date.) | none | Decided: remove. MOB-91 |
+| O-11 | Android's `EncryptedStringSettings.getStringOrNull` returns null when decryption fails, so Blink and NWC can't tell an unreadable credential from a missing one and show setup instead of recovery. Nothing is erased automatically. | PR-08, PR-12 | Check on a device against SPEC-wallet-lifecycle (M6 traceability) |
 | O-07 | Client-side duplicate detection for re-scanned BOLT11 invoices uses only the in-memory session history, which keeps the last 10 payments (`MAX_RECENT_PAYMENTS`). After a restart, or once more than 10 payments have been made, protection depends on each wallet rejecting an already-paid invoice. | PR-03 | Verify per provider (regtest for the pocket and Spark, mainnet for Blink and NWC) |
 
 ## Appendix B: Specification issues
