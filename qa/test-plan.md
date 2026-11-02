@@ -608,6 +608,14 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
 - O-08 confirmed: LUD-16 allows only lowercase user names, so `2de24546` (preserve case) was
   wrong. Fixed in MOB-89.
 - O-10: **remove the legacy fallbacks.**
+- MOB-94: a fee the wallet doesn't report is shown as **"unknown"**.
+- **Legal, terms, privacy and store texts are deferred** (MOB-96 to MOB-99). Exit criterion 6
+  still applies to the release: the go/no-go decides how they are handled.
+- M10 and M11 are run by Nicola later and don't block QA work.
+- **Updates from 1.0 need compatibility from now on:** 1.0 is installed on iOS beta testers'
+  devices and in Google Play internal testing. Data 1.0 writes must stay readable or be
+  migrated deliberately (new risk PR-25); the pre-release "no migrations" rule only covers
+  data of features 1.0 doesn't have.
 - From 2026-11-02 QA also fixes defects. Every defect is filed in Linear first and closed when
   the fix is committed (§10).
 

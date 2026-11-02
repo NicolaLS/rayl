@@ -97,7 +97,8 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-17 Interruptions | None | S3, M10 | No |
 | PR-19 Dependency change | `verifyBreezSdkPins` in the gate | M8 | Yes |
 | PR-20 Release misconfigured | Static review (M8): minify, debuggable, backup, signing, debug tools. Version bump for the cut is a checklist item. | M8, M10 | Partly (M10 open) |
-| PR-21 Legal documents | Reviewed (M9): MOB-96–MOB-99 open | M9 | No (blockers open) |
+| PR-21 Legal documents | Reviewed (M9): MOB-96–MOB-99 open | M9 | No: deferred by Nicola (2026-11-02); exit criterion 6 decided at go/no-go |
+| PR-25 Update loses stored data (new) | Static diff against `release/1.0` (M8): compatible. No automated test yet. | U2/U3, host snapshot test | Partly |
 
 ## Open defects and observations
 
