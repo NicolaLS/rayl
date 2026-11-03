@@ -19,21 +19,21 @@ The protocol also verifies the stub assumptions the host tests rely on
 
 | # | Step | Expected | Verifies |
 |---|---|---|---|
-| M1 | Pay a 21-sat invoice created by another test wallet | Paid; receipt fee matches the paying wallet's history | A3, A5 |
-| M2 | Pay a Lightning address of another test wallet, typed with a capital first letter | Resolves and pays | MOB-89 |
-| M3 | Pay an amountless invoice with a fiat amount (€0.02) | Wallet history shows the quoted sats, rounded up | PR-01 |
-| M4 | Restart the app, scan M1's invoice again | Rayl, Spark, Blink: success marked "already paid"; NWC: record the wallet's error text | A1, A6, MOB-90 |
-| M5 | Note the receipt's fee when the wallet reports none | Record whether Blink/NWC report a fee (MOB-94) | A5, A6 |
-| M6 | Rayl's wallet only: receive 50 sats through "add funds" from another test wallet | Shown with the amount | A2 |
+| MN-1 | Pay a 21-sat invoice created by another test wallet | Paid; receipt fee matches the paying wallet's history | A3, A5 |
+| MN-2 | Pay a Lightning address of another test wallet, typed with a capital first letter | Resolves and pays | MOB-89 |
+| MN-3 | Pay an amountless invoice with a fiat amount (€0.02) | Wallet history shows the quoted sats, rounded up | PR-01 |
+| MN-4 | Restart the app, scan MN-1's invoice again | Rayl, Spark, Blink: success marked "already paid"; NWC: record the wallet's error text | A1, A6, MOB-90 |
+| MN-5 | Note the receipt's fee when the wallet reports none | Record whether Blink/NWC report a fee (MOB-94) | A5, A6 |
+| MN-6 | Rayl's wallet only: receive 50 sats through "add funds" from another test wallet | Shown with the amount | A2 |
 
 ## Wallet lifecycle (once per run)
 
 | # | Step | Expected | Verifies |
 |---|---|---|---|
-| M7 | Spark: remove the wallet, re-import the same phrase | Same balance (L13) | A4 |
-| M8 | Use Blink, then go back to Rayl's wallet | Same balance, no passkey prompt | P5, P7 |
+| MN-7 | Spark: remove the wallet, re-import the same phrase | Same balance (L13) | A4 |
+| MN-8 | Use Blink, then go back to Rayl's wallet | Same balance, no passkey prompt | P5, P7 |
 
 ## Record
 
 Per run: build, devices, sats spent (start and end balances per wallet), each step's result,
-and the error texts collected in M4/M5.
+and the error texts collected in MN-4/MN-5.

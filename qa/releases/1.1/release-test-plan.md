@@ -43,7 +43,7 @@ Work proceeds in three stages. Stage 3 starts only when Nicola says so.
    (money first, then wallet and credential safety) with host-level tests. These are the
    host-level parts of M1–M7 plus S1 and S2 below.
 3. **Everything else:** platform integration, the regtest SDK, static reviews, the release
-   checklist, App Live, the mainnet protocol and exploratory charters (M8–M12, S3–S6).
+   checklist, App Live, the mainnet protocol and exploratory charters (M8–M12, SH3–SH6).
    The `distribution/` review (M9) is deferred until then.
 
 "Host-level" means unit tests and small component tests (one class or feature driven
@@ -95,12 +95,12 @@ covers the host-level parts of M1–M7 and S1–S2.
 | M12 | Test summary report | all | §11 |
 
 **Should (if time allows, in this order)**
-1. S1 Parser input corpus and a never-throws property test (PR-14, P1.9). It is cheap.
-2. S2 Price client degradation tests and golden JSON (PR-18, P1.8).
-3. S3 Exploratory charters: interruptions (PR-17) and passkey environments (PR-10).
-4. S4 Hostile LNURL fixtures (PR-05, P1.6).
-5. S5 Fee display matches the fee paid, per wallet (PR-06, P1.7).
-6. S6 Amount entry per locale (PR-01, PR-22).
+1. SH1 Parser input corpus and a never-throws property test (PR-14, P1.9). It is cheap.
+2. SH2 Price client degradation tests and golden JSON (PR-18, P1.8).
+3. SH3 Exploratory charters: interruptions (PR-17) and passkey environments (PR-10).
+4. SH4 Hostile LNURL fixtures (PR-05, P1.6).
+5. SH5 Fee display matches the fee paid, per wallet (PR-06, P1.7).
+6. SH6 Amount entry per locale (PR-01, PR-22).
 
 **Not in 1.1** (back to the master roadmap):
 - the shared fixtures module: fakes stay local and are extracted once duplication hurts

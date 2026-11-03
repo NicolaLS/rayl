@@ -38,7 +38,7 @@ mainnet protocol M11) haven't run, and three S2 documentation defects are deferr
 - **System level:** the release checklist on App Live (M10, Nicola). It covers real devices,
   passkeys, camera, interruptions, languages and the update from 1.0.
 - **Acceptance level:** the mainnet protocol with real money (M11, Nicola).
-- Exploratory sessions (S3).
+- Exploratory sessions (SH3).
 - iOS Keychain stores: need an app-hosted test target.
 - Blink and NWC against their real services.
 - UI automation: deferred, D-03.
@@ -119,7 +119,7 @@ In priority order:
    secure settings), the iOS half of I3.
 5. **Automate what now runs manually:** Android device tests in CI (emulator job), the regtest
    contract tests on a schedule (needs a funded bank in CI), and MOB-100 so CI stays green.
-6. **Exploratory charters** (S3): interruptions and passkey environments.
+6. **Exploratory charters** (SH3): interruptions and passkey environments.
 7. **Remaining host-level gaps found by PIT** (e.g. haptics and Hub "last paid" ordering after a
    payment): low risk, picked up when those areas change.
 8. **Later goals from the master plan:** a performance baseline and then regression tolerance,

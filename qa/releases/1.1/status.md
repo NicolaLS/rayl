@@ -26,7 +26,7 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | I2 | Real Breez SDK on regtest | Done: 5 contract tests; found MOB-101 (fixed) | `BreezSdkContractTest`, `:tools:regtest:regtestContractTest` |
 | I3 | Credential stores on a real Keystore/Keychain | Android done: 12 device tests, O-11 confirmed. iOS Keychain carried over (needs an app-hosted test target) | `AndroidPocketKeyStoreTest`, `AndroidCredentialVaultTest`, `SecureSettingsTest` |
 | M12 | Test summary report | Done (2026-11-03) | [test-summary-report.md](test-summary-report.md) |
-| S1–S6 | Should items | Done at host level (2026-11-02): S1 (2.6), S2 price degradation and backend response shape, S4 hostile LNURL, S5 fee mapping and receipt (MOB-94 open), S6 formatting per language. S3 (exploratory charters) is stage 3. | `RaylBitcoinPriceProviderTest`, `RaylServerTest`, `KtorLnurlPayClientTest`, `LnurlInvoiceResolverTest`, `AmountFormatterTest` |
+| SH1–SH6 | Should items | Done at host level (2026-11-02): SH1 (2.6), SH2 price degradation and backend response shape, SH4 hostile LNURL, SH5 fee mapping and receipt (MOB-94 open), SH6 formatting per language. SH3 (exploratory charters) is stage 3. | `RaylBitcoinPriceProviderTest`, `RaylServerTest`, `KtorLnurlPayClientTest`, `LnurlInvoiceResolverTest`, `AmountFormatterTest` |
 
 States: Not started · In progress · Blocked (reason) · Done.
 
@@ -47,8 +47,8 @@ Slices, in order:
 | 2.2 | **Done (2026-11-02).** The same contract for Blink and NWC (M3) | PR-04 | Done with test seams, see below |
 | 2.3 | **Done.** Spark removal waits for the credential delete (M6, W2) | PR-08 | Nothing |
 | 2.4 | **Done.** An unreadable pocket key still counts as a key (M7, K3) | PR-09 | Nothing |
-| 2.5 | **Done.** LNURL `description_hash` match and mismatch, and amountless invoices (S4, R1, R4) | PR-05 | Nothing |
-| 2.6 | **Done.** Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (S1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
+| 2.5 | **Done.** LNURL `description_hash` match and mismatch, and amountless invoices (SH4, R1, R4) | PR-05 | Nothing |
+| 2.6 | **Done.** Input corpus: uppercase BOLT11 and `LIGHTNING:`, untrimmed input, Lightning addresses, never-throws property test (SH1) | PR-14 | Nothing; the capitalised-address row is parked (O-08) |
 | 2.7 | **Done.** Fiat quote: rounding to whole sats and invalid rates (M5, S2) | PR-01, PR-18 | Nothing |
 | 2.8 | **Done.** Payment flow component tests: each source and outcome through `PaymentFlowCoordinator`, and the Auto Pay table through the flow (M2, M1); check O-02 (M4) | PR-01–PR-04 | Nothing; fee conditions parked (SI-01). O-02 can't be checked on the host (below). |
 
@@ -89,36 +89,30 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-02 Confirmation skipped | Policy decision table, and through the flow: threshold, Always mode, dismissal, manual entry, Hub preset (2.8). Fee limit not in 1.1 (MOB-93). | M1 | Yes |
 | PR-03 Duplicate payment | Operation guard, paid-hash lookup and QR presence gate, also through the flow (2.8). After a restart, protection relies on each wallet (O-07, stage 3). | M4 | Partly (host level done) |
 | PR-04 Outcome misreported | The Unknown-never-Failed rule and cancellation are protected for all four wallets (2.1, 2.2), and each wallet verdict's meaning is pinned. | M3, M2, M4 | Yes (host level) |
-| PR-05 Wrong recipient | LNURL client and resolver, mutation-checked: `description_hash` binding, amountless invoices (2.5), DNS rebinding, impossible limits, missing invoice, nesting guard (S4) | S4 | Yes (host level) |
-| PR-06 Fee surprises | Each wallet's fee mapping and the receipt's fee are tested. Open: a fee the wallet doesn't report is shown as 0 (MOB-94). Fee limit is MOB-93, after 1.1. | S5 | Partly |
+| PR-05 Wrong recipient | LNURL client and resolver, mutation-checked: `description_hash` binding, amountless invoices (2.5), DNS rebinding, impossible limits, missing invoice, nesting guard (SH4) | SH4 | Yes (host level) |
+| PR-06 Fee surprises | Each wallet's fee mapping and the receipt's fee are tested. Open: a fee the wallet doesn't report is shown as 0 (MOB-94). Fee limit is MOB-93, after 1.1. | SH5 | Partly |
 | PR-08 Credentials retained | Every SPEC-wallet-lifecycle rule traced (M6): fresh setup never reads old credentials (all three wallets), cleanup before switching, failed cleanup blocks and resumes. Platform wiring checked statically. Open: O-11, Keychain after reinstall (checklist). | M6, M10 | Yes at host level |
 | PR-09 Pocket key lost | Pocket rules, passkey account selection, and when the key copy may be erased (`RaylWalletExitTest`), mutation-checked. External cleanup can't reach the pocket (static check). The platform stores have no tests (audit §9). | M7, M10 | Partly (host level done) |
-| PR-10 Passkey onboarding | `RaylOnboardingStateTest`, `PocketSetupTest` (no-PRF path) | S3, M10 | Partly |
+| PR-10 Passkey onboarding | `RaylOnboardingStateTest`, `PocketSetupTest` (no-PRF path) | SH3, M10 | Partly |
 | PR-11 Secrets exposed | Static review (M8): release logging, `toString()` redaction (MOB-95 fixed, tested), no secrets in the repository. Screen capture accepted (O-05). | M8 | Yes (static) |
 | PR-13 Speed | `perfCheck` macrobenchmarks, not run regularly | One lab measurement (optional) | No |
 | PR-14 Unparseable input | `PaymentInputCorpusTest`: one table of real-world input forms, plus a never-throws property test over 3,000 random inputs (2.6). Camera and real QR codes need stage 3. | S1, M10 | Partly (host level done) |
-| PR-17 Interruptions | None | S3, M10 | No |
+| PR-17 Interruptions | None | SH3, M10 | No |
 | PR-19 Dependency change | `verifyBreezSdkPins` in the gate | M8 | Yes |
 | PR-20 Release misconfigured | Static review (M8): minify, debuggable, backup, signing, debug tools. Version bump for the cut is a checklist item. | M8, M10 | Partly (M10 open) |
 | PR-21 Legal documents | Reviewed (M9): MOB-96–MOB-99 open | M9 | No: deferred by Nicola (2026-11-02); exit criterion 6 decided at go/no-go |
 | PR-25 Update loses stored data (new) | Static diff against `release/1.0` (M8): compatible. No automated test yet. | U2/U3, host snapshot test | Partly |
 
-## Open defects and observations
+## Open observations
+
+Defects live in Linear only (team Mobile, label Bug); this table keeps just the observations that
+are not issues. Open bugs: filter `label:Bug` and state not Done. At the 1.1 report: MOB-94, MOB-96 to MOB-99.
 
 | ID | Summary | Severity | State |
 |---|---|---|---|
-| O-01 | Settings and onboarding copy say the threshold amount pays automatically; it asks for confirmation (decided: the code is right) | S4 | Fixed: [MOB-88](https://linear.app/nicola-susca/issue/MOB-88) |
 | O-02 | Spark may reset an in-flight payment session | Unknown | Parked for stage 3: the unguarded reset is called from Android Compose code (`SparkExperience.kt`), which host tests can't drive. Rayl and Blink guard it in common code. |
-| O-04 | Terms and privacy policy don't mention the built-in wallet | S2 (release blocker by exit criterion 6) | Filed: MOB-96, MOB-97 (and MOB-98, MOB-99 from the same review) |
-| O-05 | No screen-capture protection for credentials on Android | Accepted for now | Decided (D-06): no protection while remote-device testing and store review take priority |
 | O-07 | Duplicate detection after a restart relies on each wallet | Unknown | To check (M11) |
-| O-09 | Rescanning an already-paid invoice: Blink shows success (already paid), Rayl and Spark show an error | S3 (parity) | Fixed: [MOB-90](https://linear.app/nicola-susca/issue/MOB-90) (NWC can't tell) |
-| O-10 | Legacy default in `SparkOnboardingState` (restored wallets skip the intro screens) | S4 | Fixed: [MOB-91](https://linear.app/nicola-susca/issue/MOB-91) |
-| MOB-94 | A fee the wallet doesn't report (Blink, NWC) is shown as 0 sats | S4 | Open: presentation to decide (hide or "unknown"); a known-defect test needs that API change first |
-| MOB-95 | Credentials printed by `toString()` | S3 | Fixed (`eb5edce6`) |
-| MOB-101 | Insufficient funds / expired shown as "outcome unknown" (Rayl wallet, Spark) | S3 | Fixed (found by the regtest contract tests) |
 | O-11 | Android's secure store reports an undecryptable credential as absent, so Blink and NWC show setup instead of recovery | Unknown | Stage 3: check on a device whether that meets SPEC-wallet-lifecycle (see M6) |
-| O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 | Fixed: [MOB-89](https://linear.app/nicola-susca/issue/MOB-89) |
 
 ## Stage 2 summary (2026-11-01)
 

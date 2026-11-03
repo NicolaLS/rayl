@@ -31,7 +31,7 @@ Each test execution for 1.1, newest first: what ran, on which build, and the res
   assumption register (11 assumptions, each mapped to a verification step).
 - Corrected invented build hashes in MOB-94 and MOB-96–MOB-99 after filing.
 
-## 2026-11-02: Should items S2, S4, S5, S6 and M8 static review
+## 2026-11-02: Should items SH2, SH4, SH5, SH6 and M8 static review
 
 - **S4 hostile LNURL:** 7 tests from PIT survivors (DNS rebinding, impossible limits, missing
   invoice, exact limits, no-comment servers, nesting). The old nesting test sent a bare array,
@@ -39,8 +39,8 @@ Each test execution for 1.1, newest first: what ran, on which build, and the res
 - **S2 prices:** 4 client tests (retry after failure, broken bodies, one bad currency,
   cancellation); the cache test started at clock 0 and missed expiry mutants, fixed; the
   backend response shape is pinned for released apps.
-- **S6:** formatting per language and catalog currency (JVM locale data on the host).
-- **S5:** found MOB-94 (fee 0 shown when unknown), filed, open.
+- **SH6:** formatting per language and catalog currency (JVM locale data on the host).
+- **SH5:** found MOB-94 (fee 0 shown when unknown), filed, open.
 - **M8:** found MOB-95 (credentials in `toString()`), fixed. Added `verifyBreezSdkPins` to the
   gate. Version bump for the 1.1 cut noted for the checklist. While testing the pin check, Xcode
   (open) re-resolved `Package.resolved` to a planted version; restored, nothing committed.

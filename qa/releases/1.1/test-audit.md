@@ -554,11 +554,11 @@ gaps: in each case the code is correct today, but a regression would ship unnoti
    device.
 3. **M2 and M1 through the flow, PR-01 to PR-04:** `PaymentFlowCoordinator` and the
    admission and confirmation phases (about 1,000 lines) have no tests at all (§1).
-4. **S4, PR-05:** the resolver's `description_hash` check (the common case in production)
+4. **SH4, PR-05:** the resolver's `description_hash` check (the common case in production)
    and its rejection of amountless invoices from LNURL servers are untested (§3, R1, R4).
-5. **S1, PR-14:** uppercase BOLT11 and `LIGHTNING:`, untrimmed scans and Lightning address
+5. **SH1, PR-14:** uppercase BOLT11 and `LIGHTNING:`, untrimmed scans and Lightning address
    targets are untested (§3, L1–L5).
-6. **M5 and S2, PR-01 and PR-18:** rounding to whole sats in the fiat quote, and invalid
+6. **M5 and SH2, PR-01 and PR-18:** rounding to whole sats in the fiat quote, and invalid
    rates (§6, Q1, Q2).
 7. **M7, PR-09:** nothing checks that an unreadable key still counts as a key (§9, K3);
    a regression would send users into setup instead of recovery.
