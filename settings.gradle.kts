@@ -4,7 +4,11 @@ pluginManagement {
     includeBuild("build-logic")
 
     repositories {
-        maven("https://mvn.breez.technology/releases")
+        // Only Breez's own artifacts: an error from this repository must not block resolving
+        // anything else (it broke CI's iOS run on 2026-11-03).
+        maven("https://mvn.breez.technology/releases") {
+            mavenContent { includeGroupAndSubgroups("technology.breez") }
+        }
         google {
             mavenContent {
                 includeGroupAndSubgroups("androidx")
@@ -23,7 +27,11 @@ plugins {
 dependencyResolutionManagement {
     repositories {
         mavenLocal()
-        maven("https://mvn.breez.technology/releases")
+        // Only Breez's own artifacts: an error from this repository must not block resolving
+        // anything else (it broke CI's iOS run on 2026-11-03).
+        maven("https://mvn.breez.technology/releases") {
+            mavenContent { includeGroupAndSubgroups("technology.breez") }
+        }
         google {
             mavenContent {
                 includeGroupAndSubgroups("androidx")
