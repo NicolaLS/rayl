@@ -52,7 +52,7 @@ class NipRegistry private constructor(
     val engine: ProtocolEngine,
 
     /** Wire codec for encoding/decoding Nostr messages */
-    val wireCodec: NostrWireCodec,
+    val wireCodec: NostrWireCodec
 ) {
     /**
      * Builder for creating [NipRegistry] instances.
@@ -89,7 +89,7 @@ class NipRegistry private constructor(
                 events = eventBuilder.build(),
                 messages = messageBuilder.build(),
                 engine = engineBuilder.build(),
-                wireCodec = wireCodec,
+                wireCodec = wireCodec
             )
         }
     }

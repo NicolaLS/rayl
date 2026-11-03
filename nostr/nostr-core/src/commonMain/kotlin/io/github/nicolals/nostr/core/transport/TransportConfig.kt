@@ -20,7 +20,7 @@ data class TransportConfig(
     val connectTimeoutMillis: Long = DEFAULT_CONNECT_TIMEOUT_MILLIS,
     val maxFrameSizeBytes: Long = DEFAULT_MAX_FRAME_SIZE_BYTES,
     val headers: Map<String, String> = emptyMap(),
-    val subprotocols: List<String> = emptyList(),
+    val subprotocols: List<String> = emptyList()
 ) {
     init {
         require(connectTimeoutMillis > 0) {

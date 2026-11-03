@@ -10,7 +10,7 @@ class EventDraft(
     val createdAt: UnixTimeSeconds,
     val kind: EventKind,
     tags: EventTags,
-    val content: String,
+    val content: String
 ) {
     val tags: EventTags = snapshotEventTags(tags)
 
@@ -18,11 +18,12 @@ class EventDraft(
         createdAt: UnixTimeSeconds = this.createdAt,
         kind: EventKind = this.kind,
         tags: EventTags = this.tags,
-        content: String = this.content,
+        content: String = this.content
     ): EventDraft = EventDraft(createdAt, kind, tags, content)
 
     override fun equals(other: Any?): Boolean = other is EventDraft &&
-        createdAt == other.createdAt && kind == other.kind && tags == other.tags && content == other.content
+        createdAt == other.createdAt && kind == other.kind && tags == other.tags &&
+        content == other.content
 
     override fun hashCode(): Int {
         var result = createdAt.hashCode()

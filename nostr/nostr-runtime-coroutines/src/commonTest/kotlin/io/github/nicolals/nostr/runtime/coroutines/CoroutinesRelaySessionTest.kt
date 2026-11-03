@@ -8,6 +8,11 @@ import io.github.nicolals.nostr.core.runtime.SessionConfig
 import io.github.nicolals.nostr.core.runtime.SubscriptionStatus
 import io.github.nicolals.nostr.core.transport.RelayUrl
 import io.github.nicolals.nostr.core.transport.TransportError
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,11 +25,6 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CoroutinesRelaySessionTest {
@@ -115,8 +115,8 @@ class CoroutinesRelaySessionTest {
             reconnectPolicy = ReconnectPolicy.exponentialBackoff(
                 baseDelayMs = 10_000, // Long delay so we can observe Reconnecting state
                 maxDelayMs = 30_000,
-                maxAttempts = 3,
-            ),
+                maxAttempts = 3
+            )
         )
         val session = createSession(factory, config)
 
@@ -144,7 +144,7 @@ class CoroutinesRelaySessionTest {
     fun reconnectPolicyNeverDoesNotReconnect() = runTest {
         val factory = FakeRelayTransportFactory()
         val config = SessionConfig(
-            reconnectPolicy = ReconnectPolicy.never(),
+            reconnectPolicy = ReconnectPolicy.never()
         )
         val session = createSession(factory, config)
 
@@ -170,7 +170,7 @@ class CoroutinesRelaySessionTest {
     fun intentionalDisconnectDoesNotReconnect() = runTest {
         val factory = FakeRelayTransportFactory()
         val config = SessionConfig(
-            reconnectPolicy = ReconnectPolicy.exponentialBackoff(maxAttempts = 3),
+            reconnectPolicy = ReconnectPolicy.exponentialBackoff(maxAttempts = 3)
         )
         val session = createSession(factory, config)
 
@@ -317,7 +317,7 @@ class CoroutinesRelaySessionTest {
     fun subscriptionClosedWhenReconnectPolicyGivesUp() = runTest {
         val factory = FakeRelayTransportFactory()
         val config = SessionConfig(
-            reconnectPolicy = ReconnectPolicy.never(),
+            reconnectPolicy = ReconnectPolicy.never()
         )
         val session = createSession(factory, config)
 
@@ -346,8 +346,8 @@ class CoroutinesRelaySessionTest {
         val config = SessionConfig(
             reconnectPolicy = ReconnectPolicy.exponentialBackoff(
                 baseDelayMs = 10_000, // Long delay so we stay in Reconnecting state
-                maxAttempts = 3,
-            ),
+                maxAttempts = 3
+            )
         )
         val session = createSession(factory, config)
 
@@ -498,7 +498,7 @@ class CoroutinesRelaySessionTest {
     fun publishAbandonedWhenReconnectGivesUp() = runTest {
         val factory = FakeRelayTransportFactory()
         val config = SessionConfig(
-            reconnectPolicy = ReconnectPolicy.never(),
+            reconnectPolicy = ReconnectPolicy.never()
         )
         val session = createSession(factory, config)
 
@@ -561,15 +561,13 @@ class CoroutinesRelaySessionTest {
 
     private fun TestScope.createSession(
         factory: FakeRelayTransportFactory,
-        config: SessionConfig = SessionConfig.Default,
-    ): CoroutinesRelaySession {
-        return CoroutinesRelaySession(
-            url = testUrl,
-            codec = testCodec,
-            eventVerifier = AcceptTestEvents,
-            transportFactory = factory,
-            scope = this,
-            config = config,
-        )
-    }
+        config: SessionConfig = SessionConfig.Default
+    ): CoroutinesRelaySession = CoroutinesRelaySession(
+        url = testUrl,
+        codec = testCodec,
+        eventVerifier = AcceptTestEvents,
+        transportFactory = factory,
+        scope = this,
+        config = config
+    )
 }

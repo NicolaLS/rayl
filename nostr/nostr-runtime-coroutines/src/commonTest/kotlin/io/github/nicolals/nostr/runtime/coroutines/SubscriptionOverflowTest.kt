@@ -6,11 +6,17 @@ import io.github.nicolals.nostr.core.runtime.SessionConfig
 import io.github.nicolals.nostr.core.runtime.SubscriptionOverflowPolicy
 import io.github.nicolals.nostr.core.runtime.SubscriptionStatus
 import io.github.nicolals.nostr.core.transport.RelayUrl
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.*
-import kotlin.test.*
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SubscriptionOverflowTest {
@@ -50,12 +56,17 @@ class SubscriptionOverflowTest {
 
     private fun event(n: Int) = TestFixtures.testEvent.copy(id = EventId.fromHex(n.toString(16).padStart(64, '0')))
 
-    private fun TestScope.overflowingSubscription(policy: SubscriptionOverflowPolicy):
-        Triple<CoroutinesRelaySession, FakeRelayTransportFactory, CoroutinesSubscriptionHandle> {
+    private fun TestScope.overflowingSubscription(
+        policy: SubscriptionOverflowPolicy
+    ): Triple<CoroutinesRelaySession, FakeRelayTransportFactory, CoroutinesSubscriptionHandle> {
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://test.relay"), TestWireCodec(), AcceptTestEvents, factory, this,
-            SessionConfig(subscriptionBufferCapacity = 2, subscriptionOverflowPolicy = policy),
+            RelayUrl.parse("wss://test.relay"),
+            TestWireCodec(),
+            AcceptTestEvents,
+            factory,
+            this,
+            SessionConfig(subscriptionBufferCapacity = 2, subscriptionOverflowPolicy = policy)
         )
         session.connect()
         runCurrent()

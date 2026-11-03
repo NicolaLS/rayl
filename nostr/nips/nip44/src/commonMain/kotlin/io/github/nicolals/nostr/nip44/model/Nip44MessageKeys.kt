@@ -5,7 +5,7 @@ import okio.ByteString
 data class Nip44MessageKeys(
     val chachaKey: ByteString,
     val chachaNonce: ByteString,
-    val hmacKey: ByteString,
+    val hmacKey: ByteString
 ) {
     override fun toString(): String = "Nip44MessageKeys([redacted])"
 }

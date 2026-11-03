@@ -1,6 +1,22 @@
 package io.github.nicolals.nostr.nip47
 
-import io.github.nicolals.nostr.core.codec.*
+import io.github.nicolals.nostr.core.codec.JsonArray
+import io.github.nicolals.nostr.core.codec.JsonBoolean
+import io.github.nicolals.nostr.core.codec.JsonCodec
+import io.github.nicolals.nostr.core.codec.JsonNull
+import io.github.nicolals.nostr.core.codec.JsonNumber
+import io.github.nicolals.nostr.core.codec.JsonObject
+import io.github.nicolals.nostr.core.codec.JsonString
+import io.github.nicolals.nostr.core.codec.JsonValue
+import io.github.nicolals.nostr.core.codec.arrayValue
+import io.github.nicolals.nostr.core.codec.booleanValue
+import io.github.nicolals.nostr.core.codec.jsonObjectOf
+import io.github.nicolals.nostr.core.codec.longValueOrNull
+import io.github.nicolals.nostr.core.codec.objectValue
+import io.github.nicolals.nostr.core.codec.parseObjectOrNull
+import io.github.nicolals.nostr.core.codec.stringValue
+import io.github.nicolals.nostr.core.codec.stringValuesOrNull
+import io.github.nicolals.nostr.core.codec.valueOrNull
 import io.github.nicolals.nostr.nip47.model.NwcBalanceResult
 import io.github.nicolals.nostr.nip47.model.NwcError
 import io.github.nicolals.nostr.nip47.model.NwcGetBalanceRequest
@@ -30,14 +46,12 @@ import io.github.nicolals.nostr.nip47.model.NwcUnknownNotification
 import io.github.nicolals.nostr.nip47.model.NwcUnknownRequest
 import io.github.nicolals.nostr.nip47.model.NwcUnknownResult
 
-fun JsonCodec.encodeNwcRequest(request: NwcRequest): String =
-    stringify(request.toJsonObject())
+fun JsonCodec.encodeNwcRequest(request: NwcRequest): String = stringify(request.toJsonObject())
 
 fun JsonCodec.decodeNwcRequestOrNull(content: String): NwcRequest? =
     parseObjectOrNull(content)?.let(::parseNwcRequest)
 
-fun JsonCodec.encodeNwcResponse(response: NwcResponse): String =
-    stringify(response.toJsonObject())
+fun JsonCodec.encodeNwcResponse(response: NwcResponse): String = stringify(response.toJsonObject())
 
 fun JsonCodec.decodeNwcResponseOrNull(content: String): NwcResponse? =
     parseObjectOrNull(content)?.let(::parseNwcResponse)
@@ -54,15 +68,15 @@ private fun NwcRequest.toJsonObject(): JsonObject = when (this) {
         jsonObjectOf(
             "invoice" to JsonString(invoice),
             "amount" to amountMsat?.let { JsonNumber(it.toString()) },
-            "metadata" to metadata,
-        ),
+            "metadata" to metadata
+        )
     )
 
     is NwcMultiPayInvoiceRequest -> requestObject(
         method,
         jsonObjectOf(
-            "invoices" to JsonArray(invoices.map(::invoiceItemToJson)),
-        ),
+            "invoices" to JsonArray(invoices.map(::invoiceItemToJson))
+        )
     )
 
     is NwcPayKeysendRequest -> requestObject(
@@ -71,15 +85,15 @@ private fun NwcRequest.toJsonObject(): JsonObject = when (this) {
             "amount" to JsonNumber(amountMsat.toString()),
             "pubkey" to JsonString(pubkey),
             "preimage" to preimage?.let { JsonString(it) },
-            "tlv_records" to tlvRecords?.let { JsonArray(it.map(::tlvRecordToJson)) },
-        ),
+            "tlv_records" to tlvRecords?.let { JsonArray(it.map(::tlvRecordToJson)) }
+        )
     )
 
     is NwcMultiPayKeysendRequest -> requestObject(
         method,
         jsonObjectOf(
-            "keysends" to JsonArray(keysends.map(::keysendItemToJson)),
-        ),
+            "keysends" to JsonArray(keysends.map(::keysendItemToJson))
+        )
     )
 
     is NwcMakeInvoiceRequest -> requestObject(
@@ -89,16 +103,16 @@ private fun NwcRequest.toJsonObject(): JsonObject = when (this) {
             "description" to description?.let { JsonString(it) },
             "description_hash" to descriptionHash?.let { JsonString(it) },
             "expiry" to expirySeconds?.let { JsonNumber(it.toString()) },
-            "metadata" to metadata,
-        ),
+            "metadata" to metadata
+        )
     )
 
     is NwcLookupInvoiceRequest -> requestObject(
         method,
         jsonObjectOf(
             "payment_hash" to paymentHash?.let { JsonString(it) },
-            "invoice" to invoice?.let { JsonString(it) },
-        ),
+            "invoice" to invoice?.let { JsonString(it) }
+        )
     )
 
     is NwcListTransactionsRequest -> requestObject(
@@ -109,8 +123,8 @@ private fun NwcRequest.toJsonObject(): JsonObject = when (this) {
             "limit" to limit?.let { JsonNumber(it.toString()) },
             "offset" to offset?.let { JsonNumber(it.toString()) },
             "unpaid" to unpaid?.let { JsonBoolean(it) },
-            "type" to type?.let { JsonString(it) },
-        ),
+            "type" to type?.let { JsonString(it) }
+        )
     )
 
     NwcGetBalanceRequest -> requestObject(method, JsonObject(emptyMap()))
@@ -131,17 +145,17 @@ private fun NwcResponse.toJsonObject(): JsonObject {
 private fun NwcResult.toJsonValue(): JsonValue = when (this) {
     is NwcPayResult -> jsonObjectOf(
         "preimage" to JsonString(preimage),
-        "fees_paid" to feesPaidMsat?.let { JsonNumber(it.toString()) },
+        "fees_paid" to feesPaidMsat?.let { JsonNumber(it.toString()) }
     )
 
     is NwcInvoiceResult -> transactionToJson(transaction)
 
     is NwcListTransactionsResult -> jsonObjectOf(
-        "transactions" to JsonArray(transactions.map(::transactionToJson)),
+        "transactions" to JsonArray(transactions.map(::transactionToJson))
     )
 
     is NwcBalanceResult -> jsonObjectOf(
-        "balance" to JsonNumber(balanceMsat.toString()),
+        "balance" to JsonNumber(balanceMsat.toString())
     )
 
     is NwcGetInfoResult -> jsonObjectOf(
@@ -152,7 +166,7 @@ private fun NwcResult.toJsonValue(): JsonValue = when (this) {
         "block_height" to blockHeight?.let { JsonNumber(it.toString()) },
         "block_hash" to blockHash?.let { JsonString(it) },
         "methods" to methods?.let { JsonArray(it.map(::JsonString)) },
-        "notifications" to notifications?.let { JsonArray(it.map(::JsonString)) },
+        "notifications" to notifications?.let { JsonArray(it.map(::JsonString)) }
     )
 
     is NwcUnknownResult -> value ?: JsonNull
@@ -166,13 +180,13 @@ private fun NwcNotification.toJsonObject(): JsonObject {
     }
     return jsonObjectOf(
         "notification_type" to JsonString(notificationType),
-        "notification" to notificationValue,
+        "notification" to notificationValue
     )
 }
 
 private fun errorToJson(error: NwcError): JsonObject = jsonObjectOf(
     "code" to JsonString(error.code),
-    "message" to JsonString(error.message),
+    "message" to JsonString(error.message)
 )
 
 private fun transactionToJson(transaction: NwcTransaction): JsonObject = jsonObjectOf(
@@ -188,14 +202,14 @@ private fun transactionToJson(transaction: NwcTransaction): JsonObject = jsonObj
     "created_at" to transaction.createdAt?.let { JsonNumber(it.toString()) },
     "expires_at" to transaction.expiresAt?.let { JsonNumber(it.toString()) },
     "settled_at" to transaction.settledAt?.let { JsonNumber(it.toString()) },
-    "metadata" to transaction.metadata,
+    "metadata" to transaction.metadata
 )
 
 private fun invoiceItemToJson(item: NwcInvoiceRequestItem): JsonObject = jsonObjectOf(
     "id" to item.id?.let { JsonString(it) },
     "invoice" to JsonString(item.invoice),
     "amount" to item.amountMsat?.let { JsonNumber(it.toString()) },
-    "metadata" to item.metadata,
+    "metadata" to item.metadata
 )
 
 private fun keysendItemToJson(item: NwcKeysendRequestItem): JsonObject = jsonObjectOf(
@@ -203,12 +217,12 @@ private fun keysendItemToJson(item: NwcKeysendRequestItem): JsonObject = jsonObj
     "pubkey" to JsonString(item.pubkey),
     "amount" to JsonNumber(item.amountMsat.toString()),
     "preimage" to item.preimage?.let { JsonString(it) },
-    "tlv_records" to item.tlvRecords?.let { JsonArray(it.map(::tlvRecordToJson)) },
+    "tlv_records" to item.tlvRecords?.let { JsonArray(it.map(::tlvRecordToJson)) }
 )
 
 private fun tlvRecordToJson(record: NwcTlvRecord): JsonObject = jsonObjectOf(
     "type" to JsonNumber(record.type.toString()),
-    "value" to JsonString(record.value),
+    "value" to JsonString(record.value)
 )
 
 private fun parseNwcRequest(obj: JsonObject): NwcRequest? {
@@ -313,7 +327,7 @@ private fun parsePayKeysendRequest(params: JsonObject): NwcPayKeysendRequest? {
         amountMsat = amount,
         pubkey = pubkey,
         preimage = preimage,
-        tlvRecords = tlvRecords,
+        tlvRecords = tlvRecords
     )
 }
 
@@ -341,7 +355,7 @@ private fun parseMakeInvoiceRequest(params: JsonObject): NwcMakeInvoiceRequest? 
         description = description,
         descriptionHash = descriptionHash,
         expirySeconds = expiry,
-        metadata = metadata,
+        metadata = metadata
     )
 }
 
@@ -370,7 +384,7 @@ private fun parseListTransactionsRequest(params: JsonObject): NwcListTransaction
         limit = limit,
         offset = offset,
         unpaid = unpaid,
-        type = type,
+        type = type
     )
 }
 
@@ -385,7 +399,7 @@ private fun parseInvoiceItem(obj: JsonObject): NwcInvoiceRequestItem? {
         invoice = invoice,
         amountMsat = amount,
         metadata = metadata,
-        id = id,
+        id = id
     )
 }
 
@@ -405,7 +419,7 @@ private fun parseKeysendItem(obj: JsonObject): NwcKeysendRequestItem? {
         amountMsat = amount,
         preimage = preimage,
         tlvRecords = tlvRecords,
-        id = id,
+        id = id
     )
 }
 
@@ -432,10 +446,7 @@ private fun parseNwcError(obj: JsonObject): NwcError? {
     return NwcError(code = code, message = message)
 }
 
-private data class ParsedNwcResult(
-    val result: NwcResult?,
-    val error: NwcError?,
-)
+private data class ParsedNwcResult(val result: NwcResult?, val error: NwcError?)
 
 private fun parseNwcResultOrError(resultType: String, value: JsonValue?): ParsedNwcResult {
     if (value == null) return ParsedNwcResult(null, null)
@@ -478,7 +489,7 @@ private fun parseNwcResult(resultType: String, value: JsonValue): NwcResult? {
                     blockHeight = it.longValueOrNull("block_height"),
                     blockHash = it.stringValue("block_hash"),
                     methods = it.arrayValue("methods")?.stringValuesOrNull(),
-                    notifications = it.arrayValue("notifications")?.stringValuesOrNull(),
+                    notifications = it.arrayValue("notifications")?.stringValuesOrNull()
                 )
             }
 
@@ -550,7 +561,7 @@ private fun parseTransaction(obj: JsonObject): NwcTransaction? {
         createdAt = createdAt,
         expiresAt = expiresAt,
         settledAt = settledAt,
-        metadata = metadata,
+        metadata = metadata
     )
 }
 
@@ -568,7 +579,7 @@ private fun hasAnyTransactionField(obj: JsonObject): Boolean {
         "created_at",
         "expires_at",
         "settled_at",
-        "metadata",
+        "metadata"
     )
     return fields.any { obj.valueOrNull(it) != null }
 }
@@ -576,8 +587,8 @@ private fun hasAnyTransactionField(obj: JsonObject): Boolean {
 private fun requestObject(method: String, params: JsonObject): JsonObject = JsonObject(
     mapOf(
         "method" to JsonString(method),
-        "params" to params,
-    ),
+        "params" to params
+    )
 )
 
 private fun parseNwcErrorValue(value: JsonValue?): NwcError? = when (value) {

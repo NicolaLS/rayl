@@ -21,7 +21,7 @@ sealed interface NwcRequest {
 data class NwcPayInvoiceRequest(
     val invoice: String,
     val amountMsat: Long? = null,
-    val metadata: JsonObject? = null,
+    val metadata: JsonObject? = null
 ) : NwcRequest {
     override val method: String = NwcRequest.METHOD_PAY_INVOICE
 }
@@ -30,25 +30,20 @@ data class NwcInvoiceRequestItem(
     val invoice: String,
     val amountMsat: Long? = null,
     val metadata: JsonObject? = null,
-    val id: String? = null,
+    val id: String? = null
 )
 
-data class NwcMultiPayInvoiceRequest(
-    val invoices: List<NwcInvoiceRequestItem>,
-) : NwcRequest {
+data class NwcMultiPayInvoiceRequest(val invoices: List<NwcInvoiceRequestItem>) : NwcRequest {
     override val method: String = NwcRequest.METHOD_MULTI_PAY_INVOICE
 }
 
-data class NwcTlvRecord(
-    val type: Long,
-    val value: String,
-)
+data class NwcTlvRecord(val type: Long, val value: String)
 
 data class NwcPayKeysendRequest(
     val amountMsat: Long,
     val pubkey: String,
     val preimage: String? = null,
-    val tlvRecords: List<NwcTlvRecord>? = null,
+    val tlvRecords: List<NwcTlvRecord>? = null
 ) : NwcRequest {
     override val method: String = NwcRequest.METHOD_PAY_KEYSEND
 }
@@ -58,12 +53,10 @@ data class NwcKeysendRequestItem(
     val amountMsat: Long,
     val preimage: String? = null,
     val tlvRecords: List<NwcTlvRecord>? = null,
-    val id: String? = null,
+    val id: String? = null
 )
 
-data class NwcMultiPayKeysendRequest(
-    val keysends: List<NwcKeysendRequestItem>,
-) : NwcRequest {
+data class NwcMultiPayKeysendRequest(val keysends: List<NwcKeysendRequestItem>) : NwcRequest {
     override val method: String = NwcRequest.METHOD_MULTI_PAY_KEYSEND
 }
 
@@ -72,15 +65,13 @@ data class NwcMakeInvoiceRequest(
     val description: String? = null,
     val descriptionHash: String? = null,
     val expirySeconds: Long? = null,
-    val metadata: JsonObject? = null,
+    val metadata: JsonObject? = null
 ) : NwcRequest {
     override val method: String = NwcRequest.METHOD_MAKE_INVOICE
 }
 
-data class NwcLookupInvoiceRequest(
-    val paymentHash: String? = null,
-    val invoice: String? = null,
-) : NwcRequest {
+data class NwcLookupInvoiceRequest(val paymentHash: String? = null, val invoice: String? = null) :
+    NwcRequest {
     override val method: String = NwcRequest.METHOD_LOOKUP_INVOICE
 }
 
@@ -90,7 +81,7 @@ data class NwcListTransactionsRequest(
     val limit: Long? = null,
     val offset: Long? = null,
     val unpaid: Boolean? = null,
-    val type: String? = null,
+    val type: String? = null
 ) : NwcRequest {
     override val method: String = NwcRequest.METHOD_LIST_TRANSACTIONS
 }
@@ -103,7 +94,4 @@ object NwcGetInfoRequest : NwcRequest {
     override val method: String = NwcRequest.METHOD_GET_INFO
 }
 
-data class NwcUnknownRequest(
-    override val method: String,
-    val params: JsonObject,
-) : NwcRequest
+data class NwcUnknownRequest(override val method: String, val params: JsonObject) : NwcRequest

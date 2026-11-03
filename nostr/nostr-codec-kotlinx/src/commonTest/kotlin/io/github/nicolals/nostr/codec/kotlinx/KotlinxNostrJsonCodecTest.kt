@@ -39,16 +39,16 @@ class KotlinxNostrJsonCodecTest {
         tags = listOf(
             listOf(
                 "p",
-                "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
             ),
             listOf(
                 "e",
                 "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-                "wss://relay.example.com",
-            ),
+                "wss://relay.example.com"
+            )
         ),
         content = "hello",
-        sig = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        sig = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
     )
 
     private val rawEventJsonWithExponent = """
@@ -70,7 +70,7 @@ class KotlinxNostrJsonCodecTest {
         kind = 1,
         tags = emptyList(),
         content = "",
-        sig = "2222222222222222222222222222222222222222222222222222222222222222",
+        sig = "2222222222222222222222222222222222222222222222222222222222222222"
     )
 
     private val rawRelayEventMessageJson = """
@@ -96,11 +96,11 @@ class KotlinxNostrJsonCodecTest {
         kinds = listOf(1L, 2L),
         tagFilters = mapOf(
             "e" to listOf("event-1"),
-            "p" to listOf("pub-2"),
+            "p" to listOf("pub-2")
         ),
         since = 1712345678L,
         until = 1712349999L,
-        limit = 42,
+        limit = 42
     )
 
     @Test
@@ -142,7 +142,7 @@ class KotlinxNostrJsonCodecTest {
         for (literal in listOf(
             "1e2147483647", "1e2147483648", "1e-2147483648", "1e-2147483649",
             "1.0e-2147483648", "1e9999999999999999999999999999999999999999",
-            "9223372036854775808", "-9223372036854775809", "1e19",
+            "9223372036854775808", "-9223372036854775809", "1e19"
         )) {
             assertFailsWith<IllegalArgumentException>(literal) {
                 codec.decodeFilter("""{"since":$literal}""")
@@ -158,7 +158,7 @@ class KotlinxNostrJsonCodecTest {
             "-9.223372036854775808e18" to Long.MIN_VALUE,
             "1000e-3" to 1L,
             "0.000010e5" to 1L,
-            "-0e999999999999999999999999" to 0L,
+            "-0e999999999999999999999999" to 0L
         )
         for ((literal, expected) in examples) {
             assertEquals(expected, codec.decodeFilter("""{"since":$literal}""").since, literal)

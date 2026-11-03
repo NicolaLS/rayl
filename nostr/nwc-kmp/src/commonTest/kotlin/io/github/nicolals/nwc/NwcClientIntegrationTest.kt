@@ -2,15 +2,15 @@ package io.github.nicolals.nwc
 
 import io.github.nicolals.nostr.codec.kotlinx.KotlinxNostrJsonCodec
 import io.github.nicolals.nostr.core.codec.JsonArray
-import io.github.nicolals.nostr.core.codec.JsonString
 import io.github.nicolals.nostr.core.codec.JsonObject
-import io.github.nicolals.nostr.core.crypto.EventTemplateSigner
-import io.github.nicolals.nostr.core.primitives.PublicKey
+import io.github.nicolals.nostr.core.codec.JsonString
 import io.github.nicolals.nostr.core.codec.wire.toEventOrNull
 import io.github.nicolals.nostr.core.codec.wire.toWireEvent
+import io.github.nicolals.nostr.core.crypto.EventTemplateSigner
 import io.github.nicolals.nostr.core.event.Event
 import io.github.nicolals.nostr.core.event.template.EventDraft
 import io.github.nicolals.nostr.core.primitives.EventKind
+import io.github.nicolals.nostr.core.primitives.PublicKey
 import io.github.nicolals.nostr.core.primitives.SecretKey
 import io.github.nicolals.nostr.core.primitives.UnixTimeSeconds
 import io.github.nicolals.nostr.core.transport.CloseInfo
@@ -28,36 +28,36 @@ import io.github.nicolals.nostr.nip44.LocalNip44Cipher
 import io.github.nicolals.nostr.nip47.Nip47Cipher
 import io.github.nicolals.nostr.nip47.NwcCipher
 import io.github.nicolals.nostr.nip47.NwcEncryptionSelector
-import io.github.nicolals.nostr.nip47.event.NwcRequestEvent
-import io.github.nicolals.nostr.nip47.event.NwcNotificationEvent
 import io.github.nicolals.nostr.nip47.event.NwcInfoEvent
+import io.github.nicolals.nostr.nip47.event.NwcNotificationEvent
+import io.github.nicolals.nostr.nip47.event.NwcRequestEvent
 import io.github.nicolals.nostr.nip47.event.NwcResponseEvent
 import io.github.nicolals.nostr.nip47.model.NwcBalanceResult
 import io.github.nicolals.nostr.nip47.model.NwcEncryption
 import io.github.nicolals.nostr.nip47.model.NwcPayResult
 import io.github.nicolals.nostr.nip47.model.NwcPaymentReceivedNotification
+import io.github.nicolals.nostr.nip47.model.NwcResponse
 import io.github.nicolals.nostr.nip47.model.NwcTransaction
 import io.github.nicolals.nostr.nip47.model.NwcUnknownRequest
 import io.github.nicolals.nostr.nip47.model.NwcUnknownResult
-import io.github.nicolals.nostr.nip47.model.NwcResponse
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
-import okio.ByteString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import okio.ByteString
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NwcClientIntegrationTest {
@@ -74,9 +74,12 @@ class NwcClientIntegrationTest {
             val publication = relay.publications.last()
             relay.ack(publication)
             runCurrent()
-            val unrelated = response(publication.copy(
-                id = io.github.nicolals.nostr.core.primitives.EventId.fromHex("f".repeat(64)),
-            ), 100)
+            val unrelated = response(
+                publication.copy(
+                    id = io.github.nicolals.nostr.core.primitives.EventId.fromHex("f".repeat(64))
+                ),
+                100
+            )
             repeat(300) { relay.deliver(unrelated) }
             runCurrent()
             assertTrue(client.state.value is NwcClientState.Failed)
@@ -102,7 +105,7 @@ class NwcClientIntegrationTest {
         capabilities = setOf(NwcCapability.GET_BALANCE, NwcCapability.MULTI_PAY_INVOICE),
         notifications = emptySet(),
         encryptions = setOf(NwcEncryption.NIP44_V2),
-        preferredEncryption = NwcEncryption.NIP44_V2,
+        preferredEncryption = NwcEncryption.NIP44_V2
     )
 
     @Test
@@ -126,29 +129,38 @@ class NwcClientIntegrationTest {
             runCurrent()
             val nextRequest = relay.publications.last()
             relay.ack(nextRequest)
-            val attackerResponse = attackerSigner.sign(NwcResponseEvent.template(
-                clientPubkey = clientSigner.pubkey,
-                response = NwcResponse("get_balance", result = NwcBalanceResult(999)),
-                createdAt = UnixTimeSeconds.now(),
-                codec = codec,
-                cipher = cipher(attackerSecret),
-                requestEventId = nextRequest.id,
-            ).getOrThrow()).getOrThrow().event
+            val attackerResponse = attackerSigner.sign(
+                NwcResponseEvent.template(
+                    clientPubkey = clientSigner.pubkey,
+                    response = NwcResponse("get_balance", result = NwcBalanceResult(999)),
+                    createdAt = UnixTimeSeconds.now(),
+                    codec = codec,
+                    cipher = cipher(attackerSecret),
+                    requestEventId = nextRequest.id
+                ).getOrThrow()
+            ).getOrThrow().event
             relay.deliver(attackerResponse)
-            relay.deliver(genuine.copy(tags = genuine.tags.map {
-                if (it.firstOrNull() == "e") listOf("e", nextRequest.id.hex) else it
-            }))
+            relay.deliver(
+                genuine.copy(
+                    tags = genuine.tags.map {
+                        if (it.firstOrNull() == "e") listOf("e", nextRequest.id.hex) else it
+                    }
+                )
+            )
             runCurrent()
             assertFalse(next.isCompleted)
 
             // A wallet-signed event addressed to someone else must also be rejected,
             // even when its ciphertext can be decrypted by this client.
             val correct = response(nextRequest, 200)
-            val wrongRecipient = walletSigner.sign(EventDraft(
-                correct.createdAt, correct.kind,
-                correct.tags.map { if (it.firstOrNull() == "p") listOf("p", attackerSigner.pubkey.hex) else it },
-                correct.content,
-            )).getOrThrow()
+            val wrongRecipient = walletSigner.sign(
+                EventDraft(
+                    correct.createdAt,
+                    correct.kind,
+                    correct.tags.map { if (it.firstOrNull() == "p") listOf("p", attackerSigner.pubkey.hex) else it },
+                    correct.content
+                )
+            ).getOrThrow()
             relay.deliver(wrongRecipient)
             runCurrent()
             assertFalse(next.isCompleted)
@@ -157,7 +169,7 @@ class NwcClientIntegrationTest {
             assertFalse(next.isCompleted)
             for (tags in listOf(
                 correct.tags.map { if (it.firstOrNull() == "encryption") listOf("encryption", "unknown") else it },
-                correct.tags + listOf(listOf("encryption", "nip44_v2")),
+                correct.tags + listOf(listOf("encryption", "nip44_v2"))
             )) {
                 relay.deliver(walletSigner.sign(EventDraft(correct.createdAt, correct.kind, tags, correct.content)).getOrThrow())
                 runCurrent()
@@ -225,7 +237,7 @@ class NwcClientIntegrationTest {
             val template = NwcInfoEvent.template(
                 capabilities = listOf("get_balance"),
                 createdAt = UnixTimeSeconds.now(),
-                encryption = listOf(NwcEncryption.NIP44_V2),
+                encryption = listOf(NwcEncryption.NIP44_V2)
             )
             relay.deliver(attackerSigner.sign(template).getOrThrow().event)
             runCurrent()
@@ -248,26 +260,40 @@ class NwcClientIntegrationTest {
         try {
             runCurrent()
             val relay = factory.connections.single()
-            relay.deliver(walletSigner.sign(NwcInfoEvent.template(
-                capabilities = listOf("get_balance", "notifications"),
-                createdAt = UnixTimeSeconds.now(),
-                encryption = listOf(NwcEncryption.NIP44_V2),
-                notifications = listOf("payment_received"),
-            )).getOrThrow().event)
+            relay.deliver(
+                walletSigner.sign(
+                    NwcInfoEvent.template(
+                        capabilities = listOf("get_balance", "notifications"),
+                        createdAt = UnixTimeSeconds.now(),
+                        encryption = listOf(NwcEncryption.NIP44_V2),
+                        notifications = listOf("payment_received")
+                    )
+                ).getOrThrow().event
+            )
             runCurrent()
             assertTrue(client.awaitReady())
             val notification = NwcPaymentReceivedNotification(NwcTransaction(amountMsat = 123, paymentHash = "hash"))
-            val forged = attackerSigner.sign(NwcNotificationEvent.template(
-                clientPubkey = clientSigner.pubkey, notification = notification,
-                createdAt = UnixTimeSeconds.now(), codec = codec, cipher = cipher(attackerSecret),
-            ).getOrThrow()).getOrThrow().event
+            val forged = attackerSigner.sign(
+                NwcNotificationEvent.template(
+                    clientPubkey = clientSigner.pubkey,
+                    notification = notification,
+                    createdAt = UnixTimeSeconds.now(),
+                    codec = codec,
+                    cipher = cipher(attackerSecret)
+                ).getOrThrow()
+            ).getOrThrow().event
             relay.deliver(forged)
             runCurrent()
             assertTrue(received.isEmpty())
-            val authentic = walletSigner.sign(NwcNotificationEvent.template(
-                clientPubkey = clientSigner.pubkey, notification = notification,
-                createdAt = UnixTimeSeconds.now(), codec = codec, cipher = walletCipher,
-            ).getOrThrow()).getOrThrow().event
+            val authentic = walletSigner.sign(
+                NwcNotificationEvent.template(
+                    clientPubkey = clientSigner.pubkey,
+                    notification = notification,
+                    createdAt = UnixTimeSeconds.now(),
+                    codec = codec,
+                    cipher = walletCipher
+                ).getOrThrow()
+            ).getOrThrow().event
             relay.deliver(authentic)
             runCurrent()
             assertEquals(1, received.size)
@@ -286,10 +312,15 @@ class NwcClientIntegrationTest {
             runCurrent()
             assertEquals(2, factory.connections.size)
             assertEquals(TransportState.Closed, factory.connections.first().state)
-            factory.connections.last().deliver(walletSigner.sign(NwcInfoEvent.template(
-                capabilities = listOf("get_balance"), createdAt = UnixTimeSeconds.now(),
-                encryption = listOf(NwcEncryption.NIP44_V2),
-            )).getOrThrow().event)
+            factory.connections.last().deliver(
+                walletSigner.sign(
+                    NwcInfoEvent.template(
+                        capabilities = listOf("get_balance"),
+                        createdAt = UnixTimeSeconds.now(),
+                        encryption = listOf(NwcEncryption.NIP44_V2)
+                    )
+                ).getOrThrow().event
+            )
             runCurrent()
             assertEquals(NwcClientState.Ready, client.state.value)
             advanceTimeBy(6_000)
@@ -344,8 +375,11 @@ class NwcClientIntegrationTest {
         val factory = TestRelayFactory(codec)
         val client = NwcClient(
             NwcConnection(walletSigner.pubkey, signing.pubkey, listOf("wss://test.example")),
-            backgroundScope, transportFactory = factory, cachedWalletInfo = walletInfo,
-            signer = signing, cipher = encryption,
+            backgroundScope,
+            transportFactory = factory,
+            cachedWalletInfo = walletInfo,
+            signer = signing,
+            cipher = encryption
         )
         assertEquals(null, client.uri)
         try {
@@ -362,11 +396,18 @@ class NwcClientIntegrationTest {
                 .decryptForWallet(codec, walletCipher).getOrThrow()
             assertEquals(extensionRequest, decoded)
             val value = NwcUnknownResult("wallet_extension", JsonObject(mapOf("ok" to JsonString("yes"))))
-            relay.deliver(walletSigner.sign(NwcResponseEvent.template(
-                clientPubkey = clientSigner.pubkey,
-                response = NwcResponse("wallet_extension", result = value),
-                createdAt = UnixTimeSeconds.now(), codec = codec, cipher = walletCipher, requestEventId = requestEvent.id,
-            ).getOrThrow()).getOrThrow().event)
+            relay.deliver(
+                walletSigner.sign(
+                    NwcResponseEvent.template(
+                        clientPubkey = clientSigner.pubkey,
+                        response = NwcResponse("wallet_extension", result = value),
+                        createdAt = UnixTimeSeconds.now(),
+                        codec = codec,
+                        cipher = walletCipher,
+                        requestEventId = requestEvent.id
+                    ).getOrThrow()
+                ).getOrThrow().event
+            )
             relay.ack(requestEvent)
             runCurrent()
             assertEquals(value, result.await().getOrThrow().result)
@@ -392,85 +433,107 @@ class NwcClientIntegrationTest {
 
     @Test
     fun closeAndReconnectReturnNotSentWhileCancellingRemotePreparation() = runTest {
-        for (reconnect in listOf(false, true)) for (batch in listOf(false, true)) for (encrypting in listOf(false, true)) {
-            val approvalStarted = CompletableDeferred<Unit>()
-            var approvalCancelled = false
-            suspend fun approve() {
-                approvalStarted.complete(Unit)
-                try {
-                    delay(60_000)
-                } finally {
-                    approvalCancelled = true
+        for (reconnect in listOf(false, true)) {
+            for (batch in listOf(false, true)) {
+                for (encrypting in listOf(false, true)) {
+                    val approvalStarted = CompletableDeferred<Unit>()
+                    var approvalCancelled = false
+                    suspend fun approve() {
+                        approvalStarted.complete(Unit)
+                        try {
+                            delay(60_000)
+                        } finally {
+                            approvalCancelled = true
+                        }
+                    }
+                    val remoteSigner = object : EventTemplateSigner {
+                        override val pubkey = clientSigner.pubkey
+                        override suspend fun sign(draft: EventDraft): io.github.nicolals.nostr.core.crypto.CryptoResult<Event> {
+                            if (!encrypting) approve()
+                            return clientSigner.sign(draft)
+                        }
+                    }
+                    val localCipher = cipher(clientSecret)
+                    val remoteCipher = object : NwcCipher {
+                        override suspend fun encrypt(
+                            plaintext: String,
+                            encryption: NwcEncryption,
+                            recipientPublicKey: PublicKey
+                        ): io.github.nicolals.nostr.core.crypto.CryptoResult<String> {
+                            if (encrypting) approve()
+                            return localCipher.encrypt(plaintext, encryption, recipientPublicKey)
+                        }
+                        override suspend fun decrypt(content: String, encryption: NwcEncryption, senderPublicKey: PublicKey) =
+                            localCipher.decrypt(content, encryption, senderPublicKey)
+                    }
+                    val factory = TestRelayFactory(codec)
+                    val client = NwcClient(
+                        uri,
+                        backgroundScope,
+                        transportFactory = factory,
+                        cachedWalletInfo = walletInfo,
+                        signer = remoteSigner,
+                        cipher = remoteCipher
+                    )
+                    try {
+                        runCurrent()
+                        val result = async {
+                            if (batch) {
+                                client.multiPayInvoice(listOf(MultiPayInvoiceItem("a", "invoice-a"))).map { }
+                            } else {
+                                client.getBalance().map { }
+                            }
+                        }
+                        runCurrent()
+                        assertTrue(approvalStarted.isCompleted)
+                        if (reconnect) client.connect(forceReconnect = true) else client.close()
+                        runCurrent()
+                        assertTrue(approvalCancelled)
+                        assertTrue(result.await().errorOrNull() is NwcError.ConnectionError)
+                        assertFalse(result.isCancelled)
+                        assertTrue(factory.connections.all { it.publications.isEmpty() })
+                        assertEquals(0, client.pendingRequestCount)
+                    } finally {
+                        client.close()
+                    }
                 }
-            }
-            val remoteSigner = object : EventTemplateSigner {
-                override val pubkey = clientSigner.pubkey
-                override suspend fun sign(draft: EventDraft): io.github.nicolals.nostr.core.crypto.CryptoResult<Event> {
-                    if (!encrypting) approve()
-                    return clientSigner.sign(draft)
-                }
-            }
-            val localCipher = cipher(clientSecret)
-            val remoteCipher = object : NwcCipher {
-                override suspend fun encrypt(plaintext: String, encryption: NwcEncryption, recipientPublicKey: PublicKey): io.github.nicolals.nostr.core.crypto.CryptoResult<String> {
-                    if (encrypting) approve()
-                    return localCipher.encrypt(plaintext, encryption, recipientPublicKey)
-                }
-                override suspend fun decrypt(content: String, encryption: NwcEncryption, senderPublicKey: PublicKey) =
-                    localCipher.decrypt(content, encryption, senderPublicKey)
-            }
-            val factory = TestRelayFactory(codec)
-            val client = NwcClient(
-                uri, backgroundScope, transportFactory = factory, cachedWalletInfo = walletInfo,
-                signer = remoteSigner, cipher = remoteCipher,
-            )
-            try {
-                runCurrent()
-                val result = async {
-                    if (batch) client.multiPayInvoice(listOf(MultiPayInvoiceItem("a", "invoice-a"))).map { }
-                    else client.getBalance().map { }
-                }
-                runCurrent()
-                assertTrue(approvalStarted.isCompleted)
-                if (reconnect) client.connect(forceReconnect = true) else client.close()
-                runCurrent()
-                assertTrue(approvalCancelled)
-                assertTrue(result.await().errorOrNull() is NwcError.ConnectionError)
-                assertFalse(result.isCancelled)
-                assertTrue(factory.connections.all { it.publications.isEmpty() })
-                assertEquals(0, client.pendingRequestCount)
-            } finally {
-                client.close()
             }
         }
     }
 
     @Test
     fun closeAndReconnectAfterPublicationReturnAnUncertainOutcomeWithOrWithoutAck() = runTest {
-        for (reconnect in listOf(false, true)) for (batch in listOf(false, true)) for (acknowledged in listOf(false, true)) {
-            val factory = TestRelayFactory(codec)
-            val client = NwcClient(uri, backgroundScope, transportFactory = factory, cachedWalletInfo = walletInfo)
-            try {
-                runCurrent()
-                val relay = factory.connections.single()
-                val result = async {
-                    if (batch) client.multiPayInvoice(listOf(MultiPayInvoiceItem("a", "invoice-a"))).map { }
-                    else client.getBalance().map { }
+        for (reconnect in listOf(false, true)) {
+            for (batch in listOf(false, true)) {
+                for (acknowledged in listOf(false, true)) {
+                    val factory = TestRelayFactory(codec)
+                    val client = NwcClient(uri, backgroundScope, transportFactory = factory, cachedWalletInfo = walletInfo)
+                    try {
+                        runCurrent()
+                        val relay = factory.connections.single()
+                        val result = async {
+                            if (batch) {
+                                client.multiPayInvoice(listOf(MultiPayInvoiceItem("a", "invoice-a"))).map { }
+                            } else {
+                                client.getBalance().map { }
+                            }
+                        }
+                        runCurrent()
+                        val publication = relay.publications.single()
+                        if (acknowledged) {
+                            relay.ack(publication)
+                            runCurrent()
+                        }
+                        assertFalse(result.isCompleted)
+                        if (reconnect) client.connect(forceReconnect = true) else client.close()
+                        runCurrent()
+                        assertTrue(result.await().isTimeout)
+                        assertFalse(result.isCancelled)
+                        assertEquals(0, client.pendingRequestCount)
+                    } finally {
+                        client.close()
+                    }
                 }
-                runCurrent()
-                val publication = relay.publications.single()
-                if (acknowledged) {
-                    relay.ack(publication)
-                    runCurrent()
-                }
-                assertFalse(result.isCompleted)
-                if (reconnect) client.connect(forceReconnect = true) else client.close()
-                runCurrent()
-                assertTrue(result.await().isTimeout)
-                assertFalse(result.isCancelled)
-                assertEquals(0, client.pendingRequestCount)
-            } finally {
-                client.close()
             }
         }
     }
@@ -480,7 +543,11 @@ class NwcClientIntegrationTest {
         val local = cipher(clientSecret)
         var encryptions = 0
         val slowCipher = object : NwcCipher {
-            override suspend fun encrypt(plaintext: String, encryption: NwcEncryption, recipientPublicKey: PublicKey): io.github.nicolals.nostr.core.crypto.CryptoResult<String> {
+            override suspend fun encrypt(
+                plaintext: String,
+                encryption: NwcEncryption,
+                recipientPublicKey: PublicKey
+            ): io.github.nicolals.nostr.core.crypto.CryptoResult<String> {
                 encryptions++
                 if (encryptions == 1) delay(1_000)
                 return local.encrypt(plaintext, encryption, recipientPublicKey)
@@ -519,10 +586,15 @@ class NwcClientIntegrationTest {
         runCurrent()
         advanceTimeBy(700)
         val relay = factory.connections.single()
-        relay.deliver(walletSigner.sign(NwcInfoEvent.template(
-            capabilities = listOf("get_info"), createdAt = UnixTimeSeconds.now(),
-            encryption = listOf(NwcEncryption.NIP44_V2),
-        )).getOrThrow().event)
+        relay.deliver(
+            walletSigner.sign(
+                NwcInfoEvent.template(
+                    capabilities = listOf("get_info"),
+                    createdAt = UnixTimeSeconds.now(),
+                    encryption = listOf(NwcEncryption.NIP44_V2)
+                )
+            ).getOrThrow().event
+        )
         runCurrent()
         assertEquals(1, relay.publications.size)
         relay.ack(relay.publications.single())
@@ -557,9 +629,12 @@ class NwcClientIntegrationTest {
     @Test
     fun invalidSecretScalarsAreRejectedByUriParsing() {
         for (secret in listOf("0".repeat(64), "f".repeat(64))) {
-            assertEquals(null, NwcConnectionUri.parse(
-                "nostr+walletconnect://${walletSigner.pubkey.hex}?relay=wss://test.example&secret=$secret"
-            ))
+            assertEquals(
+                null,
+                NwcConnectionUri.parse(
+                    "nostr+walletconnect://${walletSigner.pubkey.hex}?relay=wss://test.example&secret=$secret"
+                )
+            )
         }
     }
 
@@ -573,34 +648,40 @@ class NwcClientIntegrationTest {
     private fun cipher(secret: SecretKey) = Nip47Cipher(LocalNip04Cipher(secret, NostrCrypto), LocalNip44Cipher(secret, NostrCrypto))
 
     private suspend fun response(request: Event, balance: Long, encryption: NwcEncryption = NwcEncryption.NIP44_V2): Event =
-        walletSigner.sign(NwcResponseEvent.template(
-            clientPubkey = clientSigner.pubkey,
-            response = NwcResponse("get_balance", result = NwcBalanceResult(balance)),
-            createdAt = UnixTimeSeconds.now(),
-            codec = codec,
-            cipher = walletCipher,
-            requestEventId = request.id,
-            encryption = encryption,
-        ).getOrThrow()).getOrThrow().event
+        walletSigner.sign(
+            NwcResponseEvent.template(
+                clientPubkey = clientSigner.pubkey,
+                response = NwcResponse("get_balance", result = NwcBalanceResult(balance)),
+                createdAt = UnixTimeSeconds.now(),
+                codec = codec,
+                cipher = walletCipher,
+                requestEventId = request.id,
+                encryption = encryption
+            ).getOrThrow()
+        ).getOrThrow().event
 
-    private suspend fun paymentResponse(request: Event, id: String): Event =
-        walletSigner.sign(NwcResponseEvent.template(
+    private suspend fun paymentResponse(request: Event, id: String): Event = walletSigner.sign(
+        NwcResponseEvent.template(
             clientPubkey = clientSigner.pubkey,
             response = NwcResponse("multi_pay_invoice", result = NwcPayResult("preimage-$id")),
             createdAt = UnixTimeSeconds.now(),
             codec = codec,
             cipher = walletCipher,
             requestEventId = request.id,
-            responseId = id,
-        ).getOrThrow()).getOrThrow().event
+            responseId = id
+        ).getOrThrow()
+    ).getOrThrow().event
 }
 
-private class TestRelayFactory(private val codec: KotlinxNostrJsonCodec) : RelayTransportFactory, AutoCloseable {
+private class TestRelayFactory(private val codec: KotlinxNostrJsonCodec) :
+    RelayTransportFactory,
+    AutoCloseable {
     var closed = false
-    override fun close() { closed = true }
+    override fun close() {
+        closed = true
+    }
     val connections = mutableListOf<TestRelay>()
-    override fun create(url: RelayUrl, config: TransportConfig): RelayConnection =
-        TestRelay(url, codec).also(connections::add)
+    override fun create(url: RelayUrl, config: TransportConfig): RelayConnection = TestRelay(url, codec).also(connections::add)
 }
 
 /** Deliberately ignores author/recipient filters: the client must distrust the relay. */
@@ -610,7 +691,9 @@ private class TestRelay(override val url: RelayUrl, private val codec: KotlinxNo
     val subscriptions = mutableMapOf<String, Set<Int>>()
     val publications = mutableListOf<Event>()
 
-    override fun setListener(listener: RelayConnectionListener?) { this.listener = listener }
+    override fun setListener(listener: RelayConnectionListener?) {
+        this.listener = listener
+    }
     override fun connect() {
         state = TransportState.Open
         listener?.onOpen()
@@ -622,7 +705,9 @@ private class TestRelay(override val url: RelayUrl, private val codec: KotlinxNo
                 val id = (message[1] as JsonString).value
                 subscriptions[id] = message.drop(2).flatMap { codec.decodeFilter(it).kinds.orEmpty().map(Long::toInt) }.toSet()
             }
+
             "EVENT" -> publications += codec.decodeEvent(message[1]).toEventOrNull()!!
+
             "CLOSE" -> subscriptions.remove((message[1] as JsonString).value)
         }
         return TransportResult.success()
@@ -637,9 +722,17 @@ private class TestRelay(override val url: RelayUrl, private val codec: KotlinxNo
     }
     fun deliver(event: Event) {
         subscriptions.filterValues { event.kind.value in it }.keys.toList().forEach { id ->
-            listener?.onMessage(codec.stringify(JsonArray(listOf(
-                JsonString("EVENT"), JsonString(id), codec.encodeEvent(event.toWireEvent()),
-            ))))
+            listener?.onMessage(
+                codec.stringify(
+                    JsonArray(
+                        listOf(
+                            JsonString("EVENT"),
+                            JsonString(id),
+                            codec.encodeEvent(event.toWireEvent())
+                        )
+                    )
+                )
+            )
         }
     }
     fun ack(event: Event) {

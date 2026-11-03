@@ -26,7 +26,7 @@ const val AUTH_TOKEN = "AUTH"
 data class AuthChallengeMessage(
     override val raw: RawRelayMessage,
     /** The challenge string to be signed by the client */
-    val challenge: String,
+    val challenge: String
 ) : RelayMessageView {
     companion object {
         const val TOKEN = AUTH_TOKEN
@@ -47,7 +47,7 @@ data class AuthClientMessage(
     /** The wire-format auth event (permissive) */
     val wireEvent: WireEvent,
     /** The domain-typed auth event (validated), null if validation failed */
-    val event: Event?,
+    val event: Event?
 ) : ClientMessageView {
     companion object {
         const val TOKEN = AUTH_TOKEN

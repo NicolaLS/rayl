@@ -34,7 +34,7 @@ data class ProtocolState(
     val connection: ConnectionState = ConnectionState(),
     val subscriptions: Map<SubscriptionId, SubscriptionState> = emptyMap(),
     val publishes: Map<EventId, PublishState> = emptyMap(),
-    val moduleStates: ModuleStateStore = ModuleStateStore(),
+    val moduleStates: ModuleStateStore = ModuleStateStore()
 ) {
     /**
      * Whether the connection is currently open.
@@ -55,8 +55,7 @@ data class ProtocolState(
     /**
      * Returns a copy with the connection state updated.
      */
-    fun withConnection(connection: ConnectionState): ProtocolState =
-        copy(connection = connection)
+    fun withConnection(connection: ConnectionState): ProtocolState = copy(connection = connection)
 
     /**
      * Returns a copy with a subscription state added or updated.
@@ -79,8 +78,7 @@ data class ProtocolState(
     /**
      * Returns a copy with a publish removed.
      */
-    fun withoutPublish(eventId: EventId): ProtocolState =
-        copy(publishes = publishes - eventId)
+    fun withoutPublish(eventId: EventId): ProtocolState = copy(publishes = publishes - eventId)
 
     /**
      * Returns a copy with module states updated.

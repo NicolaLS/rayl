@@ -1,7 +1,10 @@
 package io.github.nicolals.nostr.core.codec.wire
 
 import io.github.nicolals.nostr.core.message.Filter
-import io.github.nicolals.nostr.core.primitives.*
+import io.github.nicolals.nostr.core.primitives.EventId
+import io.github.nicolals.nostr.core.primitives.EventKind
+import io.github.nicolals.nostr.core.primitives.PublicKey
+import io.github.nicolals.nostr.core.primitives.UnixTimeSeconds
 
 /**
  * Convert a domain Filter to wire format.
@@ -14,7 +17,7 @@ fun Filter.toWireFilter(): WireFilter = WireFilter(
     since = since?.value,
     until = until?.value,
     limit = limit,
-    extraFields = extraFields,
+    extraFields = extraFields
 )
 
 /**
@@ -33,6 +36,6 @@ fun WireFilter.toFilterOrNull(): Filter? = runCatching {
         since = since?.let { UnixTimeSeconds(it) },
         until = until?.let { UnixTimeSeconds(it) },
         limit = limit,
-        extraFields = extraFields,
+        extraFields = extraFields
     )
 }.getOrNull()

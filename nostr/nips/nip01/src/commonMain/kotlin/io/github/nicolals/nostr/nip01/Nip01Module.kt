@@ -1,19 +1,29 @@
 package io.github.nicolals.nostr.nip01
 
-import io.github.nicolals.nostr.core.codec.*
+import io.github.nicolals.nostr.core.codec.JsonBoolean
+import io.github.nicolals.nostr.core.codec.JsonCodec
+import io.github.nicolals.nostr.core.codec.JsonNumber
+import io.github.nicolals.nostr.core.codec.JsonObject
+import io.github.nicolals.nostr.core.codec.JsonString
+import io.github.nicolals.nostr.core.codec.NostrJsonCodec
+import io.github.nicolals.nostr.core.codec.booleanValue
+import io.github.nicolals.nostr.core.codec.intValueOrNull
+import io.github.nicolals.nostr.core.codec.jsonObjectOf
+import io.github.nicolals.nostr.core.codec.objectValue
+import io.github.nicolals.nostr.core.codec.parseObjectOrNull
+import io.github.nicolals.nostr.core.codec.stringValue
 import io.github.nicolals.nostr.core.event.upgrade.EventUpgrader
 import io.github.nicolals.nostr.core.event.view.EventView
 import io.github.nicolals.nostr.core.message.upgrade.ClientMessageUpgrader
 import io.github.nicolals.nostr.core.message.upgrade.RelayMessageUpgrader
 import io.github.nicolals.nostr.core.nip.NipModule
-import io.github.nicolals.nostr.core.codec.JsonCodec
 import io.github.nicolals.nostr.core.protocol.ProtocolReducer
 import io.github.nicolals.nostr.nip01.event.MetadataEventUpgrader
 import io.github.nicolals.nostr.nip01.message.Nip01ClientMessageUpgrader
 import io.github.nicolals.nostr.nip01.message.Nip01RelayMessageUpgrader
-import io.github.nicolals.nostr.nip01.protocol.Nip01Reducer
 import io.github.nicolals.nostr.nip01.model.Birthday
 import io.github.nicolals.nostr.nip01.model.Metadata
+import io.github.nicolals.nostr.nip01.protocol.Nip01Reducer
 
 /**
  * NIP-01 module providing:
@@ -21,9 +31,7 @@ import io.github.nicolals.nostr.nip01.model.Metadata
  * - Protocol message views for client messages (EVENT, REQ, CLOSE)
  * - Protocol message views for relay messages (EVENT, OK, EOSE, CLOSED, NOTICE)
  */
-class Nip01Module(
-    codec: NostrJsonCodec,
-) : NipModule {
+class Nip01Module(codec: NostrJsonCodec) : NipModule {
     override val id: String = "nip01"
 
     override val eventUpgraders: List<EventUpgrader<out EventView>> =
@@ -49,7 +57,7 @@ fun JsonCodec.encodeContent(metadata: Metadata): String {
         "website" to metadata.website?.let(::JsonString),
         "banner" to metadata.banner?.let(::JsonString),
         "bot" to metadata.bot?.let(::JsonBoolean),
-        "birthday" to birthday,
+        "birthday" to birthday
     )
     return stringify(value)
 }
@@ -81,7 +89,7 @@ fun JsonCodec.decodeContentOrNull(content: String): Metadata? {
         website = website,
         banner = banner,
         bot = bot,
-        birthday = birthday,
+        birthday = birthday
     )
 }
 
@@ -89,7 +97,7 @@ private fun Birthday.toJsonObjectOrNull(): JsonObject? {
     val obj = jsonObjectOf(
         "year" to year?.let { JsonNumber(it.toString()) },
         "month" to month?.let { JsonNumber(it.toString()) },
-        "day" to day?.let { JsonNumber(it.toString()) },
+        "day" to day?.let { JsonNumber(it.toString()) }
     )
     return obj.takeIf { it.entries.isNotEmpty() }
 }

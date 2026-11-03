@@ -3,18 +3,9 @@ package io.github.nicolals.nostr.transport.ktor
 import io.github.nicolals.nostr.core.transport.CloseInfo
 import io.github.nicolals.nostr.core.transport.RelayConnectionListenerAdapter
 import io.github.nicolals.nostr.core.transport.RelayUrl
-import io.github.nicolals.nostr.core.transport.TransportError
 import io.github.nicolals.nostr.core.transport.TransportConfig
+import io.github.nicolals.nostr.core.transport.TransportError
 import io.github.nicolals.nostr.core.transport.TransportState
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -22,8 +13,17 @@ import java.security.MessageDigest
 import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 class KtorRelaySocketTest {
     private fun upgrade(peer: Socket) {
@@ -39,11 +39,17 @@ class KtorRelaySocketTest {
         val key = request.lineSequence().first { it.startsWith("Sec-WebSocket-Key:", true) }
             .substringAfter(':').trim()
         val accept = Base64.getEncoder().encodeToString(
-            MessageDigest.getInstance("SHA-1").digest((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").toByteArray())
+            MessageDigest.getInstance(
+                "SHA-1"
+            ).digest((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").toByteArray())
         )
         peer.getOutputStream().apply {
-            write(("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n" +
-                "Connection: Upgrade\r\nSec-WebSocket-Accept: $accept\r\n\r\n").toByteArray())
+            write(
+                (
+                    "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n" +
+                        "Connection: Upgrade\r\nSec-WebSocket-Accept: $accept\r\n\r\n"
+                    ).toByteArray()
+            )
             flush()
         }
     }
@@ -53,14 +59,23 @@ class KtorRelaySocketTest {
             val client = createDefaultHttpClient()
             val owner = CoroutineScope(SupervisorJob() + Dispatchers.Default)
             val connection = KtorRelayConnection(
-                client, RelayUrl.parse("ws://127.0.0.1:${server.localPort}"), TransportConfig(), owner,
+                client,
+                RelayUrl.parse("ws://127.0.0.1:${server.localPort}"),
+                TransportConfig(),
+                owner
             )
             val opened = CompletableDeferred<Unit>()
             val callbacks = mutableListOf<String>()
             connection.setListener(object : RelayConnectionListenerAdapter() {
-                override fun onOpen() { opened.complete(Unit) }
-                override fun onFailure(error: TransportError) { callbacks.add("failure") }
-                override fun onClosed(info: CloseInfo) { callbacks.add("closed") }
+                override fun onOpen() {
+                    opened.complete(Unit)
+                }
+                override fun onFailure(error: TransportError) {
+                    callbacks.add("failure")
+                }
+                override fun onClosed(info: CloseInfo) {
+                    callbacks.add("closed")
+                }
             })
             val serve = async(Dispatchers.IO) {
                 server.accept().use { peer ->
@@ -87,14 +102,21 @@ class KtorRelaySocketTest {
         ServerSocket(0, 50, InetAddress.getLoopbackAddress()).use { server ->
             val factory = KtorRelayTransportFactory()
             val connection = factory.create(
-                RelayUrl.parse("ws://127.0.0.1:${server.localPort}"), TransportConfig(maxFrameSizeBytes = 16),
+                RelayUrl.parse("ws://127.0.0.1:${server.localPort}"),
+                TransportConfig(maxFrameSizeBytes = 16)
             ) as KtorRelayConnection
             val received = mutableListOf<String>()
             val failure = CompletableDeferred<TransportError>()
             connection.setListener(object : RelayConnectionListenerAdapter() {
-                override fun onOpen() { connection.send("outbound") }
-                override fun onMessage(text: String) { received.add(text) }
-                override fun onFailure(error: TransportError) { failure.complete(error) }
+                override fun onOpen() {
+                    connection.send("outbound")
+                }
+                override fun onMessage(text: String) {
+                    received.add(text)
+                }
+                override fun onFailure(error: TransportError) {
+                    failure.complete(error)
+                }
             })
             val exchange = async(Dispatchers.IO) {
                 server.accept().use { peer ->
@@ -133,7 +155,9 @@ class KtorRelaySocketTest {
     @Test fun closeDuringInflightHandshakeClosesPhysicalSocket() = runBlocking {
         ServerSocket(0, 50, InetAddress.getLoopbackAddress()).use { server ->
             val factory = KtorRelayTransportFactory()
-            val connection = factory.create(RelayUrl.parse("ws://127.0.0.1:${server.localPort}")) as KtorRelayConnection
+            val connection = factory.create(
+                RelayUrl.parse("ws://127.0.0.1:${server.localPort}")
+            ) as KtorRelayConnection
             val accepted = async(Dispatchers.IO) { server.accept() }
             try {
                 connection.connect()
@@ -165,11 +189,15 @@ class KtorRelaySocketTest {
     @Test fun failedHandshakeEmitsFailureThenClosedExactlyOnceAfterCleanup() = runBlocking {
         ServerSocket(0, 50, InetAddress.getLoopbackAddress()).use { server ->
             val factory = KtorRelayTransportFactory()
-            val connection = factory.create(RelayUrl.parse("ws://127.0.0.1:${server.localPort}")) as KtorRelayConnection
+            val connection = factory.create(
+                RelayUrl.parse("ws://127.0.0.1:${server.localPort}")
+            ) as KtorRelayConnection
             val callbacks = mutableListOf<String>()
             val closed = CompletableDeferred<Unit>()
             connection.setListener(object : RelayConnectionListenerAdapter() {
-                override fun onFailure(error: TransportError) { callbacks.add("failure") }
+                override fun onFailure(error: TransportError) {
+                    callbacks.add("failure")
+                }
                 override fun onClosed(info: CloseInfo) {
                     callbacks.add("closed")
                     assertEquals(TransportState.Closed, connection.state)
@@ -178,7 +206,9 @@ class KtorRelaySocketTest {
             })
             val reject = async(Dispatchers.IO) {
                 server.accept().use { peer ->
-                    peer.getOutputStream().write("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n".toByteArray())
+                    peer.getOutputStream().write(
+                        "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n".toByteArray()
+                    )
                 }
             }
             try {

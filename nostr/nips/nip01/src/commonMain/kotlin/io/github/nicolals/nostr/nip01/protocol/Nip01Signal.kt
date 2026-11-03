@@ -21,10 +21,8 @@ sealed interface Nip01Signal : ProtocolSignal {
      * @property subscriptionId The subscription identifier.
      * @property generation The generation of this subscription instance.
      */
-    data class SubscriptionStarted(
-        val subscriptionId: SubscriptionId,
-        val generation: Int,
-    ) : Nip01Signal
+    data class SubscriptionStarted(val subscriptionId: SubscriptionId, val generation: Int) :
+        Nip01Signal
 
     /**
      * End of stored events received for a subscription.
@@ -34,10 +32,8 @@ sealed interface Nip01Signal : ProtocolSignal {
      * @property subscriptionId The subscription identifier.
      * @property generation The generation this EOSE applies to.
      */
-    data class SubscriptionEose(
-        val subscriptionId: SubscriptionId,
-        val generation: Int,
-    ) : Nip01Signal
+    data class SubscriptionEose(val subscriptionId: SubscriptionId, val generation: Int) :
+        Nip01Signal
 
     /**
      * An event was received for a subscription.
@@ -52,7 +48,7 @@ sealed interface Nip01Signal : ProtocolSignal {
     data class SubscriptionEvent(
         val subscriptionId: SubscriptionId,
         val generation: Int,
-        val event: Event,
+        val event: Event
     ) : Nip01Signal
 
     /**
@@ -67,7 +63,7 @@ sealed interface Nip01Signal : ProtocolSignal {
         val subscriptionId: SubscriptionId,
         val generation: Int,
         val reason: String?,
-        val byRelay: Boolean,
+        val byRelay: Boolean
     ) : Nip01Signal
 
     /**
@@ -79,10 +75,8 @@ sealed interface Nip01Signal : ProtocolSignal {
      * @property subscriptionId The subscription identifier.
      * @property generation The generation that was interrupted.
      */
-    data class SubscriptionInterrupted(
-        val subscriptionId: SubscriptionId,
-        val generation: Int,
-    ) : Nip01Signal
+    data class SubscriptionInterrupted(val subscriptionId: SubscriptionId, val generation: Int) :
+        Nip01Signal
 
     // ========== Publish Signals ==========
 
@@ -99,10 +93,7 @@ sealed interface Nip01Signal : ProtocolSignal {
      * @property eventId The event ID that was accepted.
      * @property message The message from OK response (may include "duplicate:" etc.).
      */
-    data class PublishAccepted(
-        val eventId: EventId,
-        val message: String,
-    ) : Nip01Signal
+    data class PublishAccepted(val eventId: EventId, val message: String) : Nip01Signal
 
     /**
      * A publish was rejected by the relay.
@@ -110,10 +101,7 @@ sealed interface Nip01Signal : ProtocolSignal {
      * @property eventId The event ID that was rejected.
      * @property message The rejection reason from OK response.
      */
-    data class PublishRejected(
-        val eventId: EventId,
-        val message: String,
-    ) : Nip01Signal
+    data class PublishRejected(val eventId: EventId, val message: String) : Nip01Signal
 
     /**
      * A publish was interrupted by disconnect.

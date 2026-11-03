@@ -17,9 +17,7 @@ import okio.ByteString
  * Allows tests to simulate transport events by calling methods like
  * [simulateOpen], [simulateMessage], etc.
  */
-class FakeRelayConnection(
-    override val url: RelayUrl,
-) : RelayConnection {
+class FakeRelayConnection(override val url: RelayUrl) : RelayConnection {
 
     private var listener: RelayConnectionListener? = null
 

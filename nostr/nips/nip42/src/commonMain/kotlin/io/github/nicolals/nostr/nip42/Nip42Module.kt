@@ -1,11 +1,11 @@
 package io.github.nicolals.nostr.nip42
 
+import io.github.nicolals.nostr.core.codec.NostrWireCodec
 import io.github.nicolals.nostr.core.event.upgrade.EventUpgrader
 import io.github.nicolals.nostr.core.event.view.EventView
 import io.github.nicolals.nostr.core.message.upgrade.ClientMessageUpgrader
 import io.github.nicolals.nostr.core.message.upgrade.RelayMessageUpgrader
 import io.github.nicolals.nostr.core.nip.NipModule
-import io.github.nicolals.nostr.core.codec.NostrWireCodec
 import io.github.nicolals.nostr.core.protocol.ProtocolReducer
 import io.github.nicolals.nostr.nip42.event.AuthEventUpgrader
 import io.github.nicolals.nostr.nip42.message.Nip42ClientMessageUpgrader
@@ -43,12 +43,9 @@ import io.github.nicolals.nostr.nip42.protocol.Nip42Reducer
  *
  * @see <a href="https://github.com/nostr-protocol/nips/blob/master/42.md">NIP-42 Specification</a>
  */
-class Nip42Module(
-    codec: NostrWireCodec,
-) : NipModule {
+class Nip42Module(codec: NostrWireCodec) : NipModule {
     override val id: String = "nip42"
     override val requires: Set<String> = setOf("nip01")
-
 
     override val eventUpgraders: List<EventUpgrader<out EventView>> =
         listOf(AuthEventUpgrader())

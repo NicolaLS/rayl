@@ -15,7 +15,7 @@ open class NwcInfoEvent(
     val capabilities: List<String>,
     val notificationTypes: List<String>,
     val encryptionCodes: List<String>,
-    val supportedEncryptions: List<NwcEncryption>,
+    val supportedEncryptions: List<NwcEncryption>
 ) : EventView {
     companion object {
         val KIND = EventKind(13194)
@@ -36,7 +36,7 @@ open class NwcInfoEvent(
                 capabilities = capabilities,
                 notificationTypes = notificationTypes,
                 encryptionCodes = encryptionCodes,
-                supportedEncryptions = supportedEncryptions,
+                supportedEncryptions = supportedEncryptions
             )
         }
 
@@ -45,7 +45,7 @@ open class NwcInfoEvent(
             createdAt: UnixTimeSeconds,
             encryption: List<NwcEncryption> = emptyList(),
             notifications: List<String> = emptyList(),
-            extraTags: EventTags = emptyList(),
+            extraTags: EventTags = emptyList()
         ): EventTemplate<NwcInfoEvent> {
             val encryptionCodes = encryption.map { it.tag }
             val tags = buildTags(encryptionCodes, notifications, extraTags)
@@ -54,7 +54,7 @@ open class NwcInfoEvent(
                 createdAt = createdAt,
                 kind = KIND,
                 tags = tags,
-                content = content,
+                content = content
             )
             val supportedEncryptions = if (encryption.isEmpty()) {
                 listOf(NwcEncryption.NIP04)
@@ -67,7 +67,7 @@ open class NwcInfoEvent(
                     capabilities = capabilities,
                     notificationTypes = notifications,
                     encryptionCodes = encryptionCodes,
-                    supportedEncryptions = supportedEncryptions,
+                    supportedEncryptions = supportedEncryptions
                 )
             }
         }
@@ -77,7 +77,7 @@ open class NwcInfoEvent(
 private fun buildTags(
     encryptionCodes: List<String>,
     notifications: List<String>,
-    extraTags: EventTags,
+    extraTags: EventTags
 ): EventTags {
     val tags = mutableListOf<EventTag>()
     if (encryptionCodes.isNotEmpty()) {

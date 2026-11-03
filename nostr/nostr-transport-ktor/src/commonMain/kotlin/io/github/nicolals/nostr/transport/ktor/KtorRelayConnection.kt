@@ -17,6 +17,7 @@ import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -25,19 +26,18 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okio.ByteString
-import kotlin.concurrent.Volatile
 
 /** Single-use connection. All terminal paths close resources before onClosed. */
 internal class KtorRelayConnection(
@@ -45,7 +45,7 @@ internal class KtorRelayConnection(
     override val url: RelayUrl,
     private val config: TransportConfig,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob()),
-    private val onClosed: () -> Unit = {},
+    private val onClosed: () -> Unit = {}
 ) : RelayConnection {
     private val currentState = MutableStateFlow(TransportState.Idle)
     private val cleanupStarted = MutableStateFlow(false)
@@ -79,10 +79,16 @@ internal class KtorRelayConnection(
     }
 
     override fun connect() {
-        check(transition(TransportState.Connecting)) { "Cannot connect: connection is in state $state" }
+        check(transition(TransportState.Connecting)) {
+            "Cannot connect: connection is in state $state"
+        }
         handshakeTimeoutJob = scope.launch {
             delay(config.connectTimeoutMillis)
-            if (state == TransportState.Connecting) fail(TransportError.ConnectionTimeout(config.connectTimeoutMillis))
+            if (state ==
+                TransportState.Connecting
+            ) {
+                fail(TransportError.ConnectionTimeout(config.connectTimeoutMillis))
+            }
         }
         connectJob = scope.launch {
             try {
@@ -124,7 +130,11 @@ internal class KtorRelayConnection(
         enqueue(Frame.Ping(payload?.toByteArray() ?: ByteArray(0)), "ping")
 
     private fun enqueue(frame: Frame, operation: String): TransportResult<Unit> {
-        if (!state.canSend) return TransportResult.failure(TransportError.InvalidState(operation, state))
+        if (!state.canSend) {
+            return TransportResult.failure(
+                TransportError.InvalidState(operation, state)
+            )
+        }
         return if (sendChannel.trySend(frame).isSuccess) {
             TransportResult.success()
         } else {
@@ -195,7 +205,8 @@ internal class KtorRelayConnection(
         if (!cleanupStarted.compareAndSet(false, true)) return
         withContext(NonCancellable) {
             try {
-                currentState.value = if (error == null) TransportState.Closing else TransportState.Failed
+                currentState.value =
+                    if (error == null) TransportState.Closing else TransportState.Failed
                 callbackMutex.withLock {
                     if (error == null) listener?.onClosing(info) else listener?.onFailure(error)
                 }
@@ -207,8 +218,14 @@ internal class KtorRelayConnection(
                 val ws = session
                 session = null
                 try {
-                    if (ws != null) withTimeoutOrNull(2_000) {
-                        if (error == null) ws.close(CloseReason(info.code.toShort(), info.reason ?: ""))
+                    if (ws != null) {
+                        withTimeoutOrNull(2_000) {
+                            if (error ==
+                                null
+                            ) {
+                                ws.close(CloseReason(info.code.toShort(), info.reason ?: ""))
+                            }
+                        }
                     }
                 } catch (_: Exception) {
                     // Resource release below is unconditional.
@@ -233,9 +250,17 @@ internal class KtorRelayConnection(
     private fun Exception.toTransportError(): TransportError {
         val detail = message ?: this::class.simpleName ?: "Unknown error"
         return when {
-            this::class.simpleName?.let { it.contains("SSL") || it.contains("TLS") || it.contains("Certificate") } == true ->
+            this::class.simpleName?.let {
+                it.contains("SSL") || it.contains("TLS") ||
+                    it.contains("Certificate")
+            } ==
+                true ->
                 TransportError.TlsError(detail, this)
-            this::class.simpleName?.contains("Protocol") == true -> TransportError.ProtocolError(detail)
+
+            this::class.simpleName?.contains(
+                "Protocol"
+            ) == true -> TransportError.ProtocolError(detail)
+
             else -> TransportError.IoError(detail, this)
         }
     }

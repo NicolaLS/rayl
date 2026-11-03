@@ -33,4 +33,5 @@ sealed class CryptoResult<out T> {
     }
 }
 
-class CryptoException(val error: CryptoError) : IllegalStateException("Crypto operation failed: $error")
+class CryptoException(val error: CryptoError) :
+    IllegalStateException("Crypto operation failed: $error")

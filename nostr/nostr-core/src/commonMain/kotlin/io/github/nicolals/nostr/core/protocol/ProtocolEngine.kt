@@ -44,7 +44,7 @@ package io.github.nicolals.nostr.core.protocol
  */
 class ProtocolEngine internal constructor(
     private val reducers: List<ProtocolReducer>,
-    private val admissions: List<OperationAdmission>,
+    private val admissions: List<OperationAdmission>
 ) {
     /**
      * Processes an input through all reducers and produces a result.
@@ -58,12 +58,25 @@ class ProtocolEngine internal constructor(
             var decision: AdmissionDecision = AdmissionDecision.Allow
             for (policy in admissions) {
                 when (val candidate = policy.evaluate(state, input)) {
-                    is AdmissionDecision.Reject -> return ProtocolResult(state, admission = candidate)
-                    is AdmissionDecision.Defer -> if (decision == AdmissionDecision.Allow) decision = candidate
+                    is AdmissionDecision.Reject -> return ProtocolResult(
+                        state,
+                        admission = candidate
+                    )
+
+                    is AdmissionDecision.Defer -> if (decision ==
+                        AdmissionDecision.Allow
+                    ) {
+                        decision = candidate
+                    }
+
                     AdmissionDecision.Allow -> Unit
                 }
             }
-            if (decision != AdmissionDecision.Allow) return ProtocolResult(state, admission = decision)
+            if (decision !=
+                AdmissionDecision.Allow
+            ) {
+                return ProtocolResult(state, admission = decision)
+            }
         }
         var handled = false
         var currentState = state
@@ -85,7 +98,7 @@ class ProtocolEngine internal constructor(
         return ProtocolResult(
             state = currentState,
             effects = allEffects,
-            signals = allSignals,
+            signals = allSignals
         )
     }
 
@@ -97,7 +110,6 @@ class ProtocolEngine internal constructor(
         private val admissions = mutableListOf<OperationAdmission>()
 
         fun admission(policy: OperationAdmission) = apply { admissions += policy }
-
 
         /**
          * Registers a reducer.

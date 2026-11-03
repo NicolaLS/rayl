@@ -1,8 +1,8 @@
 package io.github.nicolals.nostr.core.primitives
 
+import kotlin.jvm.JvmInline
 import okio.ByteString
 import okio.ByteString.Companion.decodeHex
-import kotlin.jvm.JvmInline
 
 @JvmInline
 value class PublicKey private constructor(val bytes: ByteString) {

@@ -11,7 +11,7 @@ data class WireFilter(
     val since: Long? = null,
     val until: Long? = null,
     val limit: Int? = null,
-    val extraFields: Map<String, JsonValue> = emptyMap(),
+    val extraFields: Map<String, JsonValue> = emptyMap()
 ) {
     init {
         requireValidFilterExtensions(extraFields)

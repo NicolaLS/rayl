@@ -1,7 +1,11 @@
 package io.github.nicolals.nostr.core.codec.wire
 
 import io.github.nicolals.nostr.core.event.Event
-import io.github.nicolals.nostr.core.primitives.*
+import io.github.nicolals.nostr.core.primitives.EventId
+import io.github.nicolals.nostr.core.primitives.EventKind
+import io.github.nicolals.nostr.core.primitives.EventSig
+import io.github.nicolals.nostr.core.primitives.PublicKey
+import io.github.nicolals.nostr.core.primitives.UnixTimeSeconds
 
 /**
  * Convert a domain [Event] to wire format [WireEvent].
@@ -13,7 +17,7 @@ fun Event.toWireEvent(): WireEvent = WireEvent(
     kind = kind.value,
     tags = tags,
     content = content,
-    sig = sig.hex,
+    sig = sig.hex
 )
 
 /**
@@ -28,6 +32,6 @@ fun WireEvent.toEventOrNull(): Event? = runCatching {
         kind = EventKind(kind),
         tags = tags,
         content = content,
-        sig = EventSig.fromHex(sig),
+        sig = EventSig.fromHex(sig)
     )
 }.getOrNull()

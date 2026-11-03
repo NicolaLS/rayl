@@ -24,7 +24,7 @@ enum class ConnectionPhase {
     /**
      * Connected to the relay and ready to send/receive messages.
      */
-    Open,
+    Open
 }
 
 /**
@@ -34,7 +34,7 @@ enum class ConnectionPhase {
  */
 data class ConnectionState(
     val phase: ConnectionPhase = ConnectionPhase.Disconnected,
-    val context: ConnectionContext? = null,
+    val context: ConnectionContext? = null
 ) {
     /**
      * Whether the connection is open and ready for communication.

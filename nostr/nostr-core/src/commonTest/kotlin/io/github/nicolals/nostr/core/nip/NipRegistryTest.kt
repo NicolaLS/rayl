@@ -15,19 +15,23 @@ import io.github.nicolals.nostr.core.primitives.EventKind
 import io.github.nicolals.nostr.core.primitives.EventSig
 import io.github.nicolals.nostr.core.primitives.PublicKey
 import io.github.nicolals.nostr.core.primitives.UnixTimeSeconds
-import okio.ByteString.Companion.decodeHex
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
-import kotlin.test.assertFailsWith
-import kotlin.test.assertEquals
+import okio.ByteString.Companion.decodeHex
 
 class NipRegistryTest {
     @Test fun duplicateAndBlankModuleIdsAreRejected() {
         val builder = NipRegistry.Builder(StubCodec).install(TestModule)
         assertFailsWith<IllegalArgumentException> { builder.install(TestModule) }
-        assertFailsWith<IllegalArgumentException> { builder.install(object : NipModule { override val id = " " }) }
+        assertFailsWith<IllegalArgumentException> {
+            builder.install(object : NipModule {
+                override val id = " "
+            })
+        }
         assertEquals(setOf(TestModule.id), builder.build().moduleIds)
     }
 
@@ -61,7 +65,7 @@ class NipRegistryTest {
         kind = EventKind(kind),
         tags = emptyList(),
         content = "test",
-        sig = EventSig("0".repeat(128).decodeHex()),
+        sig = EventSig("0".repeat(128).decodeHex())
     )
 
     @Test
@@ -109,7 +113,6 @@ class NipRegistryTest {
     private object TestEventUpgrader : EventUpgrader<TestEventView> {
         override val kinds = setOf(EventKind(12345))
         override val priority = 0
-        override fun upgradeOrNull(event: Event): TestEventView? =
-            if (event.kind == EventKind(12345)) TestEventView(event) else null
+        override fun upgradeOrNull(event: Event): TestEventView? = if (event.kind == EventKind(12345)) TestEventView(event) else null
     }
 }

@@ -15,10 +15,16 @@ object EventAssembler {
     suspend fun sign(
         draft: EventDraft,
         pubkey: PublicKey,
-        sign: suspend (ByteString) -> CryptoResult<ByteString>,
+        sign: suspend (ByteString) -> CryptoResult<ByteString>
     ): CryptoResult<Event> {
         val idBytes = try {
-            EventIdComputer.nip01IdBytes(pubkey, draft.createdAt, draft.kind, draft.tags, draft.content)
+            EventIdComputer.nip01IdBytes(
+                pubkey,
+                draft.createdAt,
+                draft.kind,
+                draft.tags,
+                draft.content
+            )
         } catch (_: IllegalArgumentException) {
             return CryptoResult.Err(CryptoError.SigningFailed("Invalid canonical event encoding"))
         }
@@ -34,8 +40,8 @@ object EventAssembler {
                         kind = draft.kind,
                         tags = draft.tags,
                         content = draft.content,
-                        sig = EventSig.fromBytes(signature),
-                    ),
+                        sig = EventSig.fromBytes(signature)
+                    )
                 )
             }
         }

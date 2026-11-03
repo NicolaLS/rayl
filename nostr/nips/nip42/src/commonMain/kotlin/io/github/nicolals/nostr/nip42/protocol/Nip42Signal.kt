@@ -13,7 +13,6 @@ sealed interface Nip42Signal : ProtocolSignal {
     /** Local validation rejected a response; no AUTH message was sent. */
     data class AuthResponseRejected(val reason: AuthRejectionReason) : Nip42Signal
 
-
     /**
      * An AUTH challenge was received from the relay.
      *
@@ -39,10 +38,7 @@ sealed interface Nip42Signal : ProtocolSignal {
      * @property pubkey The public key that was authenticated.
      * @property message The message from the relay's OK response.
      */
-    data class Authenticated(
-        val pubkey: PublicKey,
-        val message: String,
-    ) : Nip42Signal
+    data class Authenticated(val pubkey: PublicKey, val message: String) : Nip42Signal
 
     /**
      * Authentication failed.

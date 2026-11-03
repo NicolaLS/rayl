@@ -1,6 +1,8 @@
 package io.github.nicolals.nostr.core.protocol
 
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class ModuleStateStoreTest {
     private object NumberKey : ModuleStateKey<Int> {

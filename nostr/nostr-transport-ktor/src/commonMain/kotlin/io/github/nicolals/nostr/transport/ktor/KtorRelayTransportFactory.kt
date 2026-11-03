@@ -55,8 +55,9 @@ import kotlinx.coroutines.flow.update
  */
 class KtorRelayTransportFactory private constructor(
     private val httpClient: HttpClient,
-    private val ownsClient: Boolean,
-) : RelayTransportFactory, AutoCloseable {
+    private val ownsClient: Boolean
+) : RelayTransportFactory,
+    AutoCloseable {
     /** Creates and owns a platform HTTP client. Close this factory when done. */
     constructor() : this(createDefaultHttpClient(), ownsClient = true)
 
@@ -65,7 +66,7 @@ class KtorRelayTransportFactory private constructor(
 
     private data class State(
         val closed: Boolean = false,
-        val connections: Set<KtorRelayConnection> = emptySet(),
+        val connections: Set<KtorRelayConnection> = emptySet()
     )
 
     private val state = MutableStateFlow(State())
@@ -81,7 +82,14 @@ class KtorRelayTransportFactory private constructor(
                 connection.close()
                 error("Transport factory is closed")
             }
-            if (state.compareAndSet(current, current.copy(connections = current.connections + connection))) {
+            if (state.compareAndSet(
+                    current,
+                    current.copy(
+                        connections =
+                            current.connections + connection
+                    )
+                )
+            ) {
                 return connection
             }
         }

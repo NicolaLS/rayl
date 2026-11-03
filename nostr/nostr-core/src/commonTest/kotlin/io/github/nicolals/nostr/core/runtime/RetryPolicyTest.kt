@@ -2,10 +2,10 @@ package io.github.nicolals.nostr.core.runtime
 
 import io.github.nicolals.nostr.core.primitives.EventId
 import io.github.nicolals.nostr.core.primitives.SubscriptionId
-import okio.ByteString.Companion.decodeHex
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import okio.ByteString.Companion.decodeHex
 
 class RetryPolicyTest {
 

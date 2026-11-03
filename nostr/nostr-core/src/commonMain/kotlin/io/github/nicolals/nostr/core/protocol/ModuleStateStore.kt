@@ -50,9 +50,7 @@ interface ModuleStateKey<T : Any> {
  *
  * The store is immutable; [set] returns a new store with the updated value.
  */
-class ModuleStateStore private constructor(
-    private val map: Map<String, Entry>,
-) {
+class ModuleStateStore private constructor(private val map: Map<String, Entry>) {
     constructor() : this(emptyMap())
 
     private data class Entry(val key: ModuleStateKey<*>, val value: Any)
@@ -65,8 +63,7 @@ class ModuleStateStore private constructor(
 
     /** The same key instance must be used for every access to a state slot. */
     @Suppress("UNCHECKED_CAST")
-    operator fun <T : Any> get(key: ModuleStateKey<T>): T =
-        entry(key)?.value as T? ?: key.default
+    operator fun <T : Any> get(key: ModuleStateKey<T>): T = entry(key)?.value as T? ?: key.default
 
     fun <T : Any> set(key: ModuleStateKey<T>, value: T): ModuleStateStore {
         entry(key) // Reject a different key before overwriting its state.
@@ -80,8 +77,7 @@ class ModuleStateStore private constructor(
 
     fun contains(key: ModuleStateKey<*>): Boolean = entry(key) != null
 
-    override fun equals(other: Any?): Boolean =
-        other is ModuleStateStore && map == other.map
+    override fun equals(other: Any?): Boolean = other is ModuleStateStore && map == other.map
 
     override fun hashCode(): Int = map.hashCode()
 

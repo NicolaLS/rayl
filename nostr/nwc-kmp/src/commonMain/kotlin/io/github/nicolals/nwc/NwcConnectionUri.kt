@@ -55,7 +55,7 @@ data class NwcConnectionUri(
     /**
      * Optional Lightning address for the wallet.
      */
-    val lud16: String? = null,
+    val lud16: String? = null
 ) {
     /**
      * The client's public key derived from the secret.
@@ -67,7 +67,8 @@ data class NwcConnectionUri(
         computeClientPubkey(secret)
     }
 
-    override fun toString(): String = "NwcConnectionUri(walletPubkey=$walletPubkey, credentials=<redacted>)"
+    override fun toString(): String =
+        "NwcConnectionUri(walletPubkey=$walletPubkey, credentials=<redacted>)"
 
     companion object {
         private const val SCHEME_NWC = "nostr+walletconnect://"
@@ -94,6 +95,7 @@ data class NwcConnectionUri(
                     pubkeyHex = afterScheme.substring(0, queryIndex)
                     queryString = afterScheme.substring(queryIndex + 1)
                 }
+
                 trimmed.startsWith(SCHEME_NWC_ALT) -> {
                     val afterScheme = trimmed.removePrefix(SCHEME_NWC_ALT)
                     val queryIndex = afterScheme.indexOf('?')
@@ -101,6 +103,7 @@ data class NwcConnectionUri(
                     pubkeyHex = afterScheme.substring(0, queryIndex)
                     queryString = afterScheme.substring(queryIndex + 1)
                 }
+
                 else -> return null
             }
 
@@ -121,7 +124,11 @@ data class NwcConnectionUri(
             } catch (_: Exception) {
                 return null
             }
-            if (secret.size != 32 || NostrSigning.verifySecretKey(secret).getOrNull() != true) return null
+            if (secret.size != 32 ||
+                NostrSigning.verifySecretKey(secret).getOrNull() != true
+            ) {
+                return null
+            }
 
             // Extract relays (at least one required)
             val relays = params["relay"]?.map { urlDecode(it) } ?: emptyList()
@@ -135,7 +142,7 @@ data class NwcConnectionUri(
                 walletPubkey = walletPubkey,
                 secret = secret,
                 relays = relays,
-                lud16 = lud16,
+                lud16 = lud16
             )
         }
 
@@ -189,29 +196,29 @@ data class NwcConnectionUri(
             return result
         }
 
-        private fun urlDecode(value: String): String {
-            return buildString {
-                var i = 0
-                while (i < value.length) {
-                    when {
-                        value[i] == '%' && i + 2 < value.length -> {
-                            try {
-                                val hex = value.substring(i + 1, i + 3)
-                                append(hex.toInt(16).toChar())
-                                i += 3
-                            } catch (_: Exception) {
-                                append(value[i])
-                                i++
-                            }
-                        }
-                        value[i] == '+' -> {
-                            append(' ')
-                            i++
-                        }
-                        else -> {
+        private fun urlDecode(value: String): String = buildString {
+            var i = 0
+            while (i < value.length) {
+                when {
+                    value[i] == '%' && i + 2 < value.length -> {
+                        try {
+                            val hex = value.substring(i + 1, i + 3)
+                            append(hex.toInt(16).toChar())
+                            i += 3
+                        } catch (_: Exception) {
                             append(value[i])
                             i++
                         }
+                    }
+
+                    value[i] == '+' -> {
+                        append(' ')
+                        i++
+                    }
+
+                    else -> {
+                        append(value[i])
+                        i++
                     }
                 }
             }
@@ -220,11 +227,11 @@ data class NwcConnectionUri(
 }
 
 // Internal function to compute client pubkey from secret
-internal fun computeClientPubkey(secret: ByteString): PublicKey {
-    return when (val result = NostrSigning.derivePublicKeyXOnly(secret)) {
+internal fun computeClientPubkey(secret: ByteString): PublicKey =
+    when (val result = NostrSigning.derivePublicKeyXOnly(secret)) {
         is CryptoResult.Ok -> PublicKey.fromBytes(result.value)
+
         is CryptoResult.Err -> throw IllegalStateException(
             "Failed to derive public key: ${result.error}"
         )
     }
-}

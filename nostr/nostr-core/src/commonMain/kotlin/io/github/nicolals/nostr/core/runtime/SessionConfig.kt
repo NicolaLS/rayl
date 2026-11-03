@@ -51,7 +51,7 @@ data class SessionConfig(
     /** Maximum buffered events for each subscription. */
     val subscriptionBufferCapacity: Int = 256,
     /** Fail incomplete subscriptions by default; dropping must be explicitly selected. */
-    val subscriptionOverflowPolicy: SubscriptionOverflowPolicy = SubscriptionOverflowPolicy.Fail,
+    val subscriptionOverflowPolicy: SubscriptionOverflowPolicy = SubscriptionOverflowPolicy.Fail
 
 ) {
     init {
@@ -78,7 +78,7 @@ data class SessionConfig(
             retryPolicy = RetryPolicy.never(),
             deduplicationPolicyFactory = { DeduplicationPolicy.none() },
             closePolicy = ClosePolicy.Immediate,
-            pingIntervalMillis = null,
+            pingIntervalMillis = null
         )
     }
 }
@@ -87,6 +87,7 @@ data class SessionConfig(
 enum class SubscriptionOverflowPolicy {
     /** Close the subscription and fail its event flow, preserving a visible incomplete result. */
     Fail,
+
     /** Drop the newest event, expose a cumulative drop count, and allow later replay. */
-    DropNewest,
+    DropNewest
 }

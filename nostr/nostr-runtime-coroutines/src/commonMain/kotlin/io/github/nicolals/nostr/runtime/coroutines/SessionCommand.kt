@@ -1,9 +1,9 @@
 package io.github.nicolals.nostr.runtime.coroutines
 
-import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /** Cancellation and actor admission race through a single atomic state transition. */
 internal class SessionCommand<T>(private val continuation: CancellableContinuation<T>) {

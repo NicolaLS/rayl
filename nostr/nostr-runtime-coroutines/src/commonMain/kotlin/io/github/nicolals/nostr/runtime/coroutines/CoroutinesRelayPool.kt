@@ -1,19 +1,20 @@
 package io.github.nicolals.nostr.runtime.coroutines
 
+import io.github.nicolals.nostr.core.codec.JsonCodec
+import io.github.nicolals.nostr.core.codec.NostrJsonCodec
+import io.github.nicolals.nostr.core.crypto.EventVerifier
 import io.github.nicolals.nostr.core.event.Event
 import io.github.nicolals.nostr.core.message.Filter
 import io.github.nicolals.nostr.core.nip.NipModule
-import io.github.nicolals.nostr.core.codec.NostrJsonCodec
-import io.github.nicolals.nostr.core.codec.JsonCodec
 import io.github.nicolals.nostr.core.nip.NipRegistry
-import io.github.nicolals.nostr.nip01.Nip01Module
-import io.github.nicolals.nostr.core.crypto.EventVerifier
 import io.github.nicolals.nostr.core.primitives.SubscriptionId
 import io.github.nicolals.nostr.core.runtime.ConnectionStatus
 import io.github.nicolals.nostr.core.runtime.DeduplicationPolicy
 import io.github.nicolals.nostr.core.runtime.SessionConfig
 import io.github.nicolals.nostr.core.transport.RelayTransportFactory
 import io.github.nicolals.nostr.core.transport.RelayUrl
+import io.github.nicolals.nostr.nip01.Nip01Module
+import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -27,7 +28,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.random.Random
 
 /**
  * Relay role for pooled sessions.
@@ -59,7 +59,9 @@ class CoroutinesRelayPool(
     private val transportFactory: RelayTransportFactory,
     private val scope: CoroutineScope,
     private val sessionConfig: SessionConfig = SessionConfig.Default,
-    private val deduplicationPolicyFactory: () -> DeduplicationPolicy = { DeduplicationPolicy.lru() },
+    private val deduplicationPolicyFactory: () -> DeduplicationPolicy = {
+        DeduplicationPolicy.lru()
+    }
 ) {
     /** Installs NIP-01 followed by [additionalModules] for every pooled session. */
     constructor(
@@ -69,7 +71,7 @@ class CoroutinesRelayPool(
         scope: CoroutineScope,
         sessionConfig: SessionConfig = SessionConfig.Default,
         deduplicationPolicyFactory: () -> DeduplicationPolicy = { DeduplicationPolicy.lru() },
-        additionalModules: List<NipModule> = emptyList(),
+        additionalModules: List<NipModule> = emptyList()
     ) : this(
         registry = NipRegistry.Builder(codec)
             .install(Nip01Module(codec))
@@ -80,7 +82,7 @@ class CoroutinesRelayPool(
         transportFactory = transportFactory,
         scope = scope,
         sessionConfig = sessionConfig,
-        deduplicationPolicyFactory = deduplicationPolicyFactory,
+        deduplicationPolicyFactory = deduplicationPolicyFactory
     )
 
     init {
@@ -90,33 +92,37 @@ class CoroutinesRelayPool(
     private data class RelayEntry(
         val session: CoroutinesRelaySession,
         var role: RelayRole,
-        val jobs: MutableList<Job> = mutableListOf(),
+        val jobs: MutableList<Job> = mutableListOf()
     )
 
     private val mutex = Mutex()
     private val relays = mutableMapOf<RelayUrl, RelayEntry>()
 
-    private val _connectionStatuses = MutableStateFlow<Map<RelayUrl, ConnectionStatus>>(emptyMap())
-    val connectionStatusFlow: StateFlow<Map<RelayUrl, ConnectionStatus>> = _connectionStatuses.asStateFlow()
+    private val connectionStatuses = MutableStateFlow<Map<RelayUrl, ConnectionStatus>>(emptyMap())
+    val connectionStatusFlow: StateFlow<Map<RelayUrl, ConnectionStatus>> =
+        connectionStatuses.asStateFlow()
 
     private val _notices = MutableSharedFlow<RelayNotice>(
         replay = 0,
         extraBufferCapacity = 16,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     val notices: SharedFlow<RelayNotice> = _notices.asSharedFlow()
 
     private val _errors = MutableSharedFlow<SessionError>(
         replay = 0,
         extraBufferCapacity = 16,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     val errors: SharedFlow<SessionError> = _errors.asSharedFlow()
 
     /**
      * Adds a relay to the pool or updates its role if already present.
      */
-    suspend fun addRelay(url: RelayUrl, role: RelayRole = RelayRole.ReadWrite): CoroutinesRelaySession {
+    suspend fun addRelay(
+        url: RelayUrl,
+        role: RelayRole = RelayRole.ReadWrite
+    ): CoroutinesRelaySession {
         val entry = mutex.withLock {
             val existing = relays[url]
             if (existing != null) {
@@ -131,11 +137,11 @@ class CoroutinesRelayPool(
                 eventVerifier = eventVerifier,
                 transportFactory = transportFactory,
                 scope = scope,
-                config = sessionConfig,
+                config = sessionConfig
             )
             val newEntry = RelayEntry(session, role)
             relays[url] = newEntry
-            _connectionStatuses.update { current ->
+            connectionStatuses.update { current ->
                 current + (url to session.connectionStatus)
             }
             attachSession(newEntry)
@@ -151,7 +157,7 @@ class CoroutinesRelayPool(
     suspend fun removeRelay(url: RelayUrl, close: Boolean = true) {
         val entry = mutex.withLock {
             relays.remove(url)?.also {
-                _connectionStatuses.update { current -> current - url }
+                connectionStatuses.update { current -> current - url }
             }
         } ?: return
 
@@ -193,7 +199,7 @@ class CoroutinesRelayPool(
         val entries = mutex.withLock {
             val current = relays.values.toList()
             relays.clear()
-            _connectionStatuses.value = emptyMap()
+            connectionStatuses.value = emptyMap()
             current
         }
 
@@ -213,7 +219,7 @@ class CoroutinesRelayPool(
     suspend fun subscribe(
         filters: List<Filter>,
         subscriptionId: SubscriptionId = generateSubscriptionId(),
-        relayUrls: Set<RelayUrl>? = null,
+        relayUrls: Set<RelayUrl>? = null
     ): CoroutinesPoolSubscriptionHandle {
         val entries = selectRelays(relayUrls) { it.canRead }
 
@@ -225,7 +231,7 @@ class CoroutinesRelayPool(
             subscriptionId = subscriptionId,
             handles = handles,
             deduplicationPolicy = deduplicationPolicyFactory(),
-            scope = scope,
+            scope = scope
         )
     }
 
@@ -237,7 +243,7 @@ class CoroutinesRelayPool(
      */
     suspend fun publish(
         event: Event,
-        relayUrls: Set<RelayUrl>? = null,
+        relayUrls: Set<RelayUrl>? = null
     ): CoroutinesPoolPublishHandle {
         val entries = selectRelays(relayUrls) { it.canWrite }
 
@@ -248,13 +254,13 @@ class CoroutinesRelayPool(
         return CoroutinesPoolPublishHandle(
             eventId = event.id,
             handles = handles,
-            scope = scope,
+            scope = scope
         )
     }
 
     private suspend fun selectRelays(
         relayUrls: Set<RelayUrl>?,
-        roleFilter: (RelayRole) -> Boolean,
+        roleFilter: (RelayRole) -> Boolean
     ): Map<RelayUrl, RelayEntry> = mutex.withLock {
         if (relayUrls == null) {
             relays.filter { (_, entry) -> roleFilter(entry.role) }
@@ -282,7 +288,7 @@ class CoroutinesRelayPool(
             session.connectionStatusFlow.collect { status ->
                 mutex.withLock {
                     if (relays.containsKey(session.url)) {
-                        _connectionStatuses.update { current ->
+                        connectionStatuses.update { current ->
                             current + (session.url to status)
                         }
                     }

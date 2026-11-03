@@ -46,59 +46,64 @@ import io.github.nicolals.nostr.nip01.message.ReqClientMessage
  *
  * @param wireCodec Codec for creating client messages.
  */
-class Nip01Reducer(
-    private val wireCodec: NostrWireCodec,
-) : ProtocolReducer {
+class Nip01Reducer(private val wireCodec: NostrWireCodec) : ProtocolReducer {
 
-    override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? {
-        return when (input) {
-            // Transport lifecycle
-            is TransportInput.Opened -> handleTransportOpened(state, input)
-            is TransportInput.Closed -> handleTransportClosed(state, input)
-            is TransportInput.Failed -> handleTransportFailed(state, input)
+    override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? = when (input) {
+        // Transport lifecycle
+        is TransportInput.Opened -> handleTransportOpened(state, input)
 
-            // User intents
-            is Nip01Intent.Subscribe -> handleSubscribe(state, input)
-            is Nip01Intent.Publish -> handlePublish(state, input)
-            is Nip01Intent.CloseSubscription -> handleCloseSubscription(state, input)
-            is Nip01Intent.ForgetSubscription -> handleForgetSubscription(state, input)
-            is Nip01Intent.ForgetPublish -> handleForgetPublish(state, input)
+        is TransportInput.Closed -> handleTransportClosed(state, input)
 
-            // Inbound messages
-            is InboundMessage -> handleInboundMessage(state, input.message)
+        is TransportInput.Failed -> handleTransportFailed(state, input)
 
-            else -> null
-        }
+        // User intents
+        is Nip01Intent.Subscribe -> handleSubscribe(state, input)
+
+        is Nip01Intent.Publish -> handlePublish(state, input)
+
+        is Nip01Intent.CloseSubscription -> handleCloseSubscription(state, input)
+
+        is Nip01Intent.ForgetSubscription -> handleForgetSubscription(state, input)
+
+        is Nip01Intent.ForgetPublish -> handleForgetPublish(state, input)
+
+        // Inbound messages
+        is InboundMessage -> handleInboundMessage(state, input.message)
+
+        else -> null
     }
 
     // ========== Transport Lifecycle ==========
 
-    private fun handleTransportOpened(state: ProtocolState, input: TransportInput.Opened): ReduceResult {
+    private fun handleTransportOpened(
+        state: ProtocolState,
+        input: TransportInput.Opened
+    ): ReduceResult {
         val newState = state.withConnection(ConnectionState(ConnectionPhase.Open, input.context))
         return ReduceResult.withSignals(newState, CoreSignal.ConnectionOpened)
     }
 
     private fun handleTransportClosed(
         state: ProtocolState,
-        input: TransportInput.Closed,
+        input: TransportInput.Closed
     ): ReduceResult {
         val (newState, signals) = interruptActiveOperations(state)
         val finalState = newState.withConnection(ConnectionState(ConnectionPhase.Disconnected))
         return ReduceResult(
             state = finalState,
-            signals = signals + CoreSignal.ConnectionClosed(input.info),
+            signals = signals + CoreSignal.ConnectionClosed(input.info)
         )
     }
 
     private fun handleTransportFailed(
         state: ProtocolState,
-        input: TransportInput.Failed,
+        input: TransportInput.Failed
     ): ReduceResult {
         val (newState, signals) = interruptActiveOperations(state)
         val finalState = newState.withConnection(ConnectionState(ConnectionPhase.Disconnected))
         return ReduceResult(
             state = finalState,
-            signals = signals + CoreSignal.ConnectionFailed(input.error),
+            signals = signals + CoreSignal.ConnectionFailed(input.error)
         )
     }
 
@@ -106,7 +111,7 @@ class Nip01Reducer(
      * Marks all active subscriptions and pending publishes as Interrupted.
      */
     private fun interruptActiveOperations(
-        state: ProtocolState,
+        state: ProtocolState
     ): Pair<ProtocolState, List<ProtocolSignal>> {
         var newState = state
         val signals = mutableListOf<ProtocolSignal>()
@@ -134,10 +139,7 @@ class Nip01Reducer(
 
     // ========== User Intents ==========
 
-    private fun handleSubscribe(
-        state: ProtocolState,
-        intent: Nip01Intent.Subscribe,
-    ): ReduceResult {
+    private fun handleSubscribe(state: ProtocolState, intent: Nip01Intent.Subscribe): ReduceResult {
         if (!state.isConnected) {
             // Cannot subscribe when not connected - no state change
             return ReduceResult.stateOnly(state)
@@ -150,13 +152,13 @@ class Nip01Reducer(
             subscriptionId = intent.subscriptionId,
             generation = generation,
             phase = SubscriptionPhase.CatchingUp,
-            filters = intent.filters,
+            filters = intent.filters
         )
 
         val reqMessage = ReqClientMessage.create(
             intent.subscriptionId,
             intent.filters,
-            wireCodec,
+            wireCodec
         )
 
         val newState = state.withSubscription(subState)
@@ -164,14 +166,11 @@ class Nip01Reducer(
         return ReduceResult(
             state = newState,
             effects = listOf(ProtocolEffect.Send(reqMessage)),
-            signals = listOf(Nip01Signal.SubscriptionStarted(intent.subscriptionId, generation)),
+            signals = listOf(Nip01Signal.SubscriptionStarted(intent.subscriptionId, generation))
         )
     }
 
-    private fun handlePublish(
-        state: ProtocolState,
-        intent: Nip01Intent.Publish,
-    ): ReduceResult {
+    private fun handlePublish(state: ProtocolState, intent: Nip01Intent.Publish): ReduceResult {
         if (!state.isConnected) {
             // Cannot publish when not connected - no state change
             return ReduceResult.stateOnly(state)
@@ -181,7 +180,7 @@ class Nip01Reducer(
         val pubState = PublishState(
             eventId = eventId,
             status = PublishStatus.Pending,
-            okMessage = null,
+            okMessage = null
         )
 
         val eventMessage = EventClientMessage.create(intent.event, wireCodec)
@@ -192,13 +191,13 @@ class Nip01Reducer(
         return ReduceResult(
             state = newState,
             effects = listOf(ProtocolEffect.Send(eventMessage)),
-            signals = signals,
+            signals = signals
         )
     }
 
     private fun handleCloseSubscription(
         state: ProtocolState,
-        intent: Nip01Intent.CloseSubscription,
+        intent: Nip01Intent.CloseSubscription
     ): ReduceResult {
         val sub = state.subscription(intent.subscriptionId)
             ?: return ReduceResult.stateOnly(state)
@@ -214,13 +213,13 @@ class Nip01Reducer(
 
         return ReduceResult(
             state = newState,
-            effects = listOf(ProtocolEffect.Send(closeMessage)),
+            effects = listOf(ProtocolEffect.Send(closeMessage))
         )
     }
 
     private fun handleForgetSubscription(
         state: ProtocolState,
-        intent: Nip01Intent.ForgetSubscription,
+        intent: Nip01Intent.ForgetSubscription
     ): ReduceResult {
         val newState = state.withoutSubscription(intent.subscriptionId)
         return ReduceResult.stateOnly(newState)
@@ -228,7 +227,7 @@ class Nip01Reducer(
 
     private fun handleForgetPublish(
         state: ProtocolState,
-        intent: Nip01Intent.ForgetPublish,
+        intent: Nip01Intent.ForgetPublish
     ): ReduceResult {
         val newState = state.withoutPublish(intent.eventId)
         return ReduceResult.stateOnly(newState)
@@ -238,22 +237,17 @@ class Nip01Reducer(
 
     private fun handleInboundMessage(
         state: ProtocolState,
-        message: io.github.nicolals.nostr.core.message.view.RelayMessageView,
-    ): ReduceResult? {
-        return when (message) {
-            is RelayEventMessage -> handleRelayEvent(state, message)
-            is EoseMessage -> handleEose(state, message)
-            is OkMessage -> handleOk(state, message)
-            is ClosedMessage -> handleClosed(state, message)
-            is NoticeMessage -> handleNotice(state, message)
-            else -> null
-        }
+        message: io.github.nicolals.nostr.core.message.view.RelayMessageView
+    ): ReduceResult? = when (message) {
+        is RelayEventMessage -> handleRelayEvent(state, message)
+        is EoseMessage -> handleEose(state, message)
+        is OkMessage -> handleOk(state, message)
+        is ClosedMessage -> handleClosed(state, message)
+        is NoticeMessage -> handleNotice(state, message)
+        else -> null
     }
 
-    private fun handleRelayEvent(
-        state: ProtocolState,
-        message: RelayEventMessage,
-    ): ReduceResult {
+    private fun handleRelayEvent(state: ProtocolState, message: RelayEventMessage): ReduceResult {
         val subscriptionId = message.subscriptionId
             ?: return ReduceResult.stateOnly(state)
 
@@ -271,16 +265,13 @@ class Nip01Reducer(
         val signal = Nip01Signal.SubscriptionEvent(
             subscriptionId = subscriptionId,
             generation = sub.generation,
-            event = event,
+            event = event
         )
 
         return ReduceResult.withSignals(state, signal)
     }
 
-    private fun handleEose(
-        state: ProtocolState,
-        message: EoseMessage,
-    ): ReduceResult {
+    private fun handleEose(state: ProtocolState, message: EoseMessage): ReduceResult {
         val subscriptionId = message.subscriptionId
             ?: return ReduceResult.stateOnly(state)
 
@@ -297,16 +288,13 @@ class Nip01Reducer(
 
         val signal = Nip01Signal.SubscriptionEose(
             subscriptionId = subscriptionId,
-            generation = sub.generation,
+            generation = sub.generation
         )
 
         return ReduceResult.withSignals(newState, signal)
     }
 
-    private fun handleOk(
-        state: ProtocolState,
-        message: OkMessage,
-    ): ReduceResult {
+    private fun handleOk(state: ProtocolState, message: OkMessage): ReduceResult {
         val eventId = message.eventId
             ?: return ReduceResult.stateOnly(state)
 
@@ -325,7 +313,7 @@ class Nip01Reducer(
 
         val newPubState = pub.copy(
             status = newStatus,
-            okMessage = message.message,
+            okMessage = message.message
         )
 
         val newState = state.withPublish(newPubState)
@@ -339,10 +327,7 @@ class Nip01Reducer(
         return ReduceResult.withSignals(newState, signal)
     }
 
-    private fun handleClosed(
-        state: ProtocolState,
-        message: ClosedMessage,
-    ): ReduceResult {
+    private fun handleClosed(state: ProtocolState, message: ClosedMessage): ReduceResult {
         val subscriptionId = message.subscriptionId
             ?: return ReduceResult.stateOnly(state)
 
@@ -356,7 +341,7 @@ class Nip01Reducer(
 
         val closedState = sub.copy(
             phase = SubscriptionPhase.Closed,
-            closedReason = message.message,
+            closedReason = message.message
         )
 
         val newState = state.withSubscription(closedState)
@@ -366,16 +351,12 @@ class Nip01Reducer(
             subscriptionId = subscriptionId,
             generation = sub.generation,
             reason = message.message,
-            byRelay = initiatedByRelay,
+            byRelay = initiatedByRelay
         )
 
         return ReduceResult.withSignals(newState, signal)
     }
 
-    private fun handleNotice(
-        state: ProtocolState,
-        message: NoticeMessage,
-    ): ReduceResult {
-        return ReduceResult.withSignals(state, Nip01Signal.Notice(message.message))
-    }
+    private fun handleNotice(state: ProtocolState, message: NoticeMessage): ReduceResult =
+        ReduceResult.withSignals(state, Nip01Signal.Notice(message.message))
 }

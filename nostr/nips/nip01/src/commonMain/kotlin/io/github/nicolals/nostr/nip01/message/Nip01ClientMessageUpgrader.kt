@@ -1,10 +1,10 @@
 package io.github.nicolals.nostr.nip01.message
 
-import io.github.nicolals.nostr.core.codec.wire.toFilterOrNull
 import io.github.nicolals.nostr.core.codec.JsonString
 import io.github.nicolals.nostr.core.codec.NostrWireCodec
 import io.github.nicolals.nostr.core.codec.wire.WireFilter
 import io.github.nicolals.nostr.core.codec.wire.toEventOrNull
+import io.github.nicolals.nostr.core.codec.wire.toFilterOrNull
 import io.github.nicolals.nostr.core.message.raw.RawClientMessage
 import io.github.nicolals.nostr.core.message.upgrade.ClientMessageUpgrader
 import io.github.nicolals.nostr.core.message.view.ClientMessageView
@@ -12,24 +12,22 @@ import io.github.nicolals.nostr.core.message.view.ClientMessageView
 /**
  * Upgrader for NIP-01 client messages: EVENT, REQ, CLOSE.
  */
-class Nip01ClientMessageUpgrader(
-    private val wireCodec: NostrWireCodec,
-) : ClientMessageUpgrader<ClientMessageView> {
+class Nip01ClientMessageUpgrader(private val wireCodec: NostrWireCodec) :
+    ClientMessageUpgrader<ClientMessageView> {
 
     override val tokens: Set<String> = setOf(
         EventClientMessage.TOKEN,
         ReqClientMessage.TOKEN,
-        CloseClientMessage.TOKEN,
+        CloseClientMessage.TOKEN
     )
 
-    override fun upgradeOrNull(raw: RawClientMessage, token: String): ClientMessageView? {
-        return when (token) {
+    override fun upgradeOrNull(raw: RawClientMessage, token: String): ClientMessageView? =
+        when (token) {
             EventClientMessage.TOKEN -> upgradeEventMessage(raw)
             ReqClientMessage.TOKEN -> upgradeReqMessage(raw)
             CloseClientMessage.TOKEN -> upgradeCloseMessage(raw)
             else -> null
         }
-    }
 
     private fun upgradeEventMessage(raw: RawClientMessage): EventClientMessage? {
         // ["EVENT", <event>]
@@ -64,7 +62,7 @@ class Nip01ClientMessageUpgrader(
             subscriptionIdString = subscriptionIdString,
             subscriptionId = subscriptionId,
             wireFilters = wireFilters,
-            filters = if (allFiltersValid) filters.filterNotNull() else null,
+            filters = if (allFiltersValid) filters.filterNotNull() else null
         )
     }
 

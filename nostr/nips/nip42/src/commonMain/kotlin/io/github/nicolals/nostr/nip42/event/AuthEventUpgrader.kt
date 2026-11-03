@@ -11,7 +11,5 @@ class AuthEventUpgrader : EventUpgrader<AuthEvent> {
 
     override val kinds: Set<EventKind> = setOf(AuthEvent.KIND)
 
-    override fun upgradeOrNull(event: Event): AuthEvent? {
-        return AuthEvent.fromEventOrNull(event)
-    }
+    override fun upgradeOrNull(event: Event): AuthEvent? = AuthEvent.fromEventOrNull(event)
 }

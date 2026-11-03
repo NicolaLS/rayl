@@ -10,5 +10,5 @@ data class WireEvent(
     val kind: Int,
     val tags: WireEventTags,
     val content: String,
-    val sig: String,
+    val sig: String
 )

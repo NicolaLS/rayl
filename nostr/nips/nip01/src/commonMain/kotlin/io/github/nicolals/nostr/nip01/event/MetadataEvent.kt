@@ -1,10 +1,10 @@
 package io.github.nicolals.nostr.nip01.event
 
+import io.github.nicolals.nostr.core.codec.JsonCodec
 import io.github.nicolals.nostr.core.event.Event
 import io.github.nicolals.nostr.core.event.template.EventDraft
 import io.github.nicolals.nostr.core.event.template.EventTemplate
 import io.github.nicolals.nostr.core.event.view.EventView
-import io.github.nicolals.nostr.core.codec.JsonCodec
 import io.github.nicolals.nostr.core.primitives.EventKind
 import io.github.nicolals.nostr.core.primitives.EventTags
 import io.github.nicolals.nostr.core.primitives.UnixTimeSeconds
@@ -13,10 +13,7 @@ import io.github.nicolals.nostr.nip01.encodeContent
 import io.github.nicolals.nostr.nip01.model.Birthday
 import io.github.nicolals.nostr.nip01.model.Metadata
 
-open class MetadataEvent(
-    override val event: Event,
-    open val metadata: Metadata
-) : EventView {
+open class MetadataEvent(override val event: Event, open val metadata: Metadata) : EventView {
     companion object {
         val KIND = EventKind(0)
 
@@ -39,7 +36,7 @@ open class MetadataEvent(
             website: String? = null,
             banner: String? = null,
             bot: Boolean? = null,
-            birthday: Birthday? = null,
+            birthday: Birthday? = null
         ): EventTemplate<MetadataEvent> {
             val metadata = Metadata(
                 name = name,
@@ -49,7 +46,7 @@ open class MetadataEvent(
                 website = website,
                 banner = banner,
                 bot = bot,
-                birthday = birthday,
+                birthday = birthday
             )
             return template(
                 metadata = metadata,
@@ -70,9 +67,11 @@ open class MetadataEvent(
                 createdAt = createdAt,
                 kind = KIND,
                 tags = tags,
-                content = metadataContent,
+                content = metadataContent
             )
-            return EventTemplate(draft) { event -> MetadataEvent(event = event, metadata = metadata) }
+            return EventTemplate(draft) { event ->
+                MetadataEvent(event = event, metadata = metadata)
+            }
         }
     }
 

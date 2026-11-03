@@ -90,10 +90,7 @@ sealed interface PublishStatus {
      * @property attempt The retry attempt number (1 for first retry).
      * @property delayMs Delay before the retry attempt.
      */
-    data class Retrying(
-        val attempt: Int,
-        val delayMs: Long,
-    ) : PublishStatus {
+    data class Retrying(val attempt: Int, val delayMs: Long) : PublishStatus {
         override val isTerminal: Boolean = false
     }
 

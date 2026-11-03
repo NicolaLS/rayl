@@ -26,10 +26,13 @@ object NostrCrypto : CryptoPrimitives {
         }
     }
 
-    override fun ecdhXOnly(privateKey32: ByteString, publicKeyBytes: ByteString): CryptoResult<ByteString> {
+    override fun ecdhXOnly(
+        privateKey32: ByteString,
+        publicKeyBytes: ByteString
+    ): CryptoResult<ByteString> {
         if (privateKey32.size != 32) {
             return CryptoResult.Err(
-                CryptoError.InvalidPrivateKey("expected 32 bytes, got ${privateKey32.size}"),
+                CryptoError.InvalidPrivateKey("expected 32 bytes, got ${privateKey32.size}")
             )
         }
         val pubKey = publicKeyBytes.toByteArray()
@@ -40,9 +43,12 @@ object NostrCrypto : CryptoPrimitives {
             }
 
             33, 65 -> pubKey
+
             else -> {
                 return CryptoResult.Err(
-                    CryptoError.InvalidPublicKey("expected 32, 33, or 65 bytes, got ${pubKey.size}"),
+                    CryptoError.InvalidPublicKey(
+                        "expected 32, 33, or 65 bytes, got ${pubKey.size}"
+                    )
                 )
             }
         }
@@ -50,7 +56,9 @@ object NostrCrypto : CryptoPrimitives {
         return runProvider("ecdhXOnly") {
             val sharedPubKey = Secp256k1.pubKeyTweakMul(normalizedPubKey, privKey)
             if (sharedPubKey.size < 33) {
-                throw IllegalStateException("unexpected shared public key size: ${sharedPubKey.size}")
+                throw IllegalStateException(
+                    "unexpected shared public key size: ${sharedPubKey.size}"
+                )
             }
             sharedPubKey.copyOfRange(1, 33).toByteString()
         }
@@ -60,7 +68,9 @@ object NostrCrypto : CryptoPrimitives {
         withSodium("sha256") { sha256Bytes(data.toByteArray()).toByteString() }
 
     override fun hmacSha256(key: ByteString, data: ByteString): CryptoResult<ByteString> =
-        withSodium("hmacSha256") { hmacSha256Bytes(key.toByteArray(), data.toByteArray()).toByteString() }
+        withSodium("hmacSha256") {
+            hmacSha256Bytes(key.toByteArray(), data.toByteArray()).toByteString()
+        }
 
     override fun hkdfExtractSha256(salt: ByteString, ikm: ByteString): CryptoResult<ByteString> =
         withSodium("hkdfExtractSha256") {
@@ -70,7 +80,11 @@ object NostrCrypto : CryptoPrimitives {
             hmacSha256Bytes(actualSalt, ikmBytes).toByteString()
         }
 
-    override fun hkdfExpandSha256(prk: ByteString, info: ByteString, length: Int): CryptoResult<ByteString> {
+    override fun hkdfExpandSha256(
+        prk: ByteString,
+        info: ByteString,
+        length: Int
+    ): CryptoResult<ByteString> {
         if (length < 0) return invalidInput("length", ">= 0", length)
         if (length == 0) return CryptoResult.Ok(ByteString.EMPTY)
         if (length > HKDF_MAX_LEN) return invalidInput("length", "0..$HKDF_MAX_LEN", length)
@@ -97,7 +111,7 @@ object NostrCrypto : CryptoPrimitives {
     override fun aes256CbcEncrypt(
         key32: ByteString,
         iv16: ByteString,
-        plaintext: ByteString,
+        plaintext: ByteString
     ): CryptoResult<ByteString> {
         if (key32.size != 32) return invalidInput("key32", "32 bytes", key32.size)
         if (iv16.size != AES_BLOCK_SIZE) return invalidInput("iv16", "16 bytes", iv16.size)
@@ -105,7 +119,7 @@ object NostrCrypto : CryptoPrimitives {
             Aes256Cbc.encrypt(
                 key32.toByteArray(),
                 iv16.toByteArray(),
-                plaintext.toByteArray(),
+                plaintext.toByteArray()
             ).toByteString()
         }
     }
@@ -113,7 +127,7 @@ object NostrCrypto : CryptoPrimitives {
     override fun aes256CbcDecrypt(
         key32: ByteString,
         iv16: ByteString,
-        ciphertext: ByteString,
+        ciphertext: ByteString
     ): CryptoResult<ByteString> {
         if (key32.size != 32) return invalidInput("key32", "32 bytes", key32.size)
         if (iv16.size != AES_BLOCK_SIZE) return invalidInput("iv16", "16 bytes", iv16.size)
@@ -125,7 +139,7 @@ object NostrCrypto : CryptoPrimitives {
             Aes256Cbc.decrypt(
                 key32.toByteArray(),
                 iv16.toByteArray(),
-                ciphertext.toByteArray(),
+                ciphertext.toByteArray()
             ).toByteString()
         }
     }
@@ -134,7 +148,7 @@ object NostrCrypto : CryptoPrimitives {
     override fun chacha20IetfXor(
         key32: ByteString,
         nonce12: ByteString,
-        input: ByteString,
+        input: ByteString
     ): CryptoResult<ByteString> {
         if (key32.size != 32) return invalidInput("key32", "32 bytes", key32.size)
         if (nonce12.size != 12) return invalidInput("nonce12", "12 bytes", nonce12.size)
@@ -142,29 +156,30 @@ object NostrCrypto : CryptoPrimitives {
             val output = Stream.chacha20IetfXor(
                 input.toByteArray().toUByteArray(),
                 nonce12.toByteArray().toUByteArray(),
-                key32.toByteArray().toUByteArray(),
+                key32.toByteArray().toUByteArray()
             )
             output.toByteString()
         }
     }
 
     @OptIn(ExperimentalUnsignedTypes::class)
-    override fun base64Encode(data: ByteString): CryptoResult<String> =
-        withSodium("base64Encode") {
-            LibsodiumUtil.toBase64(data.toByteArray().toUByteArray(), Base64Variants.ORIGINAL)
-        }
+    override fun base64Encode(data: ByteString): CryptoResult<String> = withSodium("base64Encode") {
+        LibsodiumUtil.toBase64(data.toByteArray().toUByteArray(), Base64Variants.ORIGINAL)
+    }
 
     @OptIn(ExperimentalUnsignedTypes::class)
-    override fun base64Decode(data: String): CryptoResult<ByteString> {
-        return when (val init = ensureSodium()) {
+    override fun base64Decode(data: String): CryptoResult<ByteString> =
+        when (val init = ensureSodium()) {
             is CryptoResult.Err -> CryptoResult.Err(init.error)
+
             is CryptoResult.Ok -> try {
-                CryptoResult.Ok(LibsodiumUtil.fromBase64(data, Base64Variants.ORIGINAL).toByteString())
+                CryptoResult.Ok(
+                    LibsodiumUtil.fromBase64(data, Base64Variants.ORIGINAL).toByteString()
+                )
             } catch (e: Exception) {
                 CryptoResult.Err(CryptoError.DecodeError("base64"))
             }
         }
-    }
 
     @OptIn(ExperimentalUnsignedTypes::class)
     override fun constantTimeEquals(a: ByteString, b: ByteString): CryptoResult<Boolean> {
@@ -217,28 +232,24 @@ object NostrCrypto : CryptoPrimitives {
     private fun invalidInput(name: String, expected: String, actual: Int): CryptoResult<Nothing> =
         CryptoResult.Err(CryptoError.InvalidInput(name, expected, actual))
 
-    private inline fun <T> withSodium(operation: String, block: () -> T): CryptoResult<T> {
-        return when (val init = ensureSodium()) {
+    private inline fun <T> withSodium(operation: String, block: () -> T): CryptoResult<T> =
+        when (val init = ensureSodium()) {
             is CryptoResult.Err -> CryptoResult.Err(init.error)
             is CryptoResult.Ok -> runProvider(operation, block)
         }
+
+    private inline fun <T> runProvider(operation: String, block: () -> T): CryptoResult<T> = try {
+        CryptoResult.Ok(block())
+    } catch (e: Exception) {
+        CryptoResult.Err(CryptoError.ProviderError(operation))
     }
 
-    private inline fun <T> runProvider(operation: String, block: () -> T): CryptoResult<T> =
-        try {
-            CryptoResult.Ok(block())
-        } catch (e: Exception) {
-            CryptoResult.Err(CryptoError.ProviderError(operation))
-        }
-
-    private inline fun <T> runDecrypt(block: () -> T): CryptoResult<T> =
-        try {
-            CryptoResult.Ok(block())
-        } catch (e: Exception) {
-            CryptoResult.Err(CryptoError.DecryptionFailed())
-        }
+    private inline fun <T> runDecrypt(block: () -> T): CryptoResult<T> = try {
+        CryptoResult.Ok(block())
+    } catch (e: Exception) {
+        CryptoResult.Err(CryptoError.DecryptionFailed())
+    }
 
     @OptIn(ExperimentalUnsignedTypes::class)
-    private fun UByteArray.toByteString(): ByteString =
-        toByteArray().toByteString()
+    private fun UByteArray.toByteString(): ByteString = toByteArray().toByteString()
 }

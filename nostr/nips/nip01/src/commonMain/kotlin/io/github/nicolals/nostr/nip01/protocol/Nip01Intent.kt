@@ -28,10 +28,9 @@ sealed interface Nip01Intent : ProtocolInput {
      * @property subscriptionId The subscription identifier.
      * @property filters Filters defining which events to receive.
      */
-    data class Subscribe(
-        val subscriptionId: SubscriptionId,
-        val filters: List<Filter>,
-    ) : Nip01Intent, OperationIntent
+    data class Subscribe(val subscriptionId: SubscriptionId, val filters: List<Filter>) :
+        Nip01Intent,
+        OperationIntent
 
     /**
      * Request to publish an event to the relay.
@@ -44,7 +43,9 @@ sealed interface Nip01Intent : ProtocolInput {
      *
      * @property event The signed event to publish.
      */
-    data class Publish(val event: Event) : Nip01Intent, OperationIntent
+    data class Publish(val event: Event) :
+        Nip01Intent,
+        OperationIntent
 
     /**
      * Request to close a subscription.

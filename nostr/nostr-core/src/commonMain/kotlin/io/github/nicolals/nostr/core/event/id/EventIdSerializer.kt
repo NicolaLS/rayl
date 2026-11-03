@@ -85,7 +85,7 @@ object EventIdSerializer {
         createdAt: UnixTimeSeconds,
         kind: EventKind,
         tags: EventTags,
-        content: String,
+        content: String
     ): Buffer {
         val b = Buffer()
         b.writeByte('['.code)
@@ -109,7 +109,7 @@ object EventIdSerializer {
         createdAt: UnixTimeSeconds,
         kind: EventKind,
         tags: EventTags,
-        content: String,
+        content: String
     ): ByteString {
         val b = nip01SerializeToBuffer(pubkey, createdAt, kind, tags, content)
         return b.snapshot()

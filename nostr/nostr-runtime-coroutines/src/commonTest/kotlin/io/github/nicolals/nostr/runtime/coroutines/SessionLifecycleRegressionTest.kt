@@ -1,16 +1,34 @@
 package io.github.nicolals.nostr.runtime.coroutines
 
-import io.github.nicolals.nostr.core.runtime.*
 import io.github.nicolals.nostr.core.primitives.EventId
 import io.github.nicolals.nostr.core.primitives.SubscriptionId
-import io.github.nicolals.nostr.core.transport.*
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import io.github.nicolals.nostr.core.runtime.ConnectionStatus
+import io.github.nicolals.nostr.core.runtime.PublishStatus
+import io.github.nicolals.nostr.core.runtime.ReconnectDecision
+import io.github.nicolals.nostr.core.runtime.ReconnectPolicy
+import io.github.nicolals.nostr.core.runtime.RetryDecision
+import io.github.nicolals.nostr.core.runtime.RetryPolicy
+import io.github.nicolals.nostr.core.runtime.SessionConfig
+import io.github.nicolals.nostr.core.runtime.SubscriptionRetryReason
+import io.github.nicolals.nostr.core.transport.CloseInfo
+import io.github.nicolals.nostr.core.transport.RelayUrl
+import io.github.nicolals.nostr.core.transport.TransportError
+import io.github.nicolals.nostr.core.transport.TransportState
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.*
-import kotlin.test.*
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionLifecycleRegressionTest {
@@ -133,7 +151,11 @@ class SessionLifecycleRegressionTest {
         val owner = CoroutineScope(Job() + StandardTestDispatcher(testScheduler))
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://review.relay"), TestWireCodec(), AcceptTestEvents, factory, owner,
+            RelayUrl.parse("wss://review.relay"),
+            TestWireCodec(),
+            AcceptTestEvents,
+            factory,
+            owner
         )
         connect(session, factory)
         val subscription = session.subscribe(TestFixtures.testFilters)
@@ -151,8 +173,11 @@ class SessionLifecycleRegressionTest {
         val owner = CoroutineScope(Job() + StandardTestDispatcher(testScheduler))
         owner.cancel()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://review.relay"), TestWireCodec(), AcceptTestEvents,
-            FakeRelayTransportFactory(), owner,
+            RelayUrl.parse("wss://review.relay"),
+            TestWireCodec(),
+            AcceptTestEvents,
+            FakeRelayTransportFactory(),
+            owner
         )
         runCurrent()
         session.closeAndJoin()
@@ -162,9 +187,14 @@ class SessionLifecycleRegressionTest {
 
     @Test fun staleCallbacksCannotCloseOrDeliverThroughReplacementConnection() = runTest {
         val factory = FakeRelayTransportFactory()
-        val session = session(factory, SessionConfig(reconnectPolicy = ReconnectPolicy { _, _ ->
-            ReconnectDecision.Reconnect(100)
-        }))
+        val session = session(
+            factory,
+            SessionConfig(
+                reconnectPolicy = ReconnectPolicy { _, _ ->
+                    ReconnectDecision.Reconnect(100)
+                }
+            )
+        )
         connect(session, factory)
         val oldListener = factory.lastConnection!!.captureListener()
         factory.lastConnection!!.simulateFailure(TransportError.IoError("lost"))
@@ -201,9 +231,14 @@ class SessionLifecycleRegressionTest {
 
     @Test fun sendFailureLeavesPublishInterruptedUntilRetry() = runTest {
         val factory = FakeRelayTransportFactory()
-        val session = session(factory, SessionConfig(reconnectPolicy = ReconnectPolicy { _, _ ->
-            ReconnectDecision.Reconnect(100)
-        }))
+        val session = session(
+            factory,
+            SessionConfig(
+                reconnectPolicy = ReconnectPolicy { _, _ ->
+                    ReconnectDecision.Reconnect(100)
+                }
+            )
+        )
         connect(session, factory)
         factory.lastConnection!!.sendError = TransportError.Backpressure("send")
         val handle = session.publish(TestFixtures.testEvent)
@@ -254,9 +289,7 @@ class SessionLifecycleRegressionTest {
         val attempts = mutableListOf<Int>()
         val policy = object : RetryPolicy {
             override fun shouldRetryPublish(eventId: EventId, attempt: Int) = RetryDecision.Abandon
-            override fun shouldResubscribe(
-                subscriptionId: SubscriptionId, attempt: Int, reason: SubscriptionRetryReason,
-            ): RetryDecision {
+            override fun shouldResubscribe(subscriptionId: SubscriptionId, attempt: Int, reason: SubscriptionRetryReason): RetryDecision {
                 attempts.add(attempt)
                 return if (attempt <= 2) RetryDecision.Retry() else RetryDecision.Abandon
             }

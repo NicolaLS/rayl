@@ -9,7 +9,7 @@ import io.github.nicolals.nostr.core.transport.RelayUrl
  */
 class AuthChallenge internal constructor(
     val value: String,
-    internal val connection: ConnectionContext,
+    internal val connection: ConnectionContext
 ) {
     val relayUrl: RelayUrl get() = connection.relayUrl
 
@@ -19,5 +19,5 @@ class AuthChallenge internal constructor(
 enum class AuthRejectionReason {
     NotConnected,
     StaleChallenge,
-    InvalidEvent,
+    InvalidEvent
 }

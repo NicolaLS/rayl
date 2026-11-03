@@ -1,14 +1,14 @@
 package io.github.nicolals.nostr.nip44
 
 import io.github.nicolals.nostr.core.crypto.CryptoError
-import io.github.nicolals.nostr.core.crypto.CryptoResult
 import io.github.nicolals.nostr.core.crypto.CryptoPrimitives
+import io.github.nicolals.nostr.core.crypto.CryptoResult
 import io.github.nicolals.nostr.core.primitives.PublicKey
 import io.github.nicolals.nostr.nip44.model.Nip44MessageKeys
 import io.github.nicolals.nostr.nip44.model.Nip44Payload
+import kotlin.text.CharacterCodingException
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
-import kotlin.text.CharacterCodingException
 
 private const val NIP44_VERSION: Byte = 0x02
 private const val NONCE_LEN = 32
@@ -31,19 +31,18 @@ private val NIP44_VERSION_BYTES = byteArrayOf(NIP44_VERSION).toByteString()
 
 fun CryptoPrimitives.nip44ConversationKey(
     privateKey32: ByteString,
-    publicKey: PublicKey,
-): CryptoResult<ByteString> =
-    ecdhXOnly(privateKey32, publicKey.bytes).flatMap { sharedSecret ->
-        if (sharedSecret.size != KEY_LEN) {
-            invalidInput("sharedSecret", "32 bytes", sharedSecret.size)
-        } else {
-            hkdfExtractSha256(NIP44_SALT, sharedSecret)
-        }
+    publicKey: PublicKey
+): CryptoResult<ByteString> = ecdhXOnly(privateKey32, publicKey.bytes).flatMap { sharedSecret ->
+    if (sharedSecret.size != KEY_LEN) {
+        invalidInput("sharedSecret", "32 bytes", sharedSecret.size)
+    } else {
+        hkdfExtractSha256(NIP44_SALT, sharedSecret)
     }
+}
 
 fun CryptoPrimitives.nip44MessageKeys(
     conversationKey: ByteString,
-    nonce: ByteString,
+    nonce: ByteString
 ): CryptoResult<Nip44MessageKeys> {
     if (conversationKey.size != KEY_LEN) {
         return invalidInput("conversationKey", "32 bytes", conversationKey.size)
@@ -90,7 +89,7 @@ fun CryptoPrimitives.decodeNip44Payload(payload: String): CryptoResult<Nip44Payl
             return@flatMap invalidInput(
                 "payload",
                 "decoded length $MIN_DECODED_LEN..$MAX_DECODED_LEN",
-                decodedLen,
+                decodedLen
             )
         }
         val bytes = decoded.toByteArray()
@@ -108,7 +107,7 @@ fun CryptoPrimitives.decodeNip44Payload(payload: String): CryptoResult<Nip44Payl
 fun CryptoPrimitives.encryptNip44(
     plaintext: String,
     senderPrivateKey: ByteString,
-    recipientPublicKey: PublicKey,
+    recipientPublicKey: PublicKey
 ): CryptoResult<Nip44Payload> =
     nip44ConversationKey(senderPrivateKey, recipientPublicKey).flatMap { conversationKey ->
         nip44RandomNonce().flatMap { nonce ->
@@ -119,36 +118,35 @@ fun CryptoPrimitives.encryptNip44(
 fun CryptoPrimitives.encryptNip44(
     plaintext: String,
     conversationKey: ByteString,
-    nonce: ByteString,
-): CryptoResult<Nip44Payload> =
-    nip44MessageKeys(conversationKey, nonce).flatMap { keys ->
-        padNip44(plaintext).flatMap { padded ->
-            chacha20IetfXor(keys.chachaKey, keys.chachaNonce, padded).flatMap { ciphertext ->
-                hmacAad(keys.hmacKey, ciphertext, nonce).map { mac ->
-                    Nip44Payload(nonce = nonce, ciphertext = ciphertext, mac = mac)
-                }
+    nonce: ByteString
+): CryptoResult<Nip44Payload> = nip44MessageKeys(conversationKey, nonce).flatMap { keys ->
+    padNip44(plaintext).flatMap { padded ->
+        chacha20IetfXor(keys.chachaKey, keys.chachaNonce, padded).flatMap { ciphertext ->
+            hmacAad(keys.hmacKey, ciphertext, nonce).map { mac ->
+                Nip44Payload(nonce = nonce, ciphertext = ciphertext, mac = mac)
             }
         }
     }
+}
 
 fun CryptoPrimitives.encryptNip44Content(
     plaintext: String,
     senderPrivateKey: ByteString,
-    recipientPublicKey: PublicKey,
+    recipientPublicKey: PublicKey
 ): CryptoResult<String> =
     encryptNip44(plaintext, senderPrivateKey, recipientPublicKey).flatMap { encodeNip44Payload(it) }
 
 fun CryptoPrimitives.encryptNip44Content(
     plaintext: String,
     conversationKey: ByteString,
-    nonce: ByteString,
+    nonce: ByteString
 ): CryptoResult<String> =
     encryptNip44(plaintext, conversationKey, nonce).flatMap { encodeNip44Payload(it) }
 
 fun CryptoPrimitives.decryptNip44(
     payload: Nip44Payload,
     receiverPrivateKey: ByteString,
-    senderPublicKey: PublicKey,
+    senderPublicKey: PublicKey
 ): CryptoResult<String> =
     nip44ConversationKey(receiverPrivateKey, senderPublicKey).flatMap { conversationKey ->
         decryptNip44(payload, conversationKey)
@@ -156,14 +154,14 @@ fun CryptoPrimitives.decryptNip44(
 
 fun CryptoPrimitives.decryptNip44(
     payload: Nip44Payload,
-    conversationKey: ByteString,
+    conversationKey: ByteString
 ): CryptoResult<String> {
     val ciphertextLen = payload.ciphertext.size
     if (ciphertextLen < MIN_CIPHERTEXT_LEN || ciphertextLen > MAX_CIPHERTEXT_LEN) {
         return invalidInput(
             "ciphertext",
             "length $MIN_CIPHERTEXT_LEN..$MAX_CIPHERTEXT_LEN",
-            ciphertextLen,
+            ciphertextLen
         )
     }
     return nip44MessageKeys(conversationKey, payload.nonce).flatMap { keys ->
@@ -175,7 +173,7 @@ fun CryptoPrimitives.decryptNip44(
                     chacha20IetfXor(
                         keys.chachaKey,
                         keys.chachaNonce,
-                        payload.ciphertext,
+                        payload.ciphertext
                     ).flatMap { padded ->
                         unpadNip44(padded)
                     }
@@ -192,19 +190,17 @@ fun CryptoPrimitives.decryptNip44(
 fun CryptoPrimitives.decryptNip44Content(
     content: String,
     receiverPrivateKey: ByteString,
-    senderPublicKey: PublicKey,
-): CryptoResult<String> =
-    decodeNip44Payload(content).flatMap { payload ->
-        decryptNip44(payload, receiverPrivateKey, senderPublicKey)
-    }
+    senderPublicKey: PublicKey
+): CryptoResult<String> = decodeNip44Payload(content).flatMap { payload ->
+    decryptNip44(payload, receiverPrivateKey, senderPublicKey)
+}
 
 fun CryptoPrimitives.decryptNip44Content(
     content: String,
-    conversationKey: ByteString,
-): CryptoResult<String> =
-    decodeNip44Payload(content).flatMap { payload ->
-        decryptNip44(payload, conversationKey)
-    }
+    conversationKey: ByteString
+): CryptoResult<String> = decodeNip44Payload(content).flatMap { payload ->
+    decryptNip44(payload, conversationKey)
+}
 
 fun CryptoPrimitives.parseNip44ContentOrNull(content: String): Nip44Payload? =
     decodeNip44Payload(content).getOrNull()
@@ -212,7 +208,7 @@ fun CryptoPrimitives.parseNip44ContentOrNull(content: String): Nip44Payload? =
 private fun CryptoPrimitives.hmacAad(
     key: ByteString,
     message: ByteString,
-    aad: ByteString,
+    aad: ByteString
 ): CryptoResult<ByteString> {
     if (aad.size != NONCE_LEN) {
         return invalidInput("aad", "32 bytes", aad.size)
@@ -232,10 +228,12 @@ private fun encodeNip44PayloadBytes(payload: Nip44Payload): CryptoResult<ByteStr
         return invalidInput(
             "ciphertext",
             "length $MIN_CIPHERTEXT_LEN..$MAX_CIPHERTEXT_LEN",
-            ciphertextLen,
+            ciphertextLen
         )
     }
-    return CryptoResult.Ok(concat(NIP44_VERSION_BYTES, payload.nonce, payload.ciphertext, payload.mac))
+    return CryptoResult.Ok(
+        concat(NIP44_VERSION_BYTES, payload.nonce, payload.ciphertext, payload.mac)
+    )
 }
 
 private fun padNip44(plaintext: String): CryptoResult<ByteString> {
@@ -253,7 +251,7 @@ private fun padNip44(plaintext: String): CryptoResult<ByteString> {
         return invalidInput(
             "plaintext",
             "length $MIN_PLAINTEXT_LEN..$MAX_PLAINTEXT_LEN bytes",
-            unpaddedLen,
+            unpaddedLen
         )
     }
     val paddedLen = calcPaddedLen(unpaddedLen)

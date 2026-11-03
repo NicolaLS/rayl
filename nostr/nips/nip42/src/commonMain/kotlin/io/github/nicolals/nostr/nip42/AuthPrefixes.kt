@@ -47,7 +47,9 @@ fun String.authRequiredReason(): String? {
     val trimmed = trimStart()
     return if (trimmed.startsWith(AuthPrefixes.AUTH_REQUIRED)) {
         trimmed.removePrefix(AuthPrefixes.AUTH_REQUIRED).trimStart()
-    } else null
+    } else {
+        null
+    }
 }
 
 /**
@@ -58,5 +60,7 @@ fun String.restrictedReason(): String? {
     val trimmed = trimStart()
     return if (trimmed.startsWith(AuthPrefixes.RESTRICTED)) {
         trimmed.removePrefix(AuthPrefixes.RESTRICTED).trimStart()
-    } else null
+    } else {
+        null
+    }
 }

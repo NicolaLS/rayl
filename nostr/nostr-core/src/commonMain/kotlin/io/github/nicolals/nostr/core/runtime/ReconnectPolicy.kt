@@ -36,12 +36,12 @@ fun interface ReconnectPolicy {
             maxAttempts: Int = 5,
             baseDelayMs: Long = 1000,
             maxDelayMs: Long = 30_000,
-            jitterFactor: Double = 0.1,
+            jitterFactor: Double = 0.1
         ): ReconnectPolicy = ExponentialBackoffReconnectPolicy(
             maxAttempts = maxAttempts,
             baseDelayMs = baseDelayMs,
             maxDelayMs = maxDelayMs,
-            jitterFactor = jitterFactor,
+            jitterFactor = jitterFactor
         )
 
         /**
@@ -75,7 +75,7 @@ internal class ExponentialBackoffReconnectPolicy(
     private val maxAttempts: Int,
     private val baseDelayMs: Long,
     private val maxDelayMs: Long,
-    private val jitterFactor: Double,
+    private val jitterFactor: Double
 ) : ReconnectPolicy {
 
     override fun shouldReconnect(attempt: Int, error: TransportError?): ReconnectDecision {
@@ -99,7 +99,6 @@ internal class ExponentialBackoffReconnectPolicy(
  * Policy that never reconnects.
  */
 internal data object NeverReconnectPolicy : ReconnectPolicy {
-    override fun shouldReconnect(attempt: Int, error: TransportError?): ReconnectDecision {
-        return ReconnectDecision.GiveUp
-    }
+    override fun shouldReconnect(attempt: Int, error: TransportError?): ReconnectDecision =
+        ReconnectDecision.GiveUp
 }

@@ -48,7 +48,7 @@ enum class AuthPhase {
      * The relay rejected the AUTH event. The client may retry with
      * a new AUTH response if desired.
      */
-    AuthFailed,
+    AuthFailed
 }
 
 /**
@@ -71,7 +71,7 @@ data class Nip42State(
     val pendingAuthEventId: EventId? = null,
     val pendingAuthPubkey: PublicKey? = null,
     val authenticatedPubkey: PublicKey? = null,
-    val failureMessage: String? = null,
+    val failureMessage: String? = null
 ) {
     /**
      * Whether the connection is currently authenticated.

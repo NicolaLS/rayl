@@ -1,10 +1,10 @@
 package io.github.nicolals.nostr.core.runtime
 
 import io.github.nicolals.nostr.core.primitives.EventId
-import okio.ByteString.Companion.decodeHex
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import okio.ByteString.Companion.decodeHex
 
 class DeduplicationPolicyTest {
 

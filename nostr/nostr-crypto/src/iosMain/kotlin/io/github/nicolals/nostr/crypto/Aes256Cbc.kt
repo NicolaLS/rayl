@@ -1,5 +1,6 @@
 package io.github.nicolals.nostr.crypto
 
+import kotlin.text.toInt
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ULongVar
 import kotlinx.cinterop.addressOf
@@ -16,16 +17,14 @@ import platform.CoreCrypto.kCCEncrypt
 import platform.CoreCrypto.kCCKeySizeAES256
 import platform.CoreCrypto.kCCOptionPKCS7Padding
 import platform.CoreCrypto.kCCSuccess
-import kotlin.text.toInt
 
 @OptIn(ExperimentalForeignApi::class)
 internal actual object Aes256Cbc {
     private const val BLOCK_SIZE = 16
     private const val KEY_SIZE = 32
 
-    actual fun encrypt(key: ByteArray, iv: ByteArray, plaintext: ByteArray): ByteArray {
-        return crypt(kCCEncrypt, key, iv, plaintext)
-    }
+    actual fun encrypt(key: ByteArray, iv: ByteArray, plaintext: ByteArray): ByteArray =
+        crypt(kCCEncrypt, key, iv, plaintext)
 
     actual fun decrypt(key: ByteArray, iv: ByteArray, ciphertext: ByteArray): ByteArray {
         require(ciphertext.isNotEmpty()) { "ciphertext must not be empty" }
@@ -45,12 +44,7 @@ internal actual object Aes256Cbc {
         return padded.copyOf(padded.size - paddingSize)
     }
 
-    private fun crypt(
-        operation: UInt,
-        key: ByteArray,
-        iv: ByteArray,
-        input: ByteArray,
-    ): ByteArray {
+    private fun crypt(operation: UInt, key: ByteArray, iv: ByteArray, input: ByteArray): ByteArray {
         require(key.size == KEY_SIZE) { "key must be 32 bytes" }
         require(iv.size == BLOCK_SIZE) { "iv must be 16 bytes" }
         val output = ByteArray(input.size + BLOCK_SIZE)
@@ -64,7 +58,13 @@ internal actual object Aes256Cbc {
                             val status = CCCrypt(
                                 op = operation.convert(),
                                 alg = kCCAlgorithmAES128.convert(),
-                                options = if (operation == kCCEncrypt) kCCOptionPKCS7Padding.convert() else 0u,
+                                options = if (operation ==
+                                    kCCEncrypt
+                                ) {
+                                    kCCOptionPKCS7Padding.convert()
+                                } else {
+                                    0u
+                                },
                                 key = keyPinned.addressOf(0),
                                 keyLength = kCCKeySizeAES256.convert(),
                                 iv = ivPinned.addressOf(0),
@@ -72,7 +72,7 @@ internal actual object Aes256Cbc {
                                 dataInLength = input.size.convert(),
                                 dataOut = outputPinned.addressOf(0),
                                 dataOutAvailable = output.size.convert(),
-                                dataOutMoved = outLength.ptr,
+                                dataOutMoved = outLength.ptr
                             )
                             if (status != kCCSuccess) {
                                 throw IllegalStateException("AES-CBC operation failed")

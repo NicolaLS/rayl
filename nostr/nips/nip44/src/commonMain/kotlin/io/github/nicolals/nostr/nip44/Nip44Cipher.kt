@@ -21,15 +21,18 @@ interface Nip44Cipher {
  * Local implementation; private key material is retained without being exposed by the capability.
  * Plaintext is limited to 65,535 UTF-8 bytes to bound encryption and decryption working memory.
  */
-class LocalNip44Cipher(
-    private val secretKey: SecretKey,
-    private val crypto: CryptoPrimitives,
-) : Nip44Cipher {
-    override suspend fun encrypt(plaintext: String, recipientPublicKey: PublicKey): CryptoResult<String> =
+class LocalNip44Cipher(private val secretKey: SecretKey, private val crypto: CryptoPrimitives) :
+    Nip44Cipher {
+    override suspend fun encrypt(
+        plaintext: String,
+        recipientPublicKey: PublicKey
+    ): CryptoResult<String> =
         crypto.encryptNip44Content(plaintext, secretKey.bytes, recipientPublicKey)
 
-    override suspend fun decrypt(content: String, senderPublicKey: PublicKey): CryptoResult<String> =
-        crypto.decryptNip44Content(content, secretKey.bytes, senderPublicKey)
+    override suspend fun decrypt(
+        content: String,
+        senderPublicKey: PublicKey
+    ): CryptoResult<String> = crypto.decryptNip44Content(content, secretKey.bytes, senderPublicKey)
 
     override fun toString(): String = "LocalNip44Cipher([redacted])"
 }

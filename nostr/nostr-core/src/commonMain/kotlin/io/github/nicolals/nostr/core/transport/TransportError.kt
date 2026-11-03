@@ -18,10 +18,7 @@ sealed class TransportError {
      * @property message Description of the I/O error.
      * @property cause The underlying exception, if available.
      */
-    data class IoError(
-        val message: String,
-        val cause: Throwable? = null,
-    ) : TransportError()
+    data class IoError(val message: String, val cause: Throwable? = null) : TransportError()
 
     /**
      * A WebSocket protocol error occurred (e.g., invalid frame, invalid UTF-8
@@ -29,9 +26,7 @@ sealed class TransportError {
      *
      * @property message Description of the protocol violation.
      */
-    data class ProtocolError(
-        val message: String,
-    ) : TransportError()
+    data class ProtocolError(val message: String) : TransportError()
 
     /**
      * A TLS/SSL error occurred during the secure connection handshake
@@ -40,19 +35,14 @@ sealed class TransportError {
      * @property message Description of the TLS error.
      * @property cause The underlying exception, if available.
      */
-    data class TlsError(
-        val message: String,
-        val cause: Throwable? = null,
-    ) : TransportError()
+    data class TlsError(val message: String, val cause: Throwable? = null) : TransportError()
 
     /**
      * The connection attempt timed out before the WebSocket handshake completed.
      *
      * @property timeoutMillis The configured timeout that was exceeded.
      */
-    data class ConnectionTimeout(
-        val timeoutMillis: Long,
-    ) : TransportError()
+    data class ConnectionTimeout(val timeoutMillis: Long) : TransportError()
 
     /**
      * The WebSocket was closed unexpectedly by the remote peer without
@@ -70,8 +60,6 @@ sealed class TransportError {
      * @property operation The operation that was attempted.
      * @property currentState The state the connection was in.
      */
-    data class InvalidState(
-        val operation: String,
-        val currentState: TransportState,
-    ) : TransportError()
+    data class InvalidState(val operation: String, val currentState: TransportState) :
+        TransportError()
 }

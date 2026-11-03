@@ -81,15 +81,9 @@ interface DeduplicationPolicy {
  * **Note:** This implementation is not thread-safe. Access should be
  * serialized by the caller (e.g., from a single coroutine).
  */
-internal class LruDeduplicationPolicy(
-    private val maxSize: Int,
-) : DeduplicationPolicy {
+internal class LruDeduplicationPolicy(private val maxSize: Int) : DeduplicationPolicy {
 
-    private class Node(
-        val eventId: EventId,
-        var prev: Node? = null,
-        var next: Node? = null,
-    )
+    private class Node(val eventId: EventId, var prev: Node? = null, var next: Node? = null)
 
     // Fast O(1) lookup of nodes.
     private val nodes = hashMapOf<EventId, Node>()

@@ -26,7 +26,9 @@ value class RawClientMessage(val array: JsonArray) {
      */
     val token: String
         get() = tokenOrNull
-            ?: throw IllegalArgumentException("Invalid client message: expected string token at index 0")
+            ?: throw IllegalArgumentException(
+                "Invalid client message: expected string token at index 0"
+            )
 
     /**
      * Number of payload elements (everything after the token).
@@ -70,7 +72,9 @@ value class RawRelayMessage(val array: JsonArray) {
      */
     val token: String
         get() = tokenOrNull
-            ?: throw IllegalArgumentException("Invalid relay message: expected string token at index 0")
+            ?: throw IllegalArgumentException(
+                "Invalid relay message: expected string token at index 0"
+            )
 
     /**
      * Number of payload elements (everything after the token).

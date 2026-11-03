@@ -19,7 +19,7 @@ import io.github.nicolals.nostr.core.message.view.UnknownRelayMessage
  */
 class MessageUpgradeRegistry private constructor(
     private val clientByToken: Map<String, List<ClientMessageUpgrader<*>>>,
-    private val relayByToken: Map<String, List<RelayMessageUpgrader<*>>>,
+    private val relayByToken: Map<String, List<RelayMessageUpgrader<*>>>
 ) {
     /**
      * Builder for constructing a [MessageUpgradeRegistry].

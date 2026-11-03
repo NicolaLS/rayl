@@ -35,7 +35,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class CoroutinesPublishHandle internal constructor(
     override val eventId: EventId,
-    private val cancelCallback: (CoroutinesPublishHandle) -> Unit,
+    private val cancelCallback: (CoroutinesPublishHandle) -> Unit
 ) : PublishHandle {
 
     private val cancelRequested = MutableStateFlow(false)
@@ -66,9 +66,7 @@ class CoroutinesPublishHandle internal constructor(
      *
      * @return The terminal status.
      */
-    suspend fun await(): PublishStatus {
-        return _statusFlow.first { it.isTerminal }
-    }
+    suspend fun await(): PublishStatus = _statusFlow.first { it.isTerminal }
 
     /**
      * Suspends until the publish reaches a terminal status or timeout occurs.
@@ -81,10 +79,8 @@ class CoroutinesPublishHandle internal constructor(
      * @param timeoutMs Maximum time to wait in milliseconds.
      * @return The terminal status, or null if timeout occurred.
      */
-    suspend fun await(timeoutMs: Long): PublishStatus? {
-        return withTimeoutOrNull(timeoutMs) {
-            _statusFlow.first { it.isTerminal }
-        }
+    suspend fun await(timeoutMs: Long): PublishStatus? = withTimeoutOrNull(timeoutMs) {
+        _statusFlow.first { it.isTerminal }
     }
 
     /**

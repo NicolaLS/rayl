@@ -5,16 +5,16 @@ import io.github.nicolals.nostr.core.transport.RelayConnectionListenerAdapter
 import io.github.nicolals.nostr.core.transport.RelayUrl
 import io.github.nicolals.nostr.core.transport.TransportConfig
 import io.github.nicolals.nostr.core.transport.TransportState
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class KtorRelayLifecycleTest {
@@ -24,9 +24,15 @@ class KtorRelayLifecycleTest {
         val connection = KtorRelayConnection(client, RelayUrl.parse("wss://unused.invalid"), TransportConfig(), scope)
         val callbacks = mutableListOf<String>()
         connection.setListener(object : RelayConnectionListenerAdapter() {
-            override fun onOpen() { callbacks.add("open") }
-            override fun onClosing(info: CloseInfo) { callbacks.add("closing") }
-            override fun onClosed(info: CloseInfo) { callbacks.add("closed") }
+            override fun onOpen() {
+                callbacks.add("open")
+            }
+            override fun onClosing(info: CloseInfo) {
+                callbacks.add("closing")
+            }
+            override fun onClosed(info: CloseInfo) {
+                callbacks.add("closed")
+            }
         })
         try {
             connection.connect()

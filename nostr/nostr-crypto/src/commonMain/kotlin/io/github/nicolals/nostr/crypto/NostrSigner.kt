@@ -12,7 +12,7 @@ import io.github.nicolals.nostr.core.primitives.SecretKey
 /** Local Schnorr signer. Creation derives and validates the public key from the private key. */
 class NostrSigner private constructor(
     private val secretKey: SecretKey,
-    override val pubkey: PublicKey,
+    override val pubkey: PublicKey
 ) : EventTemplateSigner {
     override suspend fun sign(draft: EventDraft): CryptoResult<Event> =
         EventAssembler.sign(draft, pubkey) { id -> NostrSigning.schnorrSign(secretKey.bytes, id) }
@@ -31,7 +31,9 @@ class NostrSigner private constructor(
 }
 
 fun SecretKey.toKeyPair(): CryptoResult<KeyPair> =
-    NostrSigning.derivePublicKeyXOnly(bytes).map { publicKey -> KeyPair(this, PublicKey.fromBytes(publicKey)) }
+    NostrSigning.derivePublicKeyXOnly(bytes).map { publicKey ->
+        KeyPair(this, PublicKey.fromBytes(publicKey))
+    }
 
 fun KeyPair.Companion.generate(): CryptoResult<KeyPair> =
     NostrSigning.generateSecretKey().flatMap { SecretKey.fromBytes(it).toKeyPair() }

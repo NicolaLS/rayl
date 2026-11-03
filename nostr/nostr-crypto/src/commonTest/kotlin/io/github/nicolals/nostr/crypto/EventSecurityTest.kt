@@ -14,6 +14,11 @@ import io.github.nicolals.nostr.core.primitives.EventSig
 import io.github.nicolals.nostr.core.primitives.KeyPair
 import io.github.nicolals.nostr.core.primitives.SecretKey
 import io.github.nicolals.nostr.core.primitives.UnixTimeSeconds
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
@@ -21,11 +26,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import okio.ByteString.Companion.toByteString
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class EventSecurityTest {
     private val secret = SecretKey.fromHex("01".padStart(64, '0'))
@@ -77,12 +77,17 @@ class EventSecurityTest {
         val original = signer.sign(eventTemplate(EventKind(1), "hello", listOf(listOf("t", "a")))).getOrThrow().event
         assertIs<CryptoResult.Ok<Unit>>(verifier.verify(original))
         val changedContent = original.copy(content = "changed")
-        val changedContentWithRehashedId = changedContent.copy(id = EventId.fromBytes(
-            EventIdComputer.nip01IdBytes(
-                changedContent.pubkey, changedContent.createdAt, changedContent.kind,
-                changedContent.tags, changedContent.content,
-            ),
-        ))
+        val changedContentWithRehashedId = changedContent.copy(
+            id = EventId.fromBytes(
+                EventIdComputer.nip01IdBytes(
+                    changedContent.pubkey,
+                    changedContent.createdAt,
+                    changedContent.kind,
+                    changedContent.tags,
+                    changedContent.content
+                )
+            )
+        )
         val invalid = listOf(
             changedContent,
             changedContentWithRehashedId,
@@ -92,7 +97,7 @@ class EventSecurityTest {
             original.copy(kind = EventKind(2)),
             original.copy(tags = listOf(listOf("t", "b"))),
             original.copy(content = "\u0000"),
-            original.copy(content = "\uD800"),
+            original.copy(content = "\uD800")
         )
         for (event in invalid) assertIs<CryptoResult.Err>(verifier.verify(event))
     }
@@ -108,15 +113,16 @@ class EventSecurityTest {
         assertIs<CryptoResult.Err>(rejecting.sign(template))
         val mismatching = object : EventTemplateSigner {
             override val pubkey = signer.pubkey
-            override suspend fun sign(draft: EventDraft): CryptoResult<Event> =
-                signer.sign(draft.copy(content = "another event"))
+            override suspend fun sign(draft: EventDraft): CryptoResult<Event> = signer.sign(draft.copy(content = "another event"))
         }
         assertIs<CryptoResult.Err>(mismatching.sign(template))
         assertIs<CryptoResult.Err>(signer.sign(eventTemplate(EventKind(1), "\u0000")))
         assertIs<CryptoResult.Err>(signer.sign(eventTemplate(EventKind(1), "\uD800")))
-        assertIs<CryptoResult.Ok<Unit>>(verifier.verify(
-            signer.sign(eventTemplate(EventKind(1), "Unicode 🦄")).getOrThrow().event,
-        ))
+        assertIs<CryptoResult.Ok<Unit>>(
+            verifier.verify(
+                signer.sign(eventTemplate(EventKind(1), "Unicode 🦄")).getOrThrow().event
+            )
+        )
     }
 
     @Test
@@ -143,8 +149,13 @@ class EventSecurityTest {
     @Test
     fun secretRepresentationsAndSuccessfulResultsAreRedacted() {
         val pair = KeyPair(secret, signer.pubkey)
-        for (description in listOf(secret.toString(), pair.toString(), signer.toString(),
-            CryptoResult.Ok(secret.bytes).toString(), CryptoResult.Ok("private plaintext").toString())) {
+        for (description in listOf(
+            secret.toString(),
+            pair.toString(),
+            signer.toString(),
+            CryptoResult.Ok(secret.bytes).toString(),
+            CryptoResult.Ok("private plaintext").toString()
+        )) {
             assertFalse(description.contains(secret.hex))
             assertFalse(description.contains("private plaintext"))
         }

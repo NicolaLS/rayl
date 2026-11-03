@@ -5,8 +5,8 @@ import io.github.nicolals.nostr.core.message.Filter
 import io.github.nicolals.nostr.core.message.view.ClientMessageView
 import io.github.nicolals.nostr.core.primitives.EventId
 import io.github.nicolals.nostr.core.primitives.SubscriptionId
-import io.github.nicolals.nostr.core.protocol.ProtocolIntent
 import io.github.nicolals.nostr.core.protocol.AdmissionDecision
+import io.github.nicolals.nostr.core.protocol.ProtocolIntent
 import io.github.nicolals.nostr.core.protocol.TimerKey
 import io.github.nicolals.nostr.core.transport.CloseInfo
 import io.github.nicolals.nostr.core.transport.TransportError
@@ -53,23 +53,24 @@ internal sealed interface SessionInput {
     data class Subscribe(
         val subscriptionId: SubscriptionId,
         val filters: List<Filter>,
-        val handle: CoroutinesSubscriptionHandle,
+        val handle: CoroutinesSubscriptionHandle
     ) : SessionInput
 
     /** User requested to publish an event */
-    data class Publish(
-        val event: Event,
-        val handle: CoroutinesPublishHandle,
-    ) : SessionInput
+    data class Publish(val event: Event, val handle: CoroutinesPublishHandle) : SessionInput
 
     /** User requested to close a subscription */
     data class CloseSubscription(val handle: CoroutinesSubscriptionHandle) : SessionInput
 
     data class CancelPublish(val handle: CoroutinesPublishHandle) : SessionInput
 
-    data class Submit(val input: ProtocolIntent, val command: SessionCommand<AdmissionDecision>) : SessionInput
+    data class Submit(val input: ProtocolIntent, val command: SessionCommand<AdmissionDecision>) :
+        SessionInput
 
-    data class Send(val message: ClientMessageView, val command: SessionCommand<TransportResult<Unit>>) : SessionInput
+    data class Send(
+        val message: ClientMessageView,
+        val command: SessionCommand<TransportResult<Unit>>
+    ) : SessionInput
 
     // ========== Internal Events ==========
 
@@ -83,10 +84,14 @@ internal sealed interface SessionInput {
     data class ReconnectNow(val generation: Long) : SessionInput
 
     /** Retry a publish after delay */
-    data class RetryPublish(val eventId: EventId, val handle: CoroutinesPublishHandle) : SessionInput
+    data class RetryPublish(val eventId: EventId, val handle: CoroutinesPublishHandle) :
+        SessionInput
 
     /** Retry a subscription after reconnect */
-    data class RetrySubscription(val subscriptionId: SubscriptionId, val handle: CoroutinesSubscriptionHandle) : SessionInput
+    data class RetrySubscription(
+        val subscriptionId: SubscriptionId,
+        val handle: CoroutinesSubscriptionHandle
+    ) : SessionInput
 
     data class Ping(val generation: Long) : SessionInput
 

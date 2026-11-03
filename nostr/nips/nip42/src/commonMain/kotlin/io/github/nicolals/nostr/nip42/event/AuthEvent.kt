@@ -22,7 +22,7 @@ class AuthEvent(
     /** The relay URL from the "relay" tag */
     val relayUrl: String,
     /** The challenge string from the "challenge" tag */
-    val challenge: String,
+    val challenge: String
 ) : EventView {
 
     companion object {
@@ -58,8 +58,9 @@ class AuthEvent(
         fun template(
             challenge: AuthChallenge,
             createdAt: UnixTimeSeconds,
-            extraTags: List<List<String>> = emptyList(),
-        ): EventTemplate<AuthEvent> = template(challenge.relayUrl.value, challenge.value, createdAt, extraTags)
+            extraTags: List<List<String>> = emptyList()
+        ): EventTemplate<AuthEvent> =
+            template(challenge.relayUrl.value, challenge.value, createdAt, extraTags)
 
         /**
          * Create an unsigned template for an authentication event.
@@ -73,9 +74,14 @@ class AuthEvent(
             relayUrl: String,
             challenge: String,
             createdAt: UnixTimeSeconds,
-            extraTags: List<List<String>> = emptyList(),
+            extraTags: List<List<String>> = emptyList()
         ): EventTemplate<AuthEvent> {
-            require(extraTags.none { it.firstOrNull() == TAG_RELAY || it.firstOrNull() == TAG_CHALLENGE }) {
+            require(
+                extraTags.none {
+                    it.firstOrNull() == TAG_RELAY ||
+                        it.firstOrNull() == TAG_CHALLENGE
+                }
+            ) {
                 "Extra tags must not override relay or challenge"
             }
             val tags = buildList {
@@ -88,7 +94,7 @@ class AuthEvent(
                 createdAt = createdAt,
                 kind = KIND,
                 tags = tags,
-                content = "",
+                content = ""
             )
 
             return EventTemplate(draft) { event ->

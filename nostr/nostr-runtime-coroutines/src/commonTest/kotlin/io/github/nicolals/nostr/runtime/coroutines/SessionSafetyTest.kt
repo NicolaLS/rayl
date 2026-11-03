@@ -8,18 +8,30 @@ import io.github.nicolals.nostr.core.message.upgrade.RelayMessageUpgrader
 import io.github.nicolals.nostr.core.message.view.RelayMessageView
 import io.github.nicolals.nostr.core.nip.NipModule
 import io.github.nicolals.nostr.core.nip.NipRegistry
-import io.github.nicolals.nostr.nip01.Nip01Module
-import io.github.nicolals.nostr.core.protocol.*
+import io.github.nicolals.nostr.core.protocol.InboundMessage
+import io.github.nicolals.nostr.core.protocol.ProtocolInput
+import io.github.nicolals.nostr.core.protocol.ProtocolReducer
+import io.github.nicolals.nostr.core.protocol.ProtocolState
+import io.github.nicolals.nostr.core.protocol.ReduceResult
+import io.github.nicolals.nostr.core.protocol.TransportInput
 import io.github.nicolals.nostr.core.runtime.ConnectionStatus
 import io.github.nicolals.nostr.core.runtime.PublishStatus
 import io.github.nicolals.nostr.core.runtime.SubscriptionStatus
 import io.github.nicolals.nostr.core.transport.RelayUrl
+import io.github.nicolals.nostr.nip01.Nip01Module
 import io.github.nicolals.nostr.nip01.message.RelayEventMessage
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.*
-import kotlin.test.*
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionSafetyTest {
@@ -34,8 +46,14 @@ class SessionSafetyTest {
             CoroutinesRelayPool(empty, codec, AcceptTestEvents, factory, this)
         }
         assertFailsWith<IllegalArgumentException> {
-            CoroutinesRelaySession(url, codec, AcceptTestEvents, factory, this,
-                additionalModules = listOf(Nip01Module(codec)))
+            CoroutinesRelaySession(
+                url,
+                codec,
+                AcceptTestEvents,
+                factory,
+                this,
+                additionalModules = listOf(Nip01Module(codec))
+            )
         }
         assertTrue(factory.connections.isEmpty())
     }
@@ -53,7 +71,7 @@ class SessionSafetyTest {
     @Test fun standardEventVerificationAndRoutingCannotBeShadowed() = runTest {
         var upgrades = 0
         val wrapper = object : NipModule {
-        override val id = "test.SessionSafetyTest.1"
+            override val id = "test.SessionSafetyTest.1"
             override val relayMessageUpgraders = listOf(object : RelayMessageUpgrader<WrappedEvent> {
                 override val tokens = setOf("EVENT")
                 override val priority = 100
@@ -68,8 +86,14 @@ class SessionSafetyTest {
             if (++checks == 1) CryptoResult.Err(CryptoError.VerificationFailed()) else CryptoResult.Ok(Unit)
         }
         val factory = FakeRelayTransportFactory()
-        val session = CoroutinesRelaySession(url, TestWireCodec(), verifier, factory, this,
-            additionalModules = listOf(wrapper))
+        val session = CoroutinesRelaySession(
+            url,
+            TestWireCodec(),
+            verifier,
+            factory,
+            this,
+            additionalModules = listOf(wrapper)
+        )
         connect(session, factory)
         val subscription = session.subscribe(TestFixtures.testFilters)
         val messages = mutableListOf<RelayMessageView>()
@@ -101,7 +125,7 @@ class SessionSafetyTest {
 
     private suspend fun TestScope.assertReducerFailureCloses(shouldThrow: (ProtocolInput) -> Boolean) {
         val faulty = object : NipModule {
-        override val id = "test.SessionSafetyTest.2"
+            override val id = "test.SessionSafetyTest.2"
             override val protocolReducers = listOf(object : ProtocolReducer {
                 override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? {
                     if (shouldThrow(input)) error("private extension details")
@@ -110,8 +134,14 @@ class SessionSafetyTest {
             })
         }
         val factory = FakeRelayTransportFactory()
-        val session = CoroutinesRelaySession(url, TestWireCodec(), AcceptTestEvents, factory, this,
-            additionalModules = listOf(faulty))
+        val session = CoroutinesRelaySession(
+            url,
+            TestWireCodec(),
+            AcceptTestEvents,
+            factory,
+            this,
+            additionalModules = listOf(faulty)
+        )
         connect(session, factory)
         val publish = session.publish(TestFixtures.testEvent)
         val subscription = session.subscribe(TestFixtures.testFilters)

@@ -29,11 +29,23 @@ interface CryptoPrimitives {
     fun hkdfExpandSha256(prk: ByteString, info: ByteString, length: Int): CryptoResult<ByteString>
 
     /** AES-256-CBC with PKCS7 padding. */
-    fun aes256CbcEncrypt(key32: ByteString, iv16: ByteString, plaintext: ByteString): CryptoResult<ByteString>
-    fun aes256CbcDecrypt(key32: ByteString, iv16: ByteString, ciphertext: ByteString): CryptoResult<ByteString>
+    fun aes256CbcEncrypt(
+        key32: ByteString,
+        iv16: ByteString,
+        plaintext: ByteString
+    ): CryptoResult<ByteString>
+    fun aes256CbcDecrypt(
+        key32: ByteString,
+        iv16: ByteString,
+        ciphertext: ByteString
+    ): CryptoResult<ByteString>
 
     /** ChaCha20-IETF stream XOR (same function for enc/dec). */
-    fun chacha20IetfXor(key32: ByteString, nonce12: ByteString, input: ByteString): CryptoResult<ByteString>
+    fun chacha20IetfXor(
+        key32: ByteString,
+        nonce12: ByteString,
+        input: ByteString
+    ): CryptoResult<ByteString>
 
     /** Base64 encode/decode (RFC 4648 with padding). */
     fun base64Encode(data: ByteString): CryptoResult<String>

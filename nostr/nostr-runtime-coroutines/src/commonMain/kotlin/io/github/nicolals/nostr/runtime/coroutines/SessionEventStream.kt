@@ -7,11 +7,15 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 
 /** An observer failed to consume signals or messages within its configured buffer. */
-class SessionObservationOverflowException : IllegalStateException("Session observer buffer exhausted")
+class SessionObservationOverflowException :
+    IllegalStateException("Session observer buffer exhausted")
 
 /** Broadcasts without blocking the session or silently dropping protocol responses. */
 internal class SessionEventStream<T>(private val capacity: Int) {
-    private data class State<T>(val closed: Boolean = false, val observers: Set<Channel<T>> = emptySet())
+    private data class State<T>(
+        val closed: Boolean = false,
+        val observers: Set<Channel<T>> = emptySet()
+    )
 
     private val state = MutableStateFlow(State<T>())
 
@@ -23,7 +27,13 @@ internal class SessionEventStream<T>(private val capacity: Int) {
                 channel.close()
                 break
             }
-            if (state.compareAndSet(current, current.copy(observers = current.observers + channel))) break
+            if (state.compareAndSet(
+                    current,
+                    current.copy(observers = current.observers + channel)
+                )
+            ) {
+                break
+            }
         }
         try {
             for (value in channel) emit(value)

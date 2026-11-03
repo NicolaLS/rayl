@@ -6,7 +6,7 @@ import io.github.nicolals.nostr.core.event.view.GenericEvent
 import io.github.nicolals.nostr.core.primitives.EventKind
 
 class EventUpgradeRegistry private constructor(
-    private val byKind: Map<EventKind, List<EventUpgrader<out EventView>>>,
+    private val byKind: Map<EventKind, List<EventUpgrader<out EventView>>>
 ) {
     class Builder {
         private val list = mutableListOf<EventUpgrader<out EventView>>()

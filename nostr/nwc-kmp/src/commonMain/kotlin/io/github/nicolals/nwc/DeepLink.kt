@@ -78,7 +78,8 @@ sealed class NwcDeepLink {
 
             // Check for direct connection URI
             if (trimmed.startsWith("nostr+walletconnect://") ||
-                trimmed.startsWith("nostr+walletconnect:")) {
+                trimmed.startsWith("nostr+walletconnect:")
+            ) {
                 val connectionUri = NwcConnectionUri.parse(trimmed) ?: return null
                 return ConnectionUri(connectionUri)
             }
@@ -112,8 +113,8 @@ sealed class NwcDeepLink {
         fun isNwcDeepLink(uri: String): Boolean {
             val trimmed = uri.trim()
             return trimmed.startsWith("nostr+walletconnect://") ||
-                    trimmed.startsWith("nostr+walletconnect:") ||
-                    trimmed.startsWith("nostrnwc://")
+                trimmed.startsWith("nostr+walletconnect:") ||
+                trimmed.startsWith("nostrnwc://")
         }
 
         private fun parseQueryString(query: String): Map<String, List<String>> {
@@ -129,29 +130,29 @@ sealed class NwcDeepLink {
             return result
         }
 
-        private fun urlDecode(value: String): String {
-            return buildString {
-                var i = 0
-                while (i < value.length) {
-                    when {
-                        value[i] == '%' && i + 2 < value.length -> {
-                            try {
-                                val hex = value.substring(i + 1, i + 3)
-                                append(hex.toInt(16).toChar())
-                                i += 3
-                            } catch (_: Exception) {
-                                append(value[i])
-                                i++
-                            }
-                        }
-                        value[i] == '+' -> {
-                            append(' ')
-                            i++
-                        }
-                        else -> {
+        private fun urlDecode(value: String): String = buildString {
+            var i = 0
+            while (i < value.length) {
+                when {
+                    value[i] == '%' && i + 2 < value.length -> {
+                        try {
+                            val hex = value.substring(i + 1, i + 3)
+                            append(hex.toInt(16).toChar())
+                            i += 3
+                        } catch (_: Exception) {
                             append(value[i])
                             i++
                         }
+                    }
+
+                    value[i] == '+' -> {
+                        append(' ')
+                        i++
+                    }
+
+                    else -> {
+                        append(value[i])
+                        i++
                     }
                 }
             }
@@ -182,7 +183,7 @@ class NwcConnectRequest private constructor(
     private val appName: String?,
     private val appIcon: String?,
     private val callback: String?,
-    private val walletAppName: String?,
+    private val walletAppName: String?
 ) {
     /**
      * Builds the deep link URI for requesting an NWC connection.
@@ -239,23 +240,24 @@ class NwcConnectRequest private constructor(
         /**
          * Builds the connect request.
          */
-        fun build(): NwcConnectRequest = NwcConnectRequest(appName, appIcon, callback, walletAppName)
+        fun build(): NwcConnectRequest =
+            NwcConnectRequest(appName, appIcon, callback, walletAppName)
     }
 
     companion object {
-        private fun urlEncode(value: String): String {
-            return buildString {
-                for (char in value) {
-                    when {
-                        char.isLetterOrDigit() || char in "-_.~" -> append(char)
-                        char == ' ' -> append('+')
-                        else -> {
-                            val bytes = char.toString().encodeToByteArray()
-                            for (byte in bytes) {
-                                append('%')
-                                append(hexChar((byte.toInt() shr 4) and 0x0F))
-                                append(hexChar(byte.toInt() and 0x0F))
-                            }
+        private fun urlEncode(value: String): String = buildString {
+            for (char in value) {
+                when {
+                    char.isLetterOrDigit() || char in "-_.~" -> append(char)
+
+                    char == ' ' -> append('+')
+
+                    else -> {
+                        val bytes = char.toString().encodeToByteArray()
+                        for (byte in bytes) {
+                            append('%')
+                            append(hexChar((byte.toInt() shr 4) and 0x0F))
+                            append(hexChar(byte.toInt() and 0x0F))
                         }
                     }
                 }

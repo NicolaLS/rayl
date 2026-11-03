@@ -51,7 +51,7 @@ enum class SubscriptionPhase {
      * This is a terminal state. The runtime may choose to resubscribe
      * after reconnection, but that would be a new subscription.
      */
-    Interrupted,
+    Interrupted
 }
 
 /**
@@ -76,7 +76,7 @@ data class SubscriptionState(
     val generation: Int,
     val phase: SubscriptionPhase,
     val filters: List<Filter>,
-    val closedReason: String? = null,
+    val closedReason: String? = null
 ) {
     /**
      * Whether this subscription can receive events.

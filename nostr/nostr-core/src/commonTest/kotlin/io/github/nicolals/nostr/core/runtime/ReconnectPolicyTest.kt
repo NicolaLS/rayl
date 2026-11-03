@@ -13,7 +13,7 @@ class ReconnectPolicyTest {
             maxAttempts = 5,
             baseDelayMs = 1000,
             maxDelayMs = 30_000,
-            jitterFactor = 0.0, // Disable jitter for deterministic test
+            jitterFactor = 0.0 // Disable jitter for deterministic test
         )
 
         // First attempt: ~1000ms
@@ -38,7 +38,7 @@ class ReconnectPolicyTest {
             maxAttempts = 10,
             baseDelayMs = 1000,
             maxDelayMs = 5000,
-            jitterFactor = 0.0,
+            jitterFactor = 0.0
         )
 
         // At attempt 3: 1000 * 4 = 4000
@@ -63,7 +63,7 @@ class ReconnectPolicyTest {
             maxAttempts = 3,
             baseDelayMs = 1000,
             maxDelayMs = 30_000,
-            jitterFactor = 0.0,
+            jitterFactor = 0.0
         )
 
         // Attempts 1-3 should reconnect
@@ -82,7 +82,7 @@ class ReconnectPolicyTest {
             maxAttempts = 5,
             baseDelayMs = 1000,
             maxDelayMs = 30_000,
-            jitterFactor = 0.1, // 10% jitter
+            jitterFactor = 0.1 // 10% jitter
         )
 
         // Run multiple times to check jitter is applied

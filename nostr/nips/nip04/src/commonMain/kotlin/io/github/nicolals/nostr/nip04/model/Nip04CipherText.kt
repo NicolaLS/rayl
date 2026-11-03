@@ -1,10 +1,7 @@
 package io.github.nicolals.nostr.nip04.model
 
-data class Nip04CipherText(
-    val cipherTextBase64: String,
-    val ivBase64: String,
-) {
-    fun toContent(): String = "${cipherTextBase64}?iv=${ivBase64}"
+data class Nip04CipherText(val cipherTextBase64: String, val ivBase64: String) {
+    fun toContent(): String = "$cipherTextBase64?iv=$ivBase64"
 
     companion object {
         private const val IV_SEPARATOR = "?iv="

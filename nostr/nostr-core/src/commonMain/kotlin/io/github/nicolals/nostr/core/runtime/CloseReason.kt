@@ -14,27 +14,19 @@ sealed interface CloseReason {
      *
      * @property message Human-readable details without the prefix.
      */
-    data class AuthRequired(
-        val message: String,
-        override val rawMessage: String,
-    ) : CloseReason
+    data class AuthRequired(val message: String, override val rawMessage: String) : CloseReason
 
     /**
      * Relay rejected the subscription due to authorization restrictions.
      *
      * @property message Human-readable details without the prefix.
      */
-    data class Restricted(
-        val message: String,
-        override val rawMessage: String,
-    ) : CloseReason
+    data class Restricted(val message: String, override val rawMessage: String) : CloseReason
 
     /**
      * Unrecognized or non-auth related close reason.
      */
-    data class Other(
-        override val rawMessage: String,
-    ) : CloseReason
+    data class Other(override val rawMessage: String) : CloseReason
 
     companion object {
         /** Parses machine-readable CLOSED prefixes while preserving the relay text. */
@@ -43,8 +35,10 @@ sealed interface CloseReason {
             return when {
                 trimmed.startsWith("auth-required:") ->
                     AuthRequired(trimmed.removePrefix("auth-required:").trimStart(), rawMessage)
+
                 trimmed.startsWith("restricted:") ->
                     Restricted(trimmed.removePrefix("restricted:").trimStart(), rawMessage)
+
                 else -> Other(rawMessage)
             }
         }

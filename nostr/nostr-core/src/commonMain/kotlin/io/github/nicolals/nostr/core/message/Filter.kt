@@ -22,7 +22,7 @@ data class Filter(
     val since: UnixTimeSeconds? = null,
     val until: UnixTimeSeconds? = null,
     val limit: Int? = null,
-    val extraFields: Map<String, JsonValue> = emptyMap(),
+    val extraFields: Map<String, JsonValue> = emptyMap()
 ) {
     init {
         requireValidFilterExtensions(extraFields)

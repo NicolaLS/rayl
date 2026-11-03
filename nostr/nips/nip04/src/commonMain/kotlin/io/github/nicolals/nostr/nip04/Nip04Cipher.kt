@@ -18,15 +18,18 @@ interface Nip04Cipher {
 }
 
 /** Local implementation; private key material is retained without being exposed by the capability. */
-class LocalNip04Cipher(
-    private val secretKey: SecretKey,
-    private val crypto: CryptoPrimitives,
-) : Nip04Cipher {
-    override suspend fun encrypt(plaintext: String, recipientPublicKey: PublicKey): CryptoResult<String> =
+class LocalNip04Cipher(private val secretKey: SecretKey, private val crypto: CryptoPrimitives) :
+    Nip04Cipher {
+    override suspend fun encrypt(
+        plaintext: String,
+        recipientPublicKey: PublicKey
+    ): CryptoResult<String> =
         crypto.encryptNip04Content(plaintext, secretKey.bytes, recipientPublicKey)
 
-    override suspend fun decrypt(content: String, senderPublicKey: PublicKey): CryptoResult<String> =
-        crypto.decryptNip04Content(content, secretKey.bytes, senderPublicKey)
+    override suspend fun decrypt(
+        content: String,
+        senderPublicKey: PublicKey
+    ): CryptoResult<String> = crypto.decryptNip04Content(content, secretKey.bytes, senderPublicKey)
 
     override fun toString(): String = "LocalNip04Cipher([redacted])"
 }

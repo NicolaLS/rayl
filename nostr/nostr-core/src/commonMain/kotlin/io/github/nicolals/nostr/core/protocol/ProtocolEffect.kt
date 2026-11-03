@@ -36,10 +36,7 @@ sealed interface ProtocolEffect {
      * @property key Unique identifier for this timer.
      * @property delayMs Delay in milliseconds before the timer fires.
      */
-    data class ScheduleTimer(
-        val key: TimerKey,
-        val delayMs: Long,
-    ) : ProtocolEffect
+    data class ScheduleTimer(val key: TimerKey, val delayMs: Long) : ProtocolEffect
 
     /**
      * Cancel a previously scheduled timer.

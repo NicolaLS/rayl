@@ -15,14 +15,10 @@ sealed class WalletNotification {
     /**
      * Notification for a received payment.
      */
-    data class PaymentReceived(
-        override val transaction: Transaction,
-    ) : WalletNotification()
+    data class PaymentReceived(override val transaction: Transaction) : WalletNotification()
 
     /**
      * Notification for a sent payment.
      */
-    data class PaymentSent(
-        override val transaction: Transaction,
-    ) : WalletNotification()
+    data class PaymentSent(override val transaction: Transaction) : WalletNotification()
 }

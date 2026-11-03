@@ -32,7 +32,7 @@ interface RetryPolicy {
     fun shouldResubscribe(
         subscriptionId: SubscriptionId,
         attempt: Int,
-        reason: SubscriptionRetryReason,
+        reason: SubscriptionRetryReason
     ): RetryDecision
 
     companion object {
@@ -83,7 +83,7 @@ sealed interface SubscriptionRetryReason {
      */
     data class Closed(
         val reason: String?,
-        val closeReason: CloseReason? = reason?.let { CloseReason.Other(it) },
+        val closeReason: CloseReason? = reason?.let { CloseReason.Other(it) }
     ) : SubscriptionRetryReason
 }
 
@@ -109,7 +109,7 @@ sealed interface RetryDecision {
  */
 internal class DefaultRetryPolicy(
     private val maxPublishRetries: Int = 3,
-    private val baseRetryDelayMs: Long = 500,
+    private val baseRetryDelayMs: Long = 500
 ) : RetryPolicy {
 
     override fun shouldRetryPublish(eventId: EventId, attempt: Int): RetryDecision {
@@ -124,12 +124,10 @@ internal class DefaultRetryPolicy(
     override fun shouldResubscribe(
         subscriptionId: SubscriptionId,
         attempt: Int,
-        reason: SubscriptionRetryReason,
-    ): RetryDecision {
-        return when (reason) {
-            SubscriptionRetryReason.Disconnected -> RetryDecision.Retry(0)
-            is SubscriptionRetryReason.Closed -> RetryDecision.Abandon
-        }
+        reason: SubscriptionRetryReason
+    ): RetryDecision = when (reason) {
+        SubscriptionRetryReason.Disconnected -> RetryDecision.Retry(0)
+        is SubscriptionRetryReason.Closed -> RetryDecision.Abandon
     }
 }
 
@@ -143,22 +141,20 @@ internal data object NeverRetryPolicy : RetryPolicy {
     override fun shouldResubscribe(
         subscriptionId: SubscriptionId,
         attempt: Int,
-        reason: SubscriptionRetryReason,
+        reason: SubscriptionRetryReason
     ): RetryDecision = RetryDecision.Abandon
 }
 
 /**
  * Policy that always retries indefinitely.
  */
-internal class AlwaysRetryPolicy(
-    private val publishRetryDelayMs: Long,
-) : RetryPolicy {
+internal class AlwaysRetryPolicy(private val publishRetryDelayMs: Long) : RetryPolicy {
     override fun shouldRetryPublish(eventId: EventId, attempt: Int): RetryDecision =
         RetryDecision.Retry(publishRetryDelayMs)
 
     override fun shouldResubscribe(
         subscriptionId: SubscriptionId,
         attempt: Int,
-        reason: SubscriptionRetryReason,
+        reason: SubscriptionRetryReason
     ): RetryDecision = RetryDecision.Retry(publishRetryDelayMs)
 }

@@ -49,7 +49,7 @@ sealed interface ConnectionStatus {
     data class Reconnecting(
         val attempt: Int,
         val delayMs: Long,
-        val lastError: TransportError? = null,
+        val lastError: TransportError? = null
     ) : ConnectionStatus {
         override val isConnected: Boolean = false
     }
@@ -63,10 +63,7 @@ sealed interface ConnectionStatus {
      * @property error The final error that caused the failure.
      * @property totalAttempts The total number of connection attempts made.
      */
-    data class Failed(
-        val error: TransportError?,
-        val totalAttempts: Int = 1,
-    ) : ConnectionStatus {
+    data class Failed(val error: TransportError?, val totalAttempts: Int = 1) : ConnectionStatus {
         override val isConnected: Boolean = false
     }
 }

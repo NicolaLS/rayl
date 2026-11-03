@@ -12,7 +12,7 @@ object EventIdComputer {
         createdAt: UnixTimeSeconds,
         kind: EventKind,
         tags: EventTags,
-        content: String,
+        content: String
     ): ByteString {
         val b = EventIdSerializer.nip01SerializeToBuffer(pubkey, createdAt, kind, tags, content)
         return b.sha256()
@@ -23,6 +23,6 @@ object EventIdComputer {
         createdAt: UnixTimeSeconds,
         kind: EventKind,
         tags: EventTags,
-        content: String,
+        content: String
     ) = nip01IdBytes(pubkey, createdAt, kind, tags, content).hex()
 }

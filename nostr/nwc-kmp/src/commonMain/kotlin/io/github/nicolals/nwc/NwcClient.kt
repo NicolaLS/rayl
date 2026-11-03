@@ -2,9 +2,9 @@ package io.github.nicolals.nwc
 
 import io.github.nicolals.nostr.codec.kotlinx.KotlinxNostrJsonCodec
 import io.github.nicolals.nostr.core.codec.NostrJsonCodec
+import io.github.nicolals.nostr.core.crypto.CryptoResult
 import io.github.nicolals.nostr.core.crypto.EventTemplateSigner
 import io.github.nicolals.nostr.core.crypto.EventVerifier
-import io.github.nicolals.nostr.core.crypto.CryptoResult
 import io.github.nicolals.nostr.core.event.Event
 import io.github.nicolals.nostr.core.message.Filter
 import io.github.nicolals.nostr.core.nip.NipModule
@@ -19,12 +19,12 @@ import io.github.nicolals.nostr.core.transport.RelayUrl
 import io.github.nicolals.nostr.crypto.NostrCrypto
 import io.github.nicolals.nostr.crypto.NostrEventVerifier
 import io.github.nicolals.nostr.crypto.NostrSigner
-import io.github.nicolals.nostr.nip04.Nip04Module
 import io.github.nicolals.nostr.nip04.LocalNip04Cipher
+import io.github.nicolals.nostr.nip04.Nip04Module
 import io.github.nicolals.nostr.nip44.LocalNip44Cipher
 import io.github.nicolals.nostr.nip47.Nip47Cipher
-import io.github.nicolals.nostr.nip47.NwcCipher
 import io.github.nicolals.nostr.nip47.Nip47Module
+import io.github.nicolals.nostr.nip47.NwcCipher
 import io.github.nicolals.nostr.nip47.NwcEncryptionSelector
 import io.github.nicolals.nostr.nip47.event.NwcInfoEvent
 import io.github.nicolals.nostr.nip47.event.NwcNotificationEvent
@@ -60,19 +60,20 @@ import io.github.nicolals.nostr.runtime.coroutines.CoroutinesPoolSubscriptionHan
 import io.github.nicolals.nostr.runtime.coroutines.CoroutinesRelayPool
 import io.github.nicolals.nostr.transport.ktor.KtorRelayTransportFactory
 import io.ktor.client.HttpClient
+import kotlin.time.TimeSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.async
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -80,12 +81,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.time.TimeSource
 
 /**
  * Nostr Wallet Connect (NWC) client for Kotlin Multiplatform.
@@ -159,7 +159,7 @@ class NwcClient private constructor(
     private val verifier: EventVerifier,
     private val cipher: NwcCipher,
     private val ownedTransport: AutoCloseable?,
-    cachedWalletInfo: WalletInfo?,
+    cachedWalletInfo: WalletInfo?
 ) {
     // ========== Internal State ==========
 
@@ -174,7 +174,7 @@ class NwcClient private constructor(
 
     private val additionalModules: List<NipModule> = listOf(
         Nip04Module(),
-        Nip47Module(encryptionSelector),
+        Nip47Module(encryptionSelector)
     )
 
     private val hasCachedWalletInfo = cachedWalletInfo != null
@@ -211,7 +211,7 @@ class NwcClient private constructor(
     private val _notifications = MutableSharedFlow<WalletNotification>(
         replay = 0,
         extraBufferCapacity = 16,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
     /**
@@ -260,12 +260,20 @@ class NwcClient private constructor(
      * @param forceReconnect If true, forces a new connection even if already connected/connecting.
      * @param connectionTimeoutMs Timeout for the WebSocket connection establishment.
      */
-    fun connect(forceReconnect: Boolean = false, connectionTimeoutMs: Long = DEFAULT_CONNECTION_TIMEOUT_MS) {
+    fun connect(
+        forceReconnect: Boolean = false,
+        connectionTimeoutMs: Long = DEFAULT_CONNECTION_TIMEOUT_MS
+    ) {
         scope.launch {
             lifecycleMutex.withLock {
                 val currentState = _state.value
                 if (currentState == NwcClientState.Closed) return@withLock
-                if (!forceReconnect && (currentState == NwcClientState.Ready || currentState == NwcClientState.Connecting)) {
+                if (!forceReconnect &&
+                    (
+                        currentState == NwcClientState.Ready ||
+                            currentState == NwcClientState.Connecting
+                        )
+                ) {
                     return@withLock
                 }
                 val previousPool = clearConnectionLocked()
@@ -278,13 +286,17 @@ class NwcClient private constructor(
                     eventVerifier = verifier,
                     transportFactory = transportFactory,
                     scope = scope,
-                    sessionConfig = SessionConfig.Minimal.copy(pingIntervalMillis = PING_INTERVAL_MS),
-                    additionalModules = additionalModules,
+                    sessionConfig = SessionConfig.Minimal.copy(
+                        pingIntervalMillis = PING_INTERVAL_MS
+                    ),
+                    additionalModules = additionalModules
                 )
                 relayPool = newPool
                 connectionJob = scope.launch {
                     try {
-                        connection.relays.map(RelayUrl::parse).distinct().forEach { newPool.addRelay(it) }
+                        connection.relays.map(RelayUrl::parse).distinct().forEach {
+                            newPool.addRelay(it)
+                        }
                         newPool.connectAll()
                         val connected = withTimeoutOrNull(connectionTimeoutMs) {
                             newPool.connectionStatusFlow.first { statuses ->
@@ -292,43 +304,77 @@ class NwcClient private constructor(
                             }
                         } != null
                         if (!connected) {
-                            setConnectionState(newPool, generation, NwcClientState.Failed(
-                                io.github.nicolals.nwc.NwcError.ConnectionError("Failed to connect to any relay")
-                            ))
+                            setConnectionState(
+                                newPool,
+                                generation,
+                                NwcClientState.Failed(
+                                    io.github.nicolals.nwc.NwcError.ConnectionError(
+                                        "Failed to connect to any relay"
+                                    )
+                                )
+                            )
                             return@launch
                         }
                         subscribeToResponses(newPool)
                         if (hasCachedWalletInfo) {
-                            if (_walletInfo.value.supportsNotifications) subscribeToNotifications(newPool)
+                            if (_walletInfo.value.supportsNotifications) {
+                                subscribeToNotifications(
+                                    newPool
+                                )
+                            }
                             setConnectionState(newPool, generation, NwcClientState.Ready)
                         }
                         fetchWalletInfo(newPool)
-                        if (_walletInfo.value.supportsNotifications) subscribeToNotifications(newPool)
+                        if (_walletInfo.value.supportsNotifications) {
+                            subscribeToNotifications(
+                                newPool
+                            )
+                        }
                         setConnectionState(newPool, generation, NwcClientState.Ready)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        setConnectionState(newPool, generation, NwcClientState.Failed(
-                            io.github.nicolals.nwc.NwcError.ConnectionError("Failed to initialize wallet connection")
-                        ))
+                        setConnectionState(
+                            newPool,
+                            generation,
+                            NwcClientState.Failed(
+                                io.github.nicolals.nwc.NwcError.ConnectionError(
+                                    "Failed to initialize wallet connection"
+                                )
+                            )
+                        )
                     }
                 }
             }
         }
     }
 
-    private suspend fun setConnectionState(pool: CoroutinesRelayPool, generation: Long, state: NwcClientState) {
+    private suspend fun setConnectionState(
+        pool: CoroutinesRelayPool,
+        generation: Long,
+        state: NwcClientState
+    ) {
         lifecycleMutex.withLock {
-            if (relayPool !== pool || generation != connectionGeneration || _state.value == NwcClientState.Closed) return
+            if (relayPool !== pool || generation != connectionGeneration ||
+                _state.value == NwcClientState.Closed
+            ) {
+                return
+            }
             _state.value = state
-            if (state == NwcClientState.Ready && sessionLifecycleJob == null) observeSessionLifecycle(pool)
+            if (state == NwcClientState.Ready &&
+                sessionLifecycleJob == null
+            ) {
+                observeSessionLifecycle(pool)
+            }
         }
     }
 
     private fun observeSessionLifecycle(observedPool: CoroutinesRelayPool) {
         sessionLifecycleJob = scope.launch {
             observedPool.connectionStatusFlow.collect { statuses ->
-                if (statuses.isNotEmpty() && statuses.values.none { it == ConnectionStatus.Connected }) {
+                if (statuses.isNotEmpty() &&
+                    statuses.values.none { it == ConnectionStatus.Connected }
+                ) {
                     scope.launch { handleSessionDisconnected(observedPool) }
                 }
             }
@@ -384,11 +430,12 @@ class NwcClient private constructor(
      * @param timeoutMs Maximum time to wait in milliseconds.
      * @return True if ready, false if timeout or connection failed.
      */
-    suspend fun awaitReady(timeoutMs: Long = 10_000): Boolean {
-        return withTimeoutOrNull(timeoutMs) {
-            _state.first { it == NwcClientState.Ready || it is NwcClientState.Failed || it == NwcClientState.Closed }
-        } == NwcClientState.Ready
-    }
+    suspend fun awaitReady(timeoutMs: Long = 10_000): Boolean = withTimeoutOrNull(timeoutMs) {
+        _state.first {
+            it == NwcClientState.Ready || it is NwcClientState.Failed ||
+                it == NwcClientState.Closed
+        }
+    } == NwcClientState.Ready
 
     /**
      * Closes the client and releases all resources.
@@ -409,27 +456,30 @@ class NwcClient private constructor(
     // ========== Wallet Operations ==========
 
     /** Sends a protocol request, including [io.github.nicolals.nostr.nip47.model.NwcUnknownRequest] for wallet extensions. */
-    suspend fun request(request: NwcRequest, timeoutMs: Long = 30_000): io.github.nicolals.nwc.NwcResult<NwcResponse> =
-        executeRequest(request, timeoutMs)
-
+    suspend fun request(
+        request: NwcRequest,
+        timeoutMs: Long = 30_000
+    ): io.github.nicolals.nwc.NwcResult<NwcResponse> = executeRequest(request, timeoutMs)
 
     /**
      * Gets the current wallet balance.
      */
-    suspend fun getBalance(timeoutMs: Long = 30_000): io.github.nicolals.nwc.NwcResult<Amount> {
-        return executeRequest(NwcGetBalanceRequest, timeoutMs).map { response ->
+    suspend fun getBalance(timeoutMs: Long = 30_000): io.github.nicolals.nwc.NwcResult<Amount> =
+        executeRequest(NwcGetBalanceRequest, timeoutMs).map { response ->
             when (val result = response.result) {
                 is NwcBalanceResult -> Amount.fromMsats(result.balanceMsat)
-                else -> throw IllegalStateException("Unexpected result type: ${response.resultType}")
+
+                else -> throw IllegalStateException(
+                    "Unexpected result type: ${response.resultType}"
+                )
             }
         }
-    }
 
     /**
      * Gets detailed wallet information.
      */
-    suspend fun getInfo(timeoutMs: Long = 30_000): io.github.nicolals.nwc.NwcResult<WalletDetails> {
-        return executeRequest(NwcGetInfoRequest, timeoutMs).map { response ->
+    suspend fun getInfo(timeoutMs: Long = 30_000): io.github.nicolals.nwc.NwcResult<WalletDetails> =
+        executeRequest(NwcGetInfoRequest, timeoutMs).map { response ->
             when (val result = response.result) {
                 is NwcGetInfoResult -> WalletDetails(
                     alias = result.alias,
@@ -438,13 +488,21 @@ class NwcClient private constructor(
                     network = result.network,
                     blockHeight = result.blockHeight,
                     blockHash = result.blockHash,
-                    methods = result.methods?.mapNotNull { NwcCapability.fromValue(it) }?.toSet() ?: emptySet(),
-                    notifications = result.notifications?.mapNotNull { NwcNotificationType.fromValue(it) }?.toSet() ?: emptySet(),
+                    methods =
+                        result.methods?.mapNotNull { NwcCapability.fromValue(it) }?.toSet()
+                            ?: emptySet(),
+                    notifications =
+                        result.notifications?.mapNotNull {
+                            NwcNotificationType.fromValue(it)
+                        }?.toSet()
+                            ?: emptySet()
                 )
-                else -> throw IllegalStateException("Unexpected result type: ${response.resultType}")
+
+                else -> throw IllegalStateException(
+                    "Unexpected result type: ${response.resultType}"
+                )
             }
         }
-    }
 
     /**
      * Pays a BOLT-11 invoice.
@@ -459,11 +517,11 @@ class NwcClient private constructor(
         invoice: String,
         amount: Amount? = null,
         timeoutMs: Long = 60_000,
-        verifyOnTimeout: Boolean = true,
+        verifyOnTimeout: Boolean = true
     ): io.github.nicolals.nwc.NwcResult<PaymentResult> {
         val request = NwcPayInvoiceRequest(
             invoice = invoice,
-            amountMsat = amount?.msats,
+            amountMsat = amount?.msats
         )
 
         val result = executeRequest(request, timeoutMs)
@@ -473,15 +531,20 @@ class NwcClient private constructor(
                 when (val payResult = response.result) {
                     is NwcPayResult -> PaymentResult(
                         preimage = payResult.preimage,
-                        feesPaid = payResult.feesPaidMsat?.let { Amount.fromMsats(it) },
+                        feesPaid = payResult.feesPaidMsat?.let { Amount.fromMsats(it) }
                     )
-                    else -> throw IllegalStateException("Unexpected result type: ${response.resultType}")
+
+                    else -> throw IllegalStateException(
+                        "Unexpected result type: ${response.resultType}"
+                    )
                 }
             }
+
             result.isTimeout && verifyOnTimeout -> {
                 // Payment timed out - verify actual status via lookup_invoice
                 verifyPaymentOnTimeout(invoice)
             }
+
             else -> result.map { throw IllegalStateException("Unreachable") }
         }
     }
@@ -491,10 +554,12 @@ class NwcClient private constructor(
      *
      * This is called automatically when payInvoice times out and verifyOnTimeout is true.
      */
-    private suspend fun verifyPaymentOnTimeout(invoice: String): io.github.nicolals.nwc.NwcResult<PaymentResult> {
+    private suspend fun verifyPaymentOnTimeout(
+        invoice: String
+    ): io.github.nicolals.nwc.NwcResult<PaymentResult> {
         val verification = lookupInvoice(
             params = LookupInvoiceParams(invoice = invoice),
-            timeoutMs = 10_000, // Shorter timeout for verification
+            timeoutMs = 10_000 // Shorter timeout for verification
         )
 
         return when {
@@ -506,19 +571,21 @@ class NwcClient private constructor(
                         io.github.nicolals.nwc.NwcResult.success(
                             PaymentResult(
                                 preimage = tx.preimage ?: "",
-                                feesPaid = tx.feesPaid,
+                                feesPaid = tx.feesPaid
                             )
                         )
                     }
+
                     TransactionState.PENDING -> {
                         // Still pending - return special status
                         io.github.nicolals.nwc.NwcResult.failure(
                             io.github.nicolals.nwc.NwcError.PaymentPending(
                                 message = "Payment sent but not yet confirmed",
-                                paymentHash = tx.paymentHash,
+                                paymentHash = tx.paymentHash
                             )
                         )
                     }
+
                     TransactionState.FAILED, TransactionState.EXPIRED, null -> {
                         // Payment failed, expired, or unknown state
                         io.github.nicolals.nwc.NwcResult.failure(
@@ -529,6 +596,7 @@ class NwcClient private constructor(
                     }
                 }
             }
+
             else -> {
                 // Couldn't verify - return original timeout
                 io.github.nicolals.nwc.NwcResult.failure(
@@ -546,7 +614,7 @@ class NwcClient private constructor(
     suspend fun payInvoice(
         params: PayInvoiceParams,
         timeoutMs: Long = 60_000,
-        verifyOnTimeout: Boolean = true,
+        verifyOnTimeout: Boolean = true
     ): io.github.nicolals.nwc.NwcResult<PaymentResult> =
         payInvoice(params.invoice, params.amount, timeoutMs, verifyOnTimeout)
 
@@ -555,21 +623,26 @@ class NwcClient private constructor(
      */
     suspend fun payKeysend(
         params: KeysendParams,
-        timeoutMs: Long = 60_000,
+        timeoutMs: Long = 60_000
     ): io.github.nicolals.nwc.NwcResult<PaymentResult> {
         val request = NwcPayKeysendRequest(
             pubkey = params.pubkey,
             amountMsat = params.amount.msats,
             preimage = params.preimage,
-            tlvRecords = params.tlvRecords.map { NwcTlvRecord(it.type, it.value) }.takeIf { it.isNotEmpty() },
+            tlvRecords = params.tlvRecords.map {
+                NwcTlvRecord(it.type, it.value)
+            }.takeIf { it.isNotEmpty() }
         )
         return executeRequest(request, timeoutMs).map { response ->
             when (val result = response.result) {
                 is NwcPayResult -> PaymentResult(
                     preimage = result.preimage,
-                    feesPaid = result.feesPaidMsat?.let { Amount.fromMsats(it) },
+                    feesPaid = result.feesPaidMsat?.let { Amount.fromMsats(it) }
                 )
-                else -> throw IllegalStateException("Unexpected result type: ${response.resultType}")
+
+                else -> throw IllegalStateException(
+                    "Unexpected result type: ${response.resultType}"
+                )
             }
         }
     }
@@ -579,18 +652,21 @@ class NwcClient private constructor(
      */
     suspend fun makeInvoice(
         params: MakeInvoiceParams,
-        timeoutMs: Long = 30_000,
+        timeoutMs: Long = 30_000
     ): io.github.nicolals.nwc.NwcResult<Transaction> {
         val request = NwcMakeInvoiceRequest(
             amountMsat = params.amount.msats,
             description = params.description,
             descriptionHash = params.descriptionHash,
-            expirySeconds = params.expirySeconds,
+            expirySeconds = params.expirySeconds
         )
         return executeRequest(request, timeoutMs).map { response ->
             when (val result = response.result) {
                 is NwcInvoiceResult -> result.transaction.toTransaction()
-                else -> throw IllegalStateException("Unexpected result type: ${response.resultType}")
+
+                else -> throw IllegalStateException(
+                    "Unexpected result type: ${response.resultType}"
+                )
             }
         }
     }
@@ -600,16 +676,19 @@ class NwcClient private constructor(
      */
     suspend fun lookupInvoice(
         params: LookupInvoiceParams,
-        timeoutMs: Long = 30_000,
+        timeoutMs: Long = 30_000
     ): io.github.nicolals.nwc.NwcResult<Transaction> {
         val request = NwcLookupInvoiceRequest(
             paymentHash = params.paymentHash,
-            invoice = params.invoice,
+            invoice = params.invoice
         )
         return executeRequest(request, timeoutMs).map { response ->
             when (val result = response.result) {
                 is NwcInvoiceResult -> result.transaction.toTransaction()
-                else -> throw IllegalStateException("Unexpected result type: ${response.resultType}")
+
+                else -> throw IllegalStateException(
+                    "Unexpected result type: ${response.resultType}"
+                )
             }
         }
     }
@@ -619,7 +698,7 @@ class NwcClient private constructor(
      */
     suspend fun listTransactions(
         params: ListTransactionsParams = ListTransactionsParams(),
-        timeoutMs: Long = 30_000,
+        timeoutMs: Long = 30_000
     ): io.github.nicolals.nwc.NwcResult<List<Transaction>> {
         val request = NwcListTransactionsRequest(
             from = params.from,
@@ -627,12 +706,15 @@ class NwcClient private constructor(
             limit = params.limit?.toLong(),
             offset = params.offset?.toLong(),
             unpaid = params.unpaid,
-            type = params.type?.value,
+            type = params.type?.value
         )
         return executeRequest(request, timeoutMs).map { response ->
             when (val result = response.result) {
                 is NwcListTransactionsResult -> result.transactions.map { it.toTransaction() }
-                else -> throw IllegalStateException("Unexpected result type: ${response.resultType}")
+
+                else -> throw IllegalStateException(
+                    "Unexpected result type: ${response.resultType}"
+                )
             }
         }
     }
@@ -642,10 +724,12 @@ class NwcClient private constructor(
      */
     suspend fun multiPayInvoice(
         items: List<MultiPayInvoiceItem>,
-        timeoutMs: Long = 120_000,
+        timeoutMs: Long = 120_000
     ): io.github.nicolals.nwc.NwcResult<Map<String, MultiPayItemResult>> {
         val request = NwcMultiPayInvoiceRequest(
-            invoices = items.map { NwcInvoiceRequestItem(it.invoice, it.amount?.msats, null, it.id) }
+            invoices = items.map {
+                NwcInvoiceRequestItem(it.invoice, it.amount?.msats, null, it.id)
+            }
         )
         return executeMultiRequest(request, items.map { it.id }, timeoutMs).map { responses ->
             responses.mapValues { (_, response) ->
@@ -655,8 +739,14 @@ class NwcClient private constructor(
                 } else {
                     when (val result = response.result) {
                         is NwcPayResult -> MultiPayItemResult.Success(
-                            PaymentResult(result.preimage, result.feesPaidMsat?.let { Amount.fromMsats(it) })
+                            PaymentResult(
+                                result.preimage,
+                                result.feesPaidMsat?.let {
+                                    Amount.fromMsats(it)
+                                }
+                            )
                         )
+
                         else -> MultiPayItemResult.Failed(
                             io.github.nicolals.nwc.NwcError.ProtocolError("Unexpected result type")
                         )
@@ -671,7 +761,7 @@ class NwcClient private constructor(
      */
     suspend fun multiPayKeysend(
         items: List<MultiKeysendItem>,
-        timeoutMs: Long = 120_000,
+        timeoutMs: Long = 120_000
     ): io.github.nicolals.nwc.NwcResult<Map<String, MultiPayItemResult>> {
         val request = NwcMultiPayKeysendRequest(
             keysends = items.map {
@@ -679,8 +769,10 @@ class NwcClient private constructor(
                     pubkey = it.pubkey,
                     amountMsat = it.amount.msats,
                     preimage = it.preimage,
-                    tlvRecords = it.tlvRecords.map { tlv -> NwcTlvRecord(tlv.type, tlv.value) }.takeIf { list -> list.isNotEmpty() },
-                    id = it.id,
+                    tlvRecords = it.tlvRecords.map { tlv ->
+                        NwcTlvRecord(tlv.type, tlv.value)
+                    }.takeIf { list -> list.isNotEmpty() },
+                    id = it.id
                 )
             }
         )
@@ -692,8 +784,14 @@ class NwcClient private constructor(
                 } else {
                     when (val result = response.result) {
                         is NwcPayResult -> MultiPayItemResult.Success(
-                            PaymentResult(result.preimage, result.feesPaidMsat?.let { Amount.fromMsats(it) })
+                            PaymentResult(
+                                result.preimage,
+                                result.feesPaidMsat?.let {
+                                    Amount.fromMsats(it)
+                                }
+                            )
                         )
+
                         else -> MultiPayItemResult.Failed(
                             io.github.nicolals.nwc.NwcError.ProtocolError("Unexpected result type")
                         )
@@ -715,13 +813,11 @@ class NwcClient private constructor(
      */
     suspend fun checkPaymentStatus(
         paymentHash: String,
-        timeoutMs: Long = 30_000,
-    ): io.github.nicolals.nwc.NwcResult<Transaction> {
-        return lookupInvoice(
-            params = LookupInvoiceParams(paymentHash = paymentHash),
-            timeoutMs = timeoutMs,
-        )
-    }
+        timeoutMs: Long = 30_000
+    ): io.github.nicolals.nwc.NwcResult<Transaction> = lookupInvoice(
+        params = LookupInvoiceParams(paymentHash = paymentHash),
+        timeoutMs = timeoutMs
+    )
 
     /**
      * Refreshes the wallet info event from the relay.
@@ -748,7 +844,7 @@ class NwcClient private constructor(
         val filter = Filter(
             kinds = listOf(NwcInfoEvent.KIND),
             authors = listOf(connection.walletPubkey),
-            limit = 1,
+            limit = 1
         )
 
         val handle = pool.subscribe(listOf(filter))
@@ -785,7 +881,7 @@ class NwcClient private constructor(
         val filter = Filter(
             kinds = listOf(NwcResponseEvent.KIND),
             authors = listOf(connection.walletPubkey),
-            tagFilters = mapOf("p" to listOf(connection.clientPubkey.hex)),
+            tagFilters = mapOf("p" to listOf(connection.clientPubkey.hex))
         )
 
         val handle = pool.subscribe(listOf(filter))
@@ -808,12 +904,14 @@ class NwcClient private constructor(
         val filter = Filter(
             kinds = listOf(nip44Kind, nip04Kind),
             authors = listOf(connection.walletPubkey),
-            tagFilters = mapOf("p" to listOf(connection.clientPubkey.hex)),
+            tagFilters = mapOf("p" to listOf(connection.clientPubkey.hex))
         )
 
         val handle = pool.subscribe(listOf(filter))
         lifecycleMutex.withLock {
-            if (relayPool !== pool || _state.value == NwcClientState.Closed || notificationHandle != null) {
+            if (relayPool !== pool || _state.value == NwcClientState.Closed ||
+                notificationHandle != null
+            ) {
                 handle.close()
                 return
             }
@@ -827,7 +925,7 @@ class NwcClient private constructor(
     private suspend fun collectWalletEvents(
         pool: CoroutinesRelayPool,
         handle: CoroutinesPoolSubscriptionHandle,
-        consume: suspend (Event) -> Unit,
+        consume: suspend (Event) -> Unit
     ) {
         try {
             handle.events.collect { consume(it) }
@@ -838,7 +936,9 @@ class NwcClient private constructor(
             scope.launch {
                 val previous = lifecycleMutex.withLock {
                     if (relayPool !== pool || _state.value == NwcClientState.Closed) return@launch
-                    val error = io.github.nicolals.nwc.NwcError.ProtocolError("Wallet event stream failed")
+                    val error = io.github.nicolals.nwc.NwcError.ProtocolError(
+                        "Wallet event stream failed"
+                    )
                     _state.value = NwcClientState.Failed(error)
                     ++connectionGeneration
                     val previous = clearConnectionLocked()
@@ -852,26 +952,41 @@ class NwcClient private constructor(
 
     private fun isAuthenticWalletEvent(event: Event, addressedToClient: Boolean = false): Boolean {
         if (event.pubkey != connection.walletPubkey) return false
-        if (addressedToClient && event.tags.filter { it.firstOrNull() == "p" }.singleOrNull()?.getOrNull(1) != signer.pubkey.hex) return false
+        if (addressedToClient &&
+            event.tags.filter { it.firstOrNull() == "p" }.singleOrNull()?.getOrNull(1) !=
+            signer.pubkey.hex
+        ) {
+            return false
+        }
         return verifier.verify(event) is CryptoResult.Ok
     }
 
     private suspend fun handleResponseEvent(event: Event) {
         if (!isAuthenticWalletEvent(event, addressedToClient = true)) return
-        val requestId = event.tags.filter { it.firstOrNull() == "e" }.singleOrNull()?.getOrNull(1) ?: return
+        val requestId =
+            event.tags.filter { it.firstOrNull() == "e" }.singleOrNull()?.getOrNull(1) ?: return
         val expectedEncryption = pendingMutex.withLock {
             pendingRequests[requestId]?.encryption ?: pendingMultiRequests[requestId]?.encryption
         } ?: return
         val encryptionTags = event.tags.filter { it.firstOrNull() == "encryption" }
         if (encryptionTags.isNotEmpty() &&
             encryptionTags.singleOrNull()?.takeIf { it.size == 2 }?.get(1) != expectedEncryption.tag
-        ) return
+        ) {
+            return
+        }
         val encryptionSelector = NwcEncryptionSelector { expectedEncryption }
         val responseEvent = NwcResponseEvent.fromEventOrNull(event, encryptionSelector) ?: return
 
         // Decrypt the response
-        val response = when (val result = responseEvent.decryptForClient(codec, cipher, encryptionOverride = expectedEncryption)) {
+        val response = when (
+            val result = responseEvent.decryptForClient(
+                codec,
+                cipher,
+                encryptionOverride = expectedEncryption
+            )
+        ) {
             is CryptoResult.Ok -> result.value
+
             is CryptoResult.Err -> {
                 // Invalid encrypted responses cannot complete a pending request.
                 return
@@ -903,7 +1018,10 @@ class NwcClient private constructor(
                 pending?.deferred?.complete(response)
             } else {
                 val deferred = pendingMutex.withLock {
-                    pendingMultiRequests[requestId]?.takeIf { it.expectedMethod == response.resultType }
+                    pendingMultiRequests[requestId]?.takeIf {
+                        it.expectedMethod ==
+                            response.resultType
+                    }
                         ?.deferreds?.remove(responseId)
                 }
                 deferred?.complete(response)
@@ -926,9 +1044,11 @@ class NwcClient private constructor(
             is NwcPaymentReceivedNotification -> WalletNotification.PaymentReceived(
                 notification.transaction.toTransaction()
             )
+
             is NwcPaymentSentNotification -> WalletNotification.PaymentSent(
                 notification.transaction.toTransaction()
             )
+
             else -> return
         }
 
@@ -958,17 +1078,25 @@ class NwcClient private constructor(
 
             // If disconnected or failed, trigger connection with appropriate timeout
             val currentState = _state.value
-            if (currentState == NwcClientState.Disconnected || currentState is NwcClientState.Failed) {
+            if (currentState == NwcClientState.Disconnected ||
+                currentState is NwcClientState.Failed
+            ) {
                 // Use shorter per-attempt timeout to leave room for retries
                 val perAttemptTimeout = minOf(remaining, CONNECTION_ATTEMPT_TIMEOUT_MS)
                 connect(forceReconnect = true, connectionTimeoutMs = perAttemptTimeout)
             }
 
             // Wait for Ready state
-            val waitTimeout = minOf(remaining, CONNECTION_ATTEMPT_TIMEOUT_MS + WALLET_INFO_TIMEOUT_MS)
+            val waitTimeout = minOf(
+                remaining,
+                CONNECTION_ATTEMPT_TIMEOUT_MS + WALLET_INFO_TIMEOUT_MS
+            )
             val ready = try {
                 withTimeoutOrNull(waitTimeout) {
-                    _state.first { it == NwcClientState.Ready || it is NwcClientState.Failed || it == NwcClientState.Closed }
+                    _state.first {
+                        it == NwcClientState.Ready || it is NwcClientState.Failed ||
+                            it == NwcClientState.Closed
+                    }
                 } == NwcClientState.Ready
             } catch (e: CancellationException) {
                 throw e
@@ -1008,21 +1136,29 @@ class NwcClient private constructor(
 
         fun interrupted(timeoutMs: Long): io.github.nicolals.nwc.NwcError =
             if (mayHaveBeenPublished.value) {
-                io.github.nicolals.nwc.NwcError.Timeout("Request interrupted after possible publication", timeoutMs)
+                io.github.nicolals.nwc.NwcError.Timeout(
+                    "Request interrupted after possible publication",
+                    timeoutMs
+                )
             } else {
-                io.github.nicolals.nwc.NwcError.ConnectionError("Request interrupted before publication")
+                io.github.nicolals.nwc.NwcError.ConnectionError(
+                    "Request interrupted before publication"
+                )
             }
     }
 
     private suspend fun <T> executeWithDeadline(
         timeoutMs: Long,
-        block: suspend (UnixTimeSeconds, RequestAttempt) -> io.github.nicolals.nwc.NwcResult<T>,
+        block: suspend (UnixTimeSeconds, RequestAttempt) -> io.github.nicolals.nwc.NwcResult<T>
     ): io.github.nicolals.nwc.NwcResult<T> {
         currentCoroutineContext().ensureActive()
-        if (timeoutMs <= 0) return io.github.nicolals.nwc.NwcResult.failure(
-            io.github.nicolals.nwc.NwcError.ProtocolError("timeoutMs must be positive")
-        )
-        val expiration = UnixTimeSeconds(requestExpirationSeconds(UnixTimeSeconds.now().value, timeoutMs))
+        if (timeoutMs <= 0) {
+            return io.github.nicolals.nwc.NwcResult.failure(
+                io.github.nicolals.nwc.NwcError.ProtocolError("timeoutMs must be positive")
+            )
+        }
+        val expiration =
+            UnixTimeSeconds(requestExpirationSeconds(UnixTimeSeconds.now().value, timeoutMs))
         val attempt = RequestAttempt()
         val operation = scope.async {
             try {
@@ -1031,11 +1167,16 @@ class NwcClient private constructor(
                     try {
                         block(expiration, attempt)
                     } finally {
-                        withContext(NonCancellable) { lifecycleMutex.withLock { preparingRequests.remove(job) } }
+                        withContext(NonCancellable) {
+                            lifecycleMutex.withLock { preparingRequests.remove(job) }
+                        }
                     }
                 }
                     ?: io.github.nicolals.nwc.NwcResult.failure(
-                        io.github.nicolals.nwc.NwcError.Timeout("Request deadline exceeded", timeoutMs)
+                        io.github.nicolals.nwc.NwcError.Timeout(
+                            "Request deadline exceeded",
+                            timeoutMs
+                        )
                     )
             } catch (e: CancellationException) {
                 throw e
@@ -1060,8 +1201,11 @@ class NwcClient private constructor(
 
     private suspend fun executeRequest(
         request: NwcRequest,
-        timeoutMs: Long,
-    ): io.github.nicolals.nwc.NwcResult<NwcResponse> = executeWithDeadline(timeoutMs) { expiration, attempt ->
+        timeoutMs: Long
+    ): io.github.nicolals.nwc.NwcResult<NwcResponse> = executeWithDeadline(timeoutMs) {
+            expiration,
+            attempt
+        ->
         executeRequestWithinDeadline(request, timeoutMs, expiration, attempt)
     }
 
@@ -1069,7 +1213,7 @@ class NwcClient private constructor(
         request: NwcRequest,
         timeoutMs: Long,
         expiration: UnixTimeSeconds,
-        attempt: RequestAttempt,
+        attempt: RequestAttempt
     ): io.github.nicolals.nwc.NwcResult<NwcResponse> {
         // Ensure we are connected before proceeding
         // Give generous time for connection establishment with retries.
@@ -1115,7 +1259,9 @@ class NwcClient private constructor(
         val generation = lifecycleMutex.withLock {
             if (relayPool !== currentPool || _state.value != NwcClientState.Ready) {
                 return io.github.nicolals.nwc.NwcResult.failure(
-                    io.github.nicolals.nwc.NwcError.ConnectionError("Connection changed before request preparation")
+                    io.github.nicolals.nwc.NwcError.ConnectionError(
+                        "Connection changed before request preparation"
+                    )
                 )
             }
             preparingRequests += preparationJob
@@ -1130,11 +1276,12 @@ class NwcClient private constructor(
             codec = codec,
             cipher = cipher,
             encryption = encryption,
-            expiration = expiration,
+            expiration = expiration
         )
 
         val template = when (templateResult) {
             is CryptoResult.Ok -> templateResult.value
+
             is CryptoResult.Err -> return io.github.nicolals.nwc.NwcResult.failure(
                 io.github.nicolals.nwc.NwcError.CryptoError("Failed to encrypt request")
             )
@@ -1142,6 +1289,7 @@ class NwcClient private constructor(
 
         val signedEvent = when (val result = signer.sign(template)) {
             is CryptoResult.Ok -> result.value
+
             is CryptoResult.Err -> return io.github.nicolals.nwc.NwcResult.failure(
                 io.github.nicolals.nwc.NwcError.CryptoError("Failed to sign request")
             )
@@ -1155,17 +1303,28 @@ class NwcClient private constructor(
                 pendingRequests[requestId] = PendingRequest(request.method, encryption, deferred)
                 _pendingRequestCount.value = pendingRequests.size
             }
-            val publishError = awaitPublication(currentPool, generation, signedEvent.event, attempt) { deferred.isCompleted }
+            val publishError =
+                awaitPublication(currentPool, generation, signedEvent.event, attempt) {
+                    deferred.isCompleted
+                }
             if (publishError != null) return io.github.nicolals.nwc.NwcResult.failure(publishError)
             val response = withTimeoutOrNull(timeoutMs) { deferred.await() }
             when {
                 response == null -> io.github.nicolals.nwc.NwcResult.failure(
-                    io.github.nicolals.nwc.NwcError.Timeout("Timeout waiting for wallet response", timeoutMs)
+                    io.github.nicolals.nwc.NwcError.Timeout(
+                        "Timeout waiting for wallet response",
+                        timeoutMs
+                    )
                 )
-                response.error != null -> io.github.nicolals.nwc.NwcResult.failure(requireNotNull(response.error).toNwcError())
+
+                response.error != null -> io.github.nicolals.nwc.NwcResult.failure(
+                    requireNotNull(response.error).toNwcError()
+                )
+
                 response.result == null -> io.github.nicolals.nwc.NwcResult.failure(
                     io.github.nicolals.nwc.NwcError.ProtocolError("Wallet response has no result")
                 )
+
                 else -> io.github.nicolals.nwc.NwcResult.success(response)
             }
         } catch (e: CancellationException) {
@@ -1189,13 +1348,17 @@ class NwcClient private constructor(
         generation: Long,
         event: Event,
         attempt: RequestAttempt,
-        hasResponse: () -> Boolean,
+        hasResponse: () -> Boolean
     ): io.github.nicolals.nwc.NwcError? {
         val preparationJob = requireNotNull(currentCoroutineContext()[Job])
         val handle = lifecycleMutex.withLock {
             preparingRequests.remove(preparationJob)
-            if (relayPool !== pool || connectionGeneration != generation || _state.value != NwcClientState.Ready) {
-                return io.github.nicolals.nwc.NwcError.ConnectionError("Connection changed before publication")
+            if (relayPool !== pool || connectionGeneration != generation ||
+                _state.value != NwcClientState.Ready
+            ) {
+                return io.github.nicolals.nwc.NwcError.ConnectionError(
+                    "Connection changed before publication"
+                )
             }
             // Publication can begin before its handle is returned or its status is observed.
             attempt.beforePublication()
@@ -1204,12 +1367,18 @@ class NwcClient private constructor(
         try {
             val statuses = withTimeoutOrNull(PUBLISH_ACK_TIMEOUT_MS) {
                 handle.statusFlow.first { statuses ->
-                    statuses.values.any { it is PublishStatus.Accepted } || statuses.values.all { it.isTerminal }
+                    statuses.values.any { it is PublishStatus.Accepted } ||
+                        statuses.values.all { it.isTerminal }
                 }
             }
-            if (statuses?.values?.any { it is PublishStatus.Accepted } == true || hasResponse()) return null
+            if (statuses?.values?.any { it is PublishStatus.Accepted } == true ||
+                hasResponse()
+            ) {
+                return null
+            }
             return io.github.nicolals.nwc.NwcError.Timeout(
-                "Request may have been published without acknowledgment", PUBLISH_ACK_TIMEOUT_MS
+                "Request may have been published without acknowledgment",
+                PUBLISH_ACK_TIMEOUT_MS
             )
         } finally {
             handle.cancel()
@@ -1220,8 +1389,11 @@ class NwcClient private constructor(
     private suspend fun executeMultiRequest(
         request: NwcRequest,
         itemIds: List<String>,
-        timeoutMs: Long,
-    ): io.github.nicolals.nwc.NwcResult<Map<String, NwcResponse>> = executeWithDeadline(timeoutMs) { expiration, attempt ->
+        timeoutMs: Long
+    ): io.github.nicolals.nwc.NwcResult<Map<String, NwcResponse>> = executeWithDeadline(timeoutMs) {
+            expiration,
+            attempt
+        ->
         executeMultiRequestWithinDeadline(request, itemIds, timeoutMs, expiration, attempt)
     }
 
@@ -1230,7 +1402,7 @@ class NwcClient private constructor(
         itemIds: List<String>,
         timeoutMs: Long,
         expiration: UnixTimeSeconds,
-        attempt: RequestAttempt,
+        attempt: RequestAttempt
     ): io.github.nicolals.nwc.NwcResult<Map<String, NwcResponse>> {
         // Ensure we are connected before proceeding
         // Give generous time for connection establishment with retries
@@ -1274,7 +1446,9 @@ class NwcClient private constructor(
         val generation = lifecycleMutex.withLock {
             if (relayPool !== currentPool || _state.value != NwcClientState.Ready) {
                 return io.github.nicolals.nwc.NwcResult.failure(
-                    io.github.nicolals.nwc.NwcError.ConnectionError("Connection changed before request preparation")
+                    io.github.nicolals.nwc.NwcError.ConnectionError(
+                        "Connection changed before request preparation"
+                    )
                 )
             }
             preparingRequests += preparationJob
@@ -1289,11 +1463,12 @@ class NwcClient private constructor(
             codec = codec,
             cipher = cipher,
             encryption = encryption,
-            expiration = expiration,
+            expiration = expiration
         )
 
         val template = when (templateResult) {
             is CryptoResult.Ok -> templateResult.value
+
             is CryptoResult.Err -> return io.github.nicolals.nwc.NwcResult.failure(
                 io.github.nicolals.nwc.NwcError.CryptoError("Failed to encrypt request")
             )
@@ -1301,6 +1476,7 @@ class NwcClient private constructor(
 
         val signedEvent = when (val result = signer.sign(template)) {
             is CryptoResult.Ok -> result.value
+
             is CryptoResult.Err -> return io.github.nicolals.nwc.NwcResult.failure(
                 io.github.nicolals.nwc.NwcError.CryptoError("Failed to sign request")
             )
@@ -1320,9 +1496,13 @@ class NwcClient private constructor(
         }
         return try {
             pendingMutex.withLock {
-                pendingMultiRequests[requestId] = PendingBatch(request.method, encryption, deferreds.toMutableMap())
+                pendingMultiRequests[requestId] =
+                    PendingBatch(request.method, encryption, deferreds.toMutableMap())
             }
-            val publishError = awaitPublication(currentPool, generation, signedEvent.event, attempt) { deferreds.values.any { it.isCompleted } }
+            val publishError =
+                awaitPublication(currentPool, generation, signedEvent.event, attempt) {
+                    deferreds.values.any { it.isCompleted }
+                }
             if (publishError != null) return io.github.nicolals.nwc.NwcResult.failure(publishError)
             val responses = withTimeoutOrNull(timeoutMs) {
                 buildMap {
@@ -1331,7 +1511,10 @@ class NwcClient private constructor(
             }
             if (responses == null) {
                 io.github.nicolals.nwc.NwcResult.failure(
-                    io.github.nicolals.nwc.NwcError.Timeout("Timeout waiting for wallet responses", timeoutMs)
+                    io.github.nicolals.nwc.NwcError.Timeout(
+                        "Timeout waiting for wallet responses",
+                        timeoutMs
+                    )
                 )
             } else {
                 io.github.nicolals.nwc.NwcResult.success(responses)
@@ -1376,11 +1559,15 @@ class NwcClient private constructor(
 
         private fun defaultCipher(uri: NwcConnectionUri): NwcCipher {
             val secret = SecretKey.fromBytes(uri.secret)
-            return Nip47Cipher(LocalNip04Cipher(secret, NostrCrypto), LocalNip44Cipher(secret, NostrCrypto))
+            return Nip47Cipher(
+                LocalNip04Cipher(secret, NostrCrypto),
+                LocalNip44Cipher(secret, NostrCrypto)
+            )
         }
 
         /** Timeout for waiting for relay to acknowledge publish (OK message) */
         private const val PUBLISH_ACK_TIMEOUT_MS = 5_000L
+
         /** Default timeout for WebSocket connection establishment (DNS + TCP + TLS + WS handshake) */
         private const val DEFAULT_CONNECTION_TIMEOUT_MS = 10_000L
 
@@ -1443,10 +1630,12 @@ class NwcClient private constructor(
             codec: NostrJsonCodec = KotlinxNostrJsonCodec(),
             signer: EventTemplateSigner = defaultSigner(uri),
             verifier: EventVerifier = NostrEventVerifier(),
-            cipher: NwcCipher = defaultCipher(uri),
+            cipher: NwcCipher = defaultCipher(uri)
         ): NwcClient {
             val connection = NwcConnection(uri.walletPubkey, uri.clientPubkey, uri.relays)
-            require(signer.pubkey == connection.clientPubkey) { "Signer public key must match the NWC connection" }
+            require(signer.pubkey == connection.clientPubkey) {
+                "Signer public key must match the NWC connection"
+            }
             require(httpClient == null || transportFactory == null) {
                 "Supply either httpClient or transportFactory"
             }
@@ -1458,7 +1647,7 @@ class NwcClient private constructor(
             val client = NwcClient(
                 connection, uri, scope, factory, codec, signer, verifier, cipher,
                 if (transportFactory == null) factory as? AutoCloseable else null,
-                cachedWalletInfo,
+                cachedWalletInfo
             )
             // Automatically start connecting when the client is created.
             // This allows connection setup to run in parallel with UI/app logic.
@@ -1480,14 +1669,16 @@ class NwcClient private constructor(
             transportFactory: RelayTransportFactory? = null,
             codec: NostrJsonCodec = KotlinxNostrJsonCodec(),
             verifier: EventVerifier = NostrEventVerifier(),
-            cachedWalletInfo: WalletInfo? = null,
+            cachedWalletInfo: WalletInfo? = null
         ): NwcClient {
-            require(signer.pubkey == connection.clientPubkey) { "Signer public key must match the NWC connection" }
+            require(signer.pubkey == connection.clientPubkey) {
+                "Signer public key must match the NWC connection"
+            }
             val factory = transportFactory ?: KtorRelayTransportFactory()
             return NwcClient(
                 connection, null, scope, factory, codec, signer, verifier, cipher,
                 if (transportFactory == null) factory as? AutoCloseable else null,
-                cachedWalletInfo,
+                cachedWalletInfo
             ).also { it.connect() }
         }
 
@@ -1504,7 +1695,7 @@ class NwcClient private constructor(
             uriString: String,
             scope: CoroutineScope,
             httpClient: HttpClient? = null,
-            cachedWalletInfo: WalletInfo? = null,
+            cachedWalletInfo: WalletInfo? = null
         ): NwcClient? {
             val uri = NwcConnectionUri.parse(uriString) ?: return null
             return invoke(uri, scope, httpClient, cachedWalletInfo)
@@ -1525,7 +1716,7 @@ class NwcClient private constructor(
             deepLinkUri: String,
             scope: CoroutineScope,
             httpClient: HttpClient? = null,
-            cachedWalletInfo: WalletInfo? = null,
+            cachedWalletInfo: WalletInfo? = null
         ): NwcClient? {
             val uri = NwcConnectionUri.parseDeepLink(deepLinkUri) ?: return null
             return invoke(uri, scope, httpClient, cachedWalletInfo)
@@ -1551,31 +1742,43 @@ class NwcClient private constructor(
             uri: String,
             httpClient: HttpClient? = null,
             timeoutMs: Long = 10_000,
-            transportFactory: RelayTransportFactory? = null,
+            transportFactory: RelayTransportFactory? = null
         ): io.github.nicolals.nwc.NwcResult<WalletDiscovery> {
-            if (timeoutMs <= 0) return io.github.nicolals.nwc.NwcResult.failure(
-                io.github.nicolals.nwc.NwcError.ProtocolError("timeoutMs must be positive")
-            )
+            if (timeoutMs <= 0) {
+                return io.github.nicolals.nwc.NwcResult.failure(
+                    io.github.nicolals.nwc.NwcError.ProtocolError("timeoutMs must be positive")
+                )
+            }
             val parsed = NwcConnectionUri.parse(uri)
                 ?: return io.github.nicolals.nwc.NwcResult.failure(
                     io.github.nicolals.nwc.NwcError.ProtocolError("Invalid NWC URI")
                 )
 
-            val scope = CoroutineScope(currentCoroutineContext() + SupervisorJob(currentCoroutineContext()[Job]))
+            val scope =
+                CoroutineScope(
+                    currentCoroutineContext() + SupervisorJob(currentCoroutineContext()[Job])
+                )
             val client = invoke(parsed, scope, httpClient, transportFactory = transportFactory)
 
             return try {
                 withTimeoutOrNull(timeoutMs) {
                     if (!client.awaitReady(timeoutMs)) {
                         return@withTimeoutOrNull io.github.nicolals.nwc.NwcResult.failure(
-                            io.github.nicolals.nwc.NwcError.ConnectionError("Failed to connect to relay")
+                            io.github.nicolals.nwc.NwcError.ConnectionError(
+                                "Failed to connect to relay"
+                            )
                         )
                     }
                     val walletInfo = client.walletInfo.value
                     val details = client.getInfo(timeoutMs).getOrNull()
-                    io.github.nicolals.nwc.NwcResult.success(WalletDiscovery(parsed, walletInfo, details))
+                    io.github.nicolals.nwc.NwcResult.success(
+                        WalletDiscovery(parsed, walletInfo, details)
+                    )
                 } ?: io.github.nicolals.nwc.NwcResult.failure(
-                    io.github.nicolals.nwc.NwcError.Timeout("Wallet discovery deadline exceeded", timeoutMs)
+                    io.github.nicolals.nwc.NwcError.Timeout(
+                        "Wallet discovery deadline exceeded",
+                        timeoutMs
+                    )
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -1597,7 +1800,7 @@ class NwcClient private constructor(
         suspend fun discoverFromDeepLink(
             deepLinkUri: String,
             httpClient: HttpClient? = null,
-            timeoutMs: Long = 10_000,
+            timeoutMs: Long = 10_000
         ): io.github.nicolals.nwc.NwcResult<WalletDiscovery> {
             val nwcUri = NwcConnectionUri.parseDeepLink(deepLinkUri)?.raw
                 ?: return io.github.nicolals.nwc.NwcResult.failure(
@@ -1613,10 +1816,9 @@ internal fun isExactResponseMatch(
     pendingRequestId: String?,
     expectedMethod: String?,
     resultType: String
-): Boolean =
-    responseRequestId != null &&
-        responseRequestId == pendingRequestId &&
-        expectedMethod == resultType
+): Boolean = responseRequestId != null &&
+    responseRequestId == pendingRequestId &&
+    expectedMethod == resultType
 
 internal fun requestExpirationSeconds(nowSeconds: Long, timeoutMs: Long): Long {
     require(timeoutMs > 0) { "timeoutMs must be positive" }
@@ -1628,13 +1830,13 @@ internal fun requestExpirationSeconds(nowSeconds: Long, timeoutMs: Long): Long {
 private data class PendingBatch(
     val expectedMethod: String,
     val encryption: NwcEncryption,
-    val deferreds: MutableMap<String, CompletableDeferred<NwcResponse>>,
+    val deferreds: MutableMap<String, CompletableDeferred<NwcResponse>>
 )
 
 private data class PendingRequest(
     val expectedMethod: String,
     val encryption: NwcEncryption,
-    val deferred: CompletableDeferred<NwcResponse>,
+    val deferred: CompletableDeferred<NwcResponse>
 )
 
 /**
@@ -1656,7 +1858,7 @@ data class WalletDiscovery(
      * Detailed wallet info from get_info (alias, network, color, etc.).
      * May be null if get_info is not supported or failed.
      */
-    val details: WalletDetails?,
+    val details: WalletDetails?
 ) {
     /** Human-readable name for the wallet/node. */
     val alias: String? get() = details?.alias
@@ -1724,7 +1926,7 @@ private fun NwcTransaction.toTransaction(): Transaction = Transaction(
     feesPaid = feesPaidMsat?.let { Amount.fromMsats(it) },
     createdAt = createdAt ?: 0,
     expiresAt = expiresAt,
-    settledAt = settledAt,
+    settledAt = settledAt
 )
 
 private fun NwcError.toNwcError(): io.github.nicolals.nwc.NwcError =

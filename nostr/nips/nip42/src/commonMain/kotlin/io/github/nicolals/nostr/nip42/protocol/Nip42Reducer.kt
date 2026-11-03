@@ -38,24 +38,21 @@ import io.github.nicolals.nostr.nip42.message.AuthClientMessage
  *
  * @param wireCodec Codec for creating client messages.
  */
-class Nip42Reducer(
-    private val wireCodec: NostrWireCodec,
-) : ProtocolReducer {
+class Nip42Reducer(private val wireCodec: NostrWireCodec) : ProtocolReducer {
 
-    override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? {
-        return when (input) {
-            // Transport lifecycle - reset auth on disconnect
-            is TransportInput.Closed -> handleDisconnect(state)
-            is TransportInput.Failed -> handleDisconnect(state)
+    override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? = when (input) {
+        // Transport lifecycle - reset auth on disconnect
+        is TransportInput.Closed -> handleDisconnect(state)
 
-            // User intents
-            is Nip42Intent.Authenticate -> handleAuthenticate(state, input)
+        is TransportInput.Failed -> handleDisconnect(state)
 
-            // Inbound messages
-            is InboundMessage -> handleInboundMessage(state, input.message)
+        // User intents
+        is Nip42Intent.Authenticate -> handleAuthenticate(state, input)
 
-            else -> null
-        }
+        // Inbound messages
+        is InboundMessage -> handleInboundMessage(state, input.message)
+
+        else -> null
     }
 
     // ========== Transport Lifecycle ==========
@@ -74,7 +71,7 @@ class Nip42Reducer(
 
         return ReduceResult(
             state = newState,
-            signals = listOf(Nip42Signal.AuthReset),
+            signals = listOf(Nip42Signal.AuthReset)
         )
     }
 
@@ -82,19 +79,23 @@ class Nip42Reducer(
 
     private fun handleAuthenticate(
         state: ProtocolState,
-        intent: Nip42Intent.Authenticate,
+        intent: Nip42Intent.Authenticate
     ): ReduceResult {
         fun reject(reason: AuthRejectionReason) =
             ReduceResult.withSignals(state, Nip42Signal.AuthResponseRejected(reason))
         if (!state.isConnected) return reject(AuthRejectionReason.NotConnected)
 
         val authState = state.moduleStates[Nip42StateKey]
-        if (authState.challenge !== intent.challenge || state.connection.context !== intent.challenge.connection) {
+        if (authState.challenge !== intent.challenge ||
+            state.connection.context !== intent.challenge.connection
+        ) {
             return reject(AuthRejectionReason.StaleChallenge)
         }
         val authEvent = intent.authEvent
         val view = AuthEvent.fromEventOrNull(authEvent)
-        if (view == null || view.challenge != intent.challenge.value || view.relayUrl != intent.challenge.relayUrl.value) {
+        if (view == null || view.challenge != intent.challenge.value ||
+            view.relayUrl != intent.challenge.relayUrl.value
+        ) {
             return reject(AuthRejectionReason.InvalidEvent)
         }
         val pubkey = authEvent.pubkey
@@ -102,7 +103,7 @@ class Nip42Reducer(
         val newAuthState = authState.copy(
             phase = AuthPhase.AuthPending,
             pendingAuthEventId = authEvent.id,
-            pendingAuthPubkey = pubkey,
+            pendingAuthPubkey = pubkey
         )
 
         val authMessage = AuthClientMessage.create(authEvent, wireCodec)
@@ -112,7 +113,7 @@ class Nip42Reducer(
         return ReduceResult(
             state = newState,
             effects = listOf(ProtocolEffect.Send(authMessage)),
-            signals = listOf(Nip42Signal.AuthPending(pubkey)),
+            signals = listOf(Nip42Signal.AuthPending(pubkey))
         )
     }
 
@@ -120,20 +121,21 @@ class Nip42Reducer(
 
     private fun handleInboundMessage(
         state: ProtocolState,
-        message: io.github.nicolals.nostr.core.message.view.RelayMessageView,
-    ): ReduceResult? {
-        return when (message) {
-            is AuthChallengeMessage -> handleAuthChallenge(state, message)
-            is OkMessage -> handleOk(state, message)
-            else -> null
-        }
+        message: io.github.nicolals.nostr.core.message.view.RelayMessageView
+    ): ReduceResult? = when (message) {
+        is AuthChallengeMessage -> handleAuthChallenge(state, message)
+        is OkMessage -> handleOk(state, message)
+        else -> null
     }
 
     private fun handleAuthChallenge(
         state: ProtocolState,
-        message: AuthChallengeMessage,
+        message: AuthChallengeMessage
     ): ReduceResult {
-        val connection = requireNotNull(state.connection.context) { "AUTH requires an opened connection context" }
+        val connection =
+            requireNotNull(state.connection.context) {
+                "AUTH requires an opened connection context"
+            }
         val challenge = AuthChallenge(message.challenge, connection)
         val authState = state.moduleStates[Nip42StateKey]
 
@@ -151,7 +153,7 @@ class Nip42Reducer(
             phase = newPhase,
             challenge = challenge,
             pendingAuthEventId = null, // Clear any pending auth
-            failureMessage = null, // Clear any previous failure
+            failureMessage = null // Clear any previous failure
         )
 
         val newModuleStates = state.moduleStates.set(Nip42StateKey, newAuthState)
@@ -166,14 +168,11 @@ class Nip42Reducer(
 
         return ReduceResult(
             state = newState,
-            signals = signals,
+            signals = signals
         )
     }
 
-    private fun handleOk(
-        state: ProtocolState,
-        message: OkMessage,
-    ): ReduceResult? {
+    private fun handleOk(state: ProtocolState, message: OkMessage): ReduceResult? {
         val eventId = message.eventId ?: return null
         val authState = state.moduleStates[Nip42StateKey]
 
@@ -192,14 +191,14 @@ class Nip42Reducer(
                 pendingAuthEventId = null,
                 pendingAuthPubkey = null,
                 authenticatedPubkey = pendingPubkey,
-                failureMessage = null,
+                failureMessage = null
             )
         } else {
             authState.copy(
                 phase = AuthPhase.AuthFailed,
                 pendingAuthEventId = null,
                 pendingAuthPubkey = null,
-                failureMessage = message.message,
+                failureMessage = message.message
             )
         }
 
@@ -214,7 +213,7 @@ class Nip42Reducer(
 
         return ReduceResult(
             state = newState,
-            signals = listOf(signal),
+            signals = listOf(signal)
         )
     }
 }

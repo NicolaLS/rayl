@@ -11,20 +11,19 @@ import io.github.nicolals.nostr.core.message.view.RelayMessageView
 /**
  * Upgrader for NIP-01 relay messages: EVENT, OK, EOSE, CLOSED, NOTICE.
  */
-class Nip01RelayMessageUpgrader(
-    private val wireCodec: NostrWireCodec,
-) : RelayMessageUpgrader<RelayMessageView> {
+class Nip01RelayMessageUpgrader(private val wireCodec: NostrWireCodec) :
+    RelayMessageUpgrader<RelayMessageView> {
 
     override val tokens: Set<String> = setOf(
         RelayEventMessage.TOKEN,
         OkMessage.TOKEN,
         EoseMessage.TOKEN,
         ClosedMessage.TOKEN,
-        NoticeMessage.TOKEN,
+        NoticeMessage.TOKEN
     )
 
-    override fun upgradeOrNull(raw: RawRelayMessage, token: String): RelayMessageView? {
-        return when (token) {
+    override fun upgradeOrNull(raw: RawRelayMessage, token: String): RelayMessageView? =
+        when (token) {
             RelayEventMessage.TOKEN -> upgradeEventMessage(raw)
             OkMessage.TOKEN -> upgradeOkMessage(raw)
             EoseMessage.TOKEN -> upgradeEoseMessage(raw)
@@ -32,7 +31,6 @@ class Nip01RelayMessageUpgrader(
             NoticeMessage.TOKEN -> upgradeNoticeMessage(raw)
             else -> null
         }
-    }
 
     private fun upgradeEventMessage(raw: RawRelayMessage): RelayEventMessage? {
         // ["EVENT", <subscription_id>, <event>]
@@ -50,7 +48,7 @@ class Nip01RelayMessageUpgrader(
             subscriptionIdString = subscriptionIdString,
             subscriptionId = subscriptionId,
             wireEvent = wireEvent,
-            event = event,
+            event = event
         )
     }
 
@@ -70,7 +68,7 @@ class Nip01RelayMessageUpgrader(
             eventIdHex = eventIdHex,
             eventId = eventId,
             accepted = accepted,
-            message = message,
+            message = message
         )
     }
 

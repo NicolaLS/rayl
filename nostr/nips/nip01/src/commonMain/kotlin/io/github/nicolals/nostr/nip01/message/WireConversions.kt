@@ -1,6 +1,7 @@
 package io.github.nicolals.nostr.nip01.message
 
-import io.github.nicolals.nostr.core.primitives.*
+import io.github.nicolals.nostr.core.primitives.EventId
+import io.github.nicolals.nostr.core.primitives.SubscriptionId
 
 /**
  * Convert a string to a SubscriptionId.

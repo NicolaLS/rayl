@@ -5,15 +5,28 @@ import io.github.nicolals.nostr.core.codec.JsonString
 import io.github.nicolals.nostr.core.message.raw.RawClientMessage
 import io.github.nicolals.nostr.core.message.view.UnknownClientMessage
 import io.github.nicolals.nostr.core.nip.NipModule
-import io.github.nicolals.nostr.core.protocol.*
+import io.github.nicolals.nostr.core.protocol.AdmissionDecision
+import io.github.nicolals.nostr.core.protocol.ModuleStateKey
+import io.github.nicolals.nostr.core.protocol.OperationAdmission
+import io.github.nicolals.nostr.core.protocol.ProtocolInput
+import io.github.nicolals.nostr.core.protocol.ProtocolIntent
+import io.github.nicolals.nostr.core.protocol.ProtocolReducer
+import io.github.nicolals.nostr.core.protocol.ProtocolState
+import io.github.nicolals.nostr.core.protocol.ReduceResult
 import io.github.nicolals.nostr.core.runtime.PublishStatus
 import io.github.nicolals.nostr.core.transport.RelayUrl
 import io.github.nicolals.nostr.nip01.protocol.Nip01Intent
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.*
-import kotlin.test.*
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionCancellationTest {
@@ -22,8 +35,12 @@ class SessionCancellationTest {
     private fun TestScope.connected(modules: List<NipModule> = emptyList()): Pair<CoroutinesRelaySession, FakeRelayTransportFactory> {
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://test.relay"), TestWireCodec(), AcceptTestEvents, factory, this,
-            additionalModules = modules,
+            RelayUrl.parse("wss://test.relay"),
+            TestWireCodec(),
+            AcceptTestEvents,
+            factory,
+            this,
+            additionalModules = modules
         )
         session.connect()
         runCurrent()
@@ -64,9 +81,11 @@ class SessionCancellationTest {
     @Test fun cancelledQueuedAndDeferredPublishesNeverResume() = runTest {
         val gate = object : NipModule {
             override val id = "test.cancel"
-            override val admissionPolicies = listOf(OperationAdmission { state, _ ->
-                if (state.moduleStates[Gate]) AdmissionDecision.Allow else AdmissionDecision.Defer("Waiting")
-            })
+            override val admissionPolicies = listOf(
+                OperationAdmission { state, _ ->
+                    if (state.moduleStates[Gate]) AdmissionDecision.Allow else AdmissionDecision.Defer("Waiting")
+                }
+            )
             override val protocolReducers = listOf(object : ProtocolReducer {
                 override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? =
                     if (input == Release) ReduceResult(state.withModuleStates(state.moduleStates.set(Gate, true))) else null

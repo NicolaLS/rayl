@@ -28,9 +28,8 @@ class Nip42RelayMessageUpgrader : RelayMessageUpgrader<AuthChallengeMessage> {
 /**
  * Upgrader for NIP-42 client AUTH messages (signed event).
  */
-class Nip42ClientMessageUpgrader(
-    private val wireCodec: NostrWireCodec,
-) : ClientMessageUpgrader<AuthClientMessage> {
+class Nip42ClientMessageUpgrader(private val wireCodec: NostrWireCodec) :
+    ClientMessageUpgrader<AuthClientMessage> {
 
     override val tokens: Set<String> = setOf(AUTH_TOKEN)
 

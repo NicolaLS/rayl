@@ -8,5 +8,5 @@ open class Metadata(
     val website: String? = null,
     val banner: String? = null,
     val bot: Boolean? = null,
-    val birthday: Birthday? = null,
+    val birthday: Birthday? = null
 )

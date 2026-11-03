@@ -14,26 +14,32 @@ import io.github.nicolals.nostr.core.message.view.RelayMessageView
 import io.github.nicolals.nostr.core.message.view.UnknownClientMessage
 import io.github.nicolals.nostr.core.nip.NipModule
 import io.github.nicolals.nostr.core.nip.NipRegistry
+import io.github.nicolals.nostr.core.protocol.AdmissionDecision
 import io.github.nicolals.nostr.core.protocol.InboundMessage
 import io.github.nicolals.nostr.core.protocol.ModuleStateKey
-import io.github.nicolals.nostr.core.protocol.ProtocolEffect
-import io.github.nicolals.nostr.core.protocol.AdmissionDecision
 import io.github.nicolals.nostr.core.protocol.OperationAdmission
 import io.github.nicolals.nostr.core.protocol.OperationIntent
-import io.github.nicolals.nostr.core.protocol.ProtocolIntent
+import io.github.nicolals.nostr.core.protocol.ProtocolEffect
 import io.github.nicolals.nostr.core.protocol.ProtocolInput
+import io.github.nicolals.nostr.core.protocol.ProtocolIntent
 import io.github.nicolals.nostr.core.protocol.ProtocolReducer
 import io.github.nicolals.nostr.core.protocol.ProtocolSignal
 import io.github.nicolals.nostr.core.protocol.ProtocolState
 import io.github.nicolals.nostr.core.protocol.ReduceResult
-import io.github.nicolals.nostr.core.runtime.SessionConfig
 import io.github.nicolals.nostr.core.runtime.PublishStatus
+import io.github.nicolals.nostr.core.runtime.SessionConfig
 import io.github.nicolals.nostr.core.runtime.SubscriptionStatus
 import io.github.nicolals.nostr.core.transport.RelayUrl
 import io.github.nicolals.nostr.core.transport.TransportResult
-import io.github.nicolals.nostr.nip01.protocol.Nip01Signal
-import io.github.nicolals.nostr.nip01.protocol.Nip01Intent
 import io.github.nicolals.nostr.nip01.Nip01Module
+import io.github.nicolals.nostr.nip01.protocol.Nip01Intent
+import io.github.nicolals.nostr.nip01.protocol.Nip01Signal
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -44,12 +50,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
-import kotlin.test.assertFalse
-import kotlin.test.assertFailsWith
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionExtensionTest {
@@ -64,14 +64,17 @@ class SessionExtensionTest {
 
     private val gateModule = object : NipModule {
         override val id = "test.gate"
-        override val admissionPolicies = listOf(OperationAdmission { state, _ ->
-            if (state.moduleStates[GateOpen]) AdmissionDecision.Allow else AdmissionDecision.Defer("Gate closed")
-        })
+        override val admissionPolicies = listOf(
+            OperationAdmission { state, _ ->
+                if (state.moduleStates[GateOpen]) AdmissionDecision.Allow else AdmissionDecision.Defer("Gate closed")
+            }
+        )
         override val protocolReducers = listOf(object : ProtocolReducer {
             override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? = when {
                 input == OpenGate -> ReduceResult(
-                    state.withModuleStates(state.moduleStates.set(GateOpen, true)),
+                    state.withModuleStates(state.moduleStates.set(GateOpen, true))
                 )
+
                 else -> null
             }
         })
@@ -87,8 +90,10 @@ class SessionExtensionTest {
         override val protocolReducers = listOf(object : ProtocolReducer {
             override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? = when {
                 input == CustomRequest -> ReduceResult.withEffects(state, ProtocolEffect.Send(request))
+
                 input is InboundMessage && input.message is CustomReply ->
                     ReduceResult.withSignals(state, CustomReplyReceived)
+
                 else -> null
             }
         })
@@ -101,8 +106,12 @@ class SessionExtensionTest {
         }
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://test.relay"), TestWireCodec(), AcceptTestEvents, factory, this,
-            additionalModules = listOf(denial),
+            RelayUrl.parse("wss://test.relay"),
+            TestWireCodec(),
+            AcceptTestEvents,
+            factory,
+            this,
+            additionalModules = listOf(denial)
         )
         session.connect()
         runCurrent()
@@ -121,8 +130,12 @@ class SessionExtensionTest {
     @Test fun closedDeferredSubscriptionCannotBeResumed() = runTest {
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://test.relay"), TestWireCodec(), AcceptTestEvents, factory, this,
-            additionalModules = listOf(gateModule),
+            RelayUrl.parse("wss://test.relay"),
+            TestWireCodec(),
+            AcceptTestEvents,
+            factory,
+            this,
+            additionalModules = listOf(gateModule)
         )
         session.connect()
         runCurrent()
@@ -145,8 +158,12 @@ class SessionExtensionTest {
         val registry = NipRegistry.Builder(codec).install(Nip01Module(codec)).install(gateModule).build()
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            url = RelayUrl.parse("wss://test.relay"), registry = registry, jsonCodec = codec,
-            eventVerifier = AcceptTestEvents, transportFactory = factory, scope = this,
+            url = RelayUrl.parse("wss://test.relay"),
+            registry = registry,
+            jsonCodec = codec,
+            eventVerifier = AcceptTestEvents,
+            transportFactory = factory,
+            scope = this
         )
         session.connect()
         runCurrent()
@@ -178,8 +195,11 @@ class SessionExtensionTest {
         val registry = NipRegistry.Builder(codec).install(Nip01Module(codec)).install(gateModule).build()
         val factory = FakeRelayTransportFactory()
         val pool = CoroutinesRelayPool(
-            registry = registry, jsonCodec = codec, eventVerifier = AcceptTestEvents,
-            transportFactory = factory, scope = this,
+            registry = registry,
+            jsonCodec = codec,
+            eventVerifier = AcceptTestEvents,
+            transportFactory = factory,
+            scope = this
         )
         val firstUrl = RelayUrl.parse("wss://first.relay")
         val secondUrl = RelayUrl.parse("wss://second.relay")
@@ -204,8 +224,12 @@ class SessionExtensionTest {
     @Test fun thirdPartyModuleCanSubmitObserveAndSendWithoutRuntimeChanges() = runTest {
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://test.relay"), TestWireCodec(), AcceptTestEvents, factory, this,
-            additionalModules = listOf(customModule),
+            RelayUrl.parse("wss://test.relay"),
+            TestWireCodec(),
+            AcceptTestEvents,
+            factory,
+            this,
+            additionalModules = listOf(customModule)
         )
         session.connect()
         runCurrent()
@@ -231,12 +255,19 @@ class SessionExtensionTest {
         var checks = 0
         val verifier = EventVerifier {
             checks++
-            if (checks == 1) CryptoResult.Err(CryptoError.VerificationFailed("Invalid signature"))
-            else CryptoResult.Ok(Unit)
+            if (checks == 1) {
+                CryptoResult.Err(CryptoError.VerificationFailed("Invalid signature"))
+            } else {
+                CryptoResult.Ok(Unit)
+            }
         }
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://test.relay"), TestWireCodec(), verifier, factory, this,
+            RelayUrl.parse("wss://test.relay"),
+            TestWireCodec(),
+            verifier,
+            factory,
+            this
         )
         session.connect()
         runCurrent()
@@ -271,8 +302,13 @@ class SessionExtensionTest {
     @Test fun overflowingObserverFailsExplicitlyWithoutBlockingOthersOrClose() = runTest {
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://test.relay"), TestWireCodec(), AcceptTestEvents, factory, this,
-            config = SessionConfig(observerBufferCapacity = 1), additionalModules = listOf(customModule),
+            RelayUrl.parse("wss://test.relay"),
+            TestWireCodec(),
+            AcceptTestEvents,
+            factory,
+            this,
+            config = SessionConfig(observerBufferCapacity = 1),
+            additionalModules = listOf(customModule)
         )
         session.connect()
         runCurrent()
@@ -305,7 +341,7 @@ class SessionExtensionTest {
             override fun parse(json: String): JsonValue = error("Parser rejected $privateContent: $json")
         }
         val module = object : NipModule {
-        override val id = "test.SessionExtensionTest.3"
+            override val id = "test.SessionExtensionTest.3"
             override val protocolReducers = listOf(object : ProtocolReducer {
                 override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? {
                     if (input == CustomRequest) error("Reducer rejected $privateContent")
@@ -315,8 +351,12 @@ class SessionExtensionTest {
         }
         val factory = FakeRelayTransportFactory()
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://test.relay"), codec, AcceptTestEvents, factory, this,
-            additionalModules = listOf(module),
+            RelayUrl.parse("wss://test.relay"),
+            codec,
+            AcceptTestEvents,
+            factory,
+            this,
+            additionalModules = listOf(module)
         )
         val diagnostics = mutableListOf<SessionError>()
         val collector = launch { session.errors.toList(diagnostics) }

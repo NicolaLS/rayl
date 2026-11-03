@@ -10,8 +10,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 class CoroutinesPoolPublishHandle internal constructor(
     val eventId: EventId,
     val handles: Map<RelayUrl, CoroutinesPublishHandle>,
-    scope: CoroutineScope,
+    scope: CoroutineScope
 ) {
     private val jobs = mutableListOf<Job>()
 

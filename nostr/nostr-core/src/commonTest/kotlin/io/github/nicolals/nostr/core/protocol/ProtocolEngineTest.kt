@@ -77,7 +77,7 @@ class ProtocolEngineTest {
                 firstReducerCalled = true
                 return ReduceResult(
                     state = state.withConnection(ConnectionState(ConnectionPhase.Open)),
-                    signals = listOf(TestSignal("first")),
+                    signals = listOf(TestSignal("first"))
                 )
             }
         }
@@ -89,7 +89,7 @@ class ProtocolEngineTest {
                 assertEquals(ConnectionPhase.Open, state.connection.phase)
                 return ReduceResult(
                     state = state,
-                    signals = listOf(TestSignal("second")),
+                    signals = listOf(TestSignal("second"))
                 )
             }
         }
@@ -126,7 +126,17 @@ class ProtocolEngineTest {
         assertEquals(AdmissionDecision.Reject("denied"), result.admission)
         assertTrue(result.effects.isEmpty())
         assertEquals(0, calls)
-        assertEquals(AdmissionDecision.Allow, engine.process(ProtocolState(), TransportInput.Opened(io.github.nicolals.nostr.core.protocol.ConnectionContext(io.github.nicolals.nostr.core.transport.RelayUrl.parse("wss://test.relay")))).admission)
+        assertEquals(
+            AdmissionDecision.Allow,
+            engine.process(
+                ProtocolState(),
+                TransportInput.Opened(
+                    io.github.nicolals.nostr.core.protocol.ConnectionContext(
+                        io.github.nicolals.nostr.core.transport.RelayUrl.parse("wss://test.relay")
+                    )
+                )
+            ).admission
+        )
         assertEquals(1, calls)
     }
 
@@ -141,21 +151,17 @@ class ProtocolEngineTest {
         }
 
         val effectProducingReducer1 = object : ProtocolReducer {
-            override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? {
-                return ReduceResult(
-                    state = state,
-                    effects = listOf(ProtocolEffect.Send(dummyMessage)),
-                )
-            }
+            override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? = ReduceResult(
+                state = state,
+                effects = listOf(ProtocolEffect.Send(dummyMessage))
+            )
         }
 
         val effectProducingReducer2 = object : ProtocolReducer {
-            override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? {
-                return ReduceResult(
-                    state = state,
-                    effects = listOf(ProtocolEffect.ScheduleTimer(TimerKey("test"), 1000)),
-                )
-            }
+            override fun reduce(state: ProtocolState, input: ProtocolInput): ReduceResult? = ReduceResult(
+                state = state,
+                effects = listOf(ProtocolEffect.ScheduleTimer(TimerKey("test"), 1000))
+            )
         }
 
         val engine = ProtocolEngine.Builder()

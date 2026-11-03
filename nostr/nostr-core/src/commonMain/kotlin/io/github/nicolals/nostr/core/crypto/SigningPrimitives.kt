@@ -48,7 +48,7 @@ interface SigningPrimitives {
     fun schnorrSign(
         secretKey32: ByteString,
         message32: ByteString,
-        auxRand32: ByteString? = null,
+        auxRand32: ByteString? = null
     ): CryptoResult<ByteString>
 
     /**
@@ -61,6 +61,6 @@ interface SigningPrimitives {
     fun schnorrVerify(
         signature64: ByteString,
         message32: ByteString,
-        publicKey32: ByteString,
+        publicKey32: ByteString
     ): CryptoResult<Boolean>
 }

@@ -16,7 +16,6 @@ import io.github.nicolals.nostr.core.primitives.EventSig
 import io.github.nicolals.nostr.core.primitives.PublicKey
 import io.github.nicolals.nostr.core.primitives.UnixTimeSeconds
 import io.github.nicolals.nostr.core.protocol.ConnectionContext
-import io.github.nicolals.nostr.core.transport.RelayUrl
 import io.github.nicolals.nostr.core.protocol.ConnectionPhase
 import io.github.nicolals.nostr.core.protocol.ConnectionState
 import io.github.nicolals.nostr.core.protocol.InboundMessage
@@ -24,6 +23,7 @@ import io.github.nicolals.nostr.core.protocol.ProtocolEffect
 import io.github.nicolals.nostr.core.protocol.ProtocolState
 import io.github.nicolals.nostr.core.protocol.TransportInput
 import io.github.nicolals.nostr.core.transport.CloseInfo
+import io.github.nicolals.nostr.core.transport.RelayUrl
 import io.github.nicolals.nostr.nip01.message.OkMessage
 import io.github.nicolals.nostr.nip42.event.AuthEvent
 import io.github.nicolals.nostr.nip42.message.AuthChallengeMessage
@@ -44,7 +44,7 @@ class Nip42ReducerTest {
             testAuthEvent.copy(tags = listOf(listOf("relay", "wss://other.relay"), listOf("challenge", testChallenge))),
             testAuthEvent.copy(tags = listOf(listOf("relay", testRelayUrl), listOf("challenge", "old"))),
             testAuthEvent.copy(tags = testAuthEvent.tags + listOf(listOf("challenge", testChallenge))),
-            testAuthEvent.copy(tags = testAuthEvent.tags + listOf(listOf("relay", testRelayUrl))),
+            testAuthEvent.copy(tags = testAuthEvent.tags + listOf(listOf("relay", testRelayUrl)))
         )
         for (event in invalidEvents) {
             val result = requireNotNull(reducer.reduce(state, Nip42Intent.Authenticate(event, challenge)))
@@ -83,10 +83,10 @@ class Nip42ReducerTest {
         kind = AuthEvent.KIND,
         tags = listOf(
             listOf("relay", testRelayUrl),
-            listOf("challenge", testChallenge),
+            listOf("challenge", testChallenge)
         ),
         content = "",
-        sig = testSig,
+        sig = testSig
     )
 
     private fun connectedState() = ProtocolState(
@@ -96,15 +96,14 @@ class Nip42ReducerTest {
     private fun stateWithChallenge(): ProtocolState {
         val authState = Nip42State(
             phase = AuthPhase.ChallengeReceived,
-            challenge = AuthChallenge(testChallenge, testConnection),
+            challenge = AuthChallenge(testChallenge, testConnection)
         )
         return connectedState().withModuleStates(
             connectedState().moduleStates.set(Nip42StateKey, authState)
         )
     }
 
-    private fun getAuthState(state: ProtocolState): Nip42State =
-        state.moduleStates[Nip42StateKey]
+    private fun getAuthState(state: ProtocolState): Nip42State = state.moduleStates[Nip42StateKey]
 
     // ===== AUTH Challenge Tests =====
 
@@ -144,7 +143,7 @@ class Nip42ReducerTest {
         val authenticatedState = Nip42State(
             phase = AuthPhase.Authenticated,
             challenge = AuthChallenge("old-challenge", testConnection),
-            authenticatedPubkey = testPubkey,
+            authenticatedPubkey = testPubkey
         )
         val state = connectedState().withModuleStates(
             connectedState().moduleStates.set(Nip42StateKey, authenticatedState)
@@ -217,7 +216,7 @@ class Nip42ReducerTest {
             phase = AuthPhase.AuthPending,
             challenge = AuthChallenge(testChallenge, testConnection),
             pendingAuthEventId = testEventId,
-            pendingAuthPubkey = testPubkey,
+            pendingAuthPubkey = testPubkey
         )
         val state = connectedState().withModuleStates(
             connectedState().moduleStates.set(Nip42StateKey, pendingState)
@@ -245,7 +244,7 @@ class Nip42ReducerTest {
             phase = AuthPhase.AuthPending,
             challenge = AuthChallenge(testChallenge, testConnection),
             pendingAuthEventId = testEventId,
-            pendingAuthPubkey = testPubkey,
+            pendingAuthPubkey = testPubkey
         )
         val state = connectedState().withModuleStates(
             connectedState().moduleStates.set(Nip42StateKey, pendingState)
@@ -272,7 +271,7 @@ class Nip42ReducerTest {
             phase = AuthPhase.AuthPending,
             challenge = AuthChallenge(testChallenge, testConnection),
             pendingAuthEventId = testEventId,
-            pendingAuthPubkey = testPubkey,
+            pendingAuthPubkey = testPubkey
         )
         val state = connectedState().withModuleStates(
             connectedState().moduleStates.set(Nip42StateKey, pendingState)
@@ -305,7 +304,7 @@ class Nip42ReducerTest {
         val authenticatedState = Nip42State(
             phase = AuthPhase.Authenticated,
             challenge = AuthChallenge(testChallenge, testConnection),
-            authenticatedPubkey = testPubkey,
+            authenticatedPubkey = testPubkey
         )
         val state = connectedState().withModuleStates(
             connectedState().moduleStates.set(Nip42StateKey, authenticatedState)
@@ -339,15 +338,18 @@ class Nip42ReducerTest {
             phase = AuthPhase.AuthPending,
             challenge = AuthChallenge(testChallenge, testConnection),
             pendingAuthEventId = testEventId,
-            pendingAuthPubkey = testPubkey,
+            pendingAuthPubkey = testPubkey
         )
         val state = connectedState().withModuleStates(
             connectedState().moduleStates.set(Nip42StateKey, pendingState)
         )
 
-        val result = reducer.reduce(state, TransportInput.Failed(
-            io.github.nicolals.nostr.core.transport.TransportError.IoError("connection lost")
-        ))
+        val result = reducer.reduce(
+            state,
+            TransportInput.Failed(
+                io.github.nicolals.nostr.core.transport.TransportError.IoError("connection lost")
+            )
+        )
 
         assertNotNull(result)
         val authState = getAuthState(result.state)
@@ -375,12 +377,14 @@ class Nip42ReducerTest {
     }
 
     private fun createOkMessage(eventId: EventId, accepted: Boolean, message: String): OkMessage {
-        val array = JsonArray(listOf(
-            JsonString("OK"),
-            JsonString(eventId.hex),
-            JsonBoolean(accepted),
-            JsonString(message)
-        ))
+        val array = JsonArray(
+            listOf(
+                JsonString("OK"),
+                JsonString(eventId.hex),
+                JsonBoolean(accepted),
+                JsonString(message)
+            )
+        )
         return OkMessage(RawRelayMessage(array), eventId.hex, eventId, accepted, message)
     }
 }

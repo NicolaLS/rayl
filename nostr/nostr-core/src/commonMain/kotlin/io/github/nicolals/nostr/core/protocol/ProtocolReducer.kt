@@ -12,30 +12,25 @@ package io.github.nicolals.nostr.core.protocol
 data class ReduceResult(
     val state: ProtocolState,
     val effects: List<ProtocolEffect> = emptyList(),
-    val signals: List<ProtocolSignal> = emptyList(),
+    val signals: List<ProtocolSignal> = emptyList()
 ) {
     companion object {
         /**
          * Creates a result with just state changes, no effects or signals.
          */
-        fun stateOnly(state: ProtocolState): ReduceResult =
-            ReduceResult(state)
+        fun stateOnly(state: ProtocolState): ReduceResult = ReduceResult(state)
 
         /**
          * Creates a result with state and effects.
          */
-        fun withEffects(
-            state: ProtocolState,
-            vararg effects: ProtocolEffect,
-        ): ReduceResult = ReduceResult(state, effects.toList())
+        fun withEffects(state: ProtocolState, vararg effects: ProtocolEffect): ReduceResult =
+            ReduceResult(state, effects.toList())
 
         /**
          * Creates a result with state and signals.
          */
-        fun withSignals(
-            state: ProtocolState,
-            vararg signals: ProtocolSignal,
-        ): ReduceResult = ReduceResult(state, signals = signals.toList())
+        fun withSignals(state: ProtocolState, vararg signals: ProtocolSignal): ReduceResult =
+            ReduceResult(state, signals = signals.toList())
 
         /**
          * Creates a result with state, effects, and signals.
@@ -43,7 +38,7 @@ data class ReduceResult(
         fun withEffectsAndSignals(
             state: ProtocolState,
             effects: List<ProtocolEffect>,
-            signals: List<ProtocolSignal>,
+            signals: List<ProtocolSignal>
         ): ReduceResult = ReduceResult(state, effects, signals)
     }
 }

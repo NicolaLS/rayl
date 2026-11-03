@@ -7,11 +7,7 @@ package io.github.nicolals.nostr.core.transport
  * @property reason Optional human-readable close reason.
  * @property initiatedByRemote True if the remote peer initiated the close.
  */
-data class CloseInfo(
-    val code: Int,
-    val reason: String?,
-    val initiatedByRemote: Boolean,
-) {
+data class CloseInfo(val code: Int, val reason: String?, val initiatedByRemote: Boolean) {
     companion object {
         /** Normal closure; the connection successfully completed. */
         const val NORMAL_CLOSURE = 1000

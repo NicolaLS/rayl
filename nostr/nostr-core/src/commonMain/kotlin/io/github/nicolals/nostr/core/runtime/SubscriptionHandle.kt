@@ -130,11 +130,8 @@ sealed interface SubscriptionStatus {
      * @property attempt The retry attempt number (1 for first retry).
      * @property delayMs Delay before the retry attempt.
      */
-    data class Retrying(
-        val reason: SubscriptionRetryReason,
-        val attempt: Int,
-        val delayMs: Long,
-    ) : SubscriptionStatus {
+    data class Retrying(val reason: SubscriptionRetryReason, val attempt: Int, val delayMs: Long) :
+        SubscriptionStatus {
         override val isActive: Boolean = false
         override val isTerminal: Boolean = false
     }
@@ -146,10 +143,8 @@ sealed interface SubscriptionStatus {
      * @property byRelay True if closed by the relay (CLOSED message),
      *   false if closed by the client (CLOSE message).
      */
-    data class Closed(
-        val reason: String? = null,
-        val byRelay: Boolean = false,
-    ) : SubscriptionStatus {
+    data class Closed(val reason: String? = null, val byRelay: Boolean = false) :
+        SubscriptionStatus {
         override val isActive: Boolean = false
         override val isTerminal: Boolean = true
     }

@@ -20,7 +20,7 @@ open class EncryptedDirectMessageEvent(
     override val event: Event,
     open val recipientPubkey: PublicKey,
     open val replyToEventId: EventId?,
-    open val ciphertext: Nip04CipherText,
+    open val ciphertext: Nip04CipherText
 ) : EventView {
     companion object {
         val KIND = EventKind(4)
@@ -36,7 +36,7 @@ open class EncryptedDirectMessageEvent(
                 event = event,
                 recipientPubkey = recipientPubkey,
                 replyToEventId = replyToEventId,
-                ciphertext = ciphertext,
+                ciphertext = ciphertext
             )
         }
 
@@ -46,12 +46,12 @@ open class EncryptedDirectMessageEvent(
             createdAt: UnixTimeSeconds,
             cipher: Nip04Cipher,
             replyToEventId: EventId? = null,
-            extraTags: EventTags = emptyList(),
+            extraTags: EventTags = emptyList()
         ): CryptoResult<EventTemplate<EncryptedDirectMessageEvent>> =
             cipher.encrypt(plaintext, recipientPubkey).flatMap { content ->
                 val ciphertext = Nip04CipherText.parseOrNull(content)
                     ?: return@flatMap CryptoResult.Err(
-                        CryptoError.DecodeError("nip04"),
+                        CryptoError.DecodeError("nip04")
                     )
                 CryptoResult.Ok(
                     template(
@@ -59,8 +59,8 @@ open class EncryptedDirectMessageEvent(
                         ciphertext = ciphertext,
                         createdAt = createdAt,
                         replyToEventId = replyToEventId,
-                        extraTags = extraTags,
-                    ),
+                        extraTags = extraTags
+                    )
                 )
             }
 
@@ -69,21 +69,21 @@ open class EncryptedDirectMessageEvent(
             ciphertext: Nip04CipherText,
             createdAt: UnixTimeSeconds,
             replyToEventId: EventId? = null,
-            extraTags: EventTags = emptyList(),
+            extraTags: EventTags = emptyList()
         ): EventTemplate<EncryptedDirectMessageEvent> {
             val tags = buildTags(recipientPubkey, replyToEventId, extraTags)
             val draft = EventDraft(
                 createdAt = createdAt,
                 kind = KIND,
                 tags = tags,
-                content = ciphertext.toContent(),
+                content = ciphertext.toContent()
             )
             return EventTemplate(draft) { event ->
                 EncryptedDirectMessageEvent(
                     event = event,
                     recipientPubkey = recipientPubkey,
                     replyToEventId = replyToEventId,
-                    ciphertext = ciphertext,
+                    ciphertext = ciphertext
                 )
             }
         }
@@ -91,18 +91,18 @@ open class EncryptedDirectMessageEvent(
 
     suspend fun decryptForRecipient(
         cipher: Nip04Cipher,
-        verifier: EventVerifier,
+        verifier: EventVerifier
     ): CryptoResult<String> = verifier.verify(event).flatMap {
         cipher.decrypt(event.content, event.pubkey)
     }
 
     suspend fun decryptForSender(
         cipher: Nip04Cipher,
-        verifier: EventVerifier,
+        verifier: EventVerifier
     ): CryptoResult<String> = verifier.verify(event).flatMap {
         val recipient = recipientPubkeyFromTags(event.tags)
             ?: return@flatMap CryptoResult.Err(
-                CryptoError.DecryptionFailed("Missing recipient"),
+                CryptoError.DecryptionFailed("Missing recipient")
             )
         cipher.decrypt(event.content, recipient)
     }
@@ -121,7 +121,7 @@ private fun replyToEventIdFromTags(tags: EventTags): EventId? {
 private fun buildTags(
     recipientPubkey: PublicKey,
     replyToEventId: EventId?,
-    extraTags: EventTags,
+    extraTags: EventTags
 ): EventTags {
     val tags = mutableListOf<EventTag>()
     tags.add(listOf("p", recipientPubkey.hex))

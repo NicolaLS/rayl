@@ -13,8 +13,10 @@ fun interface OperationAdmission {
 
 sealed interface AdmissionDecision {
     data object Allow : AdmissionDecision
+
     /** Terminal refusal; no reducer has run and no effects have been produced. */
     data class Reject(val reason: String) : AdmissionDecision
+
     /** Wait for protocol state to change before trying this operation again. */
     data class Defer(val reason: String) : AdmissionDecision
 }
@@ -24,5 +26,5 @@ data class ProtocolResult(
     val state: ProtocolState,
     val effects: List<ProtocolEffect> = emptyList(),
     val signals: List<ProtocolSignal> = emptyList(),
-    val admission: AdmissionDecision = AdmissionDecision.Allow,
+    val admission: AdmissionDecision = AdmissionDecision.Allow
 )

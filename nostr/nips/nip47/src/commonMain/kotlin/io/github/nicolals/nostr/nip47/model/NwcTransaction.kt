@@ -15,5 +15,5 @@ data class NwcTransaction(
     val createdAt: Long? = null,
     val expiresAt: Long? = null,
     val settledAt: Long? = null,
-    val metadata: JsonObject? = null,
+    val metadata: JsonObject? = null
 )

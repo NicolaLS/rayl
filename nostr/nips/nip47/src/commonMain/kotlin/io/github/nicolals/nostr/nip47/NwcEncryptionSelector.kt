@@ -10,13 +10,13 @@ fun interface NwcEncryptionSelector {
 
 fun nwcEncryptionSelectorByWalletPubkey(
     mapping: Map<PublicKey, NwcEncryption>,
-    fallback: NwcEncryption,
+    fallback: NwcEncryption
 ): NwcEncryptionSelector = NwcEncryptionSelector { walletPubkey ->
     mapping[walletPubkey] ?: fallback
 }
 
 fun NwcInfoEvent.preferredEncryption(
-    preferred: NwcEncryption = NwcEncryption.NIP44_V2,
+    preferred: NwcEncryption = NwcEncryption.NIP44_V2
 ): NwcEncryption {
     val supported = if (supportedEncryptions.isEmpty()) {
         listOf(NwcEncryption.NIP04)
@@ -29,7 +29,7 @@ fun NwcInfoEvent.preferredEncryption(
 fun nwcEncryptionSelectorByInfoEvent(
     infoEvent: NwcInfoEvent,
     fallback: NwcEncryption,
-    preferred: NwcEncryption = NwcEncryption.NIP44_V2,
+    preferred: NwcEncryption = NwcEncryption.NIP44_V2
 ): NwcEncryptionSelector = NwcEncryptionSelector { walletPubkey ->
     if (walletPubkey == infoEvent.event.pubkey) {
         infoEvent.preferredEncryption(preferred)
@@ -41,7 +41,7 @@ fun nwcEncryptionSelectorByInfoEvent(
 fun nwcEncryptionSelectorByInfoEvents(
     infoEvents: Map<PublicKey, NwcInfoEvent>,
     fallback: NwcEncryption,
-    preferred: NwcEncryption = NwcEncryption.NIP44_V2,
+    preferred: NwcEncryption = NwcEncryption.NIP44_V2
 ): NwcEncryptionSelector = NwcEncryptionSelector { walletPubkey ->
     infoEvents[walletPubkey]?.preferredEncryption(preferred) ?: fallback
 }

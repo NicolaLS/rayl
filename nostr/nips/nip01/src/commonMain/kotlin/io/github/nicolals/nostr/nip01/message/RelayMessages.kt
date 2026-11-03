@@ -20,7 +20,7 @@ data class RelayEventMessage(
     /** The wire-format event (permissive) */
     val wireEvent: WireEvent,
     /** The domain-typed event (validated), null if validation failed */
-    val event: Event?,
+    val event: Event?
 ) : RelayMessageView {
     companion object {
         const val TOKEN = "EVENT"
@@ -40,7 +40,7 @@ data class OkMessage(
     /** Whether the event was accepted */
     val accepted: Boolean,
     /** Human-readable message (may include machine-readable prefix) */
-    val message: String,
+    val message: String
 ) : RelayMessageView {
     companion object {
         const val TOKEN = "OK"
@@ -56,7 +56,7 @@ data class EoseMessage(
     /** The subscription ID as raw string */
     val subscriptionIdString: String,
     /** The domain-typed subscription ID (validated), null if validation failed */
-    val subscriptionId: SubscriptionId?,
+    val subscriptionId: SubscriptionId?
 ) : RelayMessageView {
     companion object {
         const val TOKEN = "EOSE"
@@ -74,7 +74,7 @@ data class ClosedMessage(
     /** The domain-typed subscription ID (validated), null if validation failed */
     val subscriptionId: SubscriptionId?,
     /** Human-readable reason (may include machine-readable prefix) */
-    val message: String,
+    val message: String
 ) : RelayMessageView {
     companion object {
         const val TOKEN = "CLOSED"
@@ -88,7 +88,7 @@ data class ClosedMessage(
 data class NoticeMessage(
     override val raw: RawRelayMessage,
     /** Human-readable message */
-    val message: String,
+    val message: String
 ) : RelayMessageView {
     companion object {
         const val TOKEN = "NOTICE"

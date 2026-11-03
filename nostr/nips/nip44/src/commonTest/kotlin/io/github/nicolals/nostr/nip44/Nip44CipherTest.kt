@@ -8,17 +8,17 @@ import io.github.nicolals.nostr.core.primitives.SecretKey
 import io.github.nicolals.nostr.crypto.NostrCrypto
 import io.github.nicolals.nostr.crypto.NostrEventVerifier
 import io.github.nicolals.nostr.crypto.NostrSigner
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 
 class Nip44CipherTest {
     private val firstSecret = SecretKey.fromHex("01".padStart(64, '0'))
@@ -56,11 +56,14 @@ class Nip44CipherTest {
         val started = CompletableDeferred<Unit>()
         var cleanupRan = false
         val remote = object : Nip44Cipher {
-            override suspend fun encrypt(plaintext: String, recipientPublicKey: PublicKey): CryptoResult<String> =
-                error("unused")
+            override suspend fun encrypt(plaintext: String, recipientPublicKey: PublicKey): CryptoResult<String> = error("unused")
             override suspend fun decrypt(content: String, senderPublicKey: PublicKey): CryptoResult<String> {
                 started.complete(Unit)
-                try { awaitCancellation() } finally { cleanupRan = true }
+                try {
+                    awaitCancellation()
+                } finally {
+                    cleanupRan = true
+                }
             }
         }
         var returnedResult = false

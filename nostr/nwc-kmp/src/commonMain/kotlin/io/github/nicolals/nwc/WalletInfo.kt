@@ -38,7 +38,7 @@ data class WalletInfo(
     val encryptionDefaultedToNip04: Boolean = false,
 
     /** Advertised wallet extensions that are not represented by [NwcCapability]. */
-    val additionalCapabilities: Set<String> = emptySet(),
+    val additionalCapabilities: Set<String> = emptySet()
 ) {
     /**
      * Whether the wallet supports a specific capability.
@@ -77,7 +77,9 @@ data class WalletInfo(
          */
         fun fromInfoEvent(event: NwcInfoEvent): WalletInfo {
             val capabilities = event.capabilities.mapNotNull { NwcCapability.fromValue(it) }.toSet()
-            val notifications = event.notificationTypes.mapNotNull { NwcNotificationType.fromValue(it) }.toSet()
+            val notifications = event.notificationTypes.mapNotNull {
+                NwcNotificationType.fromValue(it)
+            }.toSet()
             val encryptions = event.supportedEncryptions.toSet()
 
             // Check if encryption defaulted (no encryption tag was present in info event)
@@ -102,7 +104,10 @@ data class WalletInfo(
                 encryptions = effectiveEncryptions,
                 preferredEncryption = preferredEncryption,
                 encryptionDefaultedToNip04 = encryptionDefaulted,
-                additionalCapabilities = event.capabilities.filter { NwcCapability.fromValue(it) == null }.toSet(),
+                additionalCapabilities = event.capabilities.filter {
+                    NwcCapability.fromValue(it) ==
+                        null
+                }.toSet()
             )
         }
 
@@ -115,7 +120,7 @@ data class WalletInfo(
             notifications = emptySet(),
             encryptions = setOf(NwcEncryption.NIP04),
             preferredEncryption = NwcEncryption.NIP04,
-            encryptionDefaultedToNip04 = true,
+            encryptionDefaultedToNip04 = true
         )
     }
 }
@@ -164,7 +169,7 @@ data class WalletDetails(
     /**
      * Notification types supported by this connection.
      */
-    val notifications: Set<NwcNotificationType> = emptySet(),
+    val notifications: Set<NwcNotificationType> = emptySet()
 )
 
 /**
@@ -183,8 +188,7 @@ enum class NwcCapability(val value: String) {
     NOTIFICATIONS("notifications");
 
     companion object {
-        fun fromValue(value: String): NwcCapability? =
-            entries.find { it.value == value }
+        fun fromValue(value: String): NwcCapability? = entries.find { it.value == value }
     }
 }
 
@@ -196,7 +200,6 @@ enum class NwcNotificationType(val value: String) {
     PAYMENT_SENT("payment_sent");
 
     companion object {
-        fun fromValue(value: String): NwcNotificationType? =
-            entries.find { it.value == value }
+        fun fromValue(value: String): NwcNotificationType? = entries.find { it.value == value }
     }
 }

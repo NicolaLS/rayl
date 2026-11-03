@@ -109,11 +109,12 @@ class TransportStateMachine(initial: TransportState = TransportState.Idle) {
          */
         private val VALID_TRANSITIONS: Map<TransportState, Set<TransportState>> = mapOf(
             TransportState.Idle to setOf(TransportState.Connecting, TransportState.Closing),
-            TransportState.Connecting to setOf(TransportState.Open, TransportState.Closing, TransportState.Failed),
+            TransportState.Connecting to
+                setOf(TransportState.Open, TransportState.Closing, TransportState.Failed),
             TransportState.Open to setOf(TransportState.Closing, TransportState.Failed),
             TransportState.Closing to setOf(TransportState.Closed, TransportState.Failed),
             TransportState.Failed to setOf(TransportState.Closed),
-            TransportState.Closed to emptySet(), // Terminal state
+            TransportState.Closed to emptySet() // Terminal state
         )
 
         /**
@@ -123,8 +124,7 @@ class TransportStateMachine(initial: TransportState = TransportState.Idle) {
          * @param to The target state.
          * @return `true` if the transition is valid.
          */
-        fun isValidTransition(from: TransportState, to: TransportState): Boolean {
-            return VALID_TRANSITIONS[from]?.contains(to) == true
-        }
+        fun isValidTransition(from: TransportState, to: TransportState): Boolean =
+            VALID_TRANSITIONS[from]?.contains(to) == true
     }
 }

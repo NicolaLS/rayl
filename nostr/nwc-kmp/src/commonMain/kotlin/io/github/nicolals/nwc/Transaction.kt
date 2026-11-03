@@ -67,7 +67,7 @@ data class Transaction(
     /**
      * When the transaction was settled (Unix timestamp).
      */
-    val settledAt: Long? = null,
+    val settledAt: Long? = null
 )
 
 /**
@@ -81,8 +81,7 @@ enum class TransactionType(val value: String) {
     OUTGOING("outgoing");
 
     companion object {
-        fun fromValue(value: String): TransactionType? =
-            entries.find { it.value == value }
+        fun fromValue(value: String): TransactionType? = entries.find { it.value == value }
     }
 }
 
@@ -103,7 +102,6 @@ enum class TransactionState(val value: String) {
     FAILED("failed");
 
     companion object {
-        fun fromValue(value: String): TransactionState? =
-            entries.find { it.value == value }
+        fun fromValue(value: String): TransactionState? = entries.find { it.value == value }
     }
 }

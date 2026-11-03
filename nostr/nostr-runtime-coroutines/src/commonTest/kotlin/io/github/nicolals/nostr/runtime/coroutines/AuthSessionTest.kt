@@ -9,12 +9,21 @@ import io.github.nicolals.nostr.core.transport.RelayUrl
 import io.github.nicolals.nostr.nip01.protocol.Nip01Intent
 import io.github.nicolals.nostr.nip42.Nip42Module
 import io.github.nicolals.nostr.nip42.event.AuthEvent
-import io.github.nicolals.nostr.nip42.protocol.*
+import io.github.nicolals.nostr.nip42.protocol.AuthChallenge
+import io.github.nicolals.nostr.nip42.protocol.AuthRejectionReason
+import io.github.nicolals.nostr.nip42.protocol.Nip42Intent
+import io.github.nicolals.nostr.nip42.protocol.Nip42Signal
+import io.github.nicolals.nostr.nip42.protocol.Nip42StateKey
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.*
-import kotlin.test.*
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthSessionTest {
@@ -24,15 +33,25 @@ class AuthSessionTest {
         val gate = object : NipModule {
             override val id = "test.auth.policy"
             override val requires = setOf("nip42")
-            override val admissionPolicies = listOf(OperationAdmission { state, intent ->
-                if ((intent is Nip01Intent.Publish || intent is Nip01Intent.Subscribe) &&
-                    !state.moduleStates[Nip42StateKey].isAuthenticated
-                ) AdmissionDecision.Defer("Authentication required") else AdmissionDecision.Allow
-            })
+            override val admissionPolicies = listOf(
+                OperationAdmission { state, intent ->
+                    if ((intent is Nip01Intent.Publish || intent is Nip01Intent.Subscribe) &&
+                        !state.moduleStates[Nip42StateKey].isAuthenticated
+                    ) {
+                        AdmissionDecision.Defer("Authentication required")
+                    } else {
+                        AdmissionDecision.Allow
+                    }
+                }
+            )
         }
         val session = CoroutinesRelaySession(
-            RelayUrl.parse("wss://auth.relay"), codec, AcceptTestEvents, factory, this,
-            additionalModules = listOf(Nip42Module(codec), gate),
+            RelayUrl.parse("wss://auth.relay"),
+            codec,
+            AcceptTestEvents,
+            factory,
+            this,
+            additionalModules = listOf(Nip42Module(codec), gate)
         )
         val challenges = mutableListOf<AuthChallenge>()
         val rejected = mutableListOf<AuthRejectionReason>()
@@ -95,6 +114,6 @@ class AuthSessionTest {
     private fun response(challenge: AuthChallenge) = TestFixtures.testEvent2.copy(
         kind = AuthEvent.KIND,
         content = "",
-        tags = listOf(listOf("relay", challenge.relayUrl.value), listOf("challenge", challenge.value)),
+        tags = listOf(listOf("relay", challenge.relayUrl.value), listOf("challenge", challenge.value))
     )
 }

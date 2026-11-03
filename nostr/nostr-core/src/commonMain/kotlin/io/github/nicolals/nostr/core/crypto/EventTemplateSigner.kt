@@ -22,10 +22,13 @@ interface EventTemplateSigner {
     suspend fun <T : EventView> sign(template: EventTemplate<T>): CryptoResult<T> =
         sign(template.draft).flatMap { event ->
             val draft = template.draft
-            if (event.pubkey != pubkey || event.createdAt != draft.createdAt || event.kind != draft.kind ||
+            if (event.pubkey != pubkey || event.createdAt != draft.createdAt ||
+                event.kind != draft.kind ||
                 event.tags != draft.tags || event.content != draft.content
             ) {
-                CryptoResult.Err(CryptoError.SigningFailed("Signer returned an event for a different draft"))
+                CryptoResult.Err(
+                    CryptoError.SigningFailed("Signer returned an event for a different draft")
+                )
             } else {
                 CryptoResult.Ok(template.wrap(event))
             }

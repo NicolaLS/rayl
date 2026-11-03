@@ -75,7 +75,7 @@ class Nip01ReducerTest {
         kind = EventKind(1),
         tags = emptyList(),
         content = "test content",
-        sig = testSig,
+        sig = testSig
     )
 
     private val testFilters = listOf(Filter(kinds = listOf(EventKind(1))))
@@ -89,7 +89,14 @@ class Nip01ReducerTest {
     @Test
     fun transportOpenedTransitionsToOpen() {
         val state = ProtocolState()
-        val result = reducer.reduce(state, TransportInput.Opened(io.github.nicolals.nostr.core.protocol.ConnectionContext(io.github.nicolals.nostr.core.transport.RelayUrl.parse("wss://test.relay"))))
+        val result = reducer.reduce(
+            state,
+            TransportInput.Opened(
+                io.github.nicolals.nostr.core.protocol.ConnectionContext(
+                    io.github.nicolals.nostr.core.transport.RelayUrl.parse("wss://test.relay")
+                )
+            )
+        )
 
         assertNotNull(result)
         assertEquals(ConnectionPhase.Open, result.state.connection.phase)
@@ -502,12 +509,14 @@ class Nip01ReducerTest {
     }
 
     private fun createOkMessage(eventId: EventId, accepted: Boolean, message: String): OkMessage {
-        val array = JsonArray(listOf(
-            JsonString("OK"),
-            JsonString(eventId.hex),
-            JsonBoolean(accepted),
-            JsonString(message)
-        ))
+        val array = JsonArray(
+            listOf(
+                JsonString("OK"),
+                JsonString(eventId.hex),
+                JsonBoolean(accepted),
+                JsonString(message)
+            )
+        )
         return OkMessage(RawRelayMessage(array), eventId.hex, eventId, accepted, message)
     }
 
@@ -524,7 +533,7 @@ class Nip01ReducerTest {
             kind = event.kind.value,
             tags = event.tags,
             content = event.content,
-            sig = event.sig.hex,
+            sig = event.sig.hex
         )
         val array = JsonArray(listOf(JsonString("EVENT"), JsonString(subId.value), JsonArray(emptyList())))
         return RelayEventMessage(RawRelayMessage(array), subId.value, subId, wireEvent, event)

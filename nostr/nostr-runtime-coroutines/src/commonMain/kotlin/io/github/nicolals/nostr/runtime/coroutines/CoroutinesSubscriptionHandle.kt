@@ -53,12 +53,12 @@ class CoroutinesSubscriptionHandle internal constructor(
     override val subscriptionId: SubscriptionId,
     private val closeCallback: (CoroutinesSubscriptionHandle) -> Unit,
     bufferCapacity: Int = 256,
-    private val onBackpressure: ((SubscriptionId, EventId, Long) -> Unit)? = null,
+    private val onBackpressure: ((SubscriptionId, EventId, Long) -> Unit)? = null
 ) : SubscriptionHandle {
 
     private val _statusFlow = MutableStateFlow<SubscriptionStatus>(SubscriptionStatus.Starting)
-    private val _droppedEvents = MutableStateFlow(0L)
-    val droppedEventsFlow: StateFlow<Long> = _droppedEvents.asStateFlow()
+    private val droppedEventCount = MutableStateFlow(0L)
+    val droppedEventsFlow: StateFlow<Long> = droppedEventCount.asStateFlow()
 
     private val eventChannel = Channel<Event>(capacity = bufferCapacity)
 
@@ -154,8 +154,8 @@ class CoroutinesSubscriptionHandle internal constructor(
         val result = eventChannel.trySend(event)
         if (!result.isSuccess) {
             // Buffer is full, event is dropped
-            _droppedEvents.value += 1
-            onBackpressure?.invoke(subscriptionId, event.id, _droppedEvents.value)
+            droppedEventCount.value += 1
+            onBackpressure?.invoke(subscriptionId, event.id, droppedEventCount.value)
             return false
         }
         return true

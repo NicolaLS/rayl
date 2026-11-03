@@ -46,7 +46,7 @@ enum class PublishStatus {
      * The outcome is unknown - the event may or may not have been received
      * by the relay. The runtime may choose to retry on reconnection.
      */
-    Interrupted,
+    Interrupted
 }
 
 /**
@@ -71,7 +71,7 @@ enum class PublishStatus {
 data class PublishState(
     val eventId: EventId,
     val status: PublishStatus,
-    val okMessage: String? = null,
+    val okMessage: String? = null
 ) {
     /**
      * Whether this publish is still waiting for a response.

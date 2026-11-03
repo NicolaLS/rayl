@@ -56,7 +56,9 @@ interface NostrWireCodec {
 /**
  * Combined JSON and Nostr wire codec.
  */
-interface NostrJsonCodec : JsonCodec, NostrWireCodec {
+interface NostrJsonCodec :
+    JsonCodec,
+    NostrWireCodec {
     fun decodeEvent(json: String): WireEvent = decodeEvent(parse(json))
     fun encodeEventString(event: WireEvent): String = stringify(encodeEvent(event))
 

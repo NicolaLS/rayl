@@ -20,10 +20,7 @@ package io.github.nicolals.nostr.core.primitives
  * @property secretKey The 32-byte secp256k1 secret key
  * @property publicKey The 32-byte x-only public key derived from the secret key
  */
-data class KeyPair(
-    val secretKey: SecretKey,
-    val publicKey: PublicKey,
-) {
+data class KeyPair(val secretKey: SecretKey, val publicKey: PublicKey) {
     companion object {}
 
     override fun toString(): String = "KeyPair(publicKey=$publicKey, secretKey=[redacted])"

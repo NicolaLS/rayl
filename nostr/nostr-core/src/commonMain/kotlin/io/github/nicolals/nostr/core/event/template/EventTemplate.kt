@@ -13,17 +13,14 @@ import io.github.nicolals.nostr.core.primitives.UnixTimeSeconds
  * Pass this to EventTemplateSigner.sign. The factory may capture known public fields to avoid
  * parsing them again, but must not cache decrypted content as a substitute for authentication.
  */
-class EventTemplate<U : EventView>(
-    val draft: EventDraft,
-    internal val wrap: (Event) -> U,
-)
+class EventTemplate<U : EventView>(val draft: EventDraft, internal val wrap: (Event) -> U)
 
 fun eventTemplate(
     kind: EventKind,
     content: String,
     tags: EventTags = emptyList(),
-    createdAt: UnixTimeSeconds = UnixTimeSeconds.now(),
+    createdAt: UnixTimeSeconds = UnixTimeSeconds.now()
 ): EventTemplate<GenericEvent> = EventTemplate(
     draft = EventDraft(createdAt, kind, tags, content),
-    wrap = ::GenericEvent,
+    wrap = ::GenericEvent
 )

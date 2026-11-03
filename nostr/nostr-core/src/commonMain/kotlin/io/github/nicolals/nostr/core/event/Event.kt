@@ -20,7 +20,7 @@ class Event(
     val kind: EventKind,
     tags: EventTags,
     val content: String,
-    val sig: EventSig,
+    val sig: EventSig
 ) {
     val tags: EventTags = snapshotEventTags(tags)
 
@@ -31,7 +31,7 @@ class Event(
         kind: EventKind = this.kind,
         tags: EventTags = this.tags,
         content: String = this.content,
-        sig: EventSig = this.sig,
+        sig: EventSig = this.sig
     ): Event = Event(id, pubkey, createdAt, kind, tags, content, sig)
 
     override fun equals(other: Any?): Boolean = other is Event &&

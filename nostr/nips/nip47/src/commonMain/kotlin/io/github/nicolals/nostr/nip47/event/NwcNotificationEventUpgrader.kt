@@ -6,7 +6,7 @@ import io.github.nicolals.nostr.core.primitives.EventKind
 class NwcNotificationEventUpgrader : EventUpgrader<NwcNotificationEvent> {
     override val kinds: Set<EventKind> = setOf(
         NwcNotificationEvent.KIND,
-        NwcNotificationEvent.LEGACY_KIND,
+        NwcNotificationEvent.LEGACY_KIND
     )
 
     override fun upgradeOrNull(event: Event): NwcNotificationEvent? =

@@ -1,43 +1,40 @@
 package io.github.nicolals.nostr.runtime.coroutines
 
 import io.github.nicolals.nostr.core.codec.JsonCodec
+import io.github.nicolals.nostr.core.codec.NostrJsonCodec
+import io.github.nicolals.nostr.core.crypto.CryptoResult
+import io.github.nicolals.nostr.core.crypto.EventVerifier
 import io.github.nicolals.nostr.core.event.Event
 import io.github.nicolals.nostr.core.event.upgrade.EventUpgradeRegistry
 import io.github.nicolals.nostr.core.message.Filter
 import io.github.nicolals.nostr.core.message.view.ClientMessageView
 import io.github.nicolals.nostr.core.message.view.RelayMessageView
 import io.github.nicolals.nostr.core.nip.NipModule
-import io.github.nicolals.nostr.core.codec.NostrJsonCodec
-import io.github.nicolals.nostr.core.crypto.EventVerifier
-import io.github.nicolals.nostr.core.crypto.CryptoResult
-import io.github.nicolals.nostr.nip01.message.Nip01RelayMessageUpgrader
-import io.github.nicolals.nostr.nip01.message.RelayEventMessage
-import kotlinx.coroutines.flow.Flow
 import io.github.nicolals.nostr.core.nip.NipRegistry
 import io.github.nicolals.nostr.core.primitives.EventId
 import io.github.nicolals.nostr.core.primitives.SubscriptionId
+import io.github.nicolals.nostr.core.protocol.AdmissionDecision
 import io.github.nicolals.nostr.core.protocol.ConnectionContext
 import io.github.nicolals.nostr.core.protocol.CoreSignal
 import io.github.nicolals.nostr.core.protocol.InboundMessage
 import io.github.nicolals.nostr.core.protocol.ProtocolEffect
-import io.github.nicolals.nostr.core.protocol.AdmissionDecision
-import io.github.nicolals.nostr.core.protocol.ProtocolIntent
 import io.github.nicolals.nostr.core.protocol.ProtocolInput
+import io.github.nicolals.nostr.core.protocol.ProtocolIntent
 import io.github.nicolals.nostr.core.protocol.ProtocolSignal
 import io.github.nicolals.nostr.core.protocol.ProtocolState
 import io.github.nicolals.nostr.core.protocol.TimerFired
 import io.github.nicolals.nostr.core.protocol.TimerKey
 import io.github.nicolals.nostr.core.protocol.TransportInput
-import io.github.nicolals.nostr.core.runtime.CloseReason
 import io.github.nicolals.nostr.core.runtime.ClosePolicy
+import io.github.nicolals.nostr.core.runtime.CloseReason
 import io.github.nicolals.nostr.core.runtime.ConnectionStatus
 import io.github.nicolals.nostr.core.runtime.PublishStatus
 import io.github.nicolals.nostr.core.runtime.ReconnectDecision
 import io.github.nicolals.nostr.core.runtime.RelaySession
 import io.github.nicolals.nostr.core.runtime.RetryDecision
 import io.github.nicolals.nostr.core.runtime.SessionConfig
-import io.github.nicolals.nostr.core.runtime.SubscriptionRetryReason
 import io.github.nicolals.nostr.core.runtime.SubscriptionOverflowPolicy
+import io.github.nicolals.nostr.core.runtime.SubscriptionRetryReason
 import io.github.nicolals.nostr.core.runtime.SubscriptionStatus
 import io.github.nicolals.nostr.core.transport.CloseInfo
 import io.github.nicolals.nostr.core.transport.RelayConnection
@@ -48,20 +45,22 @@ import io.github.nicolals.nostr.core.transport.TransportError
 import io.github.nicolals.nostr.core.transport.TransportResult
 import io.github.nicolals.nostr.core.transport.TransportState
 import io.github.nicolals.nostr.nip01.Nip01Module
+import io.github.nicolals.nostr.nip01.message.Nip01RelayMessageUpgrader
+import io.github.nicolals.nostr.nip01.message.RelayEventMessage
 import io.github.nicolals.nostr.nip01.protocol.Nip01Intent
 import io.github.nicolals.nostr.nip01.protocol.Nip01Signal
+import kotlin.concurrent.Volatile
+import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -70,9 +69,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.random.Random
-import kotlin.concurrent.Volatile
 
 /**
  * Coroutines-based implementation of [RelaySession].
@@ -162,7 +162,7 @@ class CoroutinesRelaySession(
     private val eventVerifier: EventVerifier,
     private val transportFactory: RelayTransportFactory,
     private val scope: CoroutineScope,
-    private val config: SessionConfig = SessionConfig.Default,
+    private val config: SessionConfig = SessionConfig.Default
 ) : RelaySession {
     /** Installs NIP-01 and then [additionalModules] using one JSON/wire codec. */
     constructor(
@@ -172,7 +172,7 @@ class CoroutinesRelaySession(
         transportFactory: RelayTransportFactory,
         scope: CoroutineScope,
         config: SessionConfig = SessionConfig.Default,
-        additionalModules: List<NipModule> = emptyList(),
+        additionalModules: List<NipModule> = emptyList()
     ) : this(
         url = url,
         registry = NipRegistry.Builder(codec)
@@ -183,7 +183,7 @@ class CoroutinesRelaySession(
         eventVerifier = eventVerifier,
         transportFactory = transportFactory,
         scope = scope,
-        config = config,
+        config = config
     )
 
     /**
@@ -208,7 +208,8 @@ class CoroutinesRelaySession(
 
     // ========== Public State ==========
 
-    private val _connectionStatus = MutableStateFlow<ConnectionStatus>(ConnectionStatus.Disconnected)
+    private val _connectionStatus =
+        MutableStateFlow<ConnectionStatus>(ConnectionStatus.Disconnected)
 
     /**
      * Observable connection status as a [StateFlow].
@@ -231,7 +232,7 @@ class CoroutinesRelaySession(
     private val _notices = MutableSharedFlow<RelayNotice>(
         replay = 0,
         extraBufferCapacity = 16,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
     /**
@@ -245,7 +246,7 @@ class CoroutinesRelaySession(
     private val _errors = MutableSharedFlow<SessionError>(
         replay = 0,
         extraBufferCapacity = 16,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
     /**
@@ -297,10 +298,12 @@ class CoroutinesRelaySession(
     private var transport: RelayConnection? = null
     private var transportGeneration = 0L
     private var transportClosed: CompletableDeferred<Unit>? = null
-    private val retiringTransports = mutableMapOf<Long, Pair<RelayConnection, CompletableDeferred<Unit>>>()
+    private val retiringTransports =
+        mutableMapOf<Long, Pair<RelayConnection, CompletableDeferred<Unit>>>()
     private var reconnectAttempt = 0
     private var intentionalDisconnect = false
     private var connectAfterDisconnect = false
+
     @Volatile
     private var _isClosed = false
 
@@ -345,7 +348,11 @@ class CoroutinesRelaySession(
                     try {
                         val previousState = protocolState
                         processInput(input)
-                        if (!_isClosed && protocolState !== previousState) resumeDeferredOperations()
+                        if (!_isClosed &&
+                            protocolState !== previousState
+                        ) {
+                            resumeDeferredOperations()
+                        }
                     } catch (e: CancellationException) {
                         rejectInput(input, "Session cancelled")
                         throw e
@@ -378,9 +385,14 @@ class CoroutinesRelaySession(
             rejectInput(input, "Session closed")
             return
         }
-        if (input is SessionInput.TransportMessage && input.generation <= overflowedTransportGeneration.value) return
+        if (input is SessionInput.TransportMessage &&
+            input.generation <= overflowedTransportGeneration.value
+        ) {
+            return
+        }
         val bounded = input is SessionInput.Subscribe || input is SessionInput.Publish ||
-            input is SessionInput.TransportMessage || input is SessionInput.Submit || input is SessionInput.Send
+            input is SessionInput.TransportMessage || input is SessionInput.Submit ||
+            input is SessionInput.Send
         if (bounded && !inputSlots.tryAcquire()) {
             rejectInput(input, "Session overloaded")
             _errors.tryEmit(SessionError.InputDropped(url, input::class.simpleName ?: "unknown"))
@@ -390,8 +402,17 @@ class CoroutinesRelaySession(
                 while (true) {
                     val failedGeneration = overflowedTransportGeneration.value
                     if (input.generation <= failedGeneration) break
-                    if (overflowedTransportGeneration.compareAndSet(failedGeneration, input.generation)) {
-                        enqueueInput(SessionInput.TransportFailed(input.generation, TransportError.Backpressure("receive")))
+                    if (overflowedTransportGeneration.compareAndSet(
+                            failedGeneration,
+                            input.generation
+                        )
+                    ) {
+                        enqueueInput(
+                            SessionInput.TransportFailed(
+                                input.generation,
+                                TransportError.Backpressure("receive")
+                            )
+                        )
                         break
                     }
                 }
@@ -406,10 +427,16 @@ class CoroutinesRelaySession(
 
     private fun rejectInput(input: SessionInput, reason: String) {
         when (input) {
-            is SessionInput.Subscribe -> input.handle.updateStatus(SubscriptionStatus.Closed(reason))
+            is SessionInput.Subscribe -> input.handle.updateStatus(
+                SubscriptionStatus.Closed(reason)
+            )
+
             is SessionInput.Publish -> input.handle.updateStatus(PublishStatus.Abandoned)
+
             is SessionInput.Submit -> input.command.reject(reason)
+
             is SessionInput.Send -> input.command.reject(reason)
+
             else -> Unit
         }
     }
@@ -472,7 +499,7 @@ class CoroutinesRelaySession(
      */
     fun subscribe(
         filters: List<Filter>,
-        subscriptionId: SubscriptionId = generateSubscriptionId(),
+        subscriptionId: SubscriptionId = generateSubscriptionId()
     ): CoroutinesSubscriptionHandle {
         val handle = CoroutinesSubscriptionHandle(
             subscriptionId = subscriptionId,
@@ -480,7 +507,7 @@ class CoroutinesRelaySession(
             closeCallback = { handle -> enqueueInput(SessionInput.CloseSubscription(handle)) },
             onBackpressure = { id, eventId, droppedCount ->
                 _errors.tryEmit(SessionError.BackpressureDropped(url, id, eventId, droppedCount))
-            },
+            }
         )
 
         if (_isClosed) {
@@ -499,7 +526,8 @@ class CoroutinesRelaySession(
      * @return A handle for tracking the publish status.
      */
     fun publish(event: Event): CoroutinesPublishHandle {
-        val handle = CoroutinesPublishHandle(event.id) { enqueueInput(SessionInput.CancelPublish(it)) }
+        val handle =
+            CoroutinesPublishHandle(event.id) { enqueueInput(SessionInput.CancelPublish(it)) }
 
         if (_isClosed) {
             handle.updateStatus(PublishStatus.Abandoned)
@@ -519,9 +547,10 @@ class CoroutinesRelaySession(
      * processing prevents execution; after processing starts it only stops waiting.
      * Throws if closed or overloaded.
      */
-    suspend fun submit(input: ProtocolIntent): AdmissionDecision = suspendCancellableCoroutine { continuation ->
-        enqueueInput(SessionInput.Submit(input, SessionCommand(continuation)))
-    }
+    suspend fun submit(input: ProtocolIntent): AdmissionDecision =
+        suspendCancellableCoroutine { continuation ->
+            enqueueInput(SessionInput.Submit(input, SessionCommand(continuation)))
+        }
 
     /**
      * Encodes and queues a custom client message on the current transport.
@@ -530,40 +559,69 @@ class CoroutinesRelaySession(
      * Cancellation before actor processing prevents sending; once processing starts,
      * transport admission may still occur. Throws if the session is closed or overloaded.
      */
-    suspend fun send(message: ClientMessageView): TransportResult<Unit> = suspendCancellableCoroutine { continuation ->
-        enqueueInput(SessionInput.Send(message, SessionCommand(continuation)))
-    }
+    suspend fun send(message: ClientMessageView): TransportResult<Unit> =
+        suspendCancellableCoroutine { continuation ->
+            enqueueInput(SessionInput.Send(message, SessionCommand(continuation)))
+        }
 
     // ========== Actor Input Processing ==========
 
     private fun processInput(input: SessionInput) {
         when (input) {
             // Transport events
-            is SessionInput.TransportOpened -> if (isCurrentTransport(input.generation)) handleTransportOpened()
-            is SessionInput.TransportMessage -> if (isCurrentTransport(input.generation)) handleTransportMessage(input.text)
-            is SessionInput.TransportClosing -> { /* Ignore, wait for Closed */
+            is SessionInput.TransportOpened -> if (isCurrentTransport(
+                    input.generation
+                )
+            ) {
+                handleTransportOpened()
+            }
+
+            is SessionInput.TransportMessage -> if (isCurrentTransport(
+                    input.generation
+                )
+            ) {
+                handleTransportMessage(input.text)
+            }
+
+            is SessionInput.TransportClosing -> {
+                /* Ignore, wait for Closed */
             }
 
             is SessionInput.TransportClosed -> {
                 retiringTransports.remove(input.generation)
                 if (isCurrentTransport(input.generation)) handleTransportClosed(input.info)
             }
-            is SessionInput.TransportFailed -> if (isCurrentTransport(input.generation)) handleTransportFailed(input.error)
+
+            is SessionInput.TransportFailed -> if (isCurrentTransport(
+                    input.generation
+                )
+            ) {
+                handleTransportFailed(input.error)
+            }
 
             // User commands
             is SessionInput.Connect -> handleConnect()
+
             is SessionInput.Disconnect -> handleDisconnect(input.code, input.reason)
+
             is SessionInput.Close -> handleClose()
+
             is SessionInput.Subscribe -> handleSubscribe(input)
+
             is SessionInput.Publish -> handlePublish(input)
+
             is SessionInput.CloseSubscription -> handleCloseSubscription(input.handle)
+
             is SessionInput.CancelPublish -> handleCancelPublish(input.handle)
+
             is SessionInput.Submit -> {
                 if (input.command.start()) input.command.complete(driveEngine(input.input))
             }
+
             is SessionInput.Send -> {
                 if (input.command.start()) input.command.complete(sendMessage(input.message))
             }
+
             is SessionInput.Ping -> if (isCurrentTransport(input.generation)) {
                 val result = transport?.ping(null)
                 if (result is TransportResult.Failure) handleTransportFailed(result.error)
@@ -571,10 +629,22 @@ class CoroutinesRelaySession(
 
             // Internal events
             is SessionInput.TimerFired -> handleTimerFired(input.key)
+
             is SessionInput.CloseTimeout -> handleCloseTimeout(input.subscriptionId)
-            is SessionInput.ReconnectNow -> if (input.generation == transportGeneration) handleReconnectNow()
+
+            is SessionInput.ReconnectNow -> if (input.generation ==
+                transportGeneration
+            ) {
+                handleReconnectNow()
+            }
+
             is SessionInput.RetryPublish -> handleRetryPublish(input.eventId, input.handle)
-            is SessionInput.RetrySubscription -> handleRetrySubscription(input.subscriptionId, input.handle)
+
+            is SessionInput.RetrySubscription -> handleRetrySubscription(
+                input.subscriptionId,
+                input.handle
+            )
+
             is SessionInput.PendingJobCompleted -> pendingJobs.remove(input.job)
         }
     }
@@ -660,11 +730,17 @@ class CoroutinesRelaySession(
             if (_connectionStatus.value != ConnectionStatus.Connected) break
             when (val status = record.handle.status) {
                 SubscriptionStatus.Starting -> sendSubscribe(record)
-                SubscriptionStatus.Interrupted -> retrySubscription(record, SubscriptionRetryReason.Disconnected)
+
+                SubscriptionStatus.Interrupted -> retrySubscription(
+                    record,
+                    SubscriptionRetryReason.Disconnected
+                )
+
                 is SubscriptionStatus.Retrying -> retrySubscription(
                     record,
-                    record.lastRetryReason ?: SubscriptionRetryReason.Disconnected,
+                    record.lastRetryReason ?: SubscriptionRetryReason.Disconnected
                 )
+
                 else -> {}
             }
         }
@@ -803,7 +879,8 @@ class CoroutinesRelaySession(
         publishes.clear()
 
         // Preserve a terminal processing failure for observers after cleanup.
-        _connectionStatus.value = if (processingFailed) ConnectionStatus.Failed(null) else ConnectionStatus.Disconnected
+        _connectionStatus.value =
+            if (processingFailed) ConnectionStatus.Failed(null) else ConnectionStatus.Disconnected
         signalStream.close()
         messageStream.close()
 
@@ -828,7 +905,6 @@ class CoroutinesRelaySession(
         } finally {
             closing.forEach { (candidate, _) -> candidate.setListener(null) }
         }
-
     }
 
     // ========== Reconnection Logic ==========
@@ -843,7 +919,7 @@ class CoroutinesRelaySession(
                 _connectionStatus.value = ConnectionStatus.Reconnecting(
                     attempt = reconnectAttempt,
                     delayMs = decision.delayMs,
-                    lastError = error,
+                    lastError = error
                 )
 
                 // A manual connect invalidates this delayed attempt.
@@ -910,7 +986,7 @@ class CoroutinesRelaySession(
             subscriptionId = input.subscriptionId,
             filters = input.filters,
             handle = input.handle,
-            deduplication = config.deduplicationPolicyFactory(),
+            deduplication = config.deduplicationPolicyFactory()
         )
         subscriptions[input.subscriptionId] = record
 
@@ -924,9 +1000,17 @@ class CoroutinesRelaySession(
     }
 
     private fun sendSubscribe(record: SubscriptionRecord) {
-        when (val decision = driveEngine(Nip01Intent.Subscribe(record.subscriptionId, record.filters))) {
+        when (
+            val decision = driveEngine(
+                Nip01Intent.Subscribe(record.subscriptionId, record.filters)
+            )
+        ) {
             AdmissionDecision.Allow -> Unit
-            is AdmissionDecision.Defer -> record.handle.updateStatus(SubscriptionStatus.Deferred(decision.reason))
+
+            is AdmissionDecision.Defer -> record.handle.updateStatus(
+                SubscriptionStatus.Deferred(decision.reason)
+            )
+
             is AdmissionDecision.Reject -> {
                 record.handle.updateStatus(SubscriptionStatus.Closed(decision.reason))
                 removeSubscription(record.subscriptionId)
@@ -1025,11 +1109,17 @@ class CoroutinesRelaySession(
 
     private fun retrySubscription(record: SubscriptionRecord, reason: SubscriptionRetryReason) {
         val attempt = record.retryCount + 1
-        when (val decision = config.retryPolicy.shouldResubscribe(record.subscriptionId, attempt, reason)) {
+        when (
+            val decision = config.retryPolicy.shouldResubscribe(
+                record.subscriptionId,
+                attempt,
+                reason
+            )
+        ) {
             is RetryDecision.Retry -> {
                 val updatedRecord = record.copy(
                     retryCount = attempt,
-                    lastRetryReason = reason,
+                    lastRetryReason = reason
                 )
                 subscriptions[record.subscriptionId] = updatedRecord
 
@@ -1040,7 +1130,9 @@ class CoroutinesRelaySession(
                     val job = scope.launch {
                         delay(decision.delayMs)
                         if (!_isClosed) {
-                            enqueueInput(SessionInput.RetrySubscription(record.subscriptionId, record.handle))
+                            enqueueInput(
+                                SessionInput.RetrySubscription(record.subscriptionId, record.handle)
+                            )
                         }
                     }
                     trackPendingJob(job)
@@ -1055,7 +1147,10 @@ class CoroutinesRelaySession(
                     is SubscriptionRetryReason.Closed -> reason.reason
                 }
                 record.handle.updateStatus(
-                    SubscriptionStatus.Closed(reasonMessage, byRelay = reason is SubscriptionRetryReason.Closed)
+                    SubscriptionStatus.Closed(
+                        reasonMessage,
+                        byRelay = reason is SubscriptionRetryReason.Closed
+                    )
                 )
                 removeSubscription(record.subscriptionId)
                 forgetSubscription(record.subscriptionId)
@@ -1063,12 +1158,19 @@ class CoroutinesRelaySession(
         }
     }
 
-    private fun handleRetrySubscription(subscriptionId: SubscriptionId, handle: CoroutinesSubscriptionHandle) {
+    private fun handleRetrySubscription(
+        subscriptionId: SubscriptionId,
+        handle: CoroutinesSubscriptionHandle
+    ) {
         val record = subscriptions[subscriptionId] ?: return
         if (record.handle !== handle) return
         if (_connectionStatus.value != ConnectionStatus.Connected) return
         val status = record.handle.status
-        if (status != SubscriptionStatus.Interrupted && status !is SubscriptionStatus.Retrying) return
+        if (status != SubscriptionStatus.Interrupted &&
+            status !is SubscriptionStatus.Retrying
+        ) {
+            return
+        }
         sendSubscribe(record)
     }
 
@@ -1093,7 +1195,7 @@ class CoroutinesRelaySession(
         val record = PublishRecord(
             eventId = input.event.id,
             event = input.event,
-            handle = input.handle,
+            handle = input.handle
         )
         publishes[input.event.id] = record
 
@@ -1125,7 +1227,11 @@ class CoroutinesRelaySession(
                     publishes[record.eventId] = it.copy(wasSent = true)
                 }
             }
-            is AdmissionDecision.Defer -> record.handle.updateStatus(PublishStatus.Deferred(decision.reason))
+
+            is AdmissionDecision.Defer -> record.handle.updateStatus(
+                PublishStatus.Deferred(decision.reason)
+            )
+
             is AdmissionDecision.Reject -> {
                 record.handle.updateStatus(PublishStatus.Rejected(decision.reason))
                 publishes.remove(record.eventId)
@@ -1135,7 +1241,12 @@ class CoroutinesRelaySession(
     }
 
     private fun retryPublish(record: PublishRecord) {
-        when (val decision = config.retryPolicy.shouldRetryPublish(record.eventId, record.retryCount + 1)) {
+        when (
+            val decision = config.retryPolicy.shouldRetryPublish(
+                record.eventId,
+                record.retryCount + 1
+            )
+        ) {
             is RetryDecision.Retry -> {
                 val attempt = record.retryCount + 1
                 val updatedRecord = record.copy(retryCount = attempt)
@@ -1209,11 +1320,14 @@ class CoroutinesRelaySession(
             is ProtocolEffect.Send -> {
                 when (val result = sendMessage(effect.message)) {
                     is TransportResult.Success -> Unit
+
                     is TransportResult.Failure -> {
                         _errors.tryEmit(SessionError.SendFailed(url, result.error))
                         // Process after this reducer's signals so a queued signal
                         // cannot overwrite the subsequent interrupted status.
-                        enqueueInput(SessionInput.TransportFailed(transportGeneration, result.error))
+                        enqueueInput(
+                            SessionInput.TransportFailed(transportGeneration, result.error)
+                        )
                     }
                 }
             }
@@ -1259,6 +1373,7 @@ class CoroutinesRelaySession(
             val event = messageView.event ?: return
             when (eventVerifier.verify(event)) {
                 is CryptoResult.Ok -> Unit
+
                 is CryptoResult.Err -> {
                     _errors.tryEmit(SessionError.EventRejected(url, event.id))
                     return
@@ -1277,7 +1392,9 @@ class CoroutinesRelaySession(
         signalStream.emit(signal)
         when (signal) {
             is CoreSignal -> processCoreSignal(signal)
+
             is Nip01Signal -> processNip01Signal(signal)
+
             else -> {
                 // Third-party signals are exposed through signals above.
             }
@@ -1295,7 +1412,7 @@ class CoroutinesRelaySession(
                 val record = subscriptions[signal.subscriptionId]
                 if (record != null) {
                     val updatedRecord = record.copy(
-                        generation = signal.generation,
+                        generation = signal.generation
                     )
                     subscriptions[signal.subscriptionId] = updatedRecord
                     record.handle.updateStatus(SubscriptionStatus.CatchingUp)
@@ -1305,7 +1422,8 @@ class CoroutinesRelaySession(
             is Nip01Signal.SubscriptionEose -> {
                 val record = subscriptions[signal.subscriptionId]
                 if (record != null && record.generation == signal.generation) {
-                    subscriptions[signal.subscriptionId] = record.copy(retryCount = 0, lastRetryReason = null)
+                    subscriptions[signal.subscriptionId] =
+                        record.copy(retryCount = 0, lastRetryReason = null)
                     record.handle.updateStatus(SubscriptionStatus.Live)
                 }
             }
@@ -1316,7 +1434,9 @@ class CoroutinesRelaySession(
                     if (!record.deduplication.contains(signal.event.id)) {
                         if (record.handle.sendEvent(signal.event)) {
                             record.deduplication.record(signal.event.id)
-                        } else if (config.subscriptionOverflowPolicy == SubscriptionOverflowPolicy.Fail) {
+                        } else if (config.subscriptionOverflowPolicy ==
+                            SubscriptionOverflowPolicy.Fail
+                        ) {
                             record.handle.failOverflow()
                             removeSubscription(signal.subscriptionId)
                             driveEngine(Nip01Intent.CloseSubscription(signal.subscriptionId))
@@ -1337,7 +1457,7 @@ class CoroutinesRelaySession(
                         val closeReason = parseCloseReason(signal.reason)
                         retrySubscription(
                             record,
-                            SubscriptionRetryReason.Closed(signal.reason, closeReason),
+                            SubscriptionRetryReason.Closed(signal.reason, closeReason)
                         )
                     } else {
                         record.handle.updateStatus(SubscriptionStatus.Closed(signal.reason, false))
@@ -1354,7 +1474,7 @@ class CoroutinesRelaySession(
                     !record.handle.status.isTerminal
                 ) {
                     subscriptions[signal.subscriptionId] = record.copy(
-                        lastRetryReason = SubscriptionRetryReason.Disconnected,
+                        lastRetryReason = SubscriptionRetryReason.Disconnected
                     )
                     record.handle.updateStatus(SubscriptionStatus.Interrupted)
                 }
@@ -1457,16 +1577,12 @@ class CoroutinesRelaySession(
     }
 
     private fun parseCloseReason(message: String?): CloseReason? = message?.let(CloseReason::parse)
-
 }
 
 /**
  * Notice message emitted by the relay, tagged with relay URL.
  */
-data class RelayNotice(
-    val relayUrl: RelayUrl,
-    val message: String,
-)
+data class RelayNotice(val relayUrl: RelayUrl, val message: String)
 
 /**
  * Errors that can occur during session operation.
@@ -1480,15 +1596,11 @@ sealed class SessionError {
      * Event identity and signature validation failed. No untrusted event content
      * or provider exception is retained in diagnostics.
      */
-    data class EventRejected(
-        override val relayUrl: RelayUrl,
-        val eventId: EventId,
-    ) : SessionError()
+    data class EventRejected(override val relayUrl: RelayUrl, val eventId: EventId) :
+        SessionError()
 
     /** An inbound message could not be decoded; untrusted contents are omitted. */
-    data class ParseError(
-        override val relayUrl: RelayUrl,
-    ) : SessionError()
+    data class ParseError(override val relayUrl: RelayUrl) : SessionError()
 
     /**
      * An error occurred while processing an input.
@@ -1496,9 +1608,7 @@ sealed class SessionError {
      * Parser, codec and reducer exceptions are omitted because their messages
      * may embed private event content.
      */
-    data class ProcessingError(
-        override val relayUrl: RelayUrl,
-    ) : SessionError()
+    data class ProcessingError(override val relayUrl: RelayUrl) : SessionError()
 
     /**
      * An event was dropped due to backpressure.
@@ -1514,7 +1624,7 @@ sealed class SessionError {
         override val relayUrl: RelayUrl,
         val subscriptionId: SubscriptionId,
         val eventId: EventId,
-        val droppedCount: Long,
+        val droppedCount: Long
     ) : SessionError()
 
     /**
@@ -1522,18 +1632,14 @@ sealed class SessionError {
      *
      * @property error The transport error that occurred.
      */
-    data class SendFailed(
-        override val relayUrl: RelayUrl,
-        val error: TransportError,
-    ) : SessionError()
+    data class SendFailed(override val relayUrl: RelayUrl, val error: TransportError) :
+        SessionError()
 
     /**
      * An input could not be enqueued because the session was overloaded.
      *
      * @property inputType A string identifying the input type that was dropped.
      */
-    data class InputDropped(
-        override val relayUrl: RelayUrl,
-        val inputType: String,
-    ) : SessionError()
+    data class InputDropped(override val relayUrl: RelayUrl, val inputType: String) :
+        SessionError()
 }

@@ -51,7 +51,9 @@ object NostrSigning : SigningPrimitives {
                 }
                 attempts++
             }
-            throw IllegalStateException("Failed to generate valid secret key after $maxAttempts attempts")
+            throw IllegalStateException(
+                "Failed to generate valid secret key after $maxAttempts attempts"
+            )
         }
     }
 
@@ -81,13 +83,16 @@ object NostrSigning : SigningPrimitives {
             // We need x-only format (32 bytes) without prefix.
             when (pubKey.size) {
                 32 -> pubKey.toByteString()
+
                 33 -> pubKey.copyOfRange(1, 33).toByteString()
+
                 65 -> {
                     if (pubKey[0] != 0x04.toByte()) {
                         throw IllegalStateException("unexpected public key prefix: ${pubKey[0]}")
                     }
                     pubKey.copyOfRange(1, 33).toByteString()
                 }
+
                 else -> throw IllegalStateException("unexpected public key size: ${pubKey.size}")
             }
         }
@@ -96,7 +101,7 @@ object NostrSigning : SigningPrimitives {
     override fun schnorrSign(
         secretKey32: ByteString,
         message32: ByteString,
-        auxRand32: ByteString?,
+        auxRand32: ByteString?
     ): CryptoResult<ByteString> {
         if (secretKey32.size != 32) {
             return CryptoResult.Err(
@@ -121,7 +126,7 @@ object NostrSigning : SigningPrimitives {
             Secp256k1.signSchnorr(
                 message32.toByteArray(),
                 secretKey32.toByteArray(),
-                actualAuxRand,
+                actualAuxRand
             ).toByteString()
         }
     }
@@ -129,7 +134,7 @@ object NostrSigning : SigningPrimitives {
     override fun schnorrVerify(
         signature64: ByteString,
         message32: ByteString,
-        publicKey32: ByteString,
+        publicKey32: ByteString
     ): CryptoResult<Boolean> {
         if (signature64.size != 64) {
             return CryptoResult.Err(
@@ -171,17 +176,15 @@ object NostrSigning : SigningPrimitives {
         }
     }
 
-    private inline fun <T> withSodium(operation: String, block: () -> T): CryptoResult<T> {
-        return when (val init = ensureSodium()) {
+    private inline fun <T> withSodium(operation: String, block: () -> T): CryptoResult<T> =
+        when (val init = ensureSodium()) {
             is CryptoResult.Err -> CryptoResult.Err(init.error)
             is CryptoResult.Ok -> runProvider(operation, block)
         }
-    }
 
-    private inline fun <T> runProvider(operation: String, block: () -> T): CryptoResult<T> =
-        try {
-            CryptoResult.Ok(block())
-        } catch (e: Exception) {
-            CryptoResult.Err(CryptoError.ProviderError(operation))
-        }
+    private inline fun <T> runProvider(operation: String, block: () -> T): CryptoResult<T> = try {
+        CryptoResult.Ok(block())
+    } catch (e: Exception) {
+        CryptoResult.Err(CryptoError.ProviderError(operation))
+    }
 }

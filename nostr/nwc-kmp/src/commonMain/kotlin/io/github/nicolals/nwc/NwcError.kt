@@ -22,33 +22,26 @@ sealed class NwcError {
      *
      * These are errors defined in the NIP-47 specification.
      */
-    data class WalletError(
-        val code: NwcErrorCode,
-        override val message: String,
-    ) : NwcError()
+    data class WalletError(val code: NwcErrorCode, override val message: String) : NwcError()
 
     /**
      * Invalid protocol message or unexpected response format.
      */
-    data class ProtocolError(
-        override val message: String,
-        val cause: Throwable? = null,
-    ) : NwcError()
+    data class ProtocolError(override val message: String, val cause: Throwable? = null) :
+        NwcError()
 
     /**
      * Network or relay connection error.
      */
-    data class ConnectionError(
-        override val message: String,
-        val cause: Throwable? = null,
-    ) : NwcError()
+    data class ConnectionError(override val message: String, val cause: Throwable? = null) :
+        NwcError()
 
     /**
      * Operation timed out waiting for a response.
      */
     data class Timeout(
         override val message: String = "Operation timed out",
-        val durationMs: Long? = null,
+        val durationMs: Long? = null
     ) : NwcError()
 
     /**
@@ -63,23 +56,18 @@ sealed class NwcError {
      */
     data class PaymentPending(
         override val message: String = "Payment sent but not yet confirmed",
-        val paymentHash: String? = null,
+        val paymentHash: String? = null
     ) : NwcError()
 
     /**
      * Operation was cancelled.
      */
-    data class Cancelled(
-        override val message: String = "Operation cancelled",
-    ) : NwcError()
+    data class Cancelled(override val message: String = "Operation cancelled") : NwcError()
 
     /**
      * Encryption or decryption failed.
      */
-    data class CryptoError(
-        override val message: String,
-        val cause: Throwable? = null,
-    ) : NwcError()
+    data class CryptoError(override val message: String, val cause: Throwable? = null) : NwcError()
 }
 
 /**
@@ -123,9 +111,7 @@ enum class NwcErrorCode(val code: String) {
     UNKNOWN("UNKNOWN");
 
     companion object {
-        fun fromCode(code: String): NwcErrorCode {
-            return entries.find { it.code == code } ?: UNKNOWN
-        }
+        fun fromCode(code: String): NwcErrorCode = entries.find { it.code == code } ?: UNKNOWN
     }
 }
 
@@ -134,6 +120,8 @@ enum class NwcErrorCode(val code: String) {
  *
  * Useful when you need to throw errors in coroutine contexts.
  */
-class NwcException(
-    val error: NwcError,
-) : Exception(error.message, (error as? NwcError.ProtocolError)?.cause ?: (error as? NwcError.ConnectionError)?.cause)
+class NwcException(val error: NwcError) :
+    Exception(
+        error.message,
+        (error as? NwcError.ProtocolError)?.cause ?: (error as? NwcError.ConnectionError)?.cause
+    )

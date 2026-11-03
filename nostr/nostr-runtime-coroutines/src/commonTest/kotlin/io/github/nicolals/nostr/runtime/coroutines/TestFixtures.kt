@@ -10,8 +10,8 @@ import io.github.nicolals.nostr.core.codec.JsonValue
 import io.github.nicolals.nostr.core.codec.NostrJsonCodec
 import io.github.nicolals.nostr.core.codec.wire.WireEvent
 import io.github.nicolals.nostr.core.codec.wire.WireFilter
-import io.github.nicolals.nostr.core.crypto.EventVerifier
 import io.github.nicolals.nostr.core.crypto.CryptoResult
+import io.github.nicolals.nostr.core.crypto.EventVerifier
 import io.github.nicolals.nostr.core.event.Event
 import io.github.nicolals.nostr.core.message.Filter
 import io.github.nicolals.nostr.core.message.raw.RawClientMessage
@@ -41,7 +41,7 @@ object TestFixtures {
         kind = EventKind(1),
         tags = emptyList(),
         content = "test content",
-        sig = testSig,
+        sig = testSig
     )
 
     val testEvent2 = Event(
@@ -51,7 +51,7 @@ object TestFixtures {
         kind = EventKind(1),
         tags = emptyList(),
         content = "test content 2",
-        sig = testSig,
+        sig = testSig
     )
 
     val testSubId = SubscriptionId("test-sub")
@@ -62,23 +62,17 @@ object TestFixtures {
     /**
      * Creates an EOSE message JSON string.
      */
-    fun eoseJson(subId: SubscriptionId): String {
-        return """["EOSE","${subId.value}"]"""
-    }
+    fun eoseJson(subId: SubscriptionId): String = """["EOSE","${subId.value}"]"""
 
     /**
      * Creates an OK message JSON string.
      */
-    fun okJson(eventId: EventId, accepted: Boolean, message: String = ""): String {
-        return """["OK","${eventId.hex}",$accepted,"$message"]"""
-    }
+    fun okJson(eventId: EventId, accepted: Boolean, message: String = ""): String = """["OK","${eventId.hex}",$accepted,"$message"]"""
 
     /**
      * Creates a CLOSED message JSON string.
      */
-    fun closedJson(subId: SubscriptionId, reason: String = ""): String {
-        return """["CLOSED","${subId.value}","$reason"]"""
-    }
+    fun closedJson(subId: SubscriptionId, reason: String = ""): String = """["CLOSED","${subId.value}","$reason"]"""
 
     /**
      * Creates an EVENT message JSON string.
@@ -87,15 +81,16 @@ object TestFixtures {
         val tagsJson = event.tags.joinToString(",") { tag ->
             "[" + tag.joinToString(",") { "\"$it\"" } + "]"
         }
-        return """["EVENT","${subId.value}",{"id":"${event.id.hex}","pubkey":"${event.pubkey.hex}","created_at":${event.createdAt.value},"kind":${event.kind.value},"tags":[$tagsJson],"content":"${event.content}","sig":"${event.sig.hex}"}]"""
+        return """["EVENT","${subId.value}",{"id":"${event.id.hex}",""" +
+            """"pubkey":"${event.pubkey.hex}","created_at":${event.createdAt.value},""" +
+            """"kind":${event.kind.value},"tags":[$tagsJson],"content":"${event.content}",""" +
+            """"sig":"${event.sig.hex}"}]"""
     }
 
     /**
      * Creates a NOTICE message JSON string.
      */
-    fun noticeJson(message: String): String {
-        return """["NOTICE","$message"]"""
-    }
+    fun noticeJson(message: String): String = """["NOTICE","$message"]"""
 }
 
 /**
@@ -108,17 +103,20 @@ class TestJsonCodec : JsonCodec {
         return parseValue(text.trim())
     }
 
-    override fun stringify(value: JsonValue): String {
-        return when (value) {
-            is JsonString -> "\"${value.value}\""
-            is JsonNumber -> value.value
-            is JsonBoolean -> value.value.toString()
-            is JsonArray -> value.values.joinToString(",", "[", "]") { stringify(it) }
-            is JsonObject -> value.entries.entries.joinToString(",", "{", "}") { (k, v) ->
-                "\"$k\":${stringify(v)}"
-            }
-            else -> "null"
+    override fun stringify(value: JsonValue): String = when (value) {
+        is JsonString -> "\"${value.value}\""
+
+        is JsonNumber -> value.value
+
+        is JsonBoolean -> value.value.toString()
+
+        is JsonArray -> value.values.joinToString(",", "[", "]") { stringify(it) }
+
+        is JsonObject -> value.entries.entries.joinToString(",", "{", "}") { (k, v) ->
+            "\"$k\":${stringify(v)}"
         }
+
+        else -> "null"
     }
 
     private fun parseValue(text: String): JsonValue {
@@ -148,12 +146,19 @@ class TestJsonCodec : JsonCodec {
             val c = inner[i]
             when {
                 escape -> escape = false
+
                 c == '\\' -> escape = true
+
                 c == '"' -> inString = !inString
+
                 !inString && c == '[' -> depth++
+
                 !inString && c == '{' -> depth++
+
                 !inString && c == ']' -> depth--
+
                 !inString && c == '}' -> depth--
+
                 !inString && c == ',' && depth == 0 -> {
                     elements.add(parseValue(inner.substring(start, i)))
                     start = i + 1
@@ -181,12 +186,19 @@ class TestJsonCodec : JsonCodec {
             val c = inner[i]
             when {
                 escape -> escape = false
+
                 c == '\\' -> escape = true
+
                 c == '"' -> inString = !inString
+
                 !inString && c == '[' -> depth++
+
                 !inString && c == '{' -> depth++
+
                 !inString && c == ']' -> depth--
+
                 !inString && c == '}' -> depth--
+
                 !inString && c == ',' && depth == 0 -> {
                     parseEntry(inner.substring(start, i))?.let { (k, v) -> entries[k] = v }
                     start = i + 1
@@ -212,7 +224,9 @@ class TestJsonCodec : JsonCodec {
 /**
  * Wire codec that uses [TestJsonCodec] for parsing/encoding.
  */
-class TestWireCodec : NostrJsonCodec, JsonCodec by TestJsonCodec() {
+class TestWireCodec :
+    NostrJsonCodec,
+    JsonCodec by TestJsonCodec() {
 
     override fun decodeEvent(value: JsonValue): WireEvent {
         val obj = value as? JsonObject ?: error("Expected object")
@@ -225,27 +239,27 @@ class TestWireCodec : NostrJsonCodec, JsonCodec by TestJsonCodec() {
                 (tag as? JsonArray)?.values?.map { (it as? JsonString)?.value ?: "" } ?: emptyList()
             } ?: emptyList(),
             content = (obj.entries["content"] as? JsonString)?.value ?: "",
-            sig = (obj.entries["sig"] as? JsonString)?.value ?: "",
+            sig = (obj.entries["sig"] as? JsonString)?.value ?: ""
         )
     }
 
-    override fun encodeEvent(event: WireEvent): JsonValue {
-        return JsonObject(mapOf(
+    override fun encodeEvent(event: WireEvent): JsonValue = JsonObject(
+        mapOf(
             "id" to JsonString(event.id),
             "pubkey" to JsonString(event.pubkey),
             "created_at" to JsonNumber(event.createdAt.toString()),
             "kind" to JsonNumber(event.kind.toString()),
-            "tags" to JsonArray(event.tags.map { tag ->
-                JsonArray(tag.map { JsonString(it) })
-            }),
+            "tags" to JsonArray(
+                event.tags.map { tag ->
+                    JsonArray(tag.map { JsonString(it) })
+                }
+            ),
             "content" to JsonString(event.content),
-            "sig" to JsonString(event.sig),
-        ))
-    }
+            "sig" to JsonString(event.sig)
+        )
+    )
 
-    override fun decodeFilter(value: JsonValue): WireFilter {
-        return WireFilter()
-    }
+    override fun decodeFilter(value: JsonValue): WireFilter = WireFilter()
 
     override fun encodeFilter(filter: WireFilter): JsonValue {
         val entries = mutableMapOf<String, JsonValue>()

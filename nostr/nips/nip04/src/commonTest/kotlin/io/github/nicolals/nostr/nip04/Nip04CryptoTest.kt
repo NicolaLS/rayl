@@ -9,12 +9,12 @@ import io.github.nicolals.nostr.crypto.NostrEventVerifier
 import io.github.nicolals.nostr.crypto.NostrSigner
 import io.github.nicolals.nostr.nip04.event.EncryptedDirectMessageEvent
 import io.github.nicolals.nostr.nip04.model.Nip04CipherText
-import kotlinx.coroutines.test.runTest
-import okio.ByteString.Companion.toByteString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
+import kotlinx.coroutines.test.runTest
+import okio.ByteString.Companion.toByteString
 
 class Nip04CryptoTest {
     private val firstSecret = SecretKey.fromHex("01".padStart(64, '0'))
@@ -34,7 +34,7 @@ class Nip04CryptoTest {
         }
         assertNotEquals(
             first.encrypt("same", secondSigner.pubkey).getOrThrow(),
-            first.encrypt("same", secondSigner.pubkey).getOrThrow(),
+            first.encrypt("same", secondSigner.pubkey).getOrThrow()
         )
     }
 
@@ -56,7 +56,8 @@ class Nip04CryptoTest {
         val iv = ByteArray(16).toByteString()
         val ciphertext = NostrCrypto.aes256CbcEncrypt(key, iv, byteArrayOf(0xff.toByte()).toByteString()).getOrThrow()
         val content = Nip04CipherText(
-            NostrCrypto.base64Encode(ciphertext).getOrThrow(), NostrCrypto.base64Encode(iv).getOrThrow(),
+            NostrCrypto.base64Encode(ciphertext).getOrThrow(),
+            NostrCrypto.base64Encode(iv).getOrThrow()
         ).toContent()
         assertIs<CryptoResult.Err>(NostrCrypto.decryptNip04Content(content, secondSecret.bytes, firstSigner.pubkey))
     }
@@ -64,15 +65,22 @@ class Nip04CryptoTest {
     @Test
     fun authenticatedViewsDecryptExactEventContentAndRejectTampering() = runTest {
         val encrypted = first.encrypt("private message", secondSigner.pubkey).getOrThrow()
-        val event = firstSigner.sign(eventTemplate(
-            EventKind(4), encrypted, listOf(listOf("p", secondSigner.pubkey.hex)),
-        )).getOrThrow().event
+        val event = firstSigner.sign(
+            eventTemplate(
+                EventKind(4),
+                encrypted,
+                listOf(listOf("p", secondSigner.pubkey.hex))
+            )
+        ).getOrThrow().event
         val view = EncryptedDirectMessageEvent.fromEventOrNull(event)!!
         assertEquals("private message", view.decryptForRecipient(second, verifier).getOrThrow())
         assertEquals("private message", view.decryptForSender(first, verifier).getOrThrow())
         var decryptions = 0
         val recording = object : Nip04Cipher by second {
-            override suspend fun decrypt(content: String, senderPublicKey: io.github.nicolals.nostr.core.primitives.PublicKey): CryptoResult<String> {
+            override suspend fun decrypt(
+                content: String,
+                senderPublicKey: io.github.nicolals.nostr.core.primitives.PublicKey
+            ): CryptoResult<String> {
                 decryptions++
                 return second.decrypt(content, senderPublicKey)
             }
@@ -82,7 +90,10 @@ class Nip04CryptoTest {
         assertEquals(0, decryptions)
         // Even a manually constructed view cannot substitute an unauthenticated cached ciphertext.
         val mismatchingView = EncryptedDirectMessageEvent(
-            event, view.recipientPubkey, null, Nip04CipherText.parseOrNull(tampered.content)!!,
+            event,
+            view.recipientPubkey,
+            null,
+            Nip04CipherText.parseOrNull(tampered.content)!!
         )
         assertEquals("private message", mismatchingView.decryptForRecipient(recording, verifier).getOrThrow())
         assertEquals(1, decryptions)

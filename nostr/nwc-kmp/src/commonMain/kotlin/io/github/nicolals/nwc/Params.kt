@@ -13,7 +13,7 @@ data class PayInvoiceParams(
      * Optional amount to pay. If not specified, the invoice amount is used.
      * Required for zero-amount invoices.
      */
-    val amount: Amount? = null,
+    val amount: Amount? = null
 )
 
 /**
@@ -28,7 +28,7 @@ data class PaymentResult(
     /**
      * Network fees paid.
      */
-    val feesPaid: Amount? = null,
+    val feesPaid: Amount? = null
 )
 
 /**
@@ -53,7 +53,7 @@ data class KeysendParams(
     /**
      * Optional TLV records to include in the payment.
      */
-    val tlvRecords: List<TlvRecord> = emptyList(),
+    val tlvRecords: List<TlvRecord> = emptyList()
 )
 
 /**
@@ -68,7 +68,7 @@ data class TlvRecord(
     /**
      * TLV value (hex encoded).
      */
-    val value: String,
+    val value: String
 )
 
 /**
@@ -94,7 +94,7 @@ data class MakeInvoiceParams(
     /**
      * Expiry time in seconds from creation.
      */
-    val expirySeconds: Long? = null,
+    val expirySeconds: Long? = null
 )
 
 /**
@@ -111,7 +111,7 @@ data class LookupInvoiceParams(
      * BOLT-11 invoice to look up.
      * Either paymentHash or invoice must be provided.
      */
-    val invoice: String? = null,
+    val invoice: String? = null
 ) {
     init {
         require(paymentHash != null || invoice != null) {
@@ -152,7 +152,7 @@ data class ListTransactionsParams(
     /**
      * Filter by transaction type.
      */
-    val type: TransactionType? = null,
+    val type: TransactionType? = null
 )
 
 /**
@@ -172,7 +172,7 @@ data class MultiPayInvoiceItem(
     /**
      * Optional amount to pay.
      */
-    val amount: Amount? = null,
+    val amount: Amount? = null
 )
 
 /**
@@ -202,7 +202,7 @@ data class MultiKeysendItem(
     /**
      * Optional TLV records.
      */
-    val tlvRecords: List<TlvRecord> = emptyList(),
+    val tlvRecords: List<TlvRecord> = emptyList()
 )
 
 /**

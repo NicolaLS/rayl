@@ -1,24 +1,33 @@
 package io.github.nicolals.nostr.codec.kotlinx
 
-import io.github.nicolals.nostr.core.codec.*
-import io.github.nicolals.nostr.core.codec.wire.*
+import io.github.nicolals.nostr.core.codec.JsonArray
+import io.github.nicolals.nostr.core.codec.JsonBoolean
+import io.github.nicolals.nostr.core.codec.JsonNull
+import io.github.nicolals.nostr.core.codec.JsonNumber
+import io.github.nicolals.nostr.core.codec.JsonObject
+import io.github.nicolals.nostr.core.codec.JsonString
+import io.github.nicolals.nostr.core.codec.JsonValue
+import io.github.nicolals.nostr.core.codec.NostrJsonCodec
+import io.github.nicolals.nostr.core.codec.wire.WireEvent
+import io.github.nicolals.nostr.core.codec.wire.WireFilter
+import io.github.nicolals.nostr.core.message.isStandardFilterField
 import io.github.nicolals.nostr.core.message.raw.RawClientMessage
 import io.github.nicolals.nostr.core.message.raw.RawRelayMessage
-import io.github.nicolals.nostr.core.message.isStandardFilterField
 import io.github.nicolals.nostr.core.message.requireValidFilterExtensions
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlinx.serialization.json.JsonArray as KxJsonArray
 import kotlinx.serialization.json.JsonElement as KxJsonElement
 import kotlinx.serialization.json.JsonNull as KxJsonNull
 import kotlinx.serialization.json.JsonObject as KxJsonObject
 import kotlinx.serialization.json.JsonPrimitive as KxJsonPrimitive
+import kotlinx.serialization.json.JsonUnquotedLiteral
 
 class KotlinxNostrJsonCodec : NostrJsonCodec {
     private val json = Json { ignoreUnknownKeys = true }
 
-    override fun parse(json: String): JsonValue = jsonElementToValue(this.json.parseToJsonElement(json))
+    override fun parse(json: String): JsonValue =
+        jsonElementToValue(this.json.parseToJsonElement(json))
 
     override fun stringify(value: JsonValue): String =
         json.encodeToString(jsonValueToElement(value))
@@ -34,7 +43,7 @@ class KotlinxNostrJsonCodec : NostrJsonCodec {
                 tag.requireStringList("tags[$index]")
             },
             content = obj.requireString("content"),
-            sig = obj.requireString("sig"),
+            sig = obj.requireString("sig")
         )
     }
 
@@ -46,8 +55,8 @@ class KotlinxNostrJsonCodec : NostrJsonCodec {
             "kind" to JsonNumber(event.kind.toString()),
             "tags" to JsonArray(event.tags.map { tag -> JsonArray(tag.map { JsonString(it) }) }),
             "content" to JsonString(event.content),
-            "sig" to JsonString(event.sig),
-        ),
+            "sig" to JsonString(event.sig)
+        )
     )
 
     override fun decodeFilter(value: JsonValue): WireFilter {
@@ -76,7 +85,9 @@ class KotlinxNostrJsonCodec : NostrJsonCodec {
             since = since,
             until = until,
             limit = limit,
-            extraFields = obj.entries.filterKeys { !isStandardFilterField(it) && !it.startsWith('#') },
+            extraFields = obj.entries.filterKeys {
+                !isStandardFilterField(it) && !it.startsWith('#')
+            }
         )
     }
 
@@ -86,8 +97,14 @@ class KotlinxNostrJsonCodec : NostrJsonCodec {
         val entries = linkedMapOf<String, JsonValue>()
         entries.putAll(extensions)
         filter.ids?.let { values -> entries["ids"] = JsonArray(values.map { JsonString(it) }) }
-        filter.authors?.let { values -> entries["authors"] = JsonArray(values.map { JsonString(it) }) }
-        filter.kinds?.let { values -> entries["kinds"] = JsonArray(values.map { JsonNumber(it.toString()) }) }
+        filter.authors?.let { values ->
+            entries["authors"] =
+                JsonArray(values.map { JsonString(it) })
+        }
+        filter.kinds?.let { values ->
+            entries["kinds"] =
+                JsonArray(values.map { JsonNumber(it.toString()) })
+        }
         filter.tagFilters
             ?.entries
             ?.sortedBy { it.key }
@@ -114,8 +131,11 @@ class KotlinxNostrJsonCodec : NostrJsonCodec {
 
 private fun jsonElementToValue(element: KxJsonElement): JsonValue = when (element) {
     is KxJsonObject -> JsonObject(element.mapValues { (_, value) -> jsonElementToValue(value) })
+
     is KxJsonArray -> JsonArray(element.map(::jsonElementToValue))
+
     is KxJsonNull -> JsonNull
+
     is KxJsonPrimitive -> when {
         element.isString -> JsonString(element.content)
         element.content.toBooleanStrictOrNull() != null -> JsonBoolean(element.content.toBoolean())
@@ -125,11 +145,20 @@ private fun jsonElementToValue(element: KxJsonElement): JsonValue = when (elemen
 
 @OptIn(ExperimentalSerializationApi::class)
 private fun jsonValueToElement(value: JsonValue): KxJsonElement = when (value) {
-    is JsonObject -> KxJsonObject(value.entries.mapValues { (_, entryValue) -> jsonValueToElement(entryValue) })
+    is JsonObject -> KxJsonObject(
+        value.entries.mapValues { (_, entryValue) ->
+            jsonValueToElement(entryValue)
+        }
+    )
+
     is JsonArray -> KxJsonArray(value.values.map(::jsonValueToElement))
+
     is JsonString -> KxJsonPrimitive(value.value)
+
     is JsonNumber -> JsonUnquotedLiteral(requireValidJsonNumberLiteral(value.value))
+
     is JsonBoolean -> KxJsonPrimitive(value.value)
+
     JsonNull -> KxJsonNull
 }
 
@@ -170,7 +199,9 @@ private fun JsonValue?.nullIfJsonNull(): JsonValue? = when (this) {
 private fun normalizeTagFilterKey(rawKey: String): String {
     val normalized = rawKey.trimStart('#')
     if (normalized.isEmpty()) {
-        throw IllegalArgumentException("Expected tag filter key to include a name but was '$rawKey'")
+        throw IllegalArgumentException(
+            "Expected tag filter key to include a name but was '$rawKey'"
+        )
     }
     return normalized
 }
@@ -195,7 +226,9 @@ private fun String.toIntStrict(label: String): Int {
 }
 
 private fun parseJsonNumberToLong(raw: String, label: String): Long {
-    val match = jsonNumberRegex.matchEntire(raw) ?: throw IllegalArgumentException("Expected number for $label")
+    val match =
+        jsonNumberRegex.matchEntire(raw)
+            ?: throw IllegalArgumentException("Expected number for $label")
     val negative = match.groupValues[1] == "-"
     val intPart = match.groupValues[2]
     val fracPart = match.groupValues[3]
@@ -206,7 +239,9 @@ private fun parseJsonNumberToLong(raw: String, label: String): Long {
         return 0L
     }
 
-    val exponent = if (expPart.isEmpty()) 0 else {
+    val exponent = if (expPart.isEmpty()) {
+        0
+    } else {
         expPart.toIntOrNull() ?: throw IllegalArgumentException("Number out of range for $label")
     }
     // Use Long for the shift so an extreme exponent cannot overflow the subtraction.
@@ -238,10 +273,13 @@ private fun JsonObject.requireValue(key: String): JsonValue =
 
 private fun JsonObject.valueOrNull(key: String): JsonValue? = entries[key].nullIfJsonNull()
 
-private fun JsonObject.requireString(key: String): String = requireValue(key).requireString("field '$key'")
+private fun JsonObject.requireString(key: String): String =
+    requireValue(key).requireString("field '$key'")
 
-private fun JsonObject.requireArray(key: String): JsonArray = requireValue(key).requireArray("field '$key'")
+private fun JsonObject.requireArray(key: String): JsonArray =
+    requireValue(key).requireArray("field '$key'")
 
-private fun JsonObject.requireLong(key: String): Long = requireValue(key).requireLong("field '$key'")
+private fun JsonObject.requireLong(key: String): Long =
+    requireValue(key).requireLong("field '$key'")
 
 private fun JsonObject.requireInt(key: String): Int = requireValue(key).requireInt("field '$key'")

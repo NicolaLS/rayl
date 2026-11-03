@@ -1,12 +1,12 @@
 package io.github.nicolals.nostr.nip01.message
 
-import io.github.nicolals.nostr.core.codec.wire.toWireFilter
 import io.github.nicolals.nostr.core.codec.JsonArray
 import io.github.nicolals.nostr.core.codec.JsonString
 import io.github.nicolals.nostr.core.codec.NostrWireCodec
 import io.github.nicolals.nostr.core.codec.wire.WireEvent
 import io.github.nicolals.nostr.core.codec.wire.WireFilter
 import io.github.nicolals.nostr.core.codec.wire.toWireEvent
+import io.github.nicolals.nostr.core.codec.wire.toWireFilter
 import io.github.nicolals.nostr.core.event.Event
 import io.github.nicolals.nostr.core.message.Filter
 import io.github.nicolals.nostr.core.message.raw.RawClientMessage
@@ -22,7 +22,7 @@ data class EventClientMessage(
     /** The wire-format event (permissive) */
     val wireEvent: WireEvent,
     /** The domain-typed event (validated), null if validation failed */
-    val event: Event?,
+    val event: Event?
 ) : ClientMessageView {
     companion object {
         const val TOKEN = "EVENT"
@@ -51,7 +51,7 @@ data class ReqClientMessage(
     /** The wire-format filters (permissive) */
     val wireFilters: List<WireFilter>,
     /** The domain-typed filters (validated), null if any validation failed */
-    val filters: List<Filter>?,
+    val filters: List<Filter>?
 ) : ClientMessageView {
     companion object {
         const val TOKEN = "REQ"
@@ -65,11 +65,13 @@ data class ReqClientMessage(
             codec: NostrWireCodec
         ): ReqClientMessage {
             val wireFilters = filters.map { it.toWireFilter() }
-            val array = JsonArray(buildList {
-                add(JsonString(TOKEN))
-                add(JsonString(subscriptionId.value))
-                wireFilters.forEach { add(codec.encodeFilter(it)) }
-            })
+            val array = JsonArray(
+                buildList {
+                    add(JsonString(TOKEN))
+                    add(JsonString(subscriptionId.value))
+                    wireFilters.forEach { add(codec.encodeFilter(it)) }
+                }
+            )
             return ReqClientMessage(
                 RawClientMessage(array),
                 subscriptionId.value,
@@ -90,7 +92,7 @@ data class CloseClientMessage(
     /** The subscription ID as raw string */
     val subscriptionIdString: String,
     /** The domain-typed subscription ID (validated), null if validation failed */
-    val subscriptionId: SubscriptionId?,
+    val subscriptionId: SubscriptionId?
 ) : ClientMessageView {
     companion object {
         const val TOKEN = "CLOSE"

@@ -1,36 +1,40 @@
 package io.github.nicolals.nostr.crypto
 
 import io.github.nicolals.nostr.core.crypto.CryptoResult
-import okio.ByteString
-import okio.ByteString.Companion.decodeHex
-import okio.ByteString.Companion.encodeUtf8
-import okio.ByteString.Companion.toByteString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import okio.ByteString
+import okio.ByteString.Companion.decodeHex
+import okio.ByteString.Companion.encodeUtf8
+import okio.ByteString.Companion.toByteString
 
 class CryptoPrimitivesTest {
     @Test
     fun sha256AndHmacKnownAnswers() {
-        assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", NostrCrypto.sha256("abc".encodeUtf8()).getOrThrow().hex())
+        assertEquals(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            NostrCrypto.sha256("abc".encodeUtf8()).getOrThrow().hex()
+        )
         // RFC 4231, test case 1.
         assertEquals(
             "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7",
-            NostrCrypto.hmacSha256("0b".repeat(20).decodeHex(), "Hi There".encodeUtf8()).getOrThrow().hex(),
+            NostrCrypto.hmacSha256("0b".repeat(20).decodeHex(), "Hi There".encodeUtf8()).getOrThrow().hex()
         )
     }
 
     @Test
     fun hkdfRfc5869CaseOneAndLengthBounds() {
         val prk = NostrCrypto.hkdfExtractSha256(
-            "000102030405060708090a0b0c".decodeHex(), "0b".repeat(22).decodeHex(),
+            "000102030405060708090a0b0c".decodeHex(),
+            "0b".repeat(22).decodeHex()
         ).getOrThrow()
         assertEquals("077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5", prk.hex())
         assertEquals(
             "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865",
-            NostrCrypto.hkdfExpandSha256(prk, "f0f1f2f3f4f5f6f7f8f9".decodeHex(), 42).getOrThrow().hex(),
+            NostrCrypto.hkdfExpandSha256(prk, "f0f1f2f3f4f5f6f7f8f9".decodeHex(), 42).getOrThrow().hex()
         )
         assertEquals(ByteString.EMPTY, NostrCrypto.hkdfExpandSha256(prk, ByteString.EMPTY, 0).getOrThrow())
         assertIs<CryptoResult.Err>(NostrCrypto.hkdfExpandSha256(prk, ByteString.EMPTY, -1))
@@ -73,7 +77,7 @@ class CryptoPrimitivesTest {
                 }.toByteString()
                 assertIs<CryptoResult.Err>(
                     NostrCrypto.aes256CbcDecrypt(key, changedIv, ciphertext),
-                    "padding length $paddingSize, corrupted offset $offset",
+                    "padding length $paddingSize, corrupted offset $offset"
                 )
             }
         }
