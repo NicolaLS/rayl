@@ -2,6 +2,21 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-03: open defects fixed (MOB-94, MOB-96 to MOB-98, MOB-102)
+
+- **MOB-94** (`4ccfad69`): the fee is nullable from the settlement to the receipt; Blink and
+  NWC no longer turn a missing fee into 0, and both platforms show "unknown". 2 new tests
+  (flow and NWC) and a new Blink case; both tests fail with the old `?: 0L` put back.
+- **MOB-102** (new, S2, `ab0eca25`): the in-app Privacy Policy and Terms links returned 404
+  since `7a7ef47b` moved the files out of `distribution/rayl/`. Found with curl while rewriting
+  the documents. `release/1.0` links to the same `main` paths; left for Nicola.
+- **MOB-96, MOB-97, MOB-98** (`a2a89189`): privacy policy, terms and store listings (en, de, es)
+  rewritten for 1.1, modelled on Glow, Blitz, Blink and Alby; for Nicola's review.
+- **MOB-99:** not a release blocker (Nicola); stays open in Linear.
+- **Ran:** the CI gate (ktlint, module dependencies, localisations, Breez pins, all host tests,
+  Android debug build) and the iOS compile of the payment modules. Rerun of the full host
+  gate: **274 tests in 59 classes, 0 failures.**
+
 ## 2026-11-03: CI restored; integration level I1–I3
 
 - **CI:** red since at least Oct 28 because `nwc-kmp:0.3.3-SNAPSHOT` wasn't in the Central

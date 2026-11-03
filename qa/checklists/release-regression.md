@@ -81,3 +81,4 @@ manager supports PRF; check once whether App Live devices can complete a passkey
 | L1 | German and Spanish | No English leftovers or truncation on main screens; amounts formatted per language |
 | L2 | Terms and privacy links | Open the documents updated for 1.1 (MOB-96, MOB-97) |
 | L3 | Store listing screenshots and text | Match 1.1 (MOB-98) |
+| L4 | Google Play Data safety and App Store privacy labels | Match the 1.1 privacy policy: financial info and payment history on the device, the passkey login, the services that receive data (MOB-96) |

@@ -1,6 +1,6 @@
 # 1.1 test status
 
-Updated: 2026-11-02. Plan: [release-test-plan.md](release-test-plan.md).
+Updated: 2026-11-03. Plan: [release-test-plan.md](release-test-plan.md).
 Executions: [test-log.md](test-log.md).
 
 ## Work items
@@ -19,14 +19,14 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | M6 | Wallet lifecycle traceability | Done at host level (2026-11-02): 22 rules traced; gap P5/P8 closed with `RaylWalletExitTest`; L6 partly (O-11); L10, L11, L13 go to the checklist and mainnet protocol | [lifecycle-traceability.md](lifecycle-traceability.md) |
 | M7 | Pocket key rules | Host-level part done (2.4, and when the copy may be erased: `RaylWalletExitTest`); the platform stores need stage 3 | `RaylPocketTest`, `RaylWalletExitTest` |
 | M8 | Static reviews (secrets, release config, SDK pins) | Done (2026-11-02): MOB-95 fixed, `verifyBreezSdkPins` added to the gate, version bump for the 1.1 cut goes on the checklist | [static-review.md](static-review.md) |
-| M9 | `distribution/` review | Done (2026-11-02): all four documents still describe 1.0. Filed MOB-96 privacy (S2), MOB-97 terms (S2, passkey is the only backup), MOB-98 store listings (S3), MOB-99 iOS encryption reassessment (S2). Text changes are Nicola's. | [distribution-review.md](distribution-review.md) |
+| M9 | `distribution/` review | Done (2026-11-02): all four documents still described 1.0. Privacy, terms and store listings rewritten for 1.1 (2026-11-03: MOB-96, MOB-97, MOB-98 fixed; wording to be reviewed by Nicola); the in-app links were broken (MOB-102, fixed). MOB-99 (iOS encryption reassessment) stays open but is not a blocker (Nicola, 2026-11-03). | [distribution-review.md](distribution-review.md) |
 | M10 | Release checklist and App Live run | Checklist drafted; run needs Nicola (App Live) | [release-regression.md](../../checklists/release-regression.md) |
 | M11 | Mainnet protocol and run | Protocol drafted (1,000 sats); run needs Nicola (funded wallets) | [mainnet-acceptance.md](../../checklists/mainnet-acceptance.md), [stub-assumptions.md](../../stub-assumptions.md) |
 | I1 | Shared tests as iOS code on the simulator | Done (2026-11-03): 194 tests, also in CI's iOS workflow | `iosSimulatorArm64Test` |
 | I2 | Real Breez SDK on regtest | Done: 5 contract tests; found MOB-101 (fixed) | `BreezSdkContractTest`, `:tools:regtest:regtestContractTest` |
 | I3 | Credential stores on a real Keystore/Keychain | Android done: 12 device tests, O-11 confirmed. iOS Keychain carried over (needs an app-hosted test target) | `AndroidPocketKeyStoreTest`, `AndroidCredentialVaultTest`, `SecureSettingsTest` |
 | M12 | Test summary report | Done (2026-11-03) | [test-summary-report.md](test-summary-report.md) |
-| SH1–SH6 | Should items | Done at host level (2026-11-02): SH1 (2.6), SH2 price degradation and backend response shape, SH4 hostile LNURL, SH5 fee mapping and receipt (MOB-94 open), SH6 formatting per language. SH3 (exploratory charters) is stage 3. | `RaylBitcoinPriceProviderTest`, `RaylServerTest`, `KtorLnurlPayClientTest`, `LnurlInvoiceResolverTest`, `AmountFormatterTest` |
+| SH1–SH6 | Should items | Done at host level (2026-11-02): SH1 (2.6), SH2 price degradation and backend response shape, SH4 hostile LNURL, SH5 fee mapping and receipt (MOB-94 fixed: an unreported fee shows as "unknown"), SH6 formatting per language. SH3 (exploratory charters) is stage 3. | `RaylBitcoinPriceProviderTest`, `RaylServerTest`, `KtorLnurlPayClientTest`, `LnurlInvoiceResolverTest`, `AmountFormatterTest` |
 
 States: Not started · In progress · Blocked (reason) · Done.
 
@@ -90,7 +90,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-03 Duplicate payment | Operation guard, paid-hash lookup and QR presence gate, also through the flow (2.8). After a restart, protection relies on each wallet (O-07, stage 3). | M4 | Partly (host level done) |
 | PR-04 Outcome misreported | The Unknown-never-Failed rule and cancellation are protected for all four wallets (2.1, 2.2), and each wallet verdict's meaning is pinned. | M3, M2, M4 | Yes (host level) |
 | PR-05 Wrong recipient | LNURL client and resolver, mutation-checked: `description_hash` binding, amountless invoices (2.5), DNS rebinding, impossible limits, missing invoice, nesting guard (SH4) | SH4 | Yes (host level) |
-| PR-06 Fee surprises | Each wallet's fee mapping and the receipt's fee are tested. Open: a fee the wallet doesn't report is shown as 0 (MOB-94). Fee limit is MOB-93, after 1.1. | SH5 | Partly |
+| PR-06 Fee surprises | Each wallet's fee mapping and the receipt's fee are tested, including a fee the wallet doesn't report, which shows as "unknown" (MOB-94, fixed). Fee limit is MOB-93, after 1.1. | SH5 | Partly (mainnet fees: M11) |
 | PR-08 Credentials retained | Every SPEC-wallet-lifecycle rule traced (M6): fresh setup never reads old credentials (all three wallets), cleanup before switching, failed cleanup blocks and resumes. Platform wiring checked statically. Open: O-11, Keychain after reinstall (checklist). | M6, M10 | Yes at host level |
 | PR-09 Pocket key lost | Pocket rules, passkey account selection, and when the key copy may be erased (`RaylWalletExitTest`), mutation-checked. External cleanup can't reach the pocket (static check). The platform stores have no tests (audit §9). | M7, M10 | Partly (host level done) |
 | PR-10 Passkey onboarding | `RaylOnboardingStateTest`, `PocketSetupTest` (no-PRF path) | SH3, M10 | Partly |
@@ -100,13 +100,13 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | PR-17 Interruptions | None | SH3, M10 | No |
 | PR-19 Dependency change | `verifyBreezSdkPins` in the gate | M8 | Yes |
 | PR-20 Release misconfigured | Static review (M8): minify, debuggable, backup, signing, debug tools. Version bump for the cut is a checklist item. | M8, M10 | Partly (M10 open) |
-| PR-21 Legal documents | Reviewed (M9): MOB-96–MOB-99 open | M9 | No: deferred by Nicola (2026-11-02); exit criterion 6 decided at go/no-go |
+| PR-21 Legal documents | Reviewed (M9); privacy, terms and store listings rewritten for 1.1 and the in-app links fixed (MOB-96–MOB-98, MOB-102). MOB-99 open, not a blocker (Nicola, 2026-11-03). | M9, M10 (L2–L4) | Partly: Nicola's review of the wording, store console forms (L4) |
 | PR-25 Update loses stored data (new) | Static diff against `release/1.0` (M8): compatible. No automated test yet. | U2/U3, host snapshot test | Partly |
 
 ## Open observations
 
 Defects live in Linear only (team Mobile, label Bug); this table keeps just the observations that
-are not issues. Open bugs: filter `label:Bug` and state not Done. At the 1.1 report: MOB-94, MOB-96 to MOB-99.
+are not issues. Open bugs: filter `label:Bug` and state not Done. On 2026-11-03: MOB-99 (not a release blocker).
 
 | ID | Summary | Severity | State |
 |---|---|---|---|

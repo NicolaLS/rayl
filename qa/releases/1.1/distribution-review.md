@@ -9,6 +9,12 @@ users **receive** funds into Rayl's wallet.
 Legal wording is Nicola's call; the findings below say what is wrong or missing, not the final
 text.
 
+**Resolution (2026-11-03):** QA rewrote `privacy.md`, `terms.md` and the store listings for 1.1
+(MOB-96, MOB-97, MOB-98), for Nicola to review. L3 (store console forms) is checklist item L4.
+E1 (MOB-99) stays open and is not a release blocker (Nicola). Also found: the in-app links to
+both documents returned 404 since they moved out of `distribution/rayl/` (MOB-102, fixed on
+`main`).
+
 ## `privacy.md` (MOB-96)
 
 | # | Statement today | What 1.1 does |
@@ -29,7 +35,7 @@ text.
 | T2 | "does not … open wallet accounts" | Rayl creates a Spark wallet through Breez during onboarding (still self-custodial) |
 | T3 | (missing) | **The passkey is the only backup of Rayl's wallet; the key is never shown or exported.** Losing the passkey (deleted from the password manager, not synced) together with the device means losing the funds. This is the most important user-facing disclosure missing. |
 | T4 | (missing) | Spark's trust model (operators co-sign transfers; unilateral exit) and that Breez and Spark are third-party services |
-| T5 | "Verify … fees before sending a payment" | Fees are not shown before paying by default (decided 2026-11-02, MOB-93); the receipt shows the fee paid, and may show 0 when the wallet doesn't report it (MOB-94) |
+| T5 | "Verify … fees before sending a payment" | Fees are not shown before paying by default (decided 2026-11-02, MOB-93); the receipt shows the fee paid, and showed 0 when the wallet didn't report it (MOB-94, now "unknown") |
 | T6 | Auto Pay wording | Consistent with MOB-88 (the threshold amount itself asks) |
 
 ## Store listings (MOB-98)

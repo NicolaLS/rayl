@@ -9,14 +9,16 @@ candidate yet). Plans: [master test plan](../../test-plan.md),
 
 **Automated testing below the UI is complete for 1.1. The release is not yet ready to ship**,
 because the two activities that test the real app with real wallets (release checklist M10,
-mainnet protocol M11) haven't run, and three S2 documentation defects are deferred.
+mainnet protocol M11) haven't run. The documentation defects are fixed (2026-11-03); the
+rewritten privacy policy and terms await Nicola's review.
 
-- **Testware built:** a clean host suite (254 tests audited, 206 kept, now 272), the same suite on
+- **Testware built:** a clean host suite (254 tests audited, 206 kept, now 274), the same suite on
   the iOS simulator (194), Android device tests on a real Keystore (12), contract tests against
   the real Breez SDK on regtest (5), mutation testing (PIT), static reviews, and the drafts of
   the release checklist and mainnet protocol.
-- **Defects:** 11 found and filed in Linear (MOB-88 to MOB-91, MOB-94 to MOB-99, MOB-101).
-  6 fixed and closed, 5 open: 4 deferred documentation defects and MOB-94 (S4, decided).
+- **Defects:** 12 found and filed in Linear (MOB-88 to MOB-91, MOB-94 to MOB-99, MOB-101,
+  MOB-102). 11 fixed and closed. 1 open: MOB-99, which Nicola decided is not a release blocker
+  (2026-11-03).
 - **CI** was red since at least Oct 28 and is green again, now including the iOS test run.
 - **Most valuable findings:** wrong assumptions about the real Breez SDK (MOB-101: unfunded or
   expired payments shown as "outcome unknown"), only found once the stubs were checked against
@@ -27,7 +29,7 @@ mainnet protocol M11) haven't run, and three S2 documentation defects are deferr
 
 | Level | What | Result |
 |---|---|---|
-| Unit and component (host, stubs at the edges) | Payment flow, Auto Pay decision table, settlement contract of all four wallets, amount conversion, parser corpus and random input, LNURL including hostile servers, price backend failures, wallet lifecycle, pocket key rules, secret redaction | 272 tests, 0 failures, in the gate and CI |
+| Unit and component (host, stubs at the edges) | Payment flow, Auto Pay decision table, settlement contract of all four wallets, amount conversion, parser corpus and random input, LNURL including hostile servers, price backend failures, wallet lifecycle, pocket key rules, secret redaction | 274 tests, 0 failures, in the gate and CI |
 | Same suite as iOS code | 24 modules on the iOS simulator (the 6 modules Xcode links to the Breez library run on the JVM only) | 194 tests, 0 failures, in CI's iOS workflow |
 | Integration: real platform | Pocket key store, Spark recovery-phrase vault, Blink/NWC secure settings on a real Android Keystore (Android 36 emulator) | 12 tests, 0 failures; run manually (`connectedAndroidDeviceTest`), not in CI |
 | Integration: real wallet SDK | Breez SDK 0.27.2 on Lightspark's hosted regtest: already paid, insufficient funds, expired, fee paid vs quoted, recovery from the same seed | 5 tests, 0 failures after MOB-101; run manually (`regtestContractTest`) |
@@ -52,37 +54,36 @@ mainnet protocol M11) haven't run, and three S2 documentation defects are deferr
 | MOB-89 | Capitalised Lightning address rejected | S3 | Fixed (lowercase per LUD-16) |
 | MOB-90 | Already-paid invoice shown as an error on Rayl wallet and Spark | S3 | Fixed (NWC can't tell) |
 | MOB-91 | Legacy Spark onboarding default | S4 | Fixed |
-| MOB-94 | Fee shown as 0 when Blink/NWC don't report it | S4 | **Open**: show "unknown" (decided), next fix batch |
+| MOB-94 | Fee shown as 0 when Blink/NWC don't report it | S4 | Fixed (shown as "unknown") |
 | MOB-95 | Credentials printed by `toString()` | S3 | Fixed |
-| MOB-96 | Privacy policy describes 1.0 | S2 | **Open, deferred** |
-| MOB-97 | Terms miss Rayl's wallet, above all "the passkey is the only backup" | S2 | **Open, deferred** |
-| MOB-98 | Store listings outdated or placeholders | S3 | **Open, deferred** |
-| MOB-99 | iOS encryption export assessment not redone for the Breez SDK | S2 | **Open, deferred** |
+| MOB-96 | Privacy policy describes 1.0 | S2 | Fixed (rewritten for 1.1; wording to review) |
+| MOB-97 | Terms miss Rayl's wallet, above all "the passkey is the only backup" | S2 | Fixed (rewritten for 1.1; wording to review) |
+| MOB-98 | Store listings outdated or placeholders | S3 | Fixed (en, de, es) |
+| MOB-99 | iOS encryption export assessment not redone for the Breez SDK | S2 | Open; not a release blocker (Nicola, 2026-11-03) |
 | MOB-101 | Insufficient funds and expired invoices shown as "outcome unknown" | S3 | Fixed |
+| MOB-102 | In-app Privacy Policy and Terms links return 404 | S2 | Fixed on `main`; `release/1.0` has the same links (Nicola to decide) |
 
 Improvements and features filed along the way: MOB-92 (privacy-aligned telemetry), MOB-93 (fee
 limit setting), MOB-100 (a durable nostr-kmp dependency instead of disappearing snapshots).
 
 Defect clustering: the wallet SDK boundary (MOB-90, MOB-101: how Breez reports refusals) and the
-documents (MOB-96 to MOB-99). The payment logic itself produced no defect once its tests were
+documents (MOB-96 to MOB-99, MOB-102). The payment logic itself produced no defect once its tests were
 strengthened.
 
 ## 4. Exit criteria (master plan §9, as adapted for 1.1)
 
 | # | Criterion | State |
 |---|---|---|
-| 1 | No open S1/S2 defects; open S3 accepted | **Not met:** MOB-96, MOB-97, MOB-99 (S2) and MOB-98 (S3) are open and deferred. Needs a go/no-go decision |
+| 1 | No open S1/S2 defects; open S3 accepted | **Met:** the only open defect, MOB-99 (S2), is accepted as not blocking (Nicola, 2026-11-03) |
 | 2' | Must items M1–M8 and I1–I3 done and passing; residual risk accepted here | **Met**, except iOS Keychain (part of I3); residual risk in §5 |
 | 3 | Release checklist passes on App Live | **Not run** (Nicola) |
 | 4 | Mainnet protocol passes for every shipped wallet | **Not run** (Nicola) |
 | 5 | No performance regression | **Not applicable** for 1.1 (no baseline) |
-| 6 | `distribution/` matches the release | **Not met**, deferred (same issues as criterion 1) |
+| 6 | `distribution/` matches the release | **Met in the repository** (MOB-96 to MOB-98); pending Nicola's review of the wording and the store console forms (checklist L4) |
 | 7 | This report written and approved | Written; awaiting approval |
 
-**QA recommendation:** go only after M10 and M11 have passed and the S2 documentation defects
-are either fixed or explicitly accepted. MOB-97 and MOB-99 are the two I wouldn't accept: one
-leaves users uninformed about how they can lose funds, the other is an export-compliance answer
-for the iOS submission.
+**QA recommendation:** go only after M10 and M11 have passed and Nicola has reviewed the
+rewritten privacy policy and terms.
 
 ## 5. Residual risk (Level 1 risks)
 
@@ -93,9 +94,9 @@ for the iOS submission.
 | PR-03 Duplicate payment | Guard and paid-hash lookup; already-paid verified on the real SDK | After a restart, protection depends on each wallet (O-07); Blink/NWC unverified for real (M11) |
 | PR-04 Outcome misreported | Settlement contract for all four wallets; real SDK refusals (MOB-101 fixed) | Blink and NWC outcomes only against stubs; network-failure behaviour of the real SDK not provoked |
 | PR-05 Wrong recipient | LNURL client and resolver incl. hostile servers | Real LNURL services (M11) |
-| PR-06 Fee surprises | Fee mapping and receipt; quoted = paid on regtest (Lightning route) | MOB-94 open; no fee limit (MOB-93, after 1.1); mainnet fees (M11) |
+| PR-06 Fee surprises | Fee mapping and receipt, including an unreported fee shown as "unknown" (MOB-94); quoted = paid on regtest (Lightning route) | No fee limit (MOB-93, after 1.1); mainnet fees (M11) |
 | PR-08 Credentials retained | Lifecycle rules traced; Android stores on a real Keystore | iOS Keychain stores untested; O-11 (unreadable credential shows setup, not recovery) to judge on device |
-| PR-09 Pocket funds inaccessible | Key-copy rules in common code and on a real Android Keystore; same seed finds same balance (real SDK) | iOS Keychain; real passkey providers (M10); the terms don't warn users (MOB-97) |
+| PR-09 Pocket funds inaccessible | Key-copy rules in common code and on a real Android Keystore; same seed finds same balance (real SDK) | iOS Keychain; real passkey providers (M10) |
 | PR-10 Passkey onboarding | Host tests with fake passkeys | Real password managers and PRF support only on devices (M10) |
 | PR-11 Secrets exposed | Static review; `toString()` redaction tested | No screen-capture protection (O-05, accepted) |
 | PR-13 Speed | None | No baseline (future goal) |
@@ -103,7 +104,7 @@ for the iOS submission.
 | PR-17 Interruptions | Cancellation tests in the flow and settlements | App backgrounded or killed mid-payment, and O-02 (Spark reset), only on devices (M10) |
 | PR-19 Dependency change | Breez pin check in the gate; contract tests catch SDK behaviour changes | Contract tests are manual; the nostr-kmp snapshot can disappear again (MOB-100) |
 | PR-20 Release misconfigured | Static review | Version bump for the cut (checklist B1); release-branch gating (B2) |
-| PR-21 Legal documents | Reviewed | MOB-96 to MOB-99 open |
+| PR-21 Legal documents | Reviewed; privacy, terms and listings rewritten for 1.1; in-app links fixed (MOB-102) | Nicola's review of the wording; store console forms (L4); MOB-99 open, not blocking |
 | PR-25 Update loses stored data | Static comparison with `release/1.0` | No automated test yet; real update in M10 (U2, U3) |
 
 ## 6. Carried over to the next test project
@@ -112,7 +113,8 @@ In priority order:
 1. **Run M10 and M11 for 1.1** (Nicola), then add their results to this report. They also verify
    the remaining stub assumptions (`qa/stub-assumptions.md`), e.g. Blink and NWC behaviour, and
    how NWC wallets word "already paid" (MOB-90).
-2. **Fix batch:** MOB-94 ("unknown" fee); the deferred documents MOB-96 to MOB-99.
+2. **Nicola's review** of the rewritten privacy policy, terms and store listings, and a decision
+   on MOB-102 for `release/1.0`.
 3. **PR-25 host test:** open a 1.0-shaped settings snapshot in the current code (connection,
    Hub, Auto Pay threshold survive). Needed before every release from now on.
 4. **iOS Keychain store tests** in an app-hosted XCTest target (pocket key copy, Spark vault,

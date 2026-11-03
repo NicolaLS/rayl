@@ -612,8 +612,8 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
   wrong. Fixed in MOB-89.
 - O-10: **remove the legacy fallbacks.**
 - MOB-94: a fee the wallet doesn't report is shown as **"unknown"**.
-- **Legal, terms, privacy and store texts are deferred** (MOB-96 to MOB-99). Exit criterion 6
-  still applies to the release: the go/no-go decides how they are handled.
+- ~~Legal, terms, privacy and store texts are deferred (MOB-96 to MOB-99)~~, replaced
+  2026-11-03 (below).
 - M10 and M11 are run by Nicola later and don't block QA work.
 - **Updates from 1.0 need compatibility from now on:** 1.0 is installed on iOS beta testers'
   devices and in Google Play internal testing. Data 1.0 writes must stay readable or be
@@ -621,6 +621,14 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
   data of features 1.0 doesn't have.
 - From 2026-11-02 QA also fixes defects. Every defect is filed in Linear first and closed when
   the fix is committed (§10).
+
+**Decided (2026-11-03)**
+- **The legal and store texts are no longer deferred.** 1.1 is the first serious release, so
+  QA rewrote the privacy policy, terms and store listings for it (MOB-96 to MOB-98), modelled
+  on the documents of similar apps and kept short. Nicola reviews the wording.
+- **MOB-99 (iOS encryption export assessment) is not a release blocker.** Nicola gives a broad
+  export-compliance answer and leaves France out of distribution if needed. The issue stays
+  open in Linear; reviews and test reports don't raise it as a blocker again.
 
 **Open (stakeholder input needed)**
 
