@@ -93,7 +93,7 @@ These threaten the test effort itself rather than the product.
 
 | ID | Risk | Mitigation |
 |---|---|---|
-| PJ-01 | CI is disabled: `nwc-kmp` 0.3.3-SNAPSHOT exists only in the maintainer's `mavenLocal`. Nothing runs on push or PR. | Top infrastructure priority: publish or pin `nwc-kmp`, then restore the triggers |
+| PJ-01 | ~~CI is disabled: `nwc-kmp` 0.3.3-SNAPSHOT exists only in the maintainer's `mavenLocal`. Nothing runs on push or PR.~~ Resolved 2026-11-03 (MOB-100): the Nostr SDK is built from source in `nostr/`, and the build no longer reads `mavenLocal` or snapshot repositories. | Keep the build on released artifacts and in-repo projects only |
 | PJ-02 | A one-person team means low tester independence, and manual testing competes with feature work. | Keep the manual checklist short and risk-based; QA designs and automates; the founder runs device and mainnet passes |
 | PJ-03 | QA (an AI agent) works in sessions and doesn't run on-device or E2E tests unless asked. | Continuity lives in `qa/`; on-device work only on request |
 | PJ-04 | Mainnet testing needs real funds and discipline. | Fixed per-release budget and a written protocol (test plan §7) |

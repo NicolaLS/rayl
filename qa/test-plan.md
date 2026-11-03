@@ -395,8 +395,7 @@ test fails.
 | **Performance** | Weekly, release tag, or PR label | `perfCheck` (macrobenchmark), extended with the staple-path stages | Release gate; alerts on relative regression |
 | **Release** | Release branch (1.1 onwards) | PR gate plus nightly on the release branch; release-build smoke | Exit criteria in §9 |
 
-A prerequisite for all of this is **restoring CI (PJ-01)**. Until then, the founder runs
-the PR gate locally:
+CI runs on push and PR again (PJ-01, resolved). The PR gate locally:
 
 ```shell
 ./gradlew ktlintCheck verifyModuleDependencies verifyNativeLocalizations verifyBreezSdkPins testAndroidHostTest :backend:rayl:test
@@ -500,7 +499,7 @@ The phases are ordered by risk and aimed at 1.1. Exact dates depend on the 1.1 t
 phase are small, independently mergeable slices.
 
 **Phase 0: Foundation**
-- P0.1 Restore CI: publish or pin `nwc-kmp` (PJ-01). *Owner: Nicola.*
+- P0.1 ~~Restore CI: publish or pin `nwc-kmp` (PJ-01).~~ Done 2026-11-03 (MOB-100): the SDK is built from source.
 - P0.2 Shared test fixtures module: invoice factory, fake LNURL server, fake prices, test
   clock, fake stores, recording settlement.
 - P0.3 Kover report in CI as information; add `iosSimulatorArm64Test` to the iOS workflow.
