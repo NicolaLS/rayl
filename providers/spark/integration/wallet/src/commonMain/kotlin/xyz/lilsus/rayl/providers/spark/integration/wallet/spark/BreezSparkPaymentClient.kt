@@ -177,10 +177,20 @@ internal fun Exception.paymentProblem(): SparkPaymentProblem {
     val text = message.orEmpty()
     return when {
         this is SdkException.InsufficientFunds -> SparkPaymentProblem.InsufficientFunds
+
         this is SdkException.NetworkException -> SparkPaymentProblem.Network
+
         "status: AlreadyExists" in text -> SparkPaymentProblem.AlreadyPaid
-        "Invoice has expired" in text -> SparkPaymentProblem.Expired
+
+        // The SDK refuses these only when sending (prepare succeeds), as a SparkException:
+        // "Tree service error: insufficient funds" and "… Invoice for lightning send request <id>
+        // has expired" (BreezSdkContractTest, MOB-101).
+        "insufficient funds" in text.lowercase() -> SparkPaymentProblem.InsufficientFunds
+
+        "has expired" in text -> SparkPaymentProblem.Expired
+
         "Failed to select leaves" in text -> SparkPaymentProblem.BalanceSettling
+
         else -> SparkPaymentProblem.Other
     }
 }
