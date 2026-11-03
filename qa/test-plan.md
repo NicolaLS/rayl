@@ -400,6 +400,8 @@ the PR gate locally:
 
 ```shell
 ./gradlew ktlintCheck verifyModuleDependencies verifyNativeLocalizations verifyBreezSdkPins testAndroidHostTest :backend:rayl:test
+# on macOS, also the iOS run of the shared tests (in CI's iOS workflow):
+./gradlew iosSimulatorArm64Test
 ```
 
 Test design rules for automated tests:
@@ -436,7 +438,8 @@ onboard, and one small mainnet payment per shipped provider on each platform. De
   3. The regression checklist passes on the App Live device matrix on both platforms.
   4. The mainnet acceptance protocol passes for every shipped provider on both platforms.
   5. No staple-path stage regresses beyond the agreed tolerance against the previous
-     baseline.
+     baseline. Applies from the first release that has a recorded baseline; establishing
+     one is a future goal (§6.4, Phase 4), not part of 1.1.
   6. `distribution/` (terms, privacy, store listings) matches the shipped scope and
      behaviour.
   7. The test summary report is written and approved.

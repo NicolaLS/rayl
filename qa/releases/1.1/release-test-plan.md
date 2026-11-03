@@ -104,18 +104,25 @@ covers the host-level parts of M1–M7 and S1–S2.
 
 **Not in 1.1** (back to the master roadmap):
 - the shared fixtures module: fakes stay local and are extracted once duplication hurts
-- platform credential-store tests on an emulator or simulator (P2.2 platform part); the
-  checklist covers reinstall and restore instead
-- the nightly regtest run (P3.3), Kover in CI (P0.3), the threat model (P2.5)
-- performance (Phase 4), except one lab measurement of `perfCheck` on the Samsung as the
-  1.1 reference, if Nicola runs it
+- the nightly regtest *schedule* (P3.3; the regtest tests themselves are in, I2), Kover in
+  CI (P0.3), the threat model (P2.5)
+- performance (Phase 4): no baseline exists, so exit criterion 5 doesn't apply to 1.1
+
+**Reopened 2026-11-03: integration level for payments.** The host-only cut (§3.1) left the
+top risk without any test on the real platform or the real wallet SDK. Added, in this order:
+
+| # | Item | Risks | Verifies |
+|---|---|---|---|
+| I1 | The shared test suite also runs as iOS code on the simulator, locally and in CI | all Level 1 | iOS actuals and Kotlin/Native behaviour |
+| I2 | Rayl's wallet and Spark against the real Breez SDK on regtest: pay, already paid, insufficient funds, expired, fee reported | PR-01, PR-03, PR-04 | Stub assumptions A1–A4 |
+| I3 | Keystore and Keychain stores on emulator and simulator: store, read, unreadable, delete | PR-08, PR-09 | Stub assumption A10, O-11 |
 
 ## 4. Exit criteria for 1.1
 
 The master plan §9 applies, with one change to criterion 2, since not every Level 1 risk
 can be fully covered in two weeks:
 
-> 2'. The Must items M1–M8 are done and passing. Every Level 1 risk that is not fully
+> 2'. The Must items M1–M8 and I1–I3 are done and passing. Every Level 1 risk that is not fully
 > covered is listed as residual risk in the test summary report, and Nicola accepts it.
 
 ## 5. Dependencies on Nicola
