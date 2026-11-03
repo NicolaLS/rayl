@@ -25,6 +25,10 @@ The root `core/`, `feature/`, and `integration/` modules supply provider-neutral
 models, platform services, reusable UI, payment-input utilities, and service
 adapters. Shared payment presentation does not own settlement.
 
+`nostr/` holds the Nostr SDK behind the NWC provider. It is a self-contained
+library: it depends on no other Rayl module, so it can be split out again with
+its history.
+
 [ARCH-payment-hub](../feature/payment-hub/specs/ARCH-payment-hub.md) describes
 the shared Hub UI.
 
@@ -34,10 +38,10 @@ prices from it through `integration/exchange-rate`. `core/rayl-api` is its wire
 contract and holds the production base URL.
 
 The dependency rules in [`verifyModuleDependencies`](../build.gradle.kts)
-keep providers independent of one another and of the app, and neutral modules
-independent of the app and providers. Backend modules share only their wire
-contracts (`core/rayl-api`) with client code; clients do not
-depend on backend implementation.
+keep providers independent of one another and of the app, neutral modules
+independent of the app and providers, and the Nostr SDK independent of Rayl.
+Backend modules share only their wire contracts (`core/rayl-api`) with client
+code; clients do not depend on backend implementation.
 
 ## Platform composition
 

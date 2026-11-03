@@ -6,8 +6,6 @@ permissions:
 env:
   JAVA_VERSION: '21'
 
-# nwc-kmp comes from the Maven Central snapshot repository, where snapshots don't stay
-# around; MOB-100 tracks pinning a release instead.
 on:
   workflow_dispatch:
   push:

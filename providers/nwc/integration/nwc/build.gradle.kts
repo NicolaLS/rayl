@@ -15,7 +15,7 @@ kotlin {
             api(project(":core:settings"))
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
-            implementation(libs.nwc)
+            implementation(project(":nostr:nwc-kmp"))
         }
         androidHostTest.dependencies {
             implementation(libs.secp256k1.kmp.jni.jvm)

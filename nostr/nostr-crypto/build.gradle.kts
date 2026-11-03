@@ -1,41 +1,29 @@
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.android.kotlin.multiplatform.library)
-    alias(libs.plugins.vanniktech.mavenPublish)
+    id("xyz.lilsus.raylsuite.kmp.library")
 }
 
-description = "Nostr crypto primitives backed by libsodium and secp256k1-kmp."
-
 kotlin {
-    jvm()
-
     android {
         namespace = "io.github.nicolals.nostr.crypto"
     }
 
+    compilerOptions {
+        // Aes256Cbc is an expect object with platform actuals.
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                api(project(":nostr-core"))
-                implementation(libs.ionspin.libsodium)
-                implementation(libs.secp256k1.kmp)
-            }
+        commonMain.dependencies {
+            api(project(":nostr:nostr-core"))
+            implementation(libs.ionspin.libsodium)
+            implementation(libs.secp256k1.kmp)
         }
-        val commonTest by getting {
-            dependencies {
-                implementation(libs.kotlin.test)
-                implementation(libs.kotlinx.coroutines.test)
-            }
+        androidMain.dependencies {
+            implementation(libs.secp256k1.kmp.jni.android)
         }
-        val jvmMain by getting {
-            dependencies {
-                implementation(libs.secp256k1.kmp.jni.jvm)
-            }
-        }
-        val androidMain by getting {
-            dependencies {
-                implementation(libs.secp256k1.kmp.jni.android)
-            }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

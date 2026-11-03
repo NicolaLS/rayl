@@ -215,7 +215,7 @@ val verifyModuleDependencies = tasks.register("verifyModuleDependencies") {
     notCompatibleWithConfigurationCache(
         "Calls helper functions defined in this build script; move them into the task to fix."
     )
-    description = "Enforces app, provider, and provider-neutral project ownership."
+    description = "Enforces app, provider, provider-neutral, and Nostr SDK project ownership."
 
     doLast {
         val violations =
@@ -230,6 +230,10 @@ val verifyModuleDependencies = tasks.register("verifyModuleDependencies") {
                             val sourceProvider = source.path.providerOwner()
                             val targetProvider = targetPath.providerOwner()
                             when {
+                                source.path.startsWith(":nostr:") &&
+                                    !targetPath.startsWith(":nostr:") ->
+                                    "${source.path} -> $targetPath (Nostr SDK depends on Rayl code)"
+
                                 targetPath.startsWith(":backend:") &&
                                     !source.path.startsWith(":backend:") ->
                                     "${source.path} -> $targetPath (client module depends on backend implementation)"

@@ -26,7 +26,6 @@ plugins {
 
 dependencyResolutionManagement {
     repositories {
-        mavenLocal()
         // Only Breez's own artifacts: an error from this repository must not block resolving
         // anything else (it broke CI's iOS run on 2026-11-03).
         maven("https://mvn.breez.technology/releases") {
@@ -40,8 +39,6 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
-        // Used for maintainer-owned io.github.nicolals:nwc-kmp snapshot builds
-        maven("https://central.sonatype.com/repository/maven-snapshots/")
     }
 }
 
@@ -121,4 +118,18 @@ include(":feature:wallet-management")
 include(":integration:exchange-rate")
 include(":integration:lnurl")
 include(":backend:rayl")
-include(":tools:regtest")
+
+// The Nostr SDK behind the NWC provider; see nostr/README.md.
+include(
+    ":nostr:nostr-core",
+    ":nostr:nostr-codec-kotlinx",
+    ":nostr:nostr-crypto",
+    ":nostr:nostr-transport-ktor",
+    ":nostr:nostr-runtime-coroutines",
+    ":nostr:nips:nip01",
+    ":nostr:nips:nip04",
+    ":nostr:nips:nip42",
+    ":nostr:nips:nip44",
+    ":nostr:nips:nip47",
+    ":nostr:nwc-kmp"
+)

@@ -20,7 +20,8 @@ admission, LNURL resolution, confirmation, session history, and presentation.
 Each provider's `feature/payment` supplies a `PaymentSettlement` that chooses
 funding and submits payments through its own integration.
 [Blink](../blink/integration/blink) wraps a GraphQL API and BTC or USD funding
-wallets; [NWC](../nwc/integration/nwc) wraps the Nostr Wallet Connect client;
+wallets; [NWC](../nwc/integration/nwc) wraps the Nostr Wallet Connect client from
+[`nostr/nwc-kmp`](../../nostr/nwc-kmp);
 [Spark](../spark/integration/wallet) wraps the Breez SDK for an imported recovery
 phrase. Their integrations own connection credentials.
 Providers receive an explicit fresh-setup or restore mode. Fresh setup never

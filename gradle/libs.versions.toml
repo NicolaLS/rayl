@@ -21,14 +21,13 @@ kotlinxSerializationJson = "1.11.0"
 navigationCompose = "2.9.2"
 navigationEvent = "1.0.1"
 kotlinx-coroutines = "1.11.0"
-# Intentional snapshot: nwc-kmp is maintained by the Rayl author (github.com/NicolaLS/nwc-kmp)
-nwcLibVersion = "0.3.3-SNAPSHOT"
 multiplatform-settings = "1.3.0"
 androidx-camera = "1.6.1"
 mlkit-barcode = "17.3.0"
 bitcoin-kmp = "0.31.0"
 lightning-kmp = "1.13.0"
 secp256k1-kmp = "0.23.0"
+libsodium = "0.9.5"
 ktor = "3.5.1"
 androidx-window = "1.5.1"
 androidx-tracing = "2.0.1"
@@ -61,7 +60,6 @@ navigation-event-compose = { module = "org.jetbrains.androidx.navigationevent:na
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
-nwc = { module = "io.github.nicolals:nwc-kmp", version.ref = "nwcLibVersion" }
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }
 multiplatform-settings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "multiplatform-settings" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "androidx-camera" }
@@ -71,11 +69,15 @@ androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "
 mlkit-barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "mlkit-barcode" }
 bitcoin-kmp = { module = "fr.acinq.bitcoin:bitcoin-kmp", version.ref = "bitcoin-kmp" }
 lightning-kmp-core = { module = "fr.acinq.lightning:lightning-kmp-core", version.ref = "lightning-kmp" }
+secp256k1-kmp = { module = "fr.acinq.secp256k1:secp256k1-kmp", version.ref = "secp256k1-kmp" }
 secp256k1-kmp-jni-jvm = { module = "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm", version.ref = "secp256k1-kmp" }
 secp256k1-kmp-jni-android = { module = "fr.acinq.secp256k1:secp256k1-kmp-jni-android", version.ref = "secp256k1-kmp" }
+ionspin-libsodium = { module = "com.ionspin.kotlin:multiplatform-crypto-libsodium-bindings", version.ref = "libsodium" }
+ionspin-libsodium-jvm = { module = "com.ionspin.kotlin:multiplatform-crypto-libsodium-bindings-jvm", version.ref = "libsodium" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }

@@ -1,28 +1,18 @@
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.android.kotlin.multiplatform.library)
-    alias(libs.plugins.vanniktech.mavenPublish)
+    id("xyz.lilsus.raylsuite.kmp.library")
 }
 
-description = "Core Nostr types and utilities for Kotlin Multiplatform."
-
 kotlin {
-    jvm()
-
     android {
         namespace = "io.github.nicolals.nostr.core"
     }
 
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                api(libs.okio)
-            }
+        commonMain.dependencies {
+            api(libs.okio)
         }
-        val commonTest by getting {
-            dependencies {
-                implementation(libs.kotlin.test)
-            }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }
