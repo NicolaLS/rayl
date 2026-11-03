@@ -143,7 +143,7 @@ internal actual fun secureRandomBytes(size: Int): ByteArray =
  * Encrypts the phrase with a non-exportable Android Keystore key, outside Auto Backup, so this
  * copy is lost on uninstall or a new phone; the passkey derives it again.
  */
-private class AndroidPocketKeyStore(
+internal class AndroidPocketKeyStore(
     context: Context,
     private val directory: File,
     network: String

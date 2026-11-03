@@ -6,6 +6,10 @@ plugins {
 kotlin {
     android {
         namespace = "xyz.lilsus.rayl.providers.spark.integration.wallet"
+        // The credential vault on a real Android Keystore (emulator or device): QA I3.
+        withDeviceTest {
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
     }
 
     sourceSets {
@@ -17,6 +21,12 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+        }
+        getByName("androidDeviceTest").dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.androidx.test.runner)
+            implementation(libs.androidx.test.ext.junit)
         }
     }
 }

@@ -78,7 +78,7 @@ private class AndroidWalletDirectories(context: Context) : WalletDirectories {
     override fun finishReset(): Boolean = !resetMarker.exists() || resetMarker.delete()
 }
 
-private class AndroidCredentialVault(private val context: Context) : CredentialVault {
+internal class AndroidCredentialVault(private val context: Context) : CredentialVault {
     private val payloadDirectory = File(context.noBackupFilesDir, "wallet-credential")
     private val payloadFile = File(payloadDirectory, "v1.bin")
     private val associatedData =

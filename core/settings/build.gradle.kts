@@ -5,6 +5,10 @@ plugins {
 kotlin {
     android {
         namespace = "xyz.lilsus.raylsuite.core.settings"
+        // Secure settings on a real Android Keystore (emulator or device): QA I3.
+        withDeviceTest {
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
     }
 
     sourceSets {
@@ -19,6 +23,11 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.compose.ui)
+        }
+        getByName("androidDeviceTest").dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.androidx.test.runner)
+            implementation(libs.androidx.test.ext.junit)
         }
     }
 }
