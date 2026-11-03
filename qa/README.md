@@ -8,7 +8,7 @@ reports. Records here may cite spec IDs and risk IDs, but they are not Linked Sp
 |---|---|
 | [test-plan.md](test-plan.md) | Master test plan: scope, strategy, levels, environments, criteria, roadmap, decisions |
 | [product-risks.md](product-risks.md) | Product and project risk register (`PR-xx`, `PJ-xx`) that drives test depth |
-| [releases/1.1/](releases/1.1/) | 1.1: [release test plan](releases/1.1/release-test-plan.md) (scope cut and schedule), [status](releases/1.1/status.md) (work items, risk coverage, defects), [test log](releases/1.1/test-log.md) (executions), [wallet lifecycle traceability](releases/1.1/lifecycle-traceability.md) |
+| [releases/1.1/](releases/1.1/) | 1.1: [release test plan](releases/1.1/release-test-plan.md) (scope cut and schedule), [status](releases/1.1/status.md) (work items, risk coverage, defects), [test log](releases/1.1/test-log.md) (executions), [wallet lifecycle traceability](releases/1.1/lifecycle-traceability.md), [test summary report](releases/1.1/test-summary-report.md) |
 
 | [checklists/](checklists/) | [Release regression checklist](checklists/release-regression.md) (App Live, per RC) and [mainnet acceptance protocol](checklists/mainnet-acceptance.md) (real money, per RC) |
 | [stub-assumptions.md](stub-assumptions.md) | What the host tests' stubs assume about real systems, and how each assumption is verified |

@@ -22,7 +22,10 @@ Current focus: stages 1 and 2, host-level tests only ([plan §3.1](release-test-
 | M9 | `distribution/` review | Done (2026-11-02): all four documents still describe 1.0. Filed MOB-96 privacy (S2), MOB-97 terms (S2, passkey is the only backup), MOB-98 store listings (S3), MOB-99 iOS encryption reassessment (S2). Text changes are Nicola's. | [distribution-review.md](distribution-review.md) |
 | M10 | Release checklist and App Live run | Checklist drafted; run needs Nicola (App Live) | [release-regression.md](../../checklists/release-regression.md) |
 | M11 | Mainnet protocol and run | Protocol drafted (1,000 sats); run needs Nicola (funded wallets) | [mainnet-acceptance.md](../../checklists/mainnet-acceptance.md), [stub-assumptions.md](../../stub-assumptions.md) |
-| M12 | Test summary report | Not started | |
+| I1 | Shared tests as iOS code on the simulator | Done (2026-11-03): 194 tests, also in CI's iOS workflow | `iosSimulatorArm64Test` |
+| I2 | Real Breez SDK on regtest | Done: 5 contract tests; found MOB-101 (fixed) | `BreezSdkContractTest`, `:tools:regtest:regtestContractTest` |
+| I3 | Credential stores on a real Keystore/Keychain | Android done: 12 device tests, O-11 confirmed. iOS Keychain carried over (needs an app-hosted test target) | `AndroidPocketKeyStoreTest`, `AndroidCredentialVaultTest`, `SecureSettingsTest` |
+| M12 | Test summary report | Done (2026-11-03) | [test-summary-report.md](test-summary-report.md) |
 | S1–S6 | Should items | Done at host level (2026-11-02): S1 (2.6), S2 price degradation and backend response shape, S4 hostile LNURL, S5 fee mapping and receipt (MOB-94 open), S6 formatting per language. S3 (exploratory charters) is stage 3. | `RaylBitcoinPriceProviderTest`, `RaylServerTest`, `KtorLnurlPayClientTest`, `LnurlInvoiceResolverTest`, `AmountFormatterTest` |
 
 States: Not started · In progress · Blocked (reason) · Done.
@@ -113,6 +116,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 | O-10 | Legacy default in `SparkOnboardingState` (restored wallets skip the intro screens) | S4 | Fixed: [MOB-91](https://linear.app/nicola-susca/issue/MOB-91) |
 | MOB-94 | A fee the wallet doesn't report (Blink, NWC) is shown as 0 sats | S4 | Open: presentation to decide (hide or "unknown"); a known-defect test needs that API change first |
 | MOB-95 | Credentials printed by `toString()` | S3 | Fixed (`eb5edce6`) |
+| MOB-101 | Insufficient funds / expired shown as "outcome unknown" (Rayl wallet, Spark) | S3 | Fixed (found by the regtest contract tests) |
 | O-11 | Android's secure store reports an undecryptable credential as absent, so Blink and NWC show setup instead of recovery | Unknown | Stage 3: check on a device whether that meets SPEC-wallet-lifecycle (see M6) |
 | O-08 | `Alice@example.com` (capitalised Lightning address) is rejected as unrecognised | S3 | Fixed: [MOB-89](https://linear.app/nicola-susca/issue/MOB-89) |
 
@@ -120,7 +124,7 @@ The main progress indicator (master plan §11). "Today" is what existing tests c
 
 Stage 2 stopped here as planned. Done: 2.1 and 2.3 to 2.8. Waiting: 2.2.
 
-- **Suite:** 270 tests in 59 classes, all passing (227 at the end of stage 2, 206 after stage 1).
+- **Suite:** 272 host tests in 59 classes, 194 of them also on the iOS simulator, 12 Android device tests, 5 regtest contract tests; all passing.
   Every new test was mutation-checked: each slice's target mutations are killed.
 - **Closed gaps from the audit:** the Unknown-never-Failed rule for Rayl and Spark (S1, S2),
   Spark removal waiting for the credential delete (W2), the unreadable pocket key (K3),

@@ -32,7 +32,7 @@ device or simulator (stage 3).
 | P1 | Rayl never generates the key; it comes from the passkey | `RaylPocketTest.needsAKeyInsteadOfCreatingOne`, `PocketSetupTest` | H | Covered |
 | P2 | Without passkey support, onboarding offers the external wallets | `RaylOnboardingStateTest.withoutPasskeysTheUserIsSentToAnotherWallet` | H | Covered |
 | P3 | The key copy is stored before the pocket first connects | `RaylPocketTest.installStoresTheKeyAndConnectsWithIt`, `doesNotConnectWithAKeyThatWasNotStored` | H | Covered |
-| P4 | A key that exists but can't be read is never replaced silently | `RaylPocketTest.neverReplacesAKeyThatCannotBeRead`, `anUnreadableKeyStillCountsAsAKey` | H / 3 | Common code covered; the Keystore/Keychain stores are stage 3 (audit §9) |
+| P4 | A key that exists but can't be read is never replaced silently | `RaylPocketTest.neverReplacesAKeyThatCannotBeRead`, `anUnreadableKeyStillCountsAsAKey`; Android Keystore: `AndroidPocketKeyStoreTest` (device) | H / D | Common code and Android Keystore covered; iOS Keychain carried over |
 | P5 | Using another wallet stops the pocket without erasing its key or data | `RaylWalletExitTest.usingAnotherWalletClosesThePocketButKeepsItsKey`, `RaylPocketTest.closeKeepsTheKeyAndEraseDeletesIt` | H | **Covered (new, 2026-11-02)** |
 | P6 | Startup cleanup doesn't erase the pocket | Static check below: cleanup only knows external wallets | S | Covered |
 | P7 | Going back to Rayl restores the same pocket | P5 plus `RaylPocketTest.reusesTheStoredKey` | H | Covered |
@@ -50,7 +50,7 @@ device or simulator (stage 3).
 
 ## Observation
 
-**O-11 (to check in stage 3, PR-08/PR-12).** On Android, the secure store returns "absent"
+**O-11 (confirmed on a real Android Keystore 2026-11-03, `SecureSettingsTest`; PR-08/PR-12).** On Android, the secure store returns "absent"
 when a credential can't be decrypted (`EncryptedStringSettings.getStringOrNull` swallows the
 error). Blink and NWC therefore can't tell an unreadable credential from a missing one: a
 restored Blink or NWC wallet with an unreadable credential shows its setup screen rather than

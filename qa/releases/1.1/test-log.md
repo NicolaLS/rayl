@@ -2,6 +2,23 @@
 
 Each test execution for 1.1, newest first: what ran, on which build, and the result.
 
+## 2026-11-03: CI restored; integration level I1–I3
+
+- **CI:** red since at least Oct 28 because `nwc-kmp:0.3.3-SNAPSHOT` wasn't in the Central
+  snapshot repository. Published nostr-kmp 0.3.3-SNAPSHOT (13 modules; first attempt killed by
+  my own timeout, second by a DNS error, third completed). The workflows' triggers had been
+  disabled; re-enabled. CI then failed on configuration cache problems in three root tasks
+  (locally the cache is off in `~/.gradle/gradle.properties`); fixed. CI and iOS green on
+  `ebd887d1`. MOB-100 tracks a durable setup.
+- **I1:** `iosSimulatorArm64Test`: 194 tests, 24 modules, 0 failures; added to CI's iOS workflow.
+- **I2:** `BreezSdkContractTest` on Lightspark's hosted regtest, Breez SDK 0.27.2: A1, A3
+  (Lightning route), A4 hold; A2 was wrong (refusals come at send time as `SparkException`
+  texts): **MOB-101**, fixed and closed.
+- **I3:** device tests on an Android 36 emulator: 12 tests (pocket key store, Spark vault, secure
+  settings), 0 failures; O-11 confirmed. iOS Keychain needs an app-hosted XCTest target:
+  carried over.
+- **Ran:** full host gate: **272 tests in 59 classes, 0 failures.**
+
 ## 2026-11-02: M9 distribution review, M10/M11 drafts, upgrade check
 
 - **M9:** all four `distribution/` documents describe 1.0. Filed MOB-96 (privacy, S2), MOB-97
