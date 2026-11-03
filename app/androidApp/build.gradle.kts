@@ -34,8 +34,8 @@ android {
 
     defaultConfig {
         applicationId = "com.nicolasusca.rayl"
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.1.0"
         manifestPlaceholders["mainActivityName"] = "xyz.lilsus.rayl.MainActivity"
     }
 
