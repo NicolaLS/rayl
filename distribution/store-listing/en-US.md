@@ -1,6 +1,6 @@
-A calmer, faster way to pay.
+A calmer, faster way to pay with Bitcoin.
 
-Rayl connects to your Bitcoin wallet for a payment experience built around simplicity. Pay Lightning invoices, send to contacts, and keep your everyday payments close at hand—without the clutter.
+Rayl is a Bitcoin wallet built around paying. Pay Lightning invoices, send to contacts, and keep your everyday payments close at hand, without the clutter.
 
 Ready to pay
 
@@ -12,14 +12,14 @@ Choose an amount below which invoices are paid automatically, without a confirma
 
 A Hub that feels like yours
 
-Build your personal payment space with contact widgets, preset-amount shortcuts, and smart widgets for favorites and recents. Add people or businesses by Lightning address, or import contacts from your connected wallet.
+Build your personal payment space with contact widgets, preset-amount shortcuts, and smart widgets for favorites and recents. Add people or businesses by Lightning address, or import your contacts from Blink.
 
 Arrange your Hub around the way you pay. Keep what you use. Leave out what you do not.
 
-Your wallet, with payments put first
+A wallet that is yours
 
-Rayl is a payment companion, not a separate wallet. Connect a supported wallet and start paying. No separate Rayl account required.
+Rayl comes with its own self-custodial wallet, secured by a passkey. There is no recovery phrase to write down and no Rayl account: your passkey is your backup, so keep it safe. Add funds from any Lightning wallet.
+
+Already have a wallet? Connect Blink, a Nostr Wallet Connect (NWC) wallet, or a Spark wallet instead, and pay with it the same way.
 
 Rayl is free to use and adds no payment fees. Wallet or network fees may still apply.
-
-Currently supports Blink.
