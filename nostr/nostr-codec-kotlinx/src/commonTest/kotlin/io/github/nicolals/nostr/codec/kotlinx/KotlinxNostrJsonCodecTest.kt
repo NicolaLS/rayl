@@ -1,0 +1,210 @@
+package io.github.nicolals.nostr.codec.kotlinx
+
+import io.github.nicolals.nostr.core.codec.JsonArray
+import io.github.nicolals.nostr.core.codec.JsonNumber
+import io.github.nicolals.nostr.core.codec.JsonString
+import io.github.nicolals.nostr.core.codec.JsonValue
+import io.github.nicolals.nostr.core.codec.wire.WireEvent
+import io.github.nicolals.nostr.core.codec.wire.WireFilter
+import io.github.nicolals.nostr.core.codec.wire.toFilterOrNull
+import io.github.nicolals.nostr.core.codec.wire.toWireFilter
+import io.github.nicolals.nostr.core.message.Filter
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class KotlinxNostrJsonCodecTest {
+    private val codec = KotlinxNostrJsonCodec()
+
+    private val rawEventJson = """
+        {
+          "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "pubkey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "created_at": 1712345678,
+          "kind": 1,
+          "tags": [
+            ["p", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"],
+            ["e", "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "wss://relay.example.com"]
+          ],
+          "content": "hello",
+          "sig": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+    """.trimIndent()
+
+    private val expectedEvent = WireEvent(
+        id = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        pubkey = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        createdAt = 1712345678L,
+        kind = 1,
+        tags = listOf(
+            listOf(
+                "p",
+                "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            ),
+            listOf(
+                "e",
+                "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "wss://relay.example.com",
+            ),
+        ),
+        content = "hello",
+        sig = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    )
+
+    private val rawEventJsonWithExponent = """
+        {
+          "id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "pubkey": "1111111111111111111111111111111111111111111111111111111111111111",
+          "created_at": 1e3,
+          "kind": 1.0,
+          "tags": [],
+          "content": "",
+          "sig": "2222222222222222222222222222222222222222222222222222222222222222"
+        }
+    """.trimIndent()
+
+    private val expectedEventWithExponent = WireEvent(
+        id = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        pubkey = "1111111111111111111111111111111111111111111111111111111111111111",
+        createdAt = 1000L,
+        kind = 1,
+        tags = emptyList(),
+        content = "",
+        sig = "2222222222222222222222222222222222222222222222222222222222222222",
+    )
+
+    private val rawRelayEventMessageJson = """
+        ["EVENT","sub-123",$rawEventJson]
+    """.trimIndent()
+
+    private val rawFilterJson = """
+        {
+          "ids": ["id-1", "id-2"],
+          "authors": ["pub-1"],
+          "kinds": [1, 2],
+          "#e": ["event-1"],
+          "#p": ["pub-2"],
+          "since": 1712345678,
+          "until": 1712349999,
+          "limit": 42
+        }
+    """.trimIndent()
+
+    private val expectedFilter = WireFilter(
+        ids = listOf("id-1", "id-2"),
+        authors = listOf("pub-1"),
+        kinds = listOf(1L, 2L),
+        tagFilters = mapOf(
+            "e" to listOf("event-1"),
+            "p" to listOf("pub-2"),
+        ),
+        since = 1712345678L,
+        until = 1712349999L,
+        limit = 42,
+    )
+
+    @Test
+    fun rawEventDecodesToWireEvent() {
+        val decoded = codec.decodeEvent(rawEventJson)
+        assertEquals(expectedEvent, decoded)
+
+        val encoded = codec.encodeEventString(expectedEvent)
+        assertEquals(codec.parse(rawEventJson), codec.parse(encoded))
+    }
+
+    @Test
+    fun rawRelayEventMessageDecodesToRawRelayMessage() {
+        val decoded = codec.decodeRelayMessage(rawRelayEventMessageJson)
+        // Raw message should have token "EVENT"
+        assertEquals("EVENT", decoded.token)
+        // Payload should have subscription ID and event JSON
+        assertEquals(2, decoded.payloadSize)
+        assertEquals("sub-123", (decoded.payloadAt(0) as JsonString).value)
+    }
+
+    @Test
+    fun rawFilterDecodesToWireFilter() {
+        val decoded = codec.decodeFilter(rawFilterJson)
+        assertEquals(expectedFilter, decoded)
+
+        val encoded = codec.encodeFilterString(expectedFilter)
+        assertEquals(codec.parse(rawFilterJson), codec.parse(encoded))
+    }
+
+    @Test
+    fun numericLiteralsAcceptExponentAndIntegralDecimals() {
+        val decoded = codec.decodeEvent(rawEventJsonWithExponent)
+        assertEquals(expectedEventWithExponent, decoded)
+    }
+
+    @Test
+    fun numericOverflowIsRejectedWithoutExpandingTheExponent() {
+        for (literal in listOf(
+            "1e2147483647", "1e2147483648", "1e-2147483648", "1e-2147483649",
+            "1.0e-2147483648", "1e9999999999999999999999999999999999999999",
+            "9223372036854775808", "-9223372036854775809", "1e19",
+        )) {
+            assertFailsWith<IllegalArgumentException>(literal) {
+                codec.decodeFilter("""{"since":$literal}""")
+            }
+        }
+    }
+
+    @Test
+    fun integerConversionIsExactAtLongBoundaries() {
+        val examples = mapOf(
+            "9223372036854775807" to Long.MAX_VALUE,
+            "-9223372036854775808" to Long.MIN_VALUE,
+            "-9.223372036854775808e18" to Long.MIN_VALUE,
+            "1000e-3" to 1L,
+            "0.000010e5" to 1L,
+            "-0e999999999999999999999999" to 0L,
+        )
+        for ((literal, expected) in examples) {
+            assertEquals(expected, codec.decodeFilter("""{"since":$literal}""").since, literal)
+        }
+        for (literal in listOf("1.01", "1e-1", "1001e-3", "0.0001")) {
+            assertFailsWith<IllegalArgumentException>(literal) {
+                codec.decodeFilter("""{"since":$literal}""")
+            }
+        }
+    }
+
+    @Test
+    fun stringifyRejectsInvalidJsonNumberLiteral() {
+        assertFailsWith<IllegalArgumentException> {
+            codec.stringify(JsonNumber("01"))
+        }
+    }
+
+    @Test
+    fun filterExtensionsSurviveWireAndDomainRoundTrips() {
+        val input = """{"kinds":[1],"search":"bitcoin","vendor":{"score":0.5},"optional":null}"""
+        val wire = codec.decodeFilter(input)
+        val domain = requireNotNull(wire.toFilterOrNull())
+        assertEquals(JsonString("bitcoin"), domain.extraFields["search"])
+        assertEquals(codec.parse(input), codec.encodeFilter(domain.toWireFilter()))
+    }
+
+    @Test
+    fun extensionsCannotShadowTypedFilterFields() {
+        for (key in listOf("authors", "limit", "#p", "")) {
+            val fields = mapOf(key to JsonString("override"))
+            assertFailsWith<IllegalArgumentException>(key) { Filter(extraFields = fields) }
+            assertFailsWith<IllegalArgumentException>(key) { WireFilter(extraFields = fields) }
+        }
+    }
+
+    @Test
+    fun encodingRevalidatesCallerOwnedExtensionMaps() {
+        val fields = mutableMapOf<String, JsonValue>("search" to JsonString("bitcoin"))
+        val filter = WireFilter(extraFields = fields)
+        fields["authors"] = JsonArray(emptyList())
+        assertFailsWith<IllegalArgumentException> { codec.encodeFilter(filter) }
+    }
+
+    @Test
+    fun oversizedWireKindsCannotWrapIntoValidDomainKinds() {
+        assertEquals(null, WireFilter(kinds = listOf(4_294_967_297L)).toFilterOrNull())
+    }
+}
