@@ -212,6 +212,9 @@ val backendWireContracts = setOf(":core:rayl-api")
 
 val verifyModuleDependencies = tasks.register("verifyModuleDependencies") {
     group = "verification"
+    notCompatibleWithConfigurationCache(
+        "Calls helper functions defined in this build script; move them into the task to fix."
+    )
     description = "Enforces app, provider, and provider-neutral project ownership."
 
     doLast {
@@ -265,6 +268,9 @@ val verifyModuleDependencies = tasks.register("verifyModuleDependencies") {
 
 val verifyNativeLocalizations = tasks.register("verifyNativeLocalizations") {
     group = "verification"
+    notCompatibleWithConfigurationCache(
+        "Calls helper functions defined in this build script; move them into the task to fix."
+    )
     description =
         "Validates native locale completeness, intentional parity, and Apple target membership."
 
@@ -498,11 +504,12 @@ subprojects {
     }
 }
 
-val breezSparkVersion = libs.versions.breezSpark
 val verifyBreezSdkPins = tasks.register("verifyBreezSdkPins") {
     group = "verification"
     description =
         "Checks that Android and iOS use the same Breez SDK version (Gradle and Xcode pins)."
+    // Locals only: the configuration cache can't store references to the build script.
+    val breezSparkVersion = libs.versions.breezSpark
     val project = file("app/iosApp/iosApp.xcodeproj/project.pbxproj")
     val resolved =
         file(

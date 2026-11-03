@@ -6,15 +6,14 @@ permissions:
 env:
   JAVA_VERSION: '21'
 
-# DISABLED: CI cannot resolve io.github.nicolals:nwc-kmp:0.3.3-SNAPSHOT, which only exists in the
-# maintainer's mavenLocal. Publish nwc-kmp (e.g. a release on Maven Central) and pin it in
-# gradle/libs.versions.toml, then restore the triggers below. Until then this runs only manually.
+# nwc-kmp comes from the Maven Central snapshot repository, where snapshots don't stay
+# around; MOB-100 tracks pinning a release instead.
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
-  # pull_request:
-  #   branches: [main]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
