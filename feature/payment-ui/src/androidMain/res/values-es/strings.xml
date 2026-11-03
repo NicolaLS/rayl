@@ -22,10 +22,12 @@
     <string name="enter_amount_too_large">El importe es demasiado alto.</string>
     <string name="result_paid_title">Pagado</string>
     <string name="result_paid_fee">Comisión: %1$s</string>
+    <string name="result_paid_fee_unknown">Comisión: desconocida</string>
     <string name="result_already_paid_title">Ya pagada</string>
     <string name="result_already_paid_message">No se envió ningún pago. Esta factura ya fue pagada.</string>
     <string name="receipt_amount">Importe</string>
     <string name="receipt_fee">Comisión</string>
+    <string name="receipt_fee_unknown">Desconocida</string>
     <string name="receipt_recipient">Destinatario</string>
     <string name="receipt_domain">Dominio</string>
     <string name="receipt_timestamp">Fecha y hora</string>

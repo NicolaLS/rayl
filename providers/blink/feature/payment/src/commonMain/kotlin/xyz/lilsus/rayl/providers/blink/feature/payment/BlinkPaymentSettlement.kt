@@ -96,7 +96,7 @@ class BlinkPaymentSettlement(
         return when (outcome) {
             is BlinkPaymentOutcome.Paid ->
                 SettlementOutcome.Paid(
-                    feeMsats = outcome.feesPaidMsats ?: 0L,
+                    feeMsats = outcome.feesPaidMsats,
                     preimage = outcome.preimageHex
                 )
 

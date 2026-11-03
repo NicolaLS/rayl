@@ -22,7 +22,8 @@ sealed interface PaymentScreenState {
 
     data class Success(
         val amountPaid: DisplayAmount,
-        val feePaid: DisplayAmount,
+        /** Null when the wallet didn't report the fee. */
+        val feePaid: DisplayAmount?,
         val wasAlreadyPaid: Boolean
     ) : PaymentScreenState
 
@@ -52,9 +53,10 @@ data class PaymentSessionTransaction(
 /** Provider-owned history projected into the values a native receipt renders. */
 data class PaymentReceiptDetails(
     val amount: DisplayAmount,
-    val fee: DisplayAmount,
+    /** Null, like [feeSats], when the wallet didn't report the fee. */
+    val fee: DisplayAmount?,
     val amountSats: DisplayAmount,
-    val feeSats: DisplayAmount,
+    val feeSats: DisplayAmount?,
     val createdAtMs: Long,
     val recipient: String? = null,
     val domain: String? = null,

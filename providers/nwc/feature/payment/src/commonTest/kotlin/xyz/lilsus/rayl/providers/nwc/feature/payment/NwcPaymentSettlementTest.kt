@@ -63,6 +63,14 @@ class NwcPaymentSettlementTest {
     }
 
     @Test
+    fun aFeeTheWalletDoesNotReportStaysUnknown() = runTest {
+        // NIP-47 makes fees_paid optional; a missing fee is not a fee of 0 (MOB-94).
+        val wallet = FakeWallet { NwcPayOutcome.Settled(preimage = "ab", feesPaidMsats = null) }
+
+        assertEquals(SettlementOutcome.Paid(null, "ab"), NwcPaymentSettlement(wallet).settle(payment()))
+    }
+
+    @Test
     fun theWalletIsAskedForTheEnteredAmountAndTheInvoicesHash() = runTest {
         // The hash is how a lost response is looked up later; the amount is what the user typed
         // for an amountless invoice.

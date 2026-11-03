@@ -64,6 +64,9 @@ class BlinkPaymentSettlementTest {
         val cases = mapOf(
             BlinkPaymentOutcome.Paid(preimageHex = "ab", feesPaidMsats = 3_000) to
                 SettlementOutcome.Paid(feeMsats = 3_000, preimage = "ab"),
+            // A fee Blink doesn't return is unknown, not 0 (MOB-94).
+            BlinkPaymentOutcome.Paid(preimageHex = "cd", feesPaidMsats = null) to
+                SettlementOutcome.Paid(feeMsats = null, preimage = "cd"),
             BlinkPaymentOutcome.AlreadyPaid to
                 SettlementOutcome.Paid(feeMsats = 0, preimage = null, wasAlreadyPaid = true),
             BlinkPaymentOutcome.DefinitiveFailure(rejected) to

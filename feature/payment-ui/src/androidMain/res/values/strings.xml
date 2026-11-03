@@ -22,10 +22,12 @@
     <string name="enter_amount_too_large">Amount is too large.</string>
     <string name="result_paid_title">Paid</string>
     <string name="result_paid_fee">Fee: %1$s</string>
+    <string name="result_paid_fee_unknown">Fee: unknown</string>
     <string name="result_already_paid_title">Already Paid</string>
     <string name="result_already_paid_message">No payment was sent. This invoice was already paid.</string>
     <string name="receipt_amount">Amount</string>
     <string name="receipt_fee">Fee</string>
+    <string name="receipt_fee_unknown">Unknown</string>
     <string name="receipt_recipient">Recipient</string>
     <string name="receipt_domain">Domain</string>
     <string name="receipt_timestamp">Timestamp</string>

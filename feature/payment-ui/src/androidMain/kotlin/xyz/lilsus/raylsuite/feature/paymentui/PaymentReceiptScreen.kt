@@ -99,7 +99,9 @@ internal fun PaymentReceiptScreen(
                 Column {
                     ReceiptField(
                         label = stringResource(R.string.receipt_fee),
-                        value = formatter.formatReceiptAmount(receipt.fee, receipt.feeSats)
+                        value = receipt.fee?.let { fee ->
+                            receipt.feeSats?.let { formatter.formatReceiptAmount(fee, it) }
+                        } ?: stringResource(R.string.receipt_fee_unknown)
                     )
                     feeInformation?.let {
                         Text(

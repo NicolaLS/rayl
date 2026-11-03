@@ -62,7 +62,7 @@ internal class PaymentHistory(private val currencyManager: PaymentCurrencyManage
                 resultAmount = result?.let {
                     currencyManager.convertMsatsToDisplay(it.amountMsats, currency)
                 },
-                fee = result?.let { currencyManager.convertMsatsToDisplay(it.feeMsats, currency) },
+                fee = result?.feeMsats?.let { currencyManager.convertMsatsToDisplay(it, currency) },
                 error = receipt.error,
                 wasAlreadyPaid = result?.wasAlreadyPaid == true,
                 receipt = result?.takeUnless { it.wasAlreadyPaid }?.let {
@@ -71,15 +71,16 @@ internal class PaymentHistory(private val currencyManager: PaymentCurrencyManage
                             receipt.amountMsats,
                             currency
                         ),
-                        fee = currencyManager.convertMsatsToDisplay(it.feeMsats, currency),
+                        fee = it.feeMsats?.let { fee ->
+                            currencyManager.convertMsatsToDisplay(fee, currency)
+                        },
                         amountSats = DisplayAmount(
                             receipt.amountMsats / MSATS_PER_SAT,
                             DisplayCurrency.Satoshi
                         ),
-                        feeSats = DisplayAmount(
-                            it.feeMsats / MSATS_PER_SAT,
-                            DisplayCurrency.Satoshi
-                        ),
+                        feeSats = it.feeMsats?.let { fee ->
+                            DisplayAmount(fee / MSATS_PER_SAT, DisplayCurrency.Satoshi)
+                        },
                         createdAtMs = receipt.createdAtMs,
                         recipient = receipt.recipient,
                         domain = receipt.domain,

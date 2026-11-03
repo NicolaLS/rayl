@@ -236,9 +236,13 @@ private suspend fun PaymentScreenState.Success.successContent(formatter: AmountF
         title = nativeString(NativeStringResource(table = "PaymentUI", key = "result_paid_title")),
         subtitle = null,
         primaryAmount = formatter.format(amountPaid),
-        secondaryText = nativeString(
-            NativeStringResource(table = "PaymentUI", key = "result_paid_fee"),
-            formatter.format(feePaid)
+        secondaryText = feePaid?.let {
+            nativeString(
+                NativeStringResource(table = "PaymentUI", key = "result_paid_fee"),
+                formatter.format(it)
+            )
+        } ?: nativeString(
+            NativeStringResource(table = "PaymentUI", key = "result_paid_fee_unknown")
         ),
         tapToContinue = nativeString(
             NativeStringResource(table = "PaymentUI", key = "tap_continue")

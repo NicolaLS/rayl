@@ -28,9 +28,12 @@ sealed interface SettlementPreparation<out P> {
 }
 
 sealed interface SettlementOutcome {
-    /** The invoice is paid. [wasAlreadyPaid] means it was settled earlier, not by this attempt. */
+    /**
+     * The invoice is paid. [feeMsats] is null when the wallet didn't report the fee; it is never
+     * guessed as 0. [wasAlreadyPaid] means it was settled earlier, not by this attempt.
+     */
     data class Paid(
-        val feeMsats: Long,
+        val feeMsats: Long?,
         val preimage: String?,
         val wasAlreadyPaid: Boolean = false
     ) : SettlementOutcome

@@ -24,7 +24,8 @@ data class PreparedPayment(
 
 data class CompletedPayment(
     val amountMsats: Long,
-    val feeMsats: Long,
+    /** Null when the wallet didn't report the fee. */
+    val feeMsats: Long?,
     val wasAlreadyPaid: Boolean = false,
     val preimage: String?
 )

@@ -806,6 +806,29 @@
         }
       }
     },
+    "result_paid_fee_unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebühr: unbekannt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fee: unknown"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comisión: desconocida"
+          }
+        }
+      }
+    },
     "result_paid_fee" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -986,6 +1009,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Importe"
+          }
+        }
+      }
+    },
+    "receipt_fee_unknown": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbekannt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desconocida"
           }
         }
       }

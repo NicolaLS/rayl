@@ -30,7 +30,8 @@ import xyz.lilsus.raylsuite.feature.paymentui.R
 sealed interface PaymentResultPresentation {
     data class Success(
         val amountPaid: DisplayAmount,
-        val feePaid: DisplayAmount,
+        /** Null when the wallet didn't report the fee. */
+        val feePaid: DisplayAmount?,
         val wasAlreadyPaid: Boolean = false
     ) : PaymentResultPresentation
 
@@ -83,10 +84,9 @@ fun ResultLayout(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = stringResource(
-                            R.string.result_paid_fee,
-                            formatter.format(result.feePaid)
-                        ),
+                        text = result.feePaid?.let {
+                            stringResource(R.string.result_paid_fee, formatter.format(it))
+                        } ?: stringResource(R.string.result_paid_fee_unknown),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -27,7 +27,8 @@ sealed interface PaymentUiState {
 
     data class Success(
         val amountPaid: DisplayAmount,
-        val feePaid: DisplayAmount,
+        /** Null when the wallet didn't report the fee. */
+        val feePaid: DisplayAmount?,
         val wasAlreadyPaid: Boolean = false
     ) : PaymentUiState
 
@@ -82,7 +83,7 @@ internal fun SessionTransactionItem.toDetailUiState(): PaymentUiState = when (st
         val paidAmount = resultAmount ?: amount
         PaymentUiState.Success(
             amountPaid = paidAmount,
-            feePaid = fee ?: DisplayAmount(0, paidAmount.currency),
+            feePaid = fee,
             wasAlreadyPaid = status == TransactionStatus.AlreadyPaid || wasAlreadyPaid
         )
     }

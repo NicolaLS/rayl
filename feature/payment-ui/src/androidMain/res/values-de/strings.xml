@@ -22,10 +22,12 @@
     <string name="enter_amount_too_large">Der Betrag ist zu hoch.</string>
     <string name="result_paid_title">Bezahlt</string>
     <string name="result_paid_fee">Gebühr: %1$s</string>
+    <string name="result_paid_fee_unknown">Gebühr: unbekannt</string>
     <string name="result_already_paid_title">Bereits bezahlt</string>
     <string name="result_already_paid_message">Es wurde keine Zahlung gesendet. Diese Rechnung wurde bereits bezahlt.</string>
     <string name="receipt_amount">Betrag</string>
     <string name="receipt_fee">Gebühr</string>
+    <string name="receipt_fee_unknown">Unbekannt</string>
     <string name="receipt_recipient">Empfänger</string>
     <string name="receipt_domain">Domain</string>
     <string name="receipt_timestamp">Zeitpunkt</string>

@@ -145,7 +145,7 @@ internal class PaymentPresentationPhase(private val currencyManager: PaymentCurr
         val currencyState = currencyManager.state.value
         return PaymentUiState.Success(
             amountPaid = currencyManager.convertMsatsToDisplay(amountMsats, currencyState),
-            feePaid = currencyManager.convertMsatsToDisplay(feeMsats, currencyState),
+            feePaid = feeMsats?.let { currencyManager.convertMsatsToDisplay(it, currencyState) },
             wasAlreadyPaid = wasAlreadyPaid
         )
     }

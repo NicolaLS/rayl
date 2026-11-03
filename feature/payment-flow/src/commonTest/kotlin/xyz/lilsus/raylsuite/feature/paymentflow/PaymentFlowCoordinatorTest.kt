@@ -16,6 +16,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -108,6 +109,21 @@ class PaymentFlowCoordinatorTest {
             ),
             coordinator.uiState.value
         )
+    }
+
+    @Test
+    fun aFeeTheWalletDidNotReportIsUnknownNotZero() = flowTest {
+        // MOB-94: Blink and NWC may omit the fee. Showing "0 sat" would state a fee nobody knows.
+        settlement.outcome = SettlementOutcome.Paid(feeMsats = null, preimage = null)
+
+        scan(invoice(sats = 9_999))
+
+        assertNull(assertIs<PaymentUiState.Success>(coordinator.uiState.value).feePaid)
+        val recorded = coordinator.sessionTransactions.value.single()
+        assertNull(recorded.fee)
+        assertNull(assertNotNull(recorded.receipt).fee)
+        assertNull(assertNotNull(recorded.receipt).feeSats)
+        assertNull(assertIs<PaymentUiState.Success>(recorded.toDetailUiState()).feePaid)
     }
 
     @Test

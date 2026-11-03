@@ -33,7 +33,7 @@ class NwcPaymentSettlement(private val nwcWallet: NwcPayments) :
         return when (outcome) {
             is NwcPayOutcome.Settled ->
                 SettlementOutcome.Paid(
-                    feeMsats = outcome.feesPaidMsats ?: 0L,
+                    feeMsats = outcome.feesPaidMsats,
                     preimage = outcome.preimage
                 )
 

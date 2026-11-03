@@ -39,7 +39,8 @@ internal suspend fun PaymentReceiptDetails.toNativeContent(
     amountLabel = receiptString("receipt_amount"),
     amount = formatter.formatReceiptAmount(amount, amountSats),
     feeLabel = receiptString("receipt_fee"),
-    fee = formatter.formatReceiptAmount(fee, feeSats),
+    fee = fee?.let { shown -> feeSats?.let { formatter.formatReceiptAmount(shown, it) } }
+        ?: receiptString("receipt_fee_unknown"),
     feeHint = feeHint,
     recipientLabel = receiptString("receipt_recipient"),
     recipient = recipient,
