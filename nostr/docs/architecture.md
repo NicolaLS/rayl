@@ -58,7 +58,6 @@ Numbers preserve their source literal. Conversion to bounded integers is exact:
 fractional values and overflow are rejected before exponent expansion can allocate
 large buffers. Unknown filter fields survive wire and domain conversions through
 `extraFields`. Extensions cannot override standard fields or tag filters.
-`nip50` supplies typed search accessors without changing the core codec.
 
 ## NIP modules
 

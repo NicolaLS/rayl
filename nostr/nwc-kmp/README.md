@@ -5,9 +5,8 @@ NIP-47). It provides a typed API for connecting to an NWC wallet service,
 discovering wallet capabilities, paying invoices, creating invoices, listing
 transactions, and receiving wallet notifications.
 
-This client is the `:nwc-kmp` module in the [nostr-kmp monorepo](../README.md)
-and supports Android, JVM, and iOS targets. It depends directly on sibling SDK
-projects and shares the root version and publishing configuration.
+This client is the `:nostr:nwc-kmp` module of the [Nostr SDK](../README.md),
+with Android and iOS targets. It depends directly on the sibling SDK modules.
 
 ## Features
 
@@ -22,33 +21,13 @@ projects and shares the root version and publishing configuration.
 
 ## Installation
 
-Add the snapshot repository while using snapshot versions:
+Depend on the project from a Rayl module:
 
 ```kotlin
-repositories {
-    google()
-    mavenCentral()
-    maven {
-        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-        mavenContent { snapshotsOnly() }
-    }
+commonMain.dependencies {
+    implementation(project(":nostr:nwc-kmp"))
 }
 ```
-
-Add the dependency from your Kotlin Multiplatform module:
-
-```kotlin
-kotlin {
-    sourceSets {
-        commonMain.dependencies {
-            implementation("io.github.nicolals:nwc-kmp:0.3.3-SNAPSHOT")
-        }
-    }
-}
-```
-
-Release versions are published to Maven Central and do not require the snapshot
-repository.
 
 ## Quick Start
 
@@ -91,36 +70,21 @@ You can still call `connect()` explicitly; it is idempotent unless
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md): installation, URI parsing,
-  lifecycle, and first operations.
 - [Client Lifecycle](docs/client.md): state, connection behavior, wallet info,
   notifications, and timeouts.
 - [Recipes](docs/recipes.md): examples for each supported wallet operation.
 - [Deep Links](docs/deep-links.md): app-to-wallet connection requests and
   callback parsing.
-- [Example App Integration](docs/example-app.md): a Compose Multiplatform app
-  structure adapted from [NicolaLS/lasr](https://github.com/NicolaLS/lasr).
 - [API Reference](docs/reference.md): public models, errors, operations, and
   compatibility notes.
-- [Publishing](docs/publishing.md): repository setup and release workflow.
-
-## Supported Targets
-
-- Android, min SDK 24.
-- JVM, toolchain 21.
-- iOS X64, Arm64, and Simulator Arm64.
-
-The iOS framework is static and uses `NwcKmp` as the framework base name.
 
 ## Development
 
-Use the shared Gradle wrapper from the `nostr-kmp` repository root:
+From the Rayl repository root:
 
 ```sh
-./gradlew build
-./gradlew check
-./gradlew :nwc-kmp:jvmTest
-./gradlew :nwc-kmp:publishToMavenLocal
+./gradlew :nostr:nwc-kmp:testAndroidHostTest
+./gradlew :nostr:nwc-kmp:iosSimulatorArm64Test
 ```
 
 The source lives in `nwc-kmp/src/commonMain/kotlin/io/github/nicolals/nwc`.

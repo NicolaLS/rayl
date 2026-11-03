@@ -1,0 +1,5 @@
+# Mechanical reformatting; skipped by GitHub blame and by
+# `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
+
+# style(nostr): format the Nostr SDK with Rayl's ktlint rules (MOB-100)
+4dfaa6992bf3a851970bb3bf1c6dd5ab970c30a9

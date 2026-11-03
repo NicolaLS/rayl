@@ -469,8 +469,6 @@ val requestUri = NwcConnectRequest.Builder()
 ## Platform Notes
 
 - Android uses the Ktor CIO engine.
-- JVM uses the Ktor CIO engine.
 - iOS uses the Ktor Darwin engine.
-- The iOS framework is static and named `NwcKmp`.
-- Nostr public keys and NWC encryption types from `nostr-kmp` are part of the
-  public API.
+- Nostr public keys and NWC encryption types from the sibling SDK modules are
+  part of the public API.

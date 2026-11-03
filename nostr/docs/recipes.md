@@ -50,44 +50,6 @@ if (message is NoticeMessage) println(message.message)
 Decoding and upgrading do not verify an event. For events obtained outside a relay
 session, call `verifier.verify(event)` before using them as authenticated input.
 
-## COUNT through a session
-
-Install `Nip45Module(codec)` when constructing the session. Use a distinct query
-ID for each outstanding count. Start the response collector before sending.
-
-```kotlin
-import io.github.nicolals.nostr.core.message.Filter
-import io.github.nicolals.nostr.core.primitives.SubscriptionId
-import io.github.nicolals.nostr.core.transport.TransportResult
-import io.github.nicolals.nostr.nip45.message.CountClientMessage
-import io.github.nicolals.nostr.nip45.message.CountRelayMessage
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeout
-
-suspend fun countNotes(session: CoroutinesRelaySession, codec: NostrJsonCodec): Long = coroutineScope {
-    val id = SubscriptionId("count-notes")
-    val response = async(start = CoroutineStart.UNDISPATCHED) {
-        withTimeout(5_000) {
-            session.messages.filterIsInstance<CountRelayMessage>().first { it.subscriptionId == id }
-        }
-    }
-    try {
-        val sent = session.send(CountClientMessage.create(id, listOf(Filter()), codec))
-        check(sent is TransportResult.Success) { "COUNT could not be queued for transport" }
-        response.await().result.count
-    } finally {
-        response.cancel()
-    }
-}
-```
-
-A successful `send` means the transport accepted the message for sending, not that
-the relay has processed it. The matching response completes the operation.
-
 ## Authenticate with a selected relay
 
 Install `Nip42Module(codec)`. Authentication identifies your account to the relay;

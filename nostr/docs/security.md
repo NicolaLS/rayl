@@ -53,7 +53,7 @@ AUTH challenges to application policy and does not automatically approve them.
 Common tests cover published BIP-340 and NIP-44 vectors, primitive known answers,
 malformed ciphertext, tampering with signed fields, immutable event tags, and secret
 redaction. Wallet and runtime regression tests exercise spoofed events, request
-correlation, cancellation, reconnects, and overload. Run both `jvmTest` and
-`iosSimulatorArm64Test`: platform cryptographic providers can differ in behavior.
+correlation, cancellation, reconnects, and overload. Run both `testAndroidHostTest`
+and `iosSimulatorArm64Test`: platform cryptographic providers can differ in behavior.
 
 These tests and this repository review are not an independent cryptographic audit.
