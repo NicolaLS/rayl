@@ -1,6 +1,8 @@
+import javax.inject.Inject
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.file.ArchiveOperations
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.Sync
@@ -23,7 +25,10 @@ import org.gradle.testretry.TestRetryTaskExtension
  * Linux; only those files are added (the JVM build's classes differ internally and must not
  * mix with the Android build's).
  */
-class WalletIntegrationConventionPlugin : Plugin<Project> {
+abstract class WalletIntegrationConventionPlugin @Inject constructor(
+    // Not the project's zipTree: a task must not capture the Project (configuration cache).
+    private val archives: ArchiveOperations
+) : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply("org.gradle.test-retry")
@@ -43,7 +48,7 @@ class WalletIntegrationConventionPlugin : Plugin<Project> {
             // NWC's Nostr encryption: libsodium's Android build has the same gap.
             dependencies.add(breezJvm.name, catalog.findLibrary("ionspin-libsodium-jvm").get())
             val natives = tasks.register<Sync>("breezHostNatives") {
-                from(breezJvm.elements.map { jars -> jars.map { zipTree(it) } }) {
+                from(breezJvm.elements.map { jars -> jars.map { archives.zipTree(it) } }) {
                     include(
                         "*/libbreez_sdk_spark_bindings.*",
                         "com/sun/jna/*/libjnidispatch.*",
