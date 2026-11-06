@@ -22,12 +22,12 @@ stopping after any item leaves a working state.
 
 | # | Item | Done when | Status |
 |---|---|---|---|
-| **0** | **1.1 smoke checklist** (time-critical: 1.1 can be approved any day). At most 20 minutes per platform on the store build: install, Rayl's wallet, one payment per wallet, rescan, connect and remove a wallet, a second language, legal links; plus MN-1, MN-2, MN-4 of the mainnet protocol. Nicola runs it before releasing 1.1 (manual or phased release in both stores). | Checklist in `qa/checklists/smoke.md`; Nicola has run it | |
+| **0** | **1.1 smoke checklist** (time-critical: 1.1 can be approved any day). At most 20 minutes per platform on the store build: install, Rayl's wallet, one payment per wallet, rescan, connect and remove a wallet, a second language, legal links; plus MN-1, MN-2, MN-4 of the mainnet protocol. Nicola runs it before releasing 1.1 (manual or phased release in both stores). | Checklist in `qa/checklists/smoke.md`; Nicola has run it | Written (`8dc59fb9`); run pending |
 | **1** | **Wallet test environments and integration tests** (§6.9) | | |
-| 1a | NWC: revive the Blip harness (bitcoind, Core Lightning + `cln-nip47`, nostr relay) under `tools/`; integration tests of `NwcWallet` against it: pay, already paid, insufficient funds, expired, fee reported, lookup of a pending payment (MOB-9) | Starts with one script; tests green locally | |
-| 1b | Rayl's wallet and Spark: the regtest tests drive Rayl's own settlement and wallet code instead of the raw Breez SDK | Same cases as 1a, through Rayl's classes | |
-| 1c | Blink: Blink's `quickstart` stack, a script that creates a funded user and an API key, a configurable API URL in `BlinkApiClient` (test seam), integration tests of the Blink wallet | Same cases as 1a | |
-| 1d | Nightly CI job running 1a–1c, with test-only credentials as GitHub secrets | Three nights green | |
+| 1a | NWC: revive the Blip harness (bitcoind, Core Lightning + `cln-nip47`, nostr relay) under `tools/`; integration tests of `NwcWallet` against it: pay, already paid, insufficient funds, expired, fee reported, lookup of a pending payment (MOB-9) | Starts with one script; tests green locally | Local stack and 3 tests (`9af53058`); refusal cases parked (MOB-115); faucet tests parked |
+| 1b | Rayl's wallet and Spark: the regtest tests drive Rayl's own settlement and wallet code instead of the raw Breez SDK | Same cases as 1a, through Rayl's classes | Done: 12 tests (`641793aa`); found MOB-111, MOB-112, MOB-113, MOB-114 |
+| 1c | Blink: Blink's `quickstart` stack, a script that creates a funded user and an API key, a configurable API URL in `BlinkApiClient` (test seam), integration tests of the Blink wallet | Same cases as 1a | Not started |
+| 1d | Nightly CI job running 1a–1c, with test-only credentials as GitHub secrets | Three nights green | Running (`nightly.yml`, own CI bank); retries once, flakes from MOB-114 |
 | 1e | Blink staging as a second target for 1c, once Nicola's staging account is granted (requested 2026-11-06) | Nightly against staging | Waiting for account |
 | **2** | **Maestro smoke flows** (§6.8) | | |
 | 2a | E2E payment input by launch argument on both platforms (the `E2E` build types exist); test tags on the elements flows need | Input reaches the payment flow without the camera | |
