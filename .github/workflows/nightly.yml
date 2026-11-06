@@ -182,3 +182,71 @@ jobs:
           name: android-device-tests-${{ matrix.api }}
           path: '**/build/reports/androidTests/'
           retention-days: 14
+
+  ios-keychain-flows:
+    name: iOS Keychain flows (Maestro, simulator)
+    runs-on: macos-26
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v5
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-konan-
+
+      - name: Set up and validate Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # Signed for the simulator: only a signed app can use the Keychain. A plain Kotlin/Native
+      # test binary can't get the entitlement, so the signed E2E app is the Keychain test host.
+      - name: Build the E2E app
+        run: |
+          xcodebuild \
+            -project app/iosApp/iosApp.xcodeproj \
+            -scheme iosAppE2E \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/rayl-ios-e2e" \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
+            build
+
+      - name: Boot a simulator and install the app
+        run: |
+          udid="$(xcrun simctl list devices available -j |
+            jq -r '[.devices[][] | select(.name | startswith("iPhone"))][0].udid')"
+          echo "SIMULATOR=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl install "$udid" "$RUNNER_TEMP/rayl-ios-e2e/Build/Products/Debug-iphonesimulator/Rayl E2E.app"
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      # The Spark flows need no wallet stack; every flow's onboarding also stores Rayl's pocket
+      # key copy in the Keychain. The NWC and Blink flows need Docker, which macOS runners lack.
+      - name: Run the Keychain flows
+        run: |
+          maestro --device "$SIMULATOR" test -e APP_ID=com.nicolasusca.rayl.e2e \
+            --format junit --output build/maestro-ios/report.xml \
+            --test-output-dir build/maestro-ios e2e/flows/spark
+
+      - name: Keep the flow results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-keychain-flows
+          path: build/maestro-ios/
+          retention-days: 14
