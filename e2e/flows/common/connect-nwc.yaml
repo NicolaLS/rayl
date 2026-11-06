@@ -11,15 +11,17 @@ appId: ${APP_ID}
 - tapOn: "Wallet Connect URI"
 - inputText: ${output.nwcUri}
 - hideKeyboard
-- tapOn: "Connect"
+# iOS reads the wallet's details as soon as the URI is entered; Android waits for Connect.
+- tapOn:
+    text: "Connect"
+    optional: true
 - extendedWaitUntil:
     visible: "Active encryption.*"
     timeout: 30000
 - tapOn:
     text: "Add Wallet"
     index: 1
-- tapOn: "I understand.*"
-- tapOn: "Continue"
+- runFlow: accept-risk.yaml
 - extendedWaitUntil:
     visible: "Point the camera.*"
     timeout: 30000

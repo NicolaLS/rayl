@@ -1,0 +1,17 @@
+# The "I understand that using this app is at my own risk" confirmation, then Continue.
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: "I understand.*"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # A SwiftUI Toggle switches only when the switch is tapped, not its label.
+      - tapOn:
+          text: "0"
+          rightOf: "I understand.*"
+- tapOn: "Continue"

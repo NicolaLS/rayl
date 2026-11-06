@@ -8,9 +8,8 @@ appId: ${APP_ID}
 - tapOn: "Get started"
 - tapOn: "Continue"
 - tapOn: "Continue"
-- tapOn: "I understand.*"
-# Sets up Rayl's wallet with Breez first; that can take a minute.
-- tapOn: "Continue"
+# Its Continue sets up Rayl's wallet with Breez first; that can take a minute.
+- runFlow: accept-risk.yaml
 - extendedWaitUntil:
     visible: "Point the camera.*"
     timeout: 120000

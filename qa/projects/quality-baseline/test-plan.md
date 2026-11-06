@@ -30,7 +30,7 @@ stopping after any item leaves a working state.
 | 1d | Nightly CI job running 1a–1c, with test-only credentials as GitHub secrets | Three nights green | Running (`nightly.yml`, own CI bank, local NWC and Blink stacks); all suites green in CI on 2026-11-06; MOB-114 (S2) makes the reinstall test fail intermittently |
 | 1e | Blink staging as a second target for 1c, once Nicola's staging account is granted (requested 2026-11-06) | Nightly against staging | Waiting for account |
 | **2** | **Maestro smoke flows** (§6.8) | | |
-| 2a | E2E payment input by launch argument on both platforms (the `E2E` build types exist); test tags on the elements flows need | Input reaches the payment flow without the camera | Done (`0c5ba3b6`): `scan` launch argument; NWC pay and rescan flow green on the Android emulator; iOS not yet run on a simulator (local link fails on stale Maven Local Nostr snapshots, CI green) |
+| 2a | E2E payment input by launch argument on both platforms (the `E2E` build types exist); test tags on the elements flows need | Input reaches the payment flow without the camera | Done (`0c5ba3b6`): `scan` launch argument; the NWC pay and rescan flow is green on the Android emulator and the iOS simulator from the same file |
 | 2b | About ten flows, the same files for Android and iOS, against the 1a/1c stacks; replaces the stale `e2e/ios` | Green on emulator and simulator | |
 | 2c | Flows in the nightly job | Three nights green | |
 | **3** | **Robolectric** | | |
