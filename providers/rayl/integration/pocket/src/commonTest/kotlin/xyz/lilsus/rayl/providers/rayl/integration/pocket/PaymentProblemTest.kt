@@ -25,7 +25,7 @@ class PaymentProblemTest {
 
     @Test
     fun recognizesTheRefusalsTheRealSdkSendsWhenSending() {
-        // Captured from Breez SDK 0.27.2 on regtest (BreezSdkContractTest). Unrecognised, they
+        // Captured from Breez SDK 0.27.2 on regtest (wallet integration tests). Unrecognised, they
         // were shown as "payment outcome unknown" (MOB-101).
         assertEquals(
             PocketPaymentProblem.InsufficientFunds,

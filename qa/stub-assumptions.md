@@ -6,15 +6,16 @@ system; if the assumption is wrong, the tests stay green while the app fails. Th
 lists each assumption, where it is encoded, and how it gets verified for real. Together these
 rows are the requirements for later integration infrastructure (regtest, recorded responses).
 
-State on 2026-11-03: A1–A4 are checked against the real Breez SDK on regtest
-(`./gradlew :tools:regtest:regtestContractTest`); two of them were wrong and fixed (MOB-101).
-A9 runs on iOS too (simulator). A10 is checked on a real Android Keystore; iOS needs an
-app-hosted test target.
+State on 2026-11-06: A1–A4 and A12 are checked nightly by the wallet integration tests, which
+drive Rayl's own wallet code (Rayl's wallet, Spark) against the real Breez SDK on regtest
+(`./gradlew walletIntegrationTest`, qa/test-plan.md §6.9). Three assumptions were wrong:
+MOB-101 (2026-11-03), MOB-112 and MOB-113 (2026-11-06). A9 runs on iOS too (simulator). A10 is
+checked on a real Android Keystore; iOS needs an app-hosted test target.
 
 | ID | Real system | Assumption | Encoded in | Verify by |
 |---|---|---|---|---|
-| A1 | Breez SDK (Rayl wallet, Spark) | A second send to a paid invoice fails with a message containing `status: AlreadyExists`, during quote or send | `PaymentProblemTest` (pocket, Spark), settlement tests (MOB-90) | **Verified on regtest** (`BreezSdkContractTest`); mainnet MN-4 |
-| A2 | Breez SDK | Refusals: insufficient funds and expired invoices are quoted fine and refused when sending, as `SparkException` texts containing "insufficient funds" / "has expired"; "Failed to select leaves" (balance settling); `NetworkException` for connectivity | `PaymentProblemTest` | **Insufficient funds and expired verified on regtest; the original assumption (`SdkException.InsufficientFunds`, "Invoice has expired") was wrong: MOB-101, fixed.** Balance settling and network: not yet provoked |
+| A1 | Breez SDK (Rayl wallet, Spark) | A second send to a paid invoice fails with a message containing `status: AlreadyExists`, during quote or send | `PaymentProblemTest` (pocket, Spark), settlement tests (MOB-90) | **Verified on regtest** (wallet integration tests); mainnet MN-4 |
+| A2 | Breez SDK | Refusals: insufficient funds and expired invoices are quoted fine and refused when sending, as `SparkException` texts containing "insufficient funds" / "has expired"; "Failed to select leaves" (balance settling); connectivity as `NetworkException` **or** a `SparkException` containing "network error" | `PaymentProblemTest` | **Insufficient funds and expired verified on regtest; the original assumption (`SdkException.InsufficientFunds`, "Invoice has expired") was wrong: MOB-101, fixed.** A dropped connection to Lightspark arrives as a `SparkException` "… network error …", not as `NetworkException`: MOB-112, fixed. Balance settling: not yet provoked |
 | A3 | Breez SDK | `prepareSendPayment` quotes the fee before sending; the paid fee equals what the SDK reports | Rayl/Spark settlement tests | **Verified on regtest for the Lightning route**; mainnet MN-1 |
 | A4 | Breez SDK / Spark | Erasing local data and re-importing the same phrase finds the same wallet and balance | `WalletRemovalTest`, lifecycle tests | **Verified on regtest**; mainnet MN-7 |
 | A5 | Blink GraphQL API | Response shapes and `PaymentSendResult` values (SUCCESS, PENDING, ALREADY_PAID, FAILURE; anything else is unknown) as in the canned JSON; the transaction's fee is reported for paid payments | `BlinkApiClientTest`, `BlinkWalletPaymentTest`, settlement tests | Mainnet MN-1, M4, M5; schema check against Blink's published schema |
@@ -24,3 +25,5 @@ app-hosted test target.
 | A9 | Platform locale data | Formatting per language as on the JVM host | `AmountFormatterTest` | **iOS formatter verified** (simulator run); Android ICU on device via checklist L1, P6 |
 | A10 | Android Keystore / iOS Keychain | Store, read, "unreadable" and delete behave as the fakes (`FakeKeyStore`, `TestVault`) | Pocket and Spark tests | **Android verified** (device tests on an emulator: pocket key store, Spark vault, secure settings). iOS Keychain: needs an app-hosted XCTest target (carried over); checklist U4, R1, R5 |
 | A11 | Passkey providers (PRF) | Breez passkey login derives the same key for the same passkey and account; labels are listed and stored through Breez's label store | `PocketSetupTest` | Checklist R1–R3, R5 |
+| A12 | Breez SDK | A refused send leaves the wallet unchanged | Settlement tests (a `Failed` outcome means nothing was spent) | **Wrong for expired invoices** (MOB-113, open): amount + fee move into a pending send that only a new session sees. Rayl's flow no longer sends expired invoices. Wallet integration tests, `knownDefect("MOB-113")` |
+| A13 | Breez SDK | Before the first sync after an import or reinstall, a quote reports insufficient funds, so the clients wait for the sync | `BreezSparkPaymentClient`, `BreezPocketWallet` (`awaitInitialSync`) | **Not observed on regtest:** the SDK quotes an unsynced wallet and pays once synced, with or without the wait. Unverified on mainnet |

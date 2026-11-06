@@ -46,6 +46,10 @@ gradlePlugin {
             id = "xyz.lilsus.raylsuite.kover"
             implementationClass = "KoverConventionPlugin"
         }
+        register("walletIntegration") {
+            id = "xyz.lilsus.raylsuite.wallet.integration"
+            implementationClass = "WalletIntegrationConventionPlugin"
+        }
         register("pitest") {
             id = "xyz.lilsus.raylsuite.pitest"
             implementationClass = "PitestConventionPlugin"

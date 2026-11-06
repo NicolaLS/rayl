@@ -25,6 +25,8 @@ class PitestConventionPlugin : Plugin<Project> {
                 // Calls the Kotlin compiler inserts (null-check intrinsics, coroutine result
                 // checks) are not behaviour; mutating them only produces equivalent mutants.
                 avoidCallsTo.set(listOf("kotlin.jvm.internal", "kotlin.ResultKt"))
+                // Wallet integration tests need real wallet services (WalletIntegrationConventionPlugin).
+                excludedTestClasses.set(listOf("*WalletIntegrationTest"))
                 outputFormats.set(listOf("HTML", "XML"))
                 timestampedReports.set(false)
                 threads.set(Runtime.getRuntime().availableProcessors())

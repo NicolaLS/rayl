@@ -1,5 +1,6 @@
 plugins {
     id("xyz.lilsus.raylsuite.kmp.library")
+    id("xyz.lilsus.raylsuite.wallet.integration")
     alias(libs.plugins.breezSpark)
 }
 
@@ -18,6 +19,9 @@ kotlin {
             implementation(libs.bitcoin.kmp)
             implementation(libs.breez.sdk.spark)
             api(libs.kotlinx.coroutines.core)
+        }
+        androidHostTest.dependencies {
+            implementation(project(":tools:regtest-bank"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

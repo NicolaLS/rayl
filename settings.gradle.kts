@@ -119,6 +119,7 @@ include(":integration:exchange-rate")
 include(":integration:lnurl")
 include(":backend:rayl")
 include(":tools:regtest")
+include(":tools:regtest-bank")
 
 // The Nostr SDK behind the NWC provider; see nostr/README.md.
 include(

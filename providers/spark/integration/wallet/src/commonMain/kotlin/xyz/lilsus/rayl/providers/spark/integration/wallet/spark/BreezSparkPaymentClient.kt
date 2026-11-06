@@ -184,7 +184,7 @@ internal fun Exception.paymentProblem(): SparkPaymentProblem {
 
         // The SDK refuses these only when sending (prepare succeeds), as a SparkException:
         // "Tree service error: insufficient funds" and "… Invoice for lightning send request <id>
-        // has expired" (BreezSdkContractTest, MOB-101).
+        // has expired" (wallet integration tests, MOB-101).
         "insufficient funds" in text.lowercase() -> SparkPaymentProblem.InsufficientFunds
 
         "has expired" in text -> SparkPaymentProblem.Expired
