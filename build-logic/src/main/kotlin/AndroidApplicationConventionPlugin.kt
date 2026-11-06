@@ -30,6 +30,10 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 defaultConfig {
                     minSdk = 24
                     targetSdk = 36
+                    // Native symbols in App Bundles, so Play Console can symbolicate native
+                    // crashes and ANRs (Breez SDK, JNA, libsodium; MOB-105). Needs the NDK on the
+                    // machine that builds the bundle; without it AGP silently skips this.
+                    ndk { debugSymbolLevel = "SYMBOL_TABLE" }
                 }
 
                 buildTypes {
