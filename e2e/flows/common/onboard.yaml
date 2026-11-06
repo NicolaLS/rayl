@@ -1,0 +1,16 @@
+# A fresh install through onboarding to the scan screen, with Rayl's wallet (no wallet connected).
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- tapOn: "Get started"
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "I understand.*"
+# Sets up Rayl's wallet with Breez first; that can take a minute.
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Point the camera.*"
+    timeout: 120000

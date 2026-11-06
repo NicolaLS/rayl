@@ -6,6 +6,7 @@ import Shared
 struct E2EApp: App {
     init() {
         seedWalletLifecycleFixture()
+        E2EPaymentInput.install()
         configureRaylSpark()
     }
 

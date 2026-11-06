@@ -1,0 +1,25 @@
+# Connects the local NWC stack's payer node (tools/nwc-stack) in Settings → Use another wallet.
+appId: ${APP_ID}
+---
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: connect-uri
+- tapOn: "Settings"
+- tapOn: "Use another wallet"
+- tapOn: "Nostr Wallet Connect"
+- tapOn: "Wallet Connect URI"
+- inputText: ${output.nwcUri}
+- hideKeyboard
+- tapOn: "Connect"
+- extendedWaitUntil:
+    visible: "Active encryption.*"
+    timeout: 30000
+- tapOn:
+    text: "Add Wallet"
+    index: 1
+- tapOn: "I understand.*"
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Point the camera.*"
+    timeout: 30000

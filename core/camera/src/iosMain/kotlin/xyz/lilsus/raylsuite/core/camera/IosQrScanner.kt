@@ -53,15 +53,31 @@ import platform.Foundation.NSLog
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.UIKit.UIApplicationDidBecomeActiveNotification
+import platform.darwin.DISPATCH_TIME_NOW
+import platform.darwin.NSEC_PER_MSEC
 import platform.darwin.NSObject
 import platform.darwin.NSObjectProtocol
+import platform.darwin.dispatch_after
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
 import platform.darwin.dispatch_queue_create
 import platform.darwin.dispatch_queue_t
+import platform.darwin.dispatch_time
 
 /** Creates the iOS scanner for a native SwiftUI-owned screen lifecycle. */
-fun createNativeQrScannerController(): QrScannerController = IosQrScannerController()
+fun createNativeQrScannerController(): QrScannerController =
+    TestQrInput.scannerOrNull(::afterOnMainQueue) ?: IosQrScannerController()
+
+private fun afterOnMainQueue(delayMillis: Long, block: () -> Unit): TestQrInput.Cancel {
+    var cancelled = false
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW, delayMillis * NSEC_PER_MSEC.toLong()),
+        dispatch_get_main_queue()
+    ) {
+        if (!cancelled) block()
+    }
+    return TestQrInput.Cancel { cancelled = true }
+}
 
 private class IosQrScannerController : QrScannerController {
     private val session = AVCaptureSession()

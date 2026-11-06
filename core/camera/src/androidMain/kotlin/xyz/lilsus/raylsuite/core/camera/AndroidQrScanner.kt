@@ -40,11 +40,18 @@ fun rememberQrScannerController(): QrScannerController {
     val lifecycleOwner = LocalLifecycleOwner.current
 
     return remember(context.applicationContext, lifecycleOwner) {
-        AndroidQrScannerController(
+        TestQrInput.scannerOrNull(::postToMainThread) ?: AndroidQrScannerController(
             context = context.applicationContext,
             lifecycleOwner = lifecycleOwner
         )
     }
+}
+
+private fun postToMainThread(delayMillis: Long, block: () -> Unit): TestQrInput.Cancel {
+    val handler = Handler(Looper.getMainLooper())
+    val runnable = Runnable(block)
+    handler.postDelayed(runnable, delayMillis)
+    return TestQrInput.Cancel { handler.removeCallbacks(runnable) }
 }
 
 private class AndroidQrScannerController(

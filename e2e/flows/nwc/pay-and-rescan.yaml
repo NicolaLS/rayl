@@ -1,0 +1,42 @@
+# Smoke S3, S4, S7 with an NWC wallet: an invoice below the Auto Pay threshold is paid without
+# asking; scanning it again after a restart pays nothing more. The receiver's node is the oracle.
+appId: ${APP_ID}
+tags:
+  - nwc
+  - smoke
+---
+- runFlow: ../common/onboard.yaml
+- runFlow: ../common/connect-nwc.yaml
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: invoice
+      AMOUNT_MSAT: "100000"
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+- extendedWaitUntil:
+    visible: "Paid 100 sat"
+    timeout: 30000
+- assertVisible: "Fee: .*"
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_MSAT: "100000"
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+# Core Lightning answers a paid invoice with the earlier success, so Rayl can't tell it was paid
+# before and shows "Paid" (D-06: "already paid" only where the wallet can tell). What matters is
+# below: nothing more arrived.
+- extendedWaitUntil:
+    visible: "(Paid 100 sat|.*[Aa]lready paid.*)"
+    timeout: 30000
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_MSAT: "100000"
