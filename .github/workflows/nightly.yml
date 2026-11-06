@@ -136,3 +136,49 @@ jobs:
           name: ui-flows-android
           path: build/maestro/
           retention-days: 14
+
+  android-device-tests:
+    name: Android device tests (API ${{ matrix.api }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keystore and encrypted storage behave differently on old Android: minSdk and current.
+        api: [24, 34]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up and validate Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the device tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: ./gradlew :core:settings:connectedAndroidDeviceTest :providers:spark:integration:wallet:connectedAndroidDeviceTest :providers:rayl:integration:pocket:connectedAndroidDeviceTest --continue
+
+      - name: Keep the test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-device-tests-${{ matrix.api }}
+          path: '**/build/reports/androidTests/'
+          retention-days: 14
