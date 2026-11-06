@@ -384,7 +384,7 @@ changes, but is shared and can't be controlled).
 |---|---|---|
 | Rayl's wallet, Spark | — (the Breez SDK needs Lightspark's operators) | Lightspark hosted regtest with the regtest bank (`tools/regtest`) |
 | NWC | Docker Compose: bitcoind regtest, Core Lightning with the `cln-nip47` plugin, a nostr relay (revived from the Blip harness, `d17dc43b`) | NWC faucet (`faucet.nwc.dev`, Alby Hub sub-wallets), optional |
-| Blink | Blink's own `quickstart` Docker Compose on regtest (bitcoind, LND, Blink API, API-key service, Blink's LNURL server) | Blink staging on signet (`api.staging.blink.sv`). Account requested by Nicola, 2026-11-06 |
+| Blink | Blink's own `quickstart` Docker Compose on regtest (bitcoind, LND, Blink API, API-key service, Blink's LNURL server), pinned and started by `tools/blink-stack` | Blink staging on signet (`api.staging.blink.sv`). Account requested by Nicola, 2026-11-06 |
 | LNURL, Lightning addresses | Blink quickstart's LNURL server | Blink staging (`test@pay.staging.blink.sv`) |
 
 **Why both, for Blink:** Blink's quickstart can start today, gives full control (create users
@@ -392,7 +392,8 @@ and API keys by script, stop LND to force pending or failed payments) and runs i
 heavy (about 30 containers, amd64-only images that run under Rosetta on Apple silicon) and
 its pinned images may lag behind production. Staging runs the production code but needs an
 account, is shared and can't provoke failures. The same tests run against both; only the base
-URL and credentials change.
+URL and credentials change. Each Blink test creates its own user (the quickstart's login code
+is `000000`) and pays an outside LND node, so tests share no state.
 
 Rules:
 - Test environments use test networks only (regtest, signet, faucet balances). Their
