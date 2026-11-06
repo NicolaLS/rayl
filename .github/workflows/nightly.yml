@@ -115,6 +115,13 @@ jobs:
           curl -Ls "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
+      # A failed system-image download once broke a run: keep the images between runs.
+      - name: Cache emulator system images
+        uses: actions/cache@v5
+        with:
+          path: /usr/local/lib/android/sdk/system-images
+          key: android-system-images-34-x86_64-google_apis
+
       # The iOS flows need the same stacks, and GitHub's macOS runners have no Docker: they run
       # locally before each release (qa/test-plan.md §6.8).
       - name: Run the flows
@@ -125,8 +132,12 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          # The emulator once went offline right after the install: wait until it is up again.
           script: |
             adb install -r app/androidApp/build/outputs/apk/e2e/androidApp-e2e.apk
+            adb wait-for-device shell 'while [ "$(getprop sys.boot_completed)" != 1 ]; do sleep 1; done'
+            sleep 10
+            adb wait-for-device
             maestro test -e APP_ID=com.nicolasusca.rayl.e2e --format junit --output build/maestro/report.xml --test-output-dir build/maestro e2e/flows
 
       - name: Keep the flow results
@@ -164,6 +175,13 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+
+      # A failed system-image download once broke a run: keep the images between runs.
+      - name: Cache emulator system images
+        uses: actions/cache@v5
+        with:
+          path: /usr/local/lib/android/sdk/system-images
+          key: android-system-images-${{ matrix.api }}-x86_64-google_apis
 
       - name: Run the device tests
         uses: reactivecircus/android-emulator-runner@v2
