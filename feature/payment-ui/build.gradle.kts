@@ -30,5 +30,10 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+        // Compose screen tests on Robolectric (qa/test-plan.md §6.8).
+        getByName("androidHostTest").dependencies {
+            implementation(libs.androidx.compose.ui.test.junit4)
+            implementation(libs.androidx.compose.ui.test.manifest)
+        }
     }
 }
