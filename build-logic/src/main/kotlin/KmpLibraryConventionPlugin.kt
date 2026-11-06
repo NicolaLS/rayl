@@ -1,4 +1,5 @@
 import com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryTarget
+import com.android.build.api.dsl.Lint
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
@@ -13,6 +14,14 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             pluginManager.apply("com.android.kotlin.multiplatform.library")
             pluginManager.apply("xyz.lilsus.raylsuite.kover")
             pluginManager.apply("org.jlleitschuh.gradle.ktlint")
+            // Android Lint for the module's Android code (`lintAndroidMain`): the KMP Android
+            // library plugin registers no Lint task of its own.
+            pluginManager.apply("com.android.lint")
+            extensions.configure<Lint> {
+                lintConfig = rootProject.file("lint.xml")
+                abortOnError = true
+                warningsAsErrors = false
+            }
             if (file("src/commonTest").isDirectory) {
                 pluginManager.apply("xyz.lilsus.raylsuite.pitest")
             }

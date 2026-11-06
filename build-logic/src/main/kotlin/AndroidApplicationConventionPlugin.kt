@@ -56,6 +56,13 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 androidResources {
                     generateLocaleConfig = true
                 }
+                // Android Lint (qa/test-plan.md, item 4a): API levels down to minSdk 24, manifest,
+                // resources, security. Library modules run their own (`lintAndroidMain`).
+                lint {
+                    lintConfig = target.rootProject.file("lint.xml")
+                    abortOnError = true
+                    warningsAsErrors = false
+                }
             }
 
             extensions.configure<KotlinAndroidExtension> {

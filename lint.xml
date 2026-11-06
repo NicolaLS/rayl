@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Android Lint for the app and every library module (qa/test-plan.md, item 4a). Errors fail the
+     PR gate; warnings stay in the reports. -->
+<lint>
+    <!-- Dependency updates are not a quality gate, and these checks depend on the network. -->
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <!-- lightning-kmp's TCP socket code trusts any certificate. Rayl uses lightning-kmp only to
+         parse invoices and for cryptography, never its sockets. -->
+    <issue id="TrustAllX509TrustManager">
+        <ignore path="**/lightning-kmp-core-jvm-*.jar" />
+    </issue>
+    <!-- Test helpers (Robolectric checks), not shipped. -->
+    <issue id="all">
+        <ignore path="core/testing-android/**" />
+    </issue>
+</lint>
