@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   wallet-integration:
-    name: Wallet integration (Breez regtest)
+    name: Wallet integration (Breez regtest, local NWC)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -58,6 +58,10 @@ jobs:
             echo "::error title=Regtest bank low::The CI regtest bank has ${balance:-no} sats; top it up (qa/test-plan.md §6.9)."
             exit 1
           fi
+
+      # Core Lightning with the NIP-47 plugin and a nostr relay, on regtest.
+      - name: Start the local NWC stack
+        run: tools/nwc-stack/bin/up
 
       - name: Run the wallet integration tests
         run: ./gradlew walletIntegrationTest --continue

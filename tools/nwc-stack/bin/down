@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# shellcheck source=_common
+source bin/_common
+
+clean=0
+
+if [[ "${1:-}" == "--clean" ]]; then
+  clean=1
+elif [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  cat <<'EOF'
+Usage: tools/nwc-stack/bin/down [--clean]
+
+Stops the local NWC Docker Compose stack.
+
+Options:
+  --clean  Also remove the local Docker volumes.
+EOF
+  exit 0
+elif [[ $# -gt 0 ]]; then
+  echo "Unknown option: $1" >&2
+  exit 2
+fi
+
+if [[ "$clean" == "1" ]]; then
+  compose down --remove-orphans --volumes
+else
+  compose down --remove-orphans
+fi
+
+echo "Stopped local NWC stack."

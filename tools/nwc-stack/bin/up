@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# shellcheck source=_common
+source bin/_common
+
+keep_data=0
+build_arg="--build"
+
+usage() {
+  cat <<'EOF'
+Usage: tools/nwc-stack/bin/up [options]
+
+Starts the local Bitcoin/Lightning/Nostr stack and configures a clean payment
+channel for Maestro tests.
+
+Options:
+  --keep-data  Reuse existing Docker volumes instead of starting from scratch.
+  --no-build   Do not build the local cln-nip47/helper images.
+  -h, --help   Show this help.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --keep-data)
+      keep_data=1
+      shift
+      ;;
+    --no-build)
+      build_arg=""
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+require_command docker
+require_command jq
+require_command curl
+
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker or OrbStack must be running before starting the NWC stack." >&2
+  exit 1
+fi
+
+if [[ "$keep_data" != "1" ]]; then
+  compose down --remove-orphans --volumes >/dev/null 2>&1 || true
+fi
+
+if [[ -n "$build_arg" ]]; then
+  compose up -d "$build_arg"
+else
+  compose up -d
+fi
+
+btc_cli() {
+  compose exec -T bitcoind bitcoin-cli \
+    -datadir=/data \
+    -regtest \
+    -rpcuser=rayl \
+    -rpcpassword=rayl \
+    "$@"
+}
+
+cln_cli() {
+  local node="$1"
+  shift
+  compose exec -T "$node" lightning-cli \
+    --network=regtest \
+    --lightning-dir=/data \
+    "$@"
+}
+
+wait_for() {
+  local label="$1"
+  local timeout="$2"
+  shift 2
+  local start
+  start="$(date +%s)"
+  until "$@" >/dev/null 2>&1; do
+    if (( "$(date +%s)" - start >= timeout )); then
+      echo "Timed out waiting for ${label}." >&2
+      "$@" >&2 || true
+      exit 1
+    fi
+    sleep 1
+  done
+}
+
+ensure_bitcoin_wallet() {
+  if btc_cli -rpcwallet=rayl getwalletinfo >/dev/null 2>&1; then
+    return
+  fi
+  if ! btc_cli createwallet rayl >/dev/null 2>&1; then
+    btc_cli loadwallet rayl >/dev/null
+  fi
+}
+
+mine_blocks() {
+  local blocks="$1"
+  local address
+  address="$(btc_cli -rpcwallet=rayl getnewaddress)"
+  btc_cli -rpcwallet=rayl generatetoaddress "$blocks" "$address" >/dev/null
+}
+
+mine_to_height() {
+  local target="$1"
+  local current
+  current="$(btc_cli getblockcount)"
+  if (( current < target )); then
+    mine_blocks "$((target - current))"
+  fi
+}
+
+fund_cln_wallet() {
+  local node="$1"
+  local sats="$2"
+  local address
+  address="$(cln_cli "$node" newaddr | jq -r '.bech32 // .p2tr')"
+  btc_cli -rpcwallet=rayl sendtoaddress "$address" "$(printf '%d.%08d' "$((sats / 100000000))" "$((sats % 100000000))")" >/dev/null
+}
+
+has_confirmed_funds() {
+  local node="$1"
+  cln_cli "$node" listfunds |
+    jq -e '
+      def msat:
+        if type == "number" then .
+        elif type == "string" then rtrimstr("msat") | tonumber
+        elif type == "object" and has("msat") then .msat | msat
+        else 0
+        end;
+      .outputs[]? | select(.status == "confirmed" and ((.amount_msat | msat) > 0))
+    ' >/dev/null
+}
+
+channel_state() {
+  local node="$1"
+  local peer_id="$2"
+  cln_cli "$node" listpeerchannels "$peer_id" |
+    jq -r '.channels[]? | select(.state != "ONCHAIN" and (.state | contains("CLOS") | not)) | .state' |
+    head -n 1
+}
+
+channel_ready() {
+  local node="$1"
+  local peer_id="$2"
+  cln_cli "$node" listpeerchannels "$peer_id" |
+    jq -e '.channels[]? | select(.state == "CHANNELD_NORMAL" and (.peer_connected // true))' >/dev/null
+}
+
+echo "Waiting for bitcoind..."
+wait_for bitcoind 60 btc_cli getblockcount
+ensure_bitcoin_wallet
+mine_to_height 101
+
+echo "Waiting for CLN nodes..."
+wait_for "payer lightningd" 60 cln_cli payer getinfo
+wait_for "receiver lightningd" 60 cln_cli receiver getinfo
+
+if ! has_confirmed_funds payer; then
+  echo "Funding payer wallet..."
+  fund_cln_wallet payer 1100000
+  mine_blocks 6
+  wait_for "payer confirmed funds" 90 has_confirmed_funds payer
+fi
+
+payer_id="$(cln_cli payer getinfo | jq -r '.id')"
+receiver_id="$(cln_cli receiver getinfo | jq -r '.id')"
+
+if ! channel_ready payer "$receiver_id"; then
+  echo "Opening payer -> receiver channel..."
+  cln_cli payer connect "$receiver_id" receiver 9735 >/dev/null 2>&1 || true
+  state="$(channel_state payer "$receiver_id" || true)"
+  if [[ -z "$state" ]]; then
+    cln_cli payer -k fundchannel \
+      "id=${receiver_id}" \
+      amount=1000000sat \
+      push_msat=250000000msat >/dev/null
+    mine_blocks 6
+  fi
+  wait_for "payer channel ready" 120 channel_ready payer "$receiver_id"
+fi
+
+if ! channel_ready receiver "$payer_id"; then
+  cln_cli receiver connect "$payer_id" payer 9735 >/dev/null 2>&1 || true
+  wait_for "receiver channel ready" 60 channel_ready receiver "$payer_id"
+fi
+
+echo "Waiting for helper API..."
+wait_for "helper API" 60 curl --fail --silent "$(helper_url)/health"
+
+write_env
+
+cat <<EOF
+Local NWC stack is ready (regtest; tools/nwc-stack/.env.local written).
+
+Wallet integration tests:
+  ./gradlew :providers:nwc:integration:nwc:walletIntegrationTest
+
+Helper API:
+  $(helper_url)
+
+Relay URLs:
+  Host/iOS: ${RAYL_NWC_PUBLIC_RELAY_URL}
+  Android emulator: ${RAYL_NWC_ANDROID_RELAY_URL}
+EOF

@@ -1,0 +1,112 @@
+name: ${RAYL_NWC_PROJECT:-rayl-nwc}
+
+services:
+  bitcoind:
+    image: ${RAYL_NWC_BITCOIN_IMAGE:-bitcoin/bitcoin:28.1}
+    entrypoint: ["bitcoind"]
+    command:
+      - -datadir=/data
+      - -regtest
+      - -server
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcuser=rayl
+      - -rpcpassword=rayl
+      - -fallbackfee=0.0001
+    volumes:
+      - bitcoin-data:/data
+
+  nostr:
+    image: ${RAYL_NWC_NOSTR_IMAGE:-scsibug/nostr-rs-relay:0.9.0}
+    ports:
+      - "${RAYL_NWC_BIND_HOST:-127.0.0.1}:${RAYL_NWC_RELAY_PORT:-8081}:8080"
+    volumes:
+      - nostr-data:/data
+
+  payer:
+    build:
+      context: .
+      dockerfile: docker/cln-nip47.Dockerfile
+      target: cln-nip47
+      args:
+        CLN_IMAGE: ${RAYL_NWC_CLN_BASE_IMAGE:-elementsproject/lightningd:v25.12.1}
+        CLN_NIP47_VERSION: ${RAYL_NWC_CLN_NIP47_VERSION:-v0.1.9}
+    image: ${RAYL_NWC_CLN_IMAGE:-rayl-nwc-cln-nip47:v25.12.1-nip47}
+    entrypoint: ["lightningd"]
+    command:
+      - --network=regtest
+      - --lightning-dir=/data
+      - --alias=payer
+      - --bind-addr=0.0.0.0:9735
+      - --bitcoin-rpcconnect=bitcoind
+      - --bitcoin-rpcport=18443
+      - --bitcoin-rpcuser=rayl
+      - --bitcoin-rpcpassword=rayl
+      - --clnrest-host=0.0.0.0
+      - --clnrest-port=3010
+      - --clnrest-protocol=http
+      - --plugin=/usr/local/bin/cln-nip47
+      - --nip47-relays=ws://nostr:8080
+      - --nip47-notifications=false
+    depends_on:
+      - bitcoind
+      - nostr
+    volumes:
+      - payer-data:/data
+
+  receiver:
+    build:
+      context: .
+      dockerfile: docker/cln-nip47.Dockerfile
+      target: cln-nip47
+      args:
+        CLN_IMAGE: ${RAYL_NWC_CLN_BASE_IMAGE:-elementsproject/lightningd:v25.12.1}
+        CLN_NIP47_VERSION: ${RAYL_NWC_CLN_NIP47_VERSION:-v0.1.9}
+    image: ${RAYL_NWC_CLN_IMAGE:-rayl-nwc-cln-nip47:v25.12.1-nip47}
+    entrypoint: ["lightningd"]
+    command:
+      - --network=regtest
+      - --lightning-dir=/data
+      - --alias=receiver
+      - --bind-addr=0.0.0.0:9735
+      - --bitcoin-rpcconnect=bitcoind
+      - --bitcoin-rpcport=18443
+      - --bitcoin-rpcuser=rayl
+      - --bitcoin-rpcpassword=rayl
+      - --clnrest-host=0.0.0.0
+      - --clnrest-port=3010
+      - --clnrest-protocol=http
+      - --plugin=/usr/local/bin/cln-nip47
+      - --nip47-relays=ws://nostr:8080
+      - --nip47-notifications=false
+    depends_on:
+      - bitcoind
+      - nostr
+    volumes:
+      - receiver-data:/data
+
+  helper:
+    build:
+      context: .
+      dockerfile: docker/cln-nip47.Dockerfile
+      target: helper
+      args:
+        CLN_IMAGE: ${RAYL_NWC_CLN_BASE_IMAGE:-elementsproject/lightningd:v25.12.1}
+        CLN_NIP47_VERSION: ${RAYL_NWC_CLN_NIP47_VERSION:-v0.1.9}
+    image: ${RAYL_NWC_HELPER_IMAGE:-rayl-nwc-helper:local}
+    environment:
+      RAYL_NWC_PUBLIC_RELAY_URL: ${RAYL_NWC_PUBLIC_RELAY_URL:-ws://127.0.0.1:8081}
+    ports:
+      - "${RAYL_NWC_BIND_HOST:-127.0.0.1}:${RAYL_NWC_HELPER_PORT:-8082}:8080"
+    depends_on:
+      - payer
+      - receiver
+    volumes:
+      - payer-data:/cln/payer
+      - receiver-data:/cln/receiver
+
+volumes:
+  bitcoin-data:
+  nostr-data:
+  payer-data:
+  receiver-data:
