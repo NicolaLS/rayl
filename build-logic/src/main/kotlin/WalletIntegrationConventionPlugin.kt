@@ -16,9 +16,9 @@ import org.gradle.kotlin.dsl.withType
  * network and funded test wallets, so they run only through `walletIntegrationTest` (nightly),
  * never in the PR gate's `testAndroidHostTest` or in PIT.
  *
- * The code under test uses the Breez SDK's Android build, whose native library only exists for
- * Android, as does JNA's. The SDK's JVM build and its JNA jar have the same libraries for macOS
- * and Linux; only those files are added (the JVM build's classes differ internally and must not
+ * The code under test uses the Android builds of the Breez SDK, JNA and libsodium (Nostr
+ * encryption), whose native libraries only exist for Android. Their JVM builds have the same libraries for macOS and
+ * Linux; only those files are added (the JVM build's classes differ internally and must not
  * mix with the Android build's).
  */
 class WalletIntegrationConventionPlugin : Plugin<Project> {
@@ -37,9 +37,15 @@ class WalletIntegrationConventionPlugin : Plugin<Project> {
                 isCanBeConsumed = false
             }
             dependencies.add(breezJvm.name, catalog.findLibrary("breez-sdk-spark-jvm").get())
+            // NWC's Nostr encryption: libsodium's Android build has the same gap.
+            dependencies.add(breezJvm.name, catalog.findLibrary("ionspin-libsodium-jvm").get())
             val natives = tasks.register<Sync>("breezHostNatives") {
                 from(breezJvm.elements.map { jars -> jars.map { zipTree(it) } }) {
-                    include("*/libbreez_sdk_spark_bindings.*", "com/sun/jna/*/libjnidispatch.*")
+                    include(
+                        "*/libbreez_sdk_spark_bindings.*",
+                        "com/sun/jna/*/libjnidispatch.*",
+                        "libdynamic-*"
+                    )
                 }
                 into(layout.buildDirectory.dir("breez-host-natives"))
                 includeEmptyDirs = false
