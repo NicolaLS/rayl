@@ -855,6 +855,8 @@ private struct NativePaymentAmountKeypad: View {
                         .disabled(key == "decimal" && !allowsDecimal)
                         .opacity(key == "decimal" && !allowsDecimal ? 0 : 1)
                         .accessibilityHidden(key == "decimal" && !allowsDecimal)
+                        // Same IDs as Android's test tags, for the shared Maestro flows.
+                        .accessibilityIdentifier("payment_manual_amount_key_\(key)")
                     }
                 }
             }

@@ -19,10 +19,11 @@ struct E2EApp: App {
 
 // Only compiled into the separate E2E app. These fixtures never open a funded wallet.
 private func seedWalletLifecycleFixture() {
-    let arguments = ProcessInfo.processInfo.arguments
-    let configured = arguments.contains("--spark-corrupt-configured")
-    guard configured || arguments.contains("--spark-orphan") else { return }
+    // Maestro: `launchApp: arguments: {sparkFixture: corrupt-configured | orphan}`.
     let defaults = UserDefaults.standard
+    let fixture = defaults.string(forKey: "sparkFixture")
+    let configured = fixture == "corrupt-configured"
+    guard configured || fixture == "orphan" else { return }
     defaults.set(true, forKey: "rayl.welcome")
     if configured {
         defaults.set("Spark", forKey: "rayl.wallet")

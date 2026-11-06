@@ -1,0 +1,25 @@
+# Connects a new user of the local Blink stack (tools/blink-stack) in Settings → Use another
+# wallet. FUNDED_SATS: its starting balance. Leaves its API key in output.blinkApiKey.
+appId: ${APP_ID}
+---
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: user
+      FUNDED_SATS: ${FUNDED_SATS}
+- tapOn: "Settings"
+- tapOn: "Use another wallet"
+- tapOn: "Blink"
+- tapOn: "API Key"
+- inputText: ${output.blinkApiKey}
+- hideKeyboard
+- tapOn:
+    text: "Connect"
+    optional: true
+- extendedWaitUntil:
+    visible: "Before you begin"
+    timeout: 30000
+- runFlow: accept-risk.yaml
+- extendedWaitUntil:
+    visible: "Point the camera.*"
+    timeout: 30000

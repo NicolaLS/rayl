@@ -37,6 +37,7 @@ kotlin {
             api(project(":providers:spark:experience"))
             api(project(":providers:blink:feature:blink-contacts"))
             implementation(project(":core:camera"))
+            implementation(project(":providers:blink:integration:blink"))
             implementation(project(":core:settings"))
             implementation(project(":core:model"))
             implementation(project(":core:ui"))

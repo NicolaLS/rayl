@@ -1,0 +1,27 @@
+# Smoke S9: Settings → Back to Rayl returns to Rayl's wallet, also after a restart, and the
+# external wallet's credentials are gone: connecting it again asks for them.
+appId: ${APP_ID}
+tags:
+  - wallet
+  - smoke
+---
+- runFlow: ../common/onboard.yaml
+- runFlow: ../common/connect-nwc.yaml
+- tapOn: "Settings"
+- assertVisible: "Wallet Details"
+- tapOn: "Back to Rayl"
+- extendedWaitUntil:
+    visible: "Point the camera.*"
+    timeout: 30000
+- stopApp
+- launchApp
+- tapOn: "Settings"
+- assertVisible: "Balance"
+- assertNotVisible: "Wallet Details"
+- tapOn: "Use another wallet"
+- tapOn: "Nostr Wallet Connect"
+# Nothing saved to connect with (a saved URI would be masked, so don't look for its text):
+# Connect leads nowhere. (iOS disables the button; Android ignores the tap.)
+- tapOn: "Connect"
+- assertVisible: "Add NWC Wallet"
+- assertNotVisible: "Active encryption.*"

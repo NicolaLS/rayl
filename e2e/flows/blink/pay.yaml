@@ -1,0 +1,37 @@
+# Smoke S8 with Blink: an invoice is paid from the Blink wallet; the receiver gets exactly its
+# amount, and Blink's balance drops by exactly the amount plus the fee the screen shows.
+appId: ${APP_ID}
+tags:
+  - blink
+  - smoke
+---
+- runFlow: ../common/onboard.yaml
+- runFlow:
+    file: ../common/connect-blink.yaml
+    env:
+      FUNDED_SATS: "5000"
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: invoice
+      SATS: "100"
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+- extendedWaitUntil:
+    visible: "Paid 100 sat"
+    timeout: 30000
+- copyTextFrom: "Fee: .*"
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_SATS: "100"
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: balance
+      API_KEY: ${output.blinkApiKey}
+      EXPECTED_SATS: "4900"
+      FEE_TEXT: ${maestro.copiedText}

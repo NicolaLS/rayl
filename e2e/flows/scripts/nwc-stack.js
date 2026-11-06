@@ -1,7 +1,7 @@
 // Talks to tools/nwc-stack's helper (runs on the host, like Maestro). ACTION selects what to do:
 //   connect-uri                      -> output.nwcUri, an NWC URI of the payer node whose relay
 //                                       the device can reach (emulator: 10.0.2.2)
-//   invoice   AMOUNT_MSAT (or "any") -> output.invoice = {bolt11, paymentHash}
+//   invoice   AMOUNT_MSAT (or "any") [EXPIRY_SECS] -> output.invoice = {bolt11, paymentHash}
 //   received  PAYMENT_HASH EXPECTED_MSAT -> fails unless the receiver got exactly that much
 var base = typeof TEST_WALLET_SERVICE_URL !== 'undefined' ? TEST_WALLET_SERVICE_URL : 'http://127.0.0.1:8082'
 var relayPort = typeof RAYL_NWC_RELAY_PORT !== 'undefined' ? RAYL_NWC_RELAY_PORT : '8081'
@@ -26,6 +26,7 @@ if (ACTION === 'connect-uri') {
 } else if (ACTION === 'invoice') {
   var body = { label: 'maestro-' + Date.now(), description: 'Rayl Maestro flow' }
   if (AMOUNT_MSAT !== 'any') body.amount_msat = Number(AMOUNT_MSAT)
+  if (typeof EXPIRY_SECS !== 'undefined') body.expiry = Number(EXPIRY_SECS)
   var invoice = post('/create-invoice', body)
   output.invoice = { bolt11: invoice.bolt11, paymentHash: invoice.paymentHash }
 } else if (ACTION === 'received') {

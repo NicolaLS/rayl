@@ -532,12 +532,16 @@ class BlinkApiClient(
         private const val HTTP_TOO_MANY_REQUESTS = 429
         private const val DEFAULT_LIGHTNING_ADDRESS_DOMAIN = "blink.sv"
 
-        /** [serverUrl] is Blink's production API; tests point it at a local Blink stack. */
-        fun createBlinkApolloClient(serverUrl: String = BLINK_API_URL): ApolloClient =
-            ApolloClient.Builder()
-                .serverUrl(serverUrl)
-                .httpEngine(DefaultHttpEngine(timeoutMillis = BLINK_HTTP_TIMEOUT_MS))
-                .build()
+        /**
+         * [serverUrl] is Blink's production API, unless an E2E app installed [TestBlinkApi];
+         * integration tests pass the local Blink stack's.
+         */
+        fun createBlinkApolloClient(
+            serverUrl: String = TestBlinkApi.serverUrl ?: BLINK_API_URL
+        ): ApolloClient = ApolloClient.Builder()
+            .serverUrl(serverUrl)
+            .httpEngine(DefaultHttpEngine(timeoutMillis = BLINK_HTTP_TIMEOUT_MS))
+            .build()
 
         private const val BLINK_HTTP_TIMEOUT_MS = 90_000L
     }

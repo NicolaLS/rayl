@@ -1,0 +1,56 @@
+# Smoke S10: in German the app is translated, and amounts use German formatting (20.000 sat)
+# through a whole payment. Android switches in Settings → Language. On iOS that row opens Apple's
+# Settings app (per-app language), so the flow starts the app in German instead.
+appId: ${APP_ID}
+tags:
+  - settings
+  - smoke
+---
+- runFlow: ../common/onboard.yaml
+- runFlow: ../common/connect-nwc.yaml
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: "Settings"
+      - tapOn: "Language"
+      - tapOn: "Deutsch"
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: invoice
+      AMOUNT_MSAT: "20000000"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: "Einstellungen"
+          timeout: 10000
+      - launchApp:
+          arguments:
+            scan: ${output.invoice.bolt11}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - launchApp:
+          arguments:
+            scan: ${output.invoice.bolt11}
+            AppleLanguages: "(de)"
+            AppleLocale: de_DE
+- extendedWaitUntil:
+    visible: "Zahlung bestätigen"
+    timeout: 30000
+- assertVisible: "20\\.000 sat"
+- tapOn: "Bezahlen"
+- extendedWaitUntil:
+    visible: "Bezahlt 20\\.000 sat"
+    timeout: 30000
+- assertVisible: "Einstellungen"
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_MSAT: "20000000"

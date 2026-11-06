@@ -1,0 +1,31 @@
+# An expired invoice is refused before it reaches the wallet (MOB-113, Rayl's side), with a
+# message that says so; nothing is paid.
+appId: ${APP_ID}
+tags:
+  - nwc
+---
+- runFlow: ../common/onboard.yaml
+- runFlow: ../common/connect-nwc.yaml
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: invoice
+      AMOUNT_MSAT: "100000"
+      EXPIRY_SECS: "1"
+# Maestro has no plain wait: wait 3 s for something that never appears.
+- extendedWaitUntil:
+    visible: "This text never appears"
+    timeout: 3000
+    optional: true
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+- extendedWaitUntil:
+    visible: ".*expired.*"
+    timeout: 30000
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_MSAT: "0"

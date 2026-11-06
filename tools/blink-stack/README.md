@@ -13,7 +13,8 @@ tools/blink-stack/bin/down
 
 `bin/fixture` creates what the tests need: a new Blink user with an API key (login code
 `000000`, the quickstart's), funded over Lightning from the outside node; outside-node invoices,
-including hold invoices; balances. Run it without arguments for its commands.
+including hold invoices; balances. Run it without arguments for its commands. `bin/up` also
+starts `bin/helper.py` on `127.0.0.1:4476`, which runs it over HTTP for Maestro flows.
 
 Needs Docker (OrbStack on macOS), `git`, `jq`, `curl`, `openssl`, `xxd`. The API is at
 `http://127.0.0.1:4475/graphql` (`RAYL_BLINK_API_PORT`); `compose.rayl.yml` publishes no other

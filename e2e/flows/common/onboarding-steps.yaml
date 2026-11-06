@@ -1,0 +1,11 @@
+# Onboarding from the welcome screen to the scan screen, with Rayl's wallet.
+appId: ${APP_ID}
+---
+- tapOn: "Get started"
+- tapOn: "Continue"
+- tapOn: "Continue"
+# Its Continue sets up Rayl's wallet with Breez first; that can take a minute.
+- runFlow: accept-risk.yaml
+- extendedWaitUntil:
+    visible: "Point the camera.*"
+    timeout: 120000

@@ -1,0 +1,44 @@
+# An invoice without an amount, paid from Blink: the amount entered is what the receiver gets.
+# (Not with NWC: Core Lightning's NIP-47 plugin doesn't pay these, MOB-115.)
+appId: ${APP_ID}
+tags:
+  - blink
+---
+- runFlow: ../common/onboard.yaml
+- runFlow:
+    file: ../common/connect-blink.yaml
+    env:
+      FUNDED_SATS: "5000"
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: invoice
+      SATS: "0"
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+- extendedWaitUntil:
+    visible:
+      id: payment_manual_amount_screen
+    timeout: 30000
+- tapOn:
+    id: payment_manual_amount_key_1
+- tapOn:
+    id: payment_manual_amount_key_5
+- tapOn:
+    id: payment_manual_amount_key_0
+- tapOn:
+    id: payment_manual_amount_continue_button
+- extendedWaitUntil:
+    visible: "150 sat"
+    timeout: 10000
+- tapOn: "Pay"
+- extendedWaitUntil:
+    visible: "Paid 150 sat"
+    timeout: 30000
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_SATS: "150"

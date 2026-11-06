@@ -1,0 +1,28 @@
+# An empty Blink wallet: the payment is refused with a message that says why; nothing is paid.
+appId: ${APP_ID}
+tags:
+  - blink
+---
+- runFlow: ../common/onboard.yaml
+- runFlow:
+    file: ../common/connect-blink.yaml
+    env:
+      FUNDED_SATS: "0"
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: invoice
+      SATS: "100"
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+- extendedWaitUntil:
+    visible: ".*[Ii]nsufficient.*|.*[Nn]ot enough.*"
+    timeout: 30000
+- takeScreenshot: blink-insufficient
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_SATS: "0"

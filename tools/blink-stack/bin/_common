@@ -14,6 +14,16 @@ export COMPOSE_PROJECT_NAME="${RAYL_BLINK_PROJECT:-rayl-blink}"
 export HOST_PROJECT_PATH="$WORK_DIR"
 export RAYL_BLINK_API_PORT="${RAYL_BLINK_API_PORT:-4475}"
 RAYL_BLINK_API_URL="http://127.0.0.1:${RAYL_BLINK_API_PORT}/graphql"
+# bin/helper.py, for Maestro flows.
+RAYL_BLINK_HELPER_PORT="${RAYL_BLINK_HELPER_PORT:-4476}"
+HELPER_PID_FILE="${WORK_DIR}/helper.pid"
+
+stop_helper() {
+  if [[ -f "$HELPER_PID_FILE" ]]; then
+    kill "$(cat "$HELPER_PID_FILE")" 2>/dev/null || true
+    rm -f "$HELPER_PID_FILE"
+  fi
+}
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then

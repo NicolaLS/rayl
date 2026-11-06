@@ -1,0 +1,44 @@
+# Smoke S6 with an NWC wallet: an invoice at or above the Auto Pay threshold (10,000 sat by
+# default) asks before paying. Dismissing pays nothing; confirming pays exactly once.
+appId: ${APP_ID}
+tags:
+  - nwc
+  - smoke
+---
+- runFlow: ../common/onboard.yaml
+- runFlow: ../common/connect-nwc.yaml
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: invoice
+      AMOUNT_MSAT: "20000000"
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+- extendedWaitUntil:
+    visible: "Confirm Payment"
+    timeout: 30000
+- assertVisible: "20,000 sat"
+- tapOn: "Dismiss"
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_MSAT: "0"
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+- extendedWaitUntil:
+    visible: "Confirm Payment"
+    timeout: 30000
+- tapOn: "Pay"
+- extendedWaitUntil:
+    visible: "Paid 20,000 sat"
+    timeout: 30000
+- runScript:
+    file: ../scripts/nwc-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_MSAT: "20000000"

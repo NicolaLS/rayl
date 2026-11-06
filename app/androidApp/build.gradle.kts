@@ -112,4 +112,5 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     "benchmarkImplementation"(project(":core:camera"))
     "e2eImplementation"(project(":core:camera"))
+    "e2eImplementation"(project(":providers:blink:integration:blink"))
 }

@@ -1,0 +1,7 @@
+# `maestro test e2e/flows` runs these; common/ holds subflows, scripts/ the stack helpers.
+flows:
+  - "nwc/*"
+  - "blink/*"
+  - "wallet/*"
+  - "settings/*"
+  - "spark/*"

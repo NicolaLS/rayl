@@ -31,7 +31,7 @@ stopping after any item leaves a working state.
 | 1e | Blink staging as a second target for 1c, once Nicola's staging account is granted (requested 2026-11-06) | Nightly against staging | Waiting for account |
 | **2** | **Maestro smoke flows** (§6.8) | | |
 | 2a | E2E payment input by launch argument on both platforms (the `E2E` build types exist); test tags on the elements flows need | Input reaches the payment flow without the camera | Done (`0c5ba3b6`): `scan` launch argument; the NWC pay and rescan flow is green on the Android emulator and the iOS simulator from the same file |
-| 2b | About ten flows, the same files for Android and iOS, against the 1a/1c stacks; replaces the stale `e2e/ios` | Green on emulator and simulator | |
+| 2b | About ten flows, the same files for Android and iOS, against the 1a/1c stacks; replaces the stale `e2e/ios` | Green on emulator and simulator | Done: 10 flows (NWC, Blink, wallet switch, German, iOS Keychain), green on both; replaced `e2e/ios`; found MOB-116, MOB-115 again (amountless NWC) |
 | 2c | Flows in the nightly job | Three nights green | |
 | **3** | **Robolectric** | | |
 | 3a | Robolectric in the Android host tests (convention plugin) | One test runs in the PR gate | |
