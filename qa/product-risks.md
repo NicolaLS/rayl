@@ -85,7 +85,7 @@ safety** come first. Ties are broken in their favour.
 | PR-22 | **Localisation or formatting errors in en/de/es.** Missing strings, truncation, number formats in amounts. | M | Medium | 2 | `verifyNativeLocalizations`; locale pass in the checklist; amount-entry tests per locale |
 | PR-23 | **Accessibility gaps** on Scan, confirmation and onboarding (TalkBack/VoiceOver, Dynamic Type). | M | Medium | 3 | Exploratory pass; revisit after 1.1 |
 | PR-24 | **Hub contacts or presets are lost or corrupted.** | L | Medium | 3 | Repository tests (some exist); checklist |
-| PR-25 | **An update loses or misreads data an earlier version stored.** Examples: a 1.0 user's Blink or NWC connection, Hub contacts or Auto Pay threshold gone after updating to 1.1; a renamed key restores the wrong wallet. Added 2026-11-02, when 1.0 reached testers. | M | High | 1 | Host test that opens a 1.0-shaped settings snapshot in the current code; static diff against `release/1.0` per release; checklist U2/U3 |
+| PR-25 | **An update loses or misreads data an earlier version stored.** Examples: a 1.1 user's Blink or NWC connection, Hub contacts or Auto Pay threshold gone after an update; Rayl's wallet key copy or the Spark vault unreadable; a renamed key restores the wrong wallet. Added 2026-11-02, when 1.0 reached testers; since 2026-11-06 about 1.1, the first public release. | M | High | 1 | Tests that open 1.1-shaped data with the current code (settings on the host, encrypted stores on a device); static diff against the last release branch |
 
 ## Project risks
 

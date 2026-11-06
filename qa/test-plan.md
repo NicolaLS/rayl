@@ -1,11 +1,11 @@
 # Rayl master test plan
 
-Status: **draft v0.1 for review**, 2026-11-01. Owner: QA. Approver: Nicola Susca (CEO/CTO).
+Status: **v0.2**, 2026-11-06 (v0.1: 2026-11-01). Owner: QA. Approver: Nicola Susca (CEO/CTO).
 
-This is the first test plan for Rayl. 1.0 is in store review and 1.1 follows right after
-it, so this plan targets `main` and the **1.1 release**. 1.0 gets only a release-build smoke
-test (D-08). It loosely follows ISO/IEC/IEEE 29119-3 and the ISTQB test process,
-adapted for a one-person product team moving fast. It is a living document: update it
+This is Rayl's master test plan. v0.1 targeted the 1.1 release; v0.2 (2026-11-06) adds the
+UI automation strategy (§6.8) and the wallet test environments (§6.9). Current work is planned in
+[test project 2](projects/quality-baseline/test-plan.md). It loosely follows ISO/IEC/IEEE
+29119-3 and the ISTQB test process, adapted for a one-person product team moving fast. It is a living document: update it
 when scope, risks or decisions change, and record decisions in §15.
 
 Related artifacts:
@@ -43,12 +43,11 @@ State and logic live in common Kotlin; only the hero animation is shared Compose
 **Constraints**
 - One person is founder, developer and release manager. QA is an AI agent working in
   sessions; continuity lives in this directory.
-- QA does not run UI/E2E or on-device tests unless asked.
-- The decision on UI automation tooling is deferred (D-03).
-- Pre-release: no data migrations or legacy fallbacks to test.
+- QA writes and runs UI automation (§6.8) and device tests on emulators and simulators.
+  Real-phone runs (App Live, the test phone) stay with Nicola unless he asks.
+- 1.1 is the first public release (1.0 was replaced before store users got it). Everything
+  1.1 stores is user data: changes to it need a tested migration (PR-25).
 - `main` moves fast; release branches remove providers that aren't ready.
-- The first store review is slow, so `main` is already well past the 1.0 branch. Test
-  effort goes to `main` and 1.1, not the frozen 1.0 branch.
 
 ## 2. Test basis
 
@@ -170,11 +169,14 @@ What exists, measured before this plan:
 | Level | What | Where and tooling | Cadence |
 |---|---|---|---|
 | **Unit** | Pure logic: parsers, conversion, policies, state reducers, error mapping | `commonTest`, kotlin-test, coroutines-test, run on the JVM host | Every change |
+| **Platform unit** | Non-UI code in `androidMain` and `iosMain`: user-facing messages, formatting, connectivity, lifecycle, the iOS native controllers | Android: host tests with Robolectric. iOS: `iosTest` and the shared suite on the simulator (`iosSimulatorArm64Test`), which uses the real iOS implementations | Every change |
+| **Screen** | One Compose screen rendered from a given state: the amount, fee, confirmation and error the user sees, and the action a tap sends | Compose UI tests on Robolectric, on the JVM (§6.8) | Every change |
 | **Component** (the main investment) | One feature driven through its public API with fakes at the edges. Examples: `PaymentFlowCoordinator` with a fake settlement, a fake LNURL server (Ktor `MockEngine`), fake prices and a test clock; a runtime with a fake wallet | `commonTest` | Every change |
 | **Contract** | Shared suites every implementation must pass, e.g. one `PaymentSettlement` suite run against the Rayl, Blink, NWC and Spark settlements (each with its SDK or API faked), and one `PocketKeyStore` suite per platform. The client/backend wire contract is pinned with golden JSON. | `commonTest`, plus platform source sets for stores | Every change |
 | **Platform integration** | Real platform services: Android Keystore and encrypted preferences, iOS Keychain, the camera pipeline | Android instrumented tests on an emulator; `iosSimulatorArm64Test` | Nightly, and on changes to `core/settings`, `integration/pocket` or `core/camera` |
-| **SDK integration** | The real Breez SDK on the JVM against Lightspark hosted Regtest, using the regtest bank as counterparty: connect, quote, pay, already-paid, insufficient funds, and classification of real SDK errors | New JVM test task next to `tools/regtest`; network-dependent, so it never gates a PR | Nightly, and before every release candidate |
-| **System** | The complete app on devices: scripted regression checklist plus exploratory sessions | Manual on the device matrix (§7). UI automation deferred (D-03) | Each release candidate; exploratory each milestone |
+| **Wallet integration** | Rayl's own wallet code (settlements and wallet clients, not just the SDK) against real wallet services in test networks: pay, already paid, insufficient funds, expired, fee reported, lost connection | JVM tests against the wallet test environments (§6.9) | Nightly, and before every release candidate; never gates a PR |
+| **System (automated)** | The complete app on emulator and simulator: about ten smoke flows, the same flows on Android and iOS | Maestro against the local wallet test environments (§6.8) | Nightly, and on every release candidate |
+| **System (manual)** | The complete app on real phones: smoke checklist, full regression checklist, exploratory sessions | Manual: smoke on Nicola's phones per candidate; full checklist on App Live (§7) per minor release | See §9 |
 | **Acceptance** | Real money on mainnet, all shipped providers, both platforms, small fixed budget | Manual, following the mainnet protocol (§7) | Each release candidate |
 
 Logic should move down into common Kotlin whenever possible: it is the cheapest place to
@@ -340,6 +342,65 @@ test fails.
   arguments, a wrong key) is checked by hand: edit the code, run the module's tests, revert
   with `git checkout`.
 
+### 6.8 UI automation strategy (decided 2026-11-06, D-03)
+
+Rayl has two separately written native UIs (Compose and SwiftUI) over shared Kotlin state.
+UI automation is split by what each tool does best:
+
+| Level | Tool | What it checks | Where it runs |
+|---|---|---|---|
+| **Screen** | Compose UI tests on Robolectric (Android) | Given a state, the screen shows the right amount, fee, confirmation, outcome and error, and a tap sends the right action. Fakes and fixed states, no wallet. | JVM, PR gate |
+| **Flow (smoke)** | Maestro | About ten user flows end to end, **the same flow files on Android and iOS**: set up Rayl's wallet, pay below and at the threshold, an amountless invoice with fiat entry, rescan a paid invoice, connect, pay with and remove each external wallet, restart mid-flow | Emulator and simulator against the local wallet test environments (§6.9); nightly and per release candidate |
+| **iOS screen** | None for now | SwiftUI views stay thin renderers of shared state; Maestro covers the flows. Snapshot tests are added if layout defects show up. | — |
+
+Why this split:
+- Maestro drives the app from outside, so one flow file checks both platforms. Because the UIs
+  are written twice, the same flow passing on both is direct evidence of platform parity (PR-16,
+  REQ-provider-experience). It waits for the screen to settle on its own, tests the real app
+  build, and can call the test environment over HTTP (make an invoice, check it was paid).
+- Maestro sees only the screen: no fakes, no clock control, no injected failures, a few seconds
+  per step. So it covers a small number of flows, never case-by-case checks.
+- Compose UI tests run inside the app process and are synchronised with Compose. Rendering one
+  screen from a fixed state is fast and deterministic, so the many screen cases go there.
+- XCUITest would duplicate the Maestro flows in a second language for one platform only.
+
+Rules:
+- Payment input comes from an E2E-only launch argument (the `E2E` build type), never the camera.
+  Scanning itself stays a manual check.
+- Flows find elements by test tags and accessibility identifiers, not by visible text, so they
+  work in every language.
+- A flow that fails intermittently is fixed or removed within a week, never retried until green.
+- Passkeys can't be automated on emulators reliably; flows that need Rayl's wallet use a
+  test-only key source in the E2E build, and real passkeys stay in the manual smoke checklist.
+
+### 6.9 Wallet test environments (decided 2026-11-06)
+
+Every wallet Rayl ships is tested against a real implementation of its service, not only
+stubs. Each has a **local** environment (deterministic, fully controlled, failures can be
+provoked) and, where one exists, a **hosted** environment that matches production (catches API
+changes, but is shared and can't be controlled).
+
+| Wallet | Local (behaviour tests, Maestro flows) | Hosted (nightly check against the real service) |
+|---|---|---|
+| Rayl's wallet, Spark | — (the Breez SDK needs Lightspark's operators) | Lightspark hosted regtest with the regtest bank (`tools/regtest`) |
+| NWC | Docker Compose: bitcoind regtest, Core Lightning with the `cln-nip47` plugin, a nostr relay (revived from the Blip harness, `d17dc43b`) | NWC faucet (`faucet.nwc.dev`, Alby Hub sub-wallets), optional |
+| Blink | Blink's own `quickstart` Docker Compose on regtest (bitcoind, LND, Blink API, API-key service, Blink's LNURL server) | Blink staging on signet (`api.staging.blink.sv`). Account requested by Nicola, 2026-11-06 |
+| LNURL, Lightning addresses | Blink quickstart's LNURL server | Blink staging (`test@pay.staging.blink.sv`) |
+
+**Why both, for Blink:** Blink's quickstart can start today, gives full control (create users
+and API keys by script, stop LND to force pending or failed payments) and runs in CI. It is
+heavy (about 30 containers, amd64-only images that run under Rosetta on Apple silicon) and
+its pinned images may lag behind production. Staging runs the production code but needs an
+account, is shared and can't provoke failures. The same tests run against both; only the base
+URL and credentials change.
+
+Rules:
+- Test environments use test networks only (regtest, signet, faucet balances). Their
+  credentials are GitHub secrets, used only by CI, and never real-money keys.
+- Wallet-service tests run nightly and on release branches, never in the PR gate. An outage of
+  a hosted environment is reported separately from a test failure.
+- A test environment must start from a script in the repository, with no manual steps.
+
 ## 7. Test environments and data
 
 | Environment | Purpose | Notes |
@@ -347,6 +408,8 @@ test fails.
 | JVM host | Unit, component and contract tests | Fast, deterministic, no network |
 | Android emulator / iOS simulator | Platform integration tests | Keystore/Keychain behaviour; a signed simulator build is needed for the Keychain |
 | Hosted Regtest (Lightspark) + regtest bank | SDK integration and manual pocket flows | No real funds. No real Lightning: routing, fees, LNURL and Lightning addresses need mainnet |
+| Local wallet stacks (Docker Compose) | NWC and Blink wallet integration tests, Maestro flows | §6.9. OrbStack locally, Linux runners in CI |
+| Blink staging (signet), NWC faucet | Nightly checks against the hosted services | §6.9 |
 | Mainnet, small budget | Acceptance of every shipped provider | Dedicated test wallets; budget set per release (D-04) |
 | Production backend | Price service | Synthetic `/health` and price-sanity check (proposal) |
 
@@ -390,8 +453,8 @@ test fails.
 
 | Stage | Trigger | Contents | Gating |
 |---|---|---|---|
-| **PR gate** | Push or PR to `main` | ktlint, module dependencies, localisations, all host unit/component/contract tests, backend tests, Android debug build, iOS simulator build | Must pass to merge |
-| **Nightly** | Schedule | Everything in the PR gate, plus: `iosSimulatorArm64Test`; Android instrumented storage tests; regtest SDK integration; Kover report; Breez pin consistency check | Failures become issues; never blocks `main` retroactively |
+| **PR gate** | Push or PR to `main` or `release/*` | ktlint, Android Lint, module dependencies, localisations, Breez pins, all host tests (unit, platform unit, screen, component, contract), backend tests, `iosSimulatorArm64Test`, Android debug and release builds, iOS simulator build | Must pass to merge |
+| **Nightly** | Schedule, and pushes to `release/*` | Android device tests on an emulator; iOS Keychain tests; wallet integration tests against the local stacks and the hosted environments (§6.9); Maestro smoke flows on emulator and simulator | Failures reach QA by GitHub e-mail; never blocks `main` retroactively |
 | **Performance** | Weekly, release tag, or PR label | `perfCheck` (macrobenchmark), extended with the staple-path stages | Release gate; alerts on relative regression |
 | **Release** | Release branch (1.1 onwards) | PR gate plus nightly on the release branch; release-build smoke | Exit criteria in §9 |
 
@@ -466,11 +529,14 @@ the top of the description. They are prioritised with the stakeholder.
 Each report contains: build and commit, platform and device, provider, steps, expected
 versus actual, and evidence (logs, `RaylTiming`, screenshots).
 
-**Who fixes and when (decided 2026-11-02).** QA fixes defects too, so testing doesn't wait
-for fixes. A defect is always filed in Linear first, even when it's fixed minutes later.
-- **S1/S2 (money, wallet safety, blocked paying):** fixed right away, with a regression test,
-  in its own commit that names the issue; then the issue is closed.
-- **S3/S4:** the test that shows the defect is committed at once as a **known-defect test**
+**Who fixes and when (decided 2026-11-02, refined 2026-11-06).** QA fixes defects too, so
+testing doesn't wait for fixes. A defect is always filed in Linear first, even when it's fixed
+minutes later.
+- **Trivial fix:** QA fixes it with a regression test, in its own commit that names the issue,
+  then closes the issue.
+- **Non-trivial fix:** the issue stays open and QA reports it to Nicola at the end of the
+  session. The test that shows it is committed as a known-defect test (below).
+- **Known-defect tests:** the test that shows the defect is committed at once as a **known-defect test**
   (`knownDefect("MOB-123") { … }`): it runs on every build and passes while the defect
   exists. When the defect is fixed, the test fails with "MOB-123 seems fixed", so the fix
   commit removes the marker and the test becomes a normal regression test. Defects are fixed
@@ -493,6 +559,10 @@ Kept to what drives decisions:
 A **test summary report** is produced per release candidate in `qa/reports/`.
 
 ## 12. Roadmap (phased backlog)
+
+**Current work: [test project 2, quality baseline](projects/quality-baseline/test-plan.md)
+(from 2026-11-06).** The phases below were the 1.1 roadmap; the 1.1 results are in the
+[1.1 test summary report](releases/1.1/test-summary-report.md).
 
 The phases are ordered by risk and aimed at 1.1. Exact dates depend on the 1.1 target
 (D-01). Items inside a
@@ -558,7 +628,7 @@ phase are small, independently mergeable slices.
 |---|---|---|
 | Product owner, approver | Nicola | Priorities, risk acceptance, decisions in §15, sign-off on exit criteria |
 | Developer | Nicola | Fixes, testable design, local PR gate until CI is back, signed commits |
-| QA / SDET | Claude (agent) | This plan, risk analysis, test design, automated tests below the UI, test-focused reviews, checklists and charters, test summary reports. On-device runs only when asked. |
+| QA / SDET | Claude (agent) | This plan, risk analysis, test design, automated tests below the UI, test-focused reviews, checklists and charters, test summary reports, UI automation and test environments. Emulator and simulator runs; real phones only when asked. |
 | Device and mainnet tester | Nicola, by default | Runs the checklist, charters and mainnet protocol; QA prepares them and analyses the results |
 
 ## 14. Project risks
@@ -628,6 +698,17 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
 - **MOB-99 (iOS encryption export assessment) is not a release blocker.** Nicola gives a broad
   export-compliance answer and leaves France out of distribution if needed. The issue stays
   open in Linear; reviews and test reports don't raise it as a blocker again.
+
+**Decided (2026-11-06)**
+- D-03 **UI automation:** Compose UI tests on Robolectric for screens, Maestro smoke flows
+  shared by Android and iOS for flows, no XCUITest (§6.8). QA writes and runs them.
+- D-11 **Wallet test environments:** every shipped wallet is tested against a real service in
+  a test network. Blink both locally (Blink's `quickstart` on regtest, available now) and on
+  Blink staging (signet, once Nicola's account request is granted); NWC on a local Core
+  Lightning + `cln-nip47` stack (§6.9). Test-only credentials go into GitHub secrets.
+- D-12 **Defect fixing:** trivial fixes are made and closed by QA; non-trivial defects stay open
+  and are reported to Nicola (§10).
+- 1.0 was replaced before it reached store users; 1.1 is the first public release.
 
 **Open (stakeholder input needed)**
 
