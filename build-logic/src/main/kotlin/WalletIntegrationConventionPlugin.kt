@@ -1,14 +1,16 @@
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalogsExtension
-import org.gradle.api.tasks.Sync
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
+import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
+import org.gradle.testretry.TestRetryTaskExtension
 
 /**
  * Wallet integration tests (qa/test-plan.md §6.9): host tests named `*WalletIntegrationTest`
@@ -24,6 +26,7 @@ import org.gradle.kotlin.dsl.withType
 class WalletIntegrationConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
+            pluginManager.apply("org.gradle.test-retry")
             // The tests share one regtest bank and its local storage, so they run one at a time
             // across all modules.
             val slot = gradle.sharedServices.registerIfAbsent(
@@ -57,7 +60,8 @@ class WalletIntegrationConventionPlugin : Plugin<Project> {
 
             tasks.register<Test>(TASK) {
                 group = "verification"
-                description = "Runs Rayl's wallet code against real wallet services in test networks."
+                description =
+                    "Runs Rayl's wallet code against real wallet services in test networks."
                 val host = tasks.named("testAndroidHostTest", Test::class.java).get()
                 testClassesDirs = host.testClassesDirs
                 classpath = host.classpath + files(natives)
@@ -68,6 +72,12 @@ class WalletIntegrationConventionPlugin : Plugin<Project> {
                 systemProperty("rayl.root", rootDir.absolutePath)
                 usesService(slot)
                 outputs.upToDateWhen { false }
+                // Hosted test networks fail intermittently (dropped connections, MOB-114). A test
+                // that passes on its second try is reported as flaky; a regression fails twice.
+                extensions.configure<TestRetryTaskExtension> {
+                    maxRetries.set(1)
+                    failOnPassedAfterRetry.set(false)
+                }
                 testLogging {
                     events("passed", "skipped", "failed")
                     exceptionFormat = TestExceptionFormat.FULL

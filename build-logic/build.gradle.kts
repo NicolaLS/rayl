@@ -31,6 +31,7 @@ dependencies {
         "org.jetbrains.kotlinx:kover-gradle-plugin:${libs.versions.kover.get()}"
     )
     implementation("org.jlleitschuh.gradle:ktlint-gradle:${libs.versions.ktlint.get()}")
+    implementation("org.gradle:test-retry-gradle-plugin:${libs.versions.testRetry.get()}")
     implementation(
         "pl.droidsonroids.gradle:gradle-pitest-plugin:${libs.versions.pitestGradle.get()}"
     )

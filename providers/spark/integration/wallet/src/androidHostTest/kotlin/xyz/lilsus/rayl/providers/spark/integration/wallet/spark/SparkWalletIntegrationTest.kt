@@ -54,8 +54,8 @@ class SparkWalletIntegrationTest {
     fun paysAnInvoiceAndReportsTheFeeItQuoted() = runBlocking<Unit> {
         importWallet(funded = 300)
 
-        val quote = assertIs<SparkQuoteResult.Quoted>(client.quote(bank.invoice(100), null)).quote
-        val paid = assertIs<SparkPayOutcome.Paid>(client.pay(quote))
+        val quote = expectType<SparkQuoteResult.Quoted>(client.quote(bank.invoice(100), null)).quote
+        val paid = expectType<SparkPayOutcome.Paid>(client.pay(quote))
 
         assertEquals(quote.feeSats, paid.feeSats)
         assertHistory(received(300), sent(100, paid.feeSats))
@@ -66,8 +66,8 @@ class SparkWalletIntegrationTest {
         // PR-01: an amountless invoice pays exactly what the user entered.
         importWallet(funded = 300)
 
-        val quote = assertIs<SparkQuoteResult.Quoted>(client.quote(bank.invoice(null), 150)).quote
-        val paid = assertIs<SparkPayOutcome.Paid>(client.pay(quote))
+        val quote = expectType<SparkQuoteResult.Quoted>(client.quote(bank.invoice(null), 150)).quote
+        val paid = expectType<SparkPayOutcome.Paid>(client.pay(quote))
 
         assertHistory(received(300), sent(150, paid.feeSats))
     }
@@ -77,7 +77,7 @@ class SparkWalletIntegrationTest {
         // PR-03, MOB-90: the settlement turns AlreadyPaid into "already paid" success.
         importWallet(funded = 300)
         val invoice = bank.invoice(100)
-        val paid = assertIs<SparkPayOutcome.Paid>(payOrRefusal(invoice))
+        val paid = expectType<SparkPayOutcome.Paid>(payOrRefusal(invoice))
 
         assertEquals(SparkPaymentProblem.AlreadyPaid, payOrRefusal(invoice))
         assertHistory(received(300), sent(100, paid.feeSats))
@@ -156,3 +156,6 @@ class SparkWalletIntegrationTest {
         }
     }
 }
+
+/** [assertIs] that says what the value was, so a failure in CI explains itself. */
+private inline fun <reified T> expectType(value: Any?): T = assertIs<T>(value, "Was $value")

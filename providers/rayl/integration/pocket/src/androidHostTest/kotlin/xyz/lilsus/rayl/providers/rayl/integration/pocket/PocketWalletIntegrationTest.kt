@@ -62,8 +62,10 @@ class PocketWalletIntegrationTest {
     fun paysAnInvoiceAndReportsTheFeeItQuoted() = runBlocking<Unit> {
         fund(300)
 
-        val quote = assertIs<PocketQuoteResult.Quoted>(pocket.quote(bank.invoice(100), null)).quote
-        val paid = assertIs<PocketPayOutcome.Paid>(pocket.pay(quote))
+        val quote = expectType<PocketQuoteResult.Quoted>(
+            pocket.quote(bank.invoice(100), null)
+        ).quote
+        val paid = expectType<PocketPayOutcome.Paid>(pocket.pay(quote))
 
         assertEquals(quote.feeSats, paid.feeSats)
         assertHistory(received(300), sent(100, paid.feeSats))
@@ -74,8 +76,10 @@ class PocketWalletIntegrationTest {
         // PR-01: an amountless invoice pays exactly what the user entered.
         fund(300)
 
-        val quote = assertIs<PocketQuoteResult.Quoted>(pocket.quote(bank.invoice(null), 150)).quote
-        val paid = assertIs<PocketPayOutcome.Paid>(pocket.pay(quote))
+        val quote = expectType<PocketQuoteResult.Quoted>(
+            pocket.quote(bank.invoice(null), 150)
+        ).quote
+        val paid = expectType<PocketPayOutcome.Paid>(pocket.pay(quote))
 
         assertHistory(received(300), sent(150, paid.feeSats))
     }
@@ -85,7 +89,7 @@ class PocketWalletIntegrationTest {
         // PR-03, MOB-90: the settlement turns AlreadyPaid into "already paid" success.
         fund(300)
         val invoice = bank.invoice(100)
-        val paid = assertIs<PocketPayOutcome.Paid>(payOrRefusal(invoice))
+        val paid = expectType<PocketPayOutcome.Paid>(payOrRefusal(invoice))
 
         assertEquals(PocketPaymentProblem.AlreadyPaid, payOrRefusal(invoice))
         assertHistory(received(300), sent(100, paid.feeSats))
@@ -120,8 +124,10 @@ class PocketWalletIntegrationTest {
 
         pocket = connector().connect(key)
         assertEquals(300, awaitBalance { it == 300L })
-        val quote = assertIs<PocketQuoteResult.Quoted>(pocket.quote(bank.invoice(100), null)).quote
-        val paid = assertIs<PocketPayOutcome.Paid>(pocket.pay(quote))
+        val quote = expectType<PocketQuoteResult.Quoted>(
+            pocket.quote(bank.invoice(100), null)
+        ).quote
+        val paid = expectType<PocketPayOutcome.Paid>(pocket.pay(quote))
 
         assertHistory(received(300), sent(100, paid.feeSats))
     }
@@ -186,3 +192,6 @@ class PocketWalletIntegrationTest {
         }
     }
 }
+
+/** [assertIs] that says what the value was, so a failure in CI explains itself. */
+private inline fun <reified T> expectType(value: Any?): T = assertIs<T>(value, "Was $value")
