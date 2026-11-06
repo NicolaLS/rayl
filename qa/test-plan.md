@@ -365,13 +365,18 @@ Why this split:
 - XCUITest would duplicate the Maestro flows in a second language for one platform only.
 
 Rules:
-- Payment input comes from an E2E-only launch argument (the `E2E` build type), never the camera.
-  Scanning itself stays a manual check.
-- Flows find elements by test tags and accessibility identifiers, not by visible text, so they
-  work in every language.
+- Payment input comes from an E2E-only launch argument, never the camera: `scan` is what the
+  payment screen reads once (`TestQrInput`, installed only by the E2E apps). The E2E apps also
+  talk to the local Blink stack (`TestBlinkApi`, `blinkApiUrl`). Scanning itself stays a manual
+  check.
+- Flows run in English. They use test tags and accessibility identifiers where both platforms
+  have the same one (the amount keypad) and English text elsewhere; the German flow switches the
+  language explicitly. New IDs are added on both platforms together, with the same name.
 - A flow that fails intermittently is fixed or removed within a week, never retried until green.
-- Passkeys can't be automated on emulators reliably; flows that need Rayl's wallet use a
-  test-only key source in the E2E build, and real passkeys stay in the manual smoke checklist.
+- The E2E app's onboarding sets up Rayl's wallet on emulators and simulators without a passkey
+  prompt; real passkeys stay in the manual smoke checklist.
+- Flows and their helpers: `e2e/flows` (README lists them). Android runs nightly in CI; iOS runs
+  locally before releases, except the Keychain flows, which also run nightly.
 
 ### 6.9 Wallet test environments (decided 2026-11-06)
 
@@ -454,8 +459,8 @@ Rules:
 
 | Stage | Trigger | Contents | Gating |
 |---|---|---|---|
-| **PR gate** | Push or PR to `main` or `release/*` | ktlint, Android Lint, module dependencies, localisations, Breez pins, all host tests (unit, platform unit, screen, component, contract), backend tests, `iosSimulatorArm64Test`, Android debug and release builds, iOS simulator build | Must pass to merge |
-| **Nightly** | Schedule, and pushes to `release/*` | Android device tests on an emulator; iOS Keychain tests; wallet integration tests against the local stacks and the hosted environments (§6.9); Maestro smoke flows on emulator and simulator | Failures reach QA by GitHub e-mail; never blocks `main` retroactively |
+| **PR gate** | Push or PR to `main` or `release/*` (`ci.yml`, `ios.yml`) | ktlint, Android Lint (every module and the app; errors fail, `lint.xml`), module dependencies, localisations, Breez pins, all host tests (unit, platform unit and screen tests on Robolectric, component, contract, golden tests of 1.1's stored data), backend tests, `iosSimulatorArm64Test`, Android debug build and the release-like E2E build (R8, no secrets), iOS simulator build | Must pass to merge |
+| **Nightly** | Schedule, and pushes to `release/*` (`nightly.yml`) | Wallet integration tests against Breez regtest and the local NWC and Blink stacks (§6.9); Maestro flows on an Android emulator against the local stacks; Android device tests on API 24 and 34; iOS Keychain flows on a simulator (the signed E2E app is the Keychain host). The NWC and Blink Maestro flows on iOS run locally before releases: macOS runners have no Docker for the stacks | Failures reach QA by GitHub e-mail; never blocks `main` retroactively |
 | **Performance** | Weekly, release tag, or PR label | `perfCheck` (macrobenchmark), extended with the staple-path stages | Release gate; alerts on relative regression |
 | **Release** | Release branch (1.1 onwards) | PR gate plus nightly on the release branch; release-build smoke | Exit criteria in §9 |
 
@@ -463,9 +468,15 @@ CI runs on push and PR again (PJ-01, resolved). The PR gate locally:
 
 ```shell
 ./gradlew ktlintCheck verifyModuleDependencies verifyNativeLocalizations verifyBreezSdkPins testAndroidHostTest :backend:rayl:test
+./gradlew -p build-logic ktlintCheck
+./gradlew :app:androidApp:assembleE2e lintAndroidMain :app:androidApp:lintDebug
 # on macOS, also the iOS run of the shared tests (in CI's iOS workflow):
 ./gradlew iosSimulatorArm64Test
 ```
+
+Nightly locally: `tools/nwc-stack/bin/up && tools/blink-stack/bin/up`, then
+`./gradlew walletIntegrationTest` and `maestro test -e APP_ID=com.nicolasusca.rayl.e2e e2e/flows`
+(`e2e/flows/README.md`).
 
 Test design rules for automated tests:
 - deterministic, with no real network or time in host tests (use a test clock and
