@@ -45,6 +45,7 @@ class SparkWalletIntegrationTest {
     @AfterTest
     fun disconnect() = runBlocking<Unit> {
         runCatching { session?.disconnect() }
+        bank.reclaim(mnemonic, File(home, "reclaim"))
         runCatching { bank.close() }
         home.deleteRecursively()
     }

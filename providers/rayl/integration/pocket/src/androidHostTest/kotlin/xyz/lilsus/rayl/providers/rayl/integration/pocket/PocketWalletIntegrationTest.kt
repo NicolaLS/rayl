@@ -44,6 +44,7 @@ class PocketWalletIntegrationTest {
     fun disconnect() = runBlocking<Unit> {
         // Usually already disconnected by the test's last step; a second call is harmless.
         runCatching { pocket.disconnect() }
+        bank.reclaim(key.phrase, File(storage.parentFile, "reclaim"))
         runCatching { bank.close() }
         storage.parentFile.deleteRecursively()
     }

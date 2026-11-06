@@ -78,7 +78,36 @@ class RegtestBank private constructor(private val sdk: BreezSdk) {
         awaitBalance(wallet) { it >= start + sats }
     }
 
+    /**
+     * Sends everything a test wallet holds back to the bank, as a Spark transfer (no fee), so a
+     * test run costs only routing fees. Best effort: a test's result never depends on it.
+     */
+    suspend fun reclaim(mnemonic: String, storage: File) {
+        runCatching {
+            val wallet = connectWallet(mnemonic, storage)
+            try {
+                val balance = wallet.balanceSats()
+                if (balance <= 0) return@runCatching
+                val prepared = wallet.prepareSendPayment(
+                    PrepareSendPaymentRequest(
+                        paymentRequest = PaymentRequest.Input(sparkAddress()),
+                        amount = BigInteger.fromLong(balance),
+                        tokenIdentifier = null,
+                        conversionOptions = null,
+                        feePolicy = null
+                    )
+                )
+                wallet.sendPayment(SendPaymentRequest(prepared, null, UUID.randomUUID().toString()))
+            } finally {
+                wallet.disconnect()
+            }
+        }
+    }
+
     suspend fun close() = sdk.disconnect()
+
+    private suspend fun sparkAddress(): String =
+        sdk.receivePayment(ReceivePaymentRequest(ReceivePaymentMethod.SparkAddress)).paymentRequest
 
     companion object {
         /** Opens the bank. Integration tests run one at a time, so its storage is never shared. */
