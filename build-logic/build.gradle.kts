@@ -51,6 +51,10 @@ gradlePlugin {
             id = "xyz.lilsus.raylsuite.wallet.integration"
             implementationClass = "WalletIntegrationConventionPlugin"
         }
+        register("robolectric") {
+            id = "xyz.lilsus.raylsuite.robolectric"
+            implementationClass = "RobolectricConventionPlugin"
+        }
         register("pitest") {
             id = "xyz.lilsus.raylsuite.pitest"
             implementationClass = "PitestConventionPlugin"

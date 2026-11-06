@@ -28,7 +28,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                         jvmTarget.set(JvmTarget.JVM_11)
                     }
 
-                    withHostTest {}
+                    // Resources for the modules whose host tests run on Robolectric
+                    // (xyz.lilsus.raylsuite.robolectric). Host tests can be configured only once.
+                    withHostTest { isIncludeAndroidResources = true }
                 }
 
                 iosArm64()

@@ -1,5 +1,6 @@
 plugins {
     id("xyz.lilsus.raylsuite.kmp.compose")
+    id("xyz.lilsus.raylsuite.robolectric")
 }
 
 kotlin {
