@@ -26,8 +26,6 @@ jobs:
     name: Wallet integration (Breez regtest)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    env:
-      RAYL_REGTEST_HOME: ${{ runner.temp }}/regtest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -46,8 +44,9 @@ jobs:
         env:
           BANK_MNEMONIC: ${{ secrets.RAYL_REGTEST_BANK_MNEMONIC }}
         run: |
-          mkdir -p "$RAYL_REGTEST_HOME"
-          printf '%s' "$BANK_MNEMONIC" > "$RAYL_REGTEST_HOME/bank-mnemonic"
+          echo "RAYL_REGTEST_HOME=$RUNNER_TEMP/regtest" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/regtest"
+          printf '%s' "$BANK_MNEMONIC" > "$RUNNER_TEMP/regtest/bank-mnemonic"
 
       # An empty bank is an environment problem, not a test failure: say so separately.
       - name: Check the bank's balance
