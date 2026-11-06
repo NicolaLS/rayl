@@ -77,3 +77,62 @@ jobs:
           name: wallet-integration-reports
           path: '**/build/reports/tests/walletIntegrationTest/'
           retention-days: 14
+
+  ui-flows-android:
+    name: UI flows (Maestro, Android emulator, local NWC and Blink)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up and validate Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # The emulator needs hardware acceleration.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Start the local NWC and Blink stacks
+        run: |
+          tools/nwc-stack/bin/up
+          tools/blink-stack/bin/up
+
+      - name: Build the E2E app
+        run: ./gradlew :app:androidApp:assembleE2e
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      # The iOS flows need the same stacks, and GitHub's macOS runners have no Docker: they run
+      # locally before each release (qa/test-plan.md §6.8).
+      - name: Run the flows
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            adb install -r app/androidApp/build/outputs/apk/e2e/androidApp-e2e.apk
+            maestro test -e APP_ID=com.nicolasusca.rayl.e2e --format junit --output build/maestro/report.xml --test-output-dir build/maestro e2e/flows
+
+      - name: Keep the flow results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-flows-android
+          path: build/maestro/
+          retention-days: 14
