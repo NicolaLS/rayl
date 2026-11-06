@@ -38,12 +38,12 @@ stopping after any item leaves a working state.
 | 3b | Platform unit tests of Android-only logic: payment messages and `*PaymentStrings` (error text users see), `AmountFormatter.android`, connectivity, lifecycle, language | Each file has a test or a written reason why not | Done for the payment texts: every key of shared, Blink, NWC, Rayl and Spark payment text maps to its own resource with the same placeholders in en/de/es (`2cf912b5`). No test needed: `AmountFormatter.android` (only `java.text`, already run by the common tests on the JVM host). Connectivity: 3 tests (validated internet only; captive portal counts as offline). No test: `AppLifecycleObserver.android` (maps start/stop of the process lifecycle, nothing to decide); `PlatformLanguageRepository.android` (`AppCompatDelegate` stores no locale under Robolectric; choosing German is in the Maestro flow, going back to the device language is untested) |
 | 3c | Compose screen tests of the money screens: confirmation, amount entry, outcome and receipt, wallet removal | Amount, fee, confirmation and error shown correctly per state | Done: payment screen per state, 10 tests (`5d32945b`); Spark recovery and removal confirmation, 5 tests; Back to Rayl in Maestro. No defect found. Mutants (Pay sends Dismiss, unknown fee shown as 0, range guard dropped, Cancel removes the wallet) all fail |
 | **4** | **CI fixes** | | |
-| 4a | Android Lint in the PR gate (minSdk 24: API-level misuse crashes old phones) | Lint runs; findings fixed or baselined with a reason | |
-| 4b | Release build (`assembleRelease` without signing secrets) in the PR gate | Builds in CI | |
-| 4c | CI on `release/*` branches | Workflows trigger | |
-| 4d | Android device tests (12) on a CI emulator, nightly | Green in CI | |
-| 4e | iOS Keychain tests in an app-hosted XCTest target, nightly | Green in CI | |
-| **5** | **Field visibility**: Play native debug symbols (MOB-105), Play vitals and Xcode Organizer crash review one week after each release | 1.1's first review done | |
+| 4a | Android Lint in the PR gate (minSdk 24: API-level misuse crashes old phones) | Lint runs; findings fixed or baselined with a reason | Done (`b369d728`): app and every library module (`lintAndroidMain`), errors fail; 5 errors were modules lacking their own permission declarations (fixed); ignores with reasons in `lint.xml` |
+| 4b | Release build (`assembleRelease` without signing secrets) in the PR gate | Builds in CI | Done (`b369d728`): the E2E build (release config, debug signing, no secrets) in the PR gate |
+| 4c | CI on `release/*` branches | Workflows trigger | Done (`b369d728`) |
+| 4d | Android device tests (12) on a CI emulator, nightly | Green in CI | Nightly on API 24 and 34 (`0b322cfa`); 12/12 green locally |
+| 4e | iOS Keychain tests in an app-hosted XCTest target, nightly | Green in CI | Changed: the signed E2E app is the host, the Keychain Maestro flows run nightly on a simulator (`6d8fd279`). A Kotlin/Native test binary can't get the Keychain entitlement on the simulator, and a hand-made XCTest target in the Xcode project is fragile |
+| **5** | **Field visibility**: Play native debug symbols (MOB-105), Play vitals and Xcode Organizer crash review one week after each release | 1.1's first review done | MOB-105 fixed and closed (`d3b4beb2`): symbols in the bundle, NDK installed on the release Mac. Review checklist: `qa/checklists/field-review.md`. First review: one week after 1.1 reaches users |
 | **6** | **Stored data:** tests that open data written by 1.1 (settings, credentials, pocket key copy, Spark vault, Hub) with the current code | A format change fails a test | |
 
 Item 0 comes first only because it is time-critical and small. Everything else follows the order

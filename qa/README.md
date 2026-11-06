@@ -10,7 +10,7 @@ reports. Records here may cite spec IDs and risk IDs, but they are not Linked Sp
 | [product-risks.md](product-risks.md) | Product and project risk register (`PR-xx`, `PJ-xx`) that drives test depth |
 | [releases/1.1/](releases/1.1/) | 1.1: [release test plan](releases/1.1/release-test-plan.md) (scope cut and schedule), [status](releases/1.1/status.md) (work items, risk coverage, defects), [test log](releases/1.1/test-log.md) (executions), [wallet lifecycle traceability](releases/1.1/lifecycle-traceability.md), [test summary report](releases/1.1/test-summary-report.md) |
 | [projects/](projects/) | Test projects not tied to one release: [quality baseline](projects/quality-baseline/test-plan.md) (from 2026-11-06) |
-| [checklists/](checklists/) | [Smoke checklist](checklists/smoke.md) (store build, every RC), [release regression checklist](checklists/release-regression.md) (App Live, per minor release) and [mainnet acceptance protocol](checklists/mainnet-acceptance.md) (real money, per minor release) |
+| [checklists/](checklists/) | [Smoke checklist](checklists/smoke.md) (store build, every RC), [release regression checklist](checklists/release-regression.md) (App Live, per minor release) [mainnet acceptance protocol](checklists/mainnet-acceptance.md) (real money, per minor release) and [field review](checklists/field-review.md) (crashes and reviews, a week after each release) |
 | [stub-assumptions.md](stub-assumptions.md) | What the host tests' stubs assume about real systems, and how each assumption is verified |
 
 ## Where things live
