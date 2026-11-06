@@ -118,6 +118,7 @@ include(":feature:wallet-management")
 include(":integration:exchange-rate")
 include(":integration:lnurl")
 include(":backend:rayl")
+include(":tools:regtest")
 
 // The Nostr SDK behind the NWC provider; see nostr/README.md.
 include(
