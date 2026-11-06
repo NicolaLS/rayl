@@ -240,6 +240,31 @@ class PaymentFlowCoordinatorTest {
     }
 
     @Test
+    fun anInvoiceThatExpiresWhileTheConfirmationIsOpenIsNotSent() = flowTest {
+        // MOB-113: Breez moves the funds into a pending send before refusing an expired invoice.
+        scan(invoice(sats = 10_000, expirySeconds = 60))
+        assertIs<PaymentUiState.Confirm>(coordinator.uiState.value)
+
+        now += 61
+        dispatch(PaymentIntent.ConfirmPaymentSubmit)
+
+        assertEquals(0, settlement.settled.size)
+        assertIs<PaymentUiState.Error>(coordinator.uiState.value)
+    }
+
+    @Test
+    fun anInvoiceThatExpiresDuringAmountEntryIsNotSentToTheWallet() = flowTest {
+        scan(invoice(sats = null, expirySeconds = 60))
+
+        now += 61
+        listOf(1, 0, 0).forEach { dispatch(PaymentIntent.ManualAmountKeyPress(ManualAmountKey.Digit(it))) }
+        dispatch(PaymentIntent.ManualAmountSubmit)
+
+        assertEquals(0, settlement.prepared)
+        assertIs<PaymentUiState.Error>(coordinator.uiState.value)
+    }
+
+    @Test
     fun aHubPresetAlwaysAsksForConfirmationEvenBelowTheThreshold() = flowTest {
         // PR-02: a preset pays a stored amount to a saved recipient, so it is always reviewed.
         val alice = hubRepository.saveContact(assertNotNull(LightningAddress.parse("alice@example.com")), "Alice")
@@ -269,6 +294,9 @@ class PaymentFlowCoordinatorTest {
 
     private class Flow(val test: TestScope) {
         private val settings = MapSettings()
+
+        /** Unix seconds as the flow sees them; tests move it forward to let an invoice expire. */
+        var now = currentTimestampSeconds()
         val preferences = DefaultPaymentPreferencesRepository(settings)
         val settlement = RecordingSettlement()
         val hubRepository = DefaultPaymentHubRepository(settings)
@@ -281,7 +309,8 @@ class PaymentFlowCoordinatorTest {
             paymentPreferences = preferences,
             paymentHub = hub,
             haptics = NoHaptics,
-            coroutineContext = StandardTestDispatcher(test.testScheduler)
+            coroutineContext = StandardTestDispatcher(test.testScheduler),
+            nowSeconds = { now }
         )
         val testScheduler get() = test.testScheduler
 

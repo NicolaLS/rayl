@@ -1,5 +1,6 @@
 package xyz.lilsus.raylsuite.feature.paymentflow
 
+import fr.acinq.lightning.utils.currentTimestampSeconds
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +37,9 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
     paymentPreferences: PaymentPreferencesRepository,
     private val paymentHub: PaymentHubController,
     private val haptics: HapticFeedbackManager,
-    coroutineContext: CoroutineContext = Dispatchers.Main
+    coroutineContext: CoroutineContext = Dispatchers.Main,
+    /** Unix time in seconds, for invoice expiry; replaceable so tests can let an invoice expire. */
+    nowSeconds: () -> Long = { currentTimestampSeconds() }
 ) {
     private val scope = CoroutineScope(SupervisorJob() + coroutineContext)
     private val currencyManager = PaymentCurrencyManager(bitcoinPriceProvider, scope)
@@ -49,7 +52,8 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
             settlement = settlement,
             currencyManager = currencyManager,
             confirmationPolicy = PaymentConfirmationPolicy(paymentPreferences),
-            presentation = presentation
+            presentation = presentation,
+            nowSeconds = nowSeconds
         )
     private val admission =
         PaymentAdmissionPhase(
@@ -57,7 +61,8 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
             currencyManager = currencyManager,
             history = history,
             presentation = presentation,
-            notifyScanSuccess = ::notifyScanSuccess
+            notifyScanSuccess = ::notifyScanSuccess,
+            nowSeconds = nowSeconds
         )
     val uiState: StateFlow<PaymentUiState> = presentation.uiState
     val events: SharedFlow<PaymentEvent> = presentation.events

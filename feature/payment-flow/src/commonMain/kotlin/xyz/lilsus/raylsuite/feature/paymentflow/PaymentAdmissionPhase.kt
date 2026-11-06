@@ -1,7 +1,6 @@
 package xyz.lilsus.raylsuite.feature.paymentflow
 
 import fr.acinq.lightning.payment.Bolt11Invoice
-import fr.acinq.lightning.utils.currentTimestampSeconds
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
@@ -27,7 +26,8 @@ internal class PaymentAdmissionPhase(
     private val currencyManager: PaymentCurrencyManager,
     private val history: PaymentHistory,
     private val presentation: PaymentPresentationPhase,
-    private val notifyScanSuccess: () -> Unit
+    private val notifyScanSuccess: () -> Unit,
+    private val nowSeconds: () -> Long
 ) {
     private val preparation = PaymentPreparation(lnurlPayClient)
     private val inputParser = preparation.inputParser
@@ -487,7 +487,7 @@ internal class PaymentAdmissionPhase(
     }
 
     private fun rejectExpiredInvoice(invoice: Bolt11Invoice): Boolean {
-        if (!invoice.isExpired(currentTimestampSeconds())) return false
+        if (!invoice.isExpired(nowSeconds())) return false
         preparation.manualEntryContext = null
         presentation.presentError(PaymentUiError.InvalidInvoice("Invoice has expired"))
         return true

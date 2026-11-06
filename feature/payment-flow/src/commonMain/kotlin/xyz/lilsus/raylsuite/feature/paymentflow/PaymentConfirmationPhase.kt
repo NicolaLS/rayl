@@ -13,12 +13,15 @@ internal class PaymentConfirmationPhase<P : SettleablePayment>(
     private val settlement: PaymentSettlement<P>,
     private val currencyManager: PaymentCurrencyManager,
     private val confirmationPolicy: PaymentConfirmationPolicy,
-    private val presentation: PaymentPresentationPhase
+    private val presentation: PaymentPresentationPhase,
+    private val nowSeconds: () -> Long
 ) {
-    private var awaitingConfirmation: P? = null
+    private var awaitingConfirmation: AwaitingConfirmation<P>? = null
 
     suspend fun requestPayment(request: PreparedPayment): ConfirmationResult<P> {
         if (awaitingConfirmation != null) return ConfirmationResult.Presented
+        // Amount entry can outlive the invoice that admission checked.
+        if (rejectExpired(request)) return ConfirmationResult.Presented
         val amountMsats = request.amountOverrideMsats ?: request.invoice.amount?.msat
         if (request.paymentQuote != null && request.paymentQuote.amountMsats != amountMsats) {
             presentation.presentError(
@@ -50,7 +53,7 @@ internal class PaymentConfirmationPhase<P : SettleablePayment>(
 
         val display = confirmationAmount(amountMsats ?: 0L, request.paymentQuote)
         currentCoroutineContext().ensureActive()
-        awaitingConfirmation = prepared.payment
+        awaitingConfirmation = AwaitingConfirmation(prepared.payment, request)
         presentation.showConfirmation(
             amount = display,
             lnurlPayDisplay = request.lnurlPayDisplay,
@@ -59,8 +62,14 @@ internal class PaymentConfirmationPhase<P : SettleablePayment>(
         return ConfirmationResult.Presented
     }
 
-    fun submit(): ConfirmationResult<P> =
-        takeConfirmation()?.let { ConfirmationResult.Execute(it) } ?: ConfirmationResult.Presented
+    fun submit(): ConfirmationResult<P> {
+        val awaiting = takeConfirmation() ?: return ConfirmationResult.Presented
+        // The confirmation can stay open past the invoice's expiry. Breez still moves the funds
+        // into a pending send before refusing an expired invoice (MOB-113), so it must never
+        // reach the wallet.
+        if (rejectExpired(awaiting.request)) return ConfirmationResult.Presented
+        return ConfirmationResult.Execute(awaiting.payment)
+    }
 
     fun dismiss(): Boolean = takeConfirmation() != null
 
@@ -68,7 +77,16 @@ internal class PaymentConfirmationPhase<P : SettleablePayment>(
         awaitingConfirmation = null
     }
 
-    private fun takeConfirmation(): P? = awaitingConfirmation.also { awaitingConfirmation = null }
+    private fun takeConfirmation(): AwaitingConfirmation<P>? =
+        awaitingConfirmation.also { awaitingConfirmation = null }
+
+    private fun rejectExpired(request: PreparedPayment): Boolean {
+        if (!request.invoice.isExpired(nowSeconds())) return false
+        presentation.presentError(PaymentUiError.InvalidInvoice("Invoice has expired"))
+        return true
+    }
+
+    private class AwaitingConfirmation<P>(val payment: P, val request: PreparedPayment)
 
     private suspend fun confirmationAmount(
         amountMsats: Long,
