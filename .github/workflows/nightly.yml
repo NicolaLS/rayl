@@ -1,0 +1,72 @@
+name: Nightly
+
+# Tests against real wallet services in test networks (qa/test-plan.md §6.9). They need the
+# network and funded test wallets, so they never gate a pull request. Failures reach QA by
+# GitHub's e-mail.
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '21'
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+  push:
+    branches: ['release/**']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wallet-integration:
+    name: Wallet integration (Breez regtest)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      RAYL_REGTEST_HOME: ${{ runner.temp }}/regtest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up and validate Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # CI has its own regtest bank, funded from QA's, so local runs never compete for its funds.
+      - name: Open the CI regtest bank
+        env:
+          BANK_MNEMONIC: ${{ secrets.RAYL_REGTEST_BANK_MNEMONIC }}
+        run: |
+          mkdir -p "$RAYL_REGTEST_HOME"
+          printf '%s' "$BANK_MNEMONIC" > "$RAYL_REGTEST_HOME/bank-mnemonic"
+
+      # An empty bank is an environment problem, not a test failure: say so separately.
+      - name: Check the bank's balance
+        run: |
+          status="$(tools/regtest/regtest status)"
+          balance="$(printf '%s\n' "$status" | awk '/^Balance:/ {print $2}')"
+          echo "Regtest bank balance: ${balance:-unknown} sats"
+          if [ -z "$balance" ] || [ "$balance" -lt 5000 ]; then
+            echo "::error title=Regtest bank low::The CI regtest bank has ${balance:-no} sats; top it up (qa/test-plan.md §6.9)."
+            exit 1
+          fi
+
+      - name: Run the wallet integration tests
+        run: ./gradlew walletIntegrationTest --continue
+
+      - name: Keep the test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wallet-integration-reports
+          path: '**/build/reports/tests/walletIntegrationTest/'
+          retention-days: 14
