@@ -39,4 +39,19 @@ class PaymentProblemTest {
             ).paymentProblem()
         )
     }
+
+    @Test
+    fun aLostConnectionToBreezsServiceIsANetworkProblem() {
+        // Captured from Breez SDK 0.27.2 on Lightspark's hosted regtest. Unrecognised, a quote
+        // showed "Payment failed" with this text instead of the network message (MOB-112).
+        assertEquals(
+            PocketPaymentProblem.Network,
+            SdkException.SparkException(
+                "v1=Service error: service provider error: network error: Request error: error " +
+                    "sending request for url (https://api.lightspark.com/graphql/spark/rc) : client " +
+                    "error (SendRequest) : connection error : peer closed connection without " +
+                    "sending TLS close_notify"
+            ).paymentProblem()
+        )
+    }
 }

@@ -350,6 +350,11 @@ internal fun Exception.paymentProblem(): PocketPaymentProblem {
 
         "Failed to select leaves" in text -> PocketPaymentProblem.BalanceSettling
 
+        // A lost connection to Breez's service provider arrives as a SparkException, not as a
+        // NetworkException: "Service error: service provider error: network error: Request
+        // error: …" (MOB-112).
+        "network error" in text -> PocketPaymentProblem.Network
+
         else -> PocketPaymentProblem.Other
     }
 }
