@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Shared by the tools/blink-stack scripts. Blink's own quickstart (pinned below) runs the stack;
+# these scripts only fetch it, start it and create test users.
+
+STACK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORK_DIR="${STACK_DIR}/.work"
+QUICKSTART_DIR="${WORK_DIR}/vendor/blink-quickstart"
+
+# github.com/GaloyMoney/blink (Blink's public repository), quickstart/ at this commit. Bump deliberately: a newer quickstart
+# can change Blink's API under the tests.
+BLINK_REF="${BLINK_REF:-1525aff2e27c0f0fa6c83c5827845d81ddf3cac4}"
+
+export COMPOSE_PROJECT_NAME="${RAYL_BLINK_PROJECT:-rayl-blink}"
+export HOST_PROJECT_PATH="$WORK_DIR"
+export RAYL_BLINK_API_PORT="${RAYL_BLINK_API_PORT:-4475}"
+RAYL_BLINK_API_URL="http://127.0.0.1:${RAYL_BLINK_API_PORT}/graphql"
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "$1 is required" >&2
+    exit 127
+  fi
+}
+
+compose() {
+  (cd "$WORK_DIR" && docker compose -p "$COMPOSE_PROJECT_NAME" -f "$QUICKSTART_DIR/docker-compose.yml" \
+    -f "$STACK_DIR/compose.rayl.yml" "$@")
+}
+
+# One GraphQL request to the local Blink API. $1: bearer token or "", $2: query, $3: variables.
+graphql() {
+  local token="$1" query="$2" variables="${3:-{\}}"
+  local body
+  body="$(jq -n --arg query "$query" --argjson variables "$variables" '{query: $query, variables: $variables}')"
+  local auth=()
+  [[ -n "$token" ]] && auth=(-H "Authorization: Bearer $token")
+  curl -s -X POST "$RAYL_BLINK_API_URL" -H 'Content-Type: application/json' ${auth[@]+"${auth[@]}"} -d "$body"
+}
+
+lnd_outside() {
+  docker exec "${COMPOSE_PROJECT_NAME}-lnd-outside-1-1" lncli \
+    --macaroonpath /root/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
+    --tlscertpath /root/.lnd/tls.cert \
+    "$@"
+}

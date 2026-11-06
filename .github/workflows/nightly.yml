@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   wallet-integration:
-    name: Wallet integration (Breez regtest, local NWC)
+    name: Wallet integration (Breez regtest, local NWC and Blink)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -62,6 +62,10 @@ jobs:
       # Core Lightning with the NIP-47 plugin and a nostr relay, on regtest.
       - name: Start the local NWC stack
         run: tools/nwc-stack/bin/up
+
+      # Blink's own backend (its quickstart, pinned in tools/blink-stack/bin/_common) on regtest.
+      - name: Start the local Blink stack
+        run: tools/blink-stack/bin/up
 
       - name: Run the wallet integration tests
         run: ./gradlew walletIntegrationTest --continue

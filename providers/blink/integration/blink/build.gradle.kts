@@ -1,5 +1,6 @@
 plugins {
     id("xyz.lilsus.raylsuite.kmp.library")
+    id("xyz.lilsus.raylsuite.wallet.integration")
     alias(libs.plugins.apollo)
     alias(libs.plugins.kotlinSerialization)
 }

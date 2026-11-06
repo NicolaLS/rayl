@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# Test fixtures on the local Blink stack, for the Blink wallet integration tests. Prints JSON.
+#
+#   fixture user <sats> [scopes]       A new Blink user with an API key (default scopes
+#                                      READ,WRITE,RECEIVE), its BTC wallet funded with <sats>
+#                                      over Lightning from the outside node.
+#                                      -> {"apiKey","btcWalletId","usdWalletId"}
+#   fixture fund-usd <apiKey> <cents>  Funds the user's Stablesats (USD) wallet.
+#   fixture balance <apiKey>           -> {"btcSats","usdCents"}
+#   fixture invoice <sats> [expiry]    An invoice of the outside node (0 sats: amountless).
+#                                      -> {"paymentRequest","paymentHash"}
+#   fixture hold-invoice <sats>        A hold invoice; the payment stays pending until settled.
+#                                      -> {"paymentRequest","paymentHash","preimage"}
+#   fixture settle <preimage>          Settles a hold invoice.
+#   fixture cancel <paymentHash>       Cancels a hold invoice.
+#   fixture received <paymentHash>     -> {"state","paidSats"} of an outside-node invoice
+set -euo pipefail
+source "$(dirname "$0")/_common"
+
+fail() {
+  echo "fixture: $*" >&2
+  exit 1
+}
+
+api_key_graphql() {
+  local key="$1" query="$2" variables="${3:-{\}}"
+  jq -n --arg query "$query" --argjson variables "$variables" '{query: $query, variables: $variables}' |
+    curl -s -X POST "$RAYL_BLINK_API_URL" -H 'Content-Type: application/json' -H "X-API-KEY: $key" -d @-
+}
+
+balance() {
+  api_key_graphql "$1" 'query { me { defaultAccount { wallets { walletCurrency balance } } } }' |
+    jq -e -c '.data.me.defaultAccount.wallets
+      | {btcSats: (map(select(.walletCurrency == "BTC"))[0].balance),
+         usdCents: (map(select(.walletCurrency == "USD"))[0].balance)}'
+}
+
+# Pays an invoice of a Blink wallet from the outside node and waits until Blink credits it.
+pay_from_outside() {
+  local payment_request="$1"
+  lnd_outside payinvoice -f --pay_req "$payment_request" >/dev/null ||
+    fail "the outside node could not pay Blink"
+}
+
+new_user() {
+  local sats="$1" scopes="${2:-READ,WRITE,RECEIVE}"
+  local phone="+16505$(printf '%06d' $(((RANDOM * 32768 + RANDOM) % 1000000)))"
+  local token wallets btc usd key
+  token="$(graphql "" 'mutation ($input: UserLoginInput!) { userLogin(input: $input) { authToken } }' \
+    "$(jq -n --arg phone "$phone" '{input: {phone: $phone, code: "000000"}}')" |
+    jq -r '.data.userLogin.authToken // empty')"
+  [[ -n "$token" ]] || fail "login failed"
+  wallets="$(graphql "$token" 'query { me { defaultAccount { wallets { id walletCurrency } } } }')"
+  btc="$(jq -r '.data.me.defaultAccount.wallets[] | select(.walletCurrency == "BTC") | .id' <<<"$wallets")"
+  usd="$(jq -r '.data.me.defaultAccount.wallets[] | select(.walletCurrency == "USD") | .id' <<<"$wallets")"
+  key="$(graphql "$token" 'mutation ($input: ApiKeyCreateInput!) { apiKeyCreate(input: $input) { apiKeySecret } }' \
+    "$(jq -n --arg scopes "$scopes" '{input: {name: "rayl-test", scopes: ($scopes | split(","))}}')" |
+    jq -r '.data.apiKeyCreate.apiKeySecret // empty')"
+  [[ -n "$key" ]] || fail "API key creation failed"
+  if ((sats > 0)); then
+    local invoice=""
+    # Right after the stack starts, Blink sometimes refuses the first invoice; it's test setup.
+    for _ in 1 2 3 4 5; do
+      invoice="$(graphql "$token" 'mutation ($input: LnInvoiceCreateInput!) { lnInvoiceCreate(input: $input) { invoice { paymentRequest } errors { message } } }' \
+        "$(jq -n --arg wallet "$btc" --argjson sats "$sats" '{input: {walletId: $wallet, amount: $sats}}')" |
+        jq -r '.data.lnInvoiceCreate.invoice.paymentRequest // empty')"
+      [[ -n "$invoice" ]] && break
+      sleep 1
+    done
+    [[ -n "$invoice" ]] || fail "could not create the funding invoice"
+    pay_from_outside "$invoice"
+    await_btc_balance "$key" "$sats"
+  fi
+  jq -n -c --arg apiKey "$key" --arg btc "$btc" --arg usd "$usd" \
+    '{apiKey: $apiKey, btcWalletId: $btc, usdWalletId: $usd}'
+}
+
+await_btc_balance() {
+  local key="$1" sats="$2"
+  for _ in $(seq 1 30); do
+    [[ "$(balance "$key" | jq -r .btcSats)" -ge "$sats" ]] && return
+    sleep 1
+  done
+  fail "Blink did not credit $sats sats"
+}
+
+fund_usd() {
+  local key="$1" cents="$2" usd invoice
+  usd="$(api_key_graphql "$key" 'query { me { defaultAccount { wallets { id walletCurrency } } } }' |
+    jq -r '.data.me.defaultAccount.wallets[] | select(.walletCurrency == "USD") | .id')"
+  invoice="$(api_key_graphql "$key" 'mutation ($input: LnUsdInvoiceCreateInput!) { lnUsdInvoiceCreate(input: $input) { invoice { paymentRequest } errors { message } } }' \
+    "$(jq -n --arg wallet "$usd" --argjson cents "$cents" '{input: {walletId: $wallet, amount: $cents}}')" |
+    jq -r '.data.lnUsdInvoiceCreate.invoice.paymentRequest // empty')"
+  [[ -n "$invoice" ]] || fail "could not create the USD funding invoice"
+  pay_from_outside "$invoice"
+  for _ in $(seq 1 30); do
+    [[ "$(balance "$key" | jq -r .usdCents)" -ge "$cents" ]] && return
+    sleep 1
+  done
+  fail "Blink did not credit $cents cents"
+}
+
+case "${1:-}" in
+  user) new_user "${2:?sats}" "${3:-}" ;;
+  fund-usd) fund_usd "${2:?apiKey}" "${3:?cents}" && balance "$2" ;;
+  balance) balance "${2:?apiKey}" ;;
+  invoice)
+    args=(addinvoice --amt "${2:?sats}")
+    [[ -n "${3:-}" ]] && args+=(--expiry "$3")
+    lnd_outside "${args[@]}" | jq -c '{paymentRequest: .payment_request, paymentHash: .r_hash}'
+    ;;
+  hold-invoice)
+    preimage="$(openssl rand -hex 32)"
+    hash="$(printf '%s' "$preimage" | xxd -r -p | openssl dgst -sha256 -hex | awk '{print $NF}')"
+    lnd_outside addholdinvoice --amt "${2:?sats}" "$hash" |
+      jq -c --arg hash "$hash" --arg preimage "$preimage" \
+        '{paymentRequest: .payment_request, paymentHash: $hash, preimage: $preimage}'
+    ;;
+  settle) lnd_outside settleinvoice "${2:?preimage}" >/dev/null && echo '{}' ;;
+  cancel) lnd_outside cancelinvoice "${2:?paymentHash}" >/dev/null && echo '{}' ;;
+  received)
+    lnd_outside lookupinvoice "${2:?paymentHash}" | jq -c '{state: .state, paidSats: (.amt_paid_sat | tonumber)}'
+    ;;
+  *) sed -n '2,18p' "$0" >&2; exit 2 ;;
+esac

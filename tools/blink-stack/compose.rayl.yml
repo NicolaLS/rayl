@@ -1,0 +1,50 @@
+# Rayl's changes to Blink's quickstart: publish only Blink's API, on its own host port, so the
+# stack can't clash with other local services (or another Blink stack). Blink's scripts and
+# bin/fixture reach everything else with docker exec.
+services:
+  apollo-router:
+    ports: !reset []
+  oathkeeper:
+    ports: !override ["127.0.0.1:${RAYL_BLINK_API_PORT:-4475}:4455"]
+  kratos:
+    ports: !reset []
+  kratos-pg:
+    ports: !reset []
+  hydra:
+    ports: !reset []
+  notifications:
+    ports: !reset []
+  notifications-pg:
+    ports: !reset []
+  api-keys:
+    ports: !reset []
+  api-keys-pg:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  mongodb:
+    ports: !reset []
+  price:
+    ports: !reset []
+  price-history:
+    ports: !reset []
+  price-history-migrate:
+    ports: !reset []
+  bitcoind:
+    ports: !reset []
+  lnd1:
+    ports: !reset []
+  lnd-outside-1:
+    ports: !reset []
+  bria:
+    ports: !reset []
+  fulcrum:
+    ports: !reset []
+  lnurl-server:
+    ports: !reset []
+  stablesats:
+    ports: !reset []
+  otel-agent:
+    ports: !reset []
+  svix:
+    ports: !reset []
