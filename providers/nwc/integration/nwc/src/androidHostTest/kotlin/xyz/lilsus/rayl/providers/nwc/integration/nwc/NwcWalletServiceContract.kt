@@ -91,10 +91,11 @@ abstract class NwcWalletServiceContract(private val service: NwcWalletService) {
         // PR-17: the relay drops every connection (a restart, a network switch). The app stays in
         // the foreground, so nothing rebuilds the client; the next payment must still work.
         val wallet = connect()
+        val probe = connect()
         expectType<NwcPayOutcome.Settled>(wallet.pay(receiverInvoice(amountSats = 10)))
 
         relay("restart")
-        awaitRelay()
+        awaitRelay(probe)
         val invoice = receiverInvoice(amountSats = 100)
         val outcome = wallet.pay(invoice)
 
@@ -121,6 +122,7 @@ abstract class NwcWalletServiceContract(private val service: NwcWalletService) {
     @Test
     fun nothingIsReportedPaidWhileTheRelayIsDown() = runBlocking<Unit> {
         val wallet = connect()
+        val probe = connect()
         val invoice = receiverInvoice(amountSats = 100)
         try {
             relay("stop")
@@ -132,7 +134,7 @@ abstract class NwcWalletServiceContract(private val service: NwcWalletService) {
             println("Relay down: $outcome")
         } finally {
             relay("start")
-            awaitRelay()
+            awaitRelay(probe)
         }
     }
 
@@ -190,15 +192,17 @@ abstract class NwcWalletServiceContract(private val service: NwcWalletService) {
     }
 
     /**
-     * Waits until the relay and the wallet service answer again. Core Lightning's NIP-47 plugin
-     * doesn't reconnect to a restarted relay on its own, so it is restarted too; that's the test
-     * environment, not Rayl.
+     * Waits until the relay and the wallet service answer again, through [probe]: a connection
+     * made before the relay went away, like the one under test. A new connection isn't proof:
+     * Alby Hub subscribes new connections at once but re-subscribes existing ones later, and
+     * requests published before that are lost (the relay doesn't keep NWC events).
+     * Core Lightning's NIP-47 plugin doesn't reconnect to a restarted relay on its own, so it is
+     * restarted too; that's the test environment, not Rayl.
      */
-    private suspend fun awaitRelay() {
+    private suspend fun awaitRelay(probe: NwcWallet) {
         if (service.restartAfterRelayRestart) docker("restart", "$PROJECT-${service.container}-1")
-        repeat(30) {
-            val probe = runCatching { connect(label = "probe-${System.nanoTime()}") }.getOrNull()
-            if (probe?.pay(receiverInvoice(amountSats = 1)) is NwcPayOutcome.Settled) return
+        repeat(10) {
+            if (probe.pay(receiverInvoice(amountSats = 1)) is NwcPayOutcome.Settled) return
             delay(2_000)
         }
         error("The NWC stack didn't answer again after the relay restart")
