@@ -99,6 +99,22 @@ class NwcWalletIntegrationTest {
     }
 
     @Test
+    fun aWalletPaysAfterTheAppWasInTheBackground() = runBlocking<Unit> {
+        // PR-17: the client is released in the background and rebuilt on return (stale sockets
+        // after backgrounding once broke NWC on iOS). Payments must work after that cycle.
+        val wallet = connect()
+        expectType<NwcPayOutcome.Settled>(wallet.pay(receiverInvoice(amountSats = 10)))
+
+        wallet.onAppForegroundChanged(false)
+        delay(5_000)
+        wallet.onAppForegroundChanged(true)
+        val invoice = receiverInvoice(amountSats = 100)
+
+        expectType<NwcPayOutcome.Settled>(wallet.pay(invoice))
+        assertEquals(100_000, received(invoice))
+    }
+
+    @Test
     fun nothingIsReportedPaidWhileTheRelayIsDown() = runBlocking<Unit> {
         val wallet = connect()
         val invoice = receiverInvoice(amountSats = 100)

@@ -31,6 +31,7 @@ maestro test -e APP_ID=com.nicolasusca.rayl.e2e e2e/flows        # all flows (co
 | `settings/language-german` | S10: German texts and amount format through a payment |
 | `spark/corrupt-credential` | iOS Keychain: an unreadable Spark phrase is explained; removal asks, then starts over |
 | `spark/orphan-credential` | iOS Keychain: a leftover Spark phrase is never restored by itself |
+| `disruption/killed-during-payment` | The app killed while Blink's payment is held: not stuck after reopening, not paid twice on a rescan |
 
 The two `spark/` flows seed the iOS Keychain (`sparkFixture` launch argument, iosAppE2E only) and
 do nothing on Android. On iOS (simulator signing is needed: unsigned apps can't use the

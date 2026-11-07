@@ -1,0 +1,56 @@
+# PR-17, PR-03: the app is killed while a payment is under way (the receiver holds it, so it is
+# reliably in flight). After reopening, the app isn't stuck, and scanning the invoice again doesn't
+# pay a second time. The receiver's node and Blink's balance are the oracle.
+appId: ${APP_ID}
+tags:
+  - disruption
+  - blink
+---
+- runFlow: ../common/onboard.yaml
+- runFlow:
+    file: ../common/connect-blink.yaml
+    env:
+      FUNDED_SATS: "5000"
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: hold-invoice
+      SATS: "100"
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: await-held
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+- killApp
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: settle
+      PREIMAGE: ${output.invoice.preimage}
+# Reopened: back on the scan screen, not stuck in "Paying".
+- launchApp
+- extendedWaitUntil:
+    visible: "Point the camera.*"
+    timeout: 30000
+- launchApp:
+    arguments:
+      scan: ${output.invoice.bolt11}
+- extendedWaitUntil:
+    visible: "(Already Paid.*|Paid 100 sat)"
+    timeout: 30000
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: received
+      PAYMENT_HASH: ${output.invoice.paymentHash}
+      EXPECTED_SATS: "100"
+- runScript:
+    file: ../scripts/blink-stack.js
+    env:
+      ACTION: balance-paid-once
+      API_KEY: ${output.blinkApiKey}
+      BEFORE_SATS: "5000"
+      AMOUNT_SATS: "100"
