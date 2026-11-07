@@ -15,6 +15,7 @@ import io.github.nicolals.nwc.TransactionState
 import io.github.nicolals.nwc.WalletDiscovery
 import io.github.nicolals.nwc.WalletInfo
 import io.ktor.client.HttpClient
+import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
 import xyz.lilsus.raylsuite.core.network.createWebSocketHttpClient
 import xyz.lilsus.raylsuite.core.settings.SecureStringStore
@@ -114,7 +116,7 @@ fun interface NwcPayments {
     suspend fun payInvoice(invoice: String, amountMsats: Long?, paymentHash: String): NwcPayOutcome
 }
 
-private sealed interface NwcLookupOutcome {
+internal sealed interface NwcLookupOutcome {
     data class Settled(val preimage: String?, val feesPaidMsats: Long?) : NwcLookupOutcome
 
     data object Pending : NwcLookupOutcome
@@ -226,6 +228,7 @@ class NwcWallet internal constructor(
         if (!isNetworkAvailable()) {
             return NwcPayOutcome.DefinitelyNotSent("Network unavailable")
         }
+        val started = TimeSource.Monotonic.markNow()
         val activeClient = getOrCreateClient()
             ?: return NwcPayOutcome.DefinitelyNotSent("Wallet connection missing")
         return when (
@@ -245,7 +248,11 @@ class NwcWallet internal constructor(
             is NwcResult.Failure -> {
                 val outcome = result.error.toPayOutcome()
                 if (outcome is NwcPayOutcome.Uncertain) {
-                    awaitPaymentOutcome(paymentHash)
+                    awaitNwcPaymentOutcome(
+                        budgetMs = PAYMENT_OUTCOME_BUDGET_MS -
+                            started.elapsedNow().inWholeMilliseconds,
+                        lookup = { lookupInvoice(paymentHash) }
+                    )
                 } else {
                     outcome
                 }
@@ -332,29 +339,41 @@ class NwcWallet internal constructor(
             httpClient = httpClient,
             cachedWalletInfo = metadata.toWalletInfo()
         )
+}
 
-    private suspend fun awaitPaymentOutcome(paymentHash: String): NwcPayOutcome {
-        var observedPending = false
-        while (true) {
-            when (val outcome = lookupInvoice(paymentHash)) {
-                is NwcLookupOutcome.Settled ->
-                    return NwcPayOutcome.Settled(outcome.preimage, outcome.feesPaidMsats)
+/**
+ * Looks the payment up until the wallet reports a final state, for at most [budgetMs]. A wallet
+ * may report a stuck payment as pending for hours; Rayl then shows the outcome as unknown rather
+ * than keep the user on "Paying" (MOB-9). Nothing is resubmitted either way.
+ */
+internal suspend fun awaitNwcPaymentOutcome(
+    budgetMs: Long,
+    lookup: suspend () -> NwcLookupOutcome
+): NwcPayOutcome = withTimeoutOrNull(budgetMs.coerceAtLeast(0)) { lookUpUntilFinal(lookup) }
+    // No detail: the shown message is the translated "status unknown" text alone.
+    ?: NwcPayOutcome.Uncertain(detail = null)
 
-                NwcLookupOutcome.Failed -> {
-                    // Hash lookup may return an earlier failed attempt after a lost send response.
-                    return if (observedPending) {
-                        NwcPayOutcome.WalletRejected("LOOKUP_FAILED", "Payment failed")
-                    } else {
-                        NwcPayOutcome.Uncertain("The submitted payment could not be confirmed")
-                    }
+private suspend fun lookUpUntilFinal(lookup: suspend () -> NwcLookupOutcome): NwcPayOutcome {
+    var observedPending = false
+    while (true) {
+        when (val outcome = lookup()) {
+            is NwcLookupOutcome.Settled ->
+                return NwcPayOutcome.Settled(outcome.preimage, outcome.feesPaidMsats)
+
+            NwcLookupOutcome.Failed -> {
+                // Hash lookup may return an earlier failed attempt after a lost send response.
+                return if (observedPending) {
+                    NwcPayOutcome.WalletRejected("LOOKUP_FAILED", "Payment failed")
+                } else {
+                    NwcPayOutcome.Uncertain("The submitted payment could not be confirmed")
                 }
-
-                is NwcLookupOutcome.Unavailable -> return NwcPayOutcome.Uncertain(outcome.detail)
-
-                NwcLookupOutcome.Pending -> observedPending = true
             }
-            delay(PAYMENT_STATUS_POLL_INTERVAL_MS)
+
+            is NwcLookupOutcome.Unavailable -> return NwcPayOutcome.Uncertain(outcome.detail)
+
+            NwcLookupOutcome.Pending -> observedPending = true
         }
+        delay(PAYMENT_STATUS_POLL_INTERVAL_MS)
     }
 }
 
@@ -516,3 +535,9 @@ private const val REQUIRED_LOOKUP_METHOD = "lookup_invoice"
 private const val PAY_RESPONSE_TIMEOUT_MS = 15_000L
 private const val LOOKUP_TIMEOUT_MS = 10_000L
 private const val PAYMENT_STATUS_POLL_INTERVAL_MS = 2_000L
+
+/**
+ * From sending a payment to showing its outcome, lookups included (MOB-9). A user who waits
+ * longer assumes the app is stuck and restarts it.
+ */
+private const val PAYMENT_OUTCOME_BUDGET_MS = 30_000L
