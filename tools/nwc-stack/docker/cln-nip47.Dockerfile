@@ -1,7 +1,7 @@
 ARG CLN_IMAGE=elementsproject/lightningd:v25.12.1
 FROM ${CLN_IMAGE} AS cln-nip47
 
-ARG CLN_NIP47_VERSION=v0.1.9
+ARG CLN_NIP47_VERSION=v0.2.2
 # Set by BuildKit to the build platform (arm64 on Apple silicon, amd64 in CI).
 ARG TARGETARCH
 

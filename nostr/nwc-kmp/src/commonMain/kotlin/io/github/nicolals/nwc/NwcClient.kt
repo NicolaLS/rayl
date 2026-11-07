@@ -997,7 +997,12 @@ class NwcClient private constructor(
         val responseId = responseEvent.responseId
 
         scope.launch {
-            if (responseId == null) {
+            // The `e` tag names the request. NIP-47 defines `d` only for multi_* replies, but some
+            // wallets add one to single replies too (cln-nip47 does on pay_invoice errors), so a
+            // reply to a pending single request completes it whatever `d` says (MOB-115).
+            val answersSingleRequest =
+                pendingMutex.withLock { pendingRequests.containsKey(requestId) }
+            if (responseId == null || answersSingleRequest) {
                 val pending = pendingMutex.withLock {
                     val candidate = pendingRequests[requestId]
                     if (

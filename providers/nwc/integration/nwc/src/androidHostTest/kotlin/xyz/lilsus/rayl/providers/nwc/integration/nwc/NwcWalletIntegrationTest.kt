@@ -132,6 +132,49 @@ class NwcWalletIntegrationTest {
         }
     }
 
+    @Test
+    fun paysTheAmountEnteredForAnAmountlessInvoice() = runBlocking<Unit> {
+        // PR-01: an amountless invoice pays exactly what the user entered.
+        val wallet = connect()
+        val invoice = receiverInvoice(amountSats = null)
+
+        expectType<NwcPayOutcome.Settled>(wallet.pay(invoice, amountMsats = 150_000))
+
+        assertEquals(150_000, received(invoice))
+    }
+
+    @Test
+    fun aPaymentTheWalletCannotRouteIsRefusedDefinitely() = runBlocking<Unit> {
+        // More than the payer's channel holds; the connection's budget allows it.
+        val wallet = connect(budgetSats = 10_000_000)
+        val invoice = receiverInvoice(amountSats = 2_000_000)
+
+        expectType<NwcPayOutcome.WalletRejected>(wallet.pay(invoice))
+        assertEquals(0, received(invoice))
+    }
+
+    @Test
+    fun aPaymentAboveTheConnectionsBudgetIsRefusedDefinitely() = runBlocking<Unit> {
+        // NWC connections usually carry a spending budget; going over it is a common refusal.
+        val wallet = connect(budgetSats = 50)
+        val invoice = receiverInvoice(amountSats = 100)
+
+        val refused = expectType<NwcPayOutcome.WalletRejected>(wallet.pay(invoice))
+
+        assertEquals("QUOTA_EXCEEDED", refused.code)
+        assertEquals(0, received(invoice))
+    }
+
+    @Test
+    fun anExpiredInvoiceIsRefusedDefinitely() = runBlocking<Unit> {
+        val wallet = connect()
+        val invoice = receiverInvoice(amountSats = 100, expirySecs = 1)
+        delay(3_000)
+
+        expectType<NwcPayOutcome.WalletRejected>(wallet.pay(invoice))
+        assertEquals(0, received(invoice))
+    }
+
     private fun relay(command: String) = docker(command, "$PROJECT-nostr-1")
 
     private fun docker(command: String, container: String) {

@@ -25,7 +25,7 @@ maestro test -e APP_ID=com.nicolasusca.rayl.e2e e2e/flows        # all flows (co
 | `nwc/confirm-above-threshold` | S6: confirmation above the threshold; dismissing pays nothing |
 | `nwc/expired-invoice` | An expired invoice is refused before the wallet; nothing paid |
 | `blink/pay` | S8: the receiver gets the amount; Blink's balance drops by amount + the fee shown |
-| `blink/amountless-invoice` | The amount entered is what arrives (not NWC: MOB-115) |
+| `blink/amountless-invoice` | The amount entered is what arrives (NWC: in the wallet integration tests) |
 | `blink/insufficient-balance` | An empty wallet: a clear message, nothing paid |
 | `wallet/back-to-rayl` | S9: back to Rayl's wallet, also after a restart; the NWC credentials are gone |
 | `settings/language-german` | S10: German texts and amount format through a payment |

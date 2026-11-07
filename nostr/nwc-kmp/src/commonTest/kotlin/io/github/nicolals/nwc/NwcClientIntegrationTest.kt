@@ -34,6 +34,7 @@ import io.github.nicolals.nostr.nip47.event.NwcRequestEvent
 import io.github.nicolals.nostr.nip47.event.NwcResponseEvent
 import io.github.nicolals.nostr.nip47.model.NwcBalanceResult
 import io.github.nicolals.nostr.nip47.model.NwcEncryption
+import io.github.nicolals.nostr.nip47.model.NwcError as NwcResponseError
 import io.github.nicolals.nostr.nip47.model.NwcPayResult
 import io.github.nicolals.nostr.nip47.model.NwcPaymentReceivedNotification
 import io.github.nicolals.nostr.nip47.model.NwcResponse
@@ -43,6 +44,7 @@ import io.github.nicolals.nostr.nip47.model.NwcUnknownResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -178,6 +180,44 @@ class NwcClientIntegrationTest {
             relay.deliver(correct)
             runCurrent()
             assertEquals(200L, next.await().getOrThrow().msats)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun aRefusalWithAnExtraDTagStillReachesThePayment() = runTest {
+        // cln-nip47 tags its pay_invoice error replies with `d`, which NIP-47 defines only for
+        // multi_* replies. The refusal used to be dropped, so Rayl showed "outcome unknown".
+        val factory = TestRelayFactory(codec)
+        val client = NwcClient(uri, backgroundScope, transportFactory = factory, cachedWalletInfo = walletInfo)
+        try {
+            runCurrent()
+            val relay = factory.connections.single()
+            val payment = async { client.payInvoice("lnbcrt1invoice", verifyOnTimeout = false) }
+            runCurrent()
+            val request = relay.publications.last()
+            relay.ack(request)
+            relay.deliver(
+                walletSigner.sign(
+                    NwcResponseEvent.template(
+                        clientPubkey = clientSigner.pubkey,
+                        response = NwcResponse(
+                            "pay_invoice",
+                            error = NwcResponseError("QUOTA_EXCEEDED", "Budget exceeded")
+                        ),
+                        createdAt = UnixTimeSeconds.now(),
+                        codec = codec,
+                        cipher = walletCipher,
+                        requestEventId = request.id,
+                        responseId = "payment-hash"
+                    ).getOrThrow()
+                ).getOrThrow().event
+            )
+            runCurrent()
+
+            val error = assertIs<NwcError.WalletError>(payment.await().errorOrNull())
+            assertEquals(NwcErrorCode.QUOTA_EXCEEDED, error.code)
         } finally {
             client.close()
         }

@@ -30,7 +30,7 @@ services:
       target: cln-nip47
       args:
         CLN_IMAGE: ${RAYL_NWC_CLN_BASE_IMAGE:-elementsproject/lightningd:v25.12.1}
-        CLN_NIP47_VERSION: ${RAYL_NWC_CLN_NIP47_VERSION:-v0.1.9}
+        CLN_NIP47_VERSION: ${RAYL_NWC_CLN_NIP47_VERSION:-v0.2.2}
     image: ${RAYL_NWC_CLN_IMAGE:-rayl-nwc-cln-nip47:v25.12.1-nip47}
     entrypoint: ["lightningd"]
     command:
@@ -61,7 +61,7 @@ services:
       target: cln-nip47
       args:
         CLN_IMAGE: ${RAYL_NWC_CLN_BASE_IMAGE:-elementsproject/lightningd:v25.12.1}
-        CLN_NIP47_VERSION: ${RAYL_NWC_CLN_NIP47_VERSION:-v0.1.9}
+        CLN_NIP47_VERSION: ${RAYL_NWC_CLN_NIP47_VERSION:-v0.2.2}
     image: ${RAYL_NWC_CLN_IMAGE:-rayl-nwc-cln-nip47:v25.12.1-nip47}
     entrypoint: ["lightningd"]
     command:
@@ -92,7 +92,7 @@ services:
       target: helper
       args:
         CLN_IMAGE: ${RAYL_NWC_CLN_BASE_IMAGE:-elementsproject/lightningd:v25.12.1}
-        CLN_NIP47_VERSION: ${RAYL_NWC_CLN_NIP47_VERSION:-v0.1.9}
+        CLN_NIP47_VERSION: ${RAYL_NWC_CLN_NIP47_VERSION:-v0.2.2}
     image: ${RAYL_NWC_HELPER_IMAGE:-rayl-nwc-helper:local}
     environment:
       RAYL_NWC_PUBLIC_RELAY_URL: ${RAYL_NWC_PUBLIC_RELAY_URL:-ws://127.0.0.1:8081}

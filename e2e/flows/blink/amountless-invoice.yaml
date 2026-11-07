@@ -1,5 +1,5 @@
 # An invoice without an amount, paid from Blink: the amount entered is what the receiver gets.
-# (Not with NWC: Core Lightning's NIP-47 plugin doesn't pay these, MOB-115.)
+# (NWC's amountless case is covered by NwcWalletIntegrationTest.)
 appId: ${APP_ID}
 tags:
   - blink
