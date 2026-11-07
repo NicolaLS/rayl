@@ -1,7 +1,12 @@
 package xyz.lilsus.rayl.providers.blink.integration.blink
 
 import java.io.File
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.Socket
+import java.net.URI
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -170,7 +175,31 @@ class BlinkWalletIntegrationTest {
         assertTrue(usdBalance(user) < 500, "The USD wallet paid nothing")
     }
 
-    private suspend fun connect(user: User): BlinkWallet {
+    @Test
+    fun aPaymentWhoseReplyIsLostIsReportedAsUnknownAndIsNotPaidTwice() = runBlocking<Unit> {
+        // PR-04, PR-03: the request reaches Blink and Blink pays, but the answer never arrives
+        // (a dropped connection on the way back). "Failed" would invite paying again elsewhere.
+        val user = newUser(fundedSats = 1_000)
+        ReplyDroppingProxy(URI(apiUrl).port).use { proxy ->
+            val wallet = connect(user, apiUrl = "http://127.0.0.1:${proxy.port}/graphql")
+            val invoice = outsideInvoice(sats = 100)
+
+            proxy.dropReplies = true
+            val outcome = wallet.pay(invoice.request)
+
+            assertIs<BlinkPaymentOutcome.StatusUnknown>(outcome)
+            assertEquals(100, received(invoice))
+
+            proxy.dropReplies = false
+            val second = wallet.pay(invoice.request)
+
+            assertIs<BlinkPaymentOutcome.AlreadyPaid>(second)
+            assertEquals(100, received(invoice))
+            awaitBtcBalanceAtMost(user, 900)
+        }
+    }
+
+    private suspend fun connect(user: User, apiUrl: String = Companion.apiUrl): BlinkWallet {
         val wallet = BlinkWallet(
             apiClient = BlinkApiClient(BlinkApiClient.createBlinkApolloClient(apiUrl)),
             credentialStore = BlinkCredentialStore(TestSecureStringStore()),
@@ -234,6 +263,52 @@ class BlinkWalletIntegrationTest {
             delay(1_000)
         }
         assertEquals(expected, btcBalance(user), "Blink's balance")
+    }
+
+    /** Paid once: the balance went down by the amount and fee, not by twice that. */
+    private suspend fun awaitBtcBalanceAtMost(user: User, max: Long) {
+        val balance = btcBalance(user)
+        assertTrue(balance in (max - 50)..max, "Blink's balance is $balance, expected about $max")
+    }
+
+    /**
+     * Sits between Rayl and Blink. While [dropReplies] is set it still forwards every request to
+     * Blink, but discards Blink's answer and closes the connection instead.
+     */
+    private class ReplyDroppingProxy(private val upstreamPort: Int) : AutoCloseable {
+        @Volatile
+        var dropReplies = false
+        private val server = ServerSocket(0, 50, InetAddress.getLoopbackAddress())
+        val port: Int get() = server.localPort
+
+        init {
+            thread(isDaemon = true) {
+                while (!server.isClosed) {
+                    val client = runCatching { server.accept() }.getOrNull() ?: break
+                    thread(isDaemon = true) { relay(client) }
+                }
+            }
+        }
+
+        private fun relay(client: Socket) {
+            val upstream = Socket(InetAddress.getLoopbackAddress(), upstreamPort)
+            thread(isDaemon = true) {
+                runCatching { client.getInputStream().copyTo(upstream.getOutputStream()) }
+            }
+            runCatching {
+                val buffer = ByteArray(8_192)
+                val replies = upstream.getInputStream()
+                while (true) {
+                    val read = replies.read(buffer)
+                    if (read < 0 || dropReplies) break
+                    client.getOutputStream().write(buffer, 0, read)
+                }
+            }
+            client.close()
+            upstream.close()
+        }
+
+        override fun close() = server.close()
     }
 
     private fun JsonObject.toInvoice() = Invoice(

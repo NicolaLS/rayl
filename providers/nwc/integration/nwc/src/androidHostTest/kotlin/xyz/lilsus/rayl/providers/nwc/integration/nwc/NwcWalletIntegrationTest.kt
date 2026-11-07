@@ -82,6 +82,65 @@ class NwcWalletIntegrationTest {
         assertTrue(outcomes.all { it is NwcPayOutcome.Settled }, "Outcomes: $outcomes")
     }
 
+    @Test
+    fun aWalletWhoseRelayRestartedStillPays() = runBlocking<Unit> {
+        // PR-17: the relay drops every connection (a restart, a network switch). The app stays in
+        // the foreground, so nothing rebuilds the client; the next payment must still work.
+        val wallet = connect()
+        expectType<NwcPayOutcome.Settled>(wallet.pay(receiverInvoice(amountSats = 10)))
+
+        relay("restart")
+        awaitRelay()
+        val invoice = receiverInvoice(amountSats = 100)
+        val outcome = wallet.pay(invoice)
+
+        expectType<NwcPayOutcome.Settled>(outcome)
+        assertEquals(100_000, received(invoice))
+    }
+
+    @Test
+    fun nothingIsReportedPaidWhileTheRelayIsDown() = runBlocking<Unit> {
+        val wallet = connect()
+        val invoice = receiverInvoice(amountSats = 100)
+        try {
+            relay("stop")
+
+            val outcome = wallet.pay(invoice)
+
+            assertTrue(outcome !is NwcPayOutcome.Settled, "Was $outcome")
+            assertEquals(0, received(invoice))
+            println("Relay down: $outcome")
+        } finally {
+            relay("start")
+            awaitRelay()
+        }
+    }
+
+    private fun relay(command: String) = docker(command, "$PROJECT-nostr-1")
+
+    private fun docker(command: String, container: String) {
+        val process = ProcessBuilder("docker", command, container)
+            .redirectErrorStream(true)
+            .start()
+        val output = process.inputStream.bufferedReader().readText()
+        check(process.waitFor() == 0) { "docker $command failed: $output" }
+    }
+
+    /**
+     * Waits until the relay and the wallet service answer again. The service (Core Lightning's
+     * NIP-47 plugin) doesn't reconnect to a restarted relay on its own, so it is restarted too;
+     * that's the test environment, not Rayl.
+     */
+    private suspend fun awaitRelay() {
+        docker("restart", "$PROJECT-payer-1")
+        repeat(30) {
+            val probe = runCatching { connect(label = "probe-${System.nanoTime()}") }.getOrNull()
+            if (probe?.pay(receiverInvoice(amountSats = 1)) is NwcPayOutcome.Settled) return
+            delay(2_000)
+        }
+        error("The NWC stack didn't answer again after the relay restart")
+    }
+
     /** A new NWC connection to the payer node, connected the way the app connects a pasted URI. */
     private suspend fun connect(
         budgetSats: Long = 100_000,
@@ -163,6 +222,7 @@ class NwcWalletIntegrationTest {
 
     private companion object {
         val HELPER = System.getenv("TEST_WALLET_SERVICE_URL") ?: "http://127.0.0.1:8082"
+        val PROJECT = System.getenv("RAYL_NWC_PROJECT") ?: "rayl-nwc"
         val http: HttpClient = HttpClient.newHttpClient()
     }
 }
