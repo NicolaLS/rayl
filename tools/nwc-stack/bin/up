@@ -198,6 +198,98 @@ if ! channel_ready receiver "$payer_id"; then
   wait_for "receiver channel ready" 60 channel_ready receiver "$payer_id"
 fi
 
+# Alby Hub: set up headlessly (the same steps as its first-run screens), fund its on-chain wallet
+# and open a channel to the receiver, like the payer node's.
+albyhub_url="http://${RAYL_NWC_BIND_HOST}:${RAYL_NWC_ALBYHUB_PORT}"
+
+albyhub_info() {
+  curl --fail --silent "${albyhub_url}/api/info"
+}
+
+albyhub_running() {
+  albyhub_info | jq -e '.running == true' >/dev/null
+}
+
+albyhub_post() {
+  local path="$1"
+  local body="$2"
+  shift 2
+  curl --fail --silent --show-error -X POST "${albyhub_url}${path}" \
+    -H 'content-type: application/json' "$@" -d "$body"
+}
+
+# Unlocking is rate limited (about once a second), so retry.
+albyhub_token() {
+  local body
+  body="$(jq -nc --arg p "$RAYL_NWC_ALBYHUB_PASSWORD" '{unlockPassword: $p, permission: "full"}')"
+  for _ in $(seq 1 10); do
+    if albyhub_post /api/unlock "$body" 2>/dev/null | jq -er '.token'; then
+      return
+    fi
+    sleep 1.1
+  done
+  echo "Could not unlock Alby Hub." >&2
+  return 1
+}
+
+albyhub_get() {
+  curl --fail --silent --show-error "${albyhub_url}$1" -H "authorization: Bearer ${albyhub_jwt}"
+}
+
+albyhub_has_spendable_funds() {
+  albyhub_post /api/wallet/sync '{}' -H "authorization: Bearer ${albyhub_jwt}" >/dev/null 2>&1 || true
+  albyhub_get /api/balances | jq -e '.onchain.spendableSat > 0' >/dev/null
+}
+
+albyhub_channel_active() {
+  albyhub_get /api/channels | jq -e --arg id "$1" 'any(.[]; .remotePubkey == $id and .active)' >/dev/null
+}
+
+albyhub_has_channel() {
+  albyhub_get /api/channels | jq -e --arg id "$1" 'any(.[]; .remotePubkey == $id)' >/dev/null
+}
+
+echo "Setting up Alby Hub..."
+wait_for "Alby Hub API" 90 albyhub_info
+password_body="$(jq -nc --arg p "$RAYL_NWC_ALBYHUB_PASSWORD" '{unlockPassword: $p}')"
+if ! albyhub_info | jq -e '.setupCompleted' >/dev/null; then
+  albyhub_post /api/setup "$(jq -nc --arg p "$RAYL_NWC_ALBYHUB_PASSWORD" '{backendType: "LDK", unlockPassword: $p}')" >/dev/null
+  sleep 1.1
+fi
+if ! albyhub_running; then
+  # With AUTO_UNLOCK_PASSWORD a restarted Hub starts by itself; a new one needs this once.
+  albyhub_post /api/start "$password_body" >/dev/null 2>&1 || true
+fi
+wait_for "Alby Hub node" 180 albyhub_running
+albyhub_jwt="$(albyhub_token)"
+
+if ! albyhub_channel_active "$receiver_id"; then
+  if ! albyhub_has_channel "$receiver_id"; then
+    if ! albyhub_has_spendable_funds; then
+      echo "Funding Alby Hub's wallet..."
+      address="$(albyhub_post /api/wallet/new-address '{}' -H "authorization: Bearer ${albyhub_jwt}" | jq -r '.')"
+      btc_cli -rpcwallet=rayl sendtoaddress "$address" 0.02 >/dev/null
+      mine_blocks 6
+      wait_for "Alby Hub confirmed funds" 120 albyhub_has_spendable_funds
+    fi
+    echo "Opening Alby Hub -> receiver channel..."
+    albyhub_post /api/peers \
+      "$(jq -nc --arg id "$receiver_id" '{pubkey: $id, address: "receiver", port: 9735}')" \
+      -H "authorization: Bearer ${albyhub_jwt}" >/dev/null
+    albyhub_post /api/channels \
+      "$(jq -nc --arg id "$receiver_id" '{pubkey: $id, amountSats: 1000000, public: false}')" \
+      -H "authorization: Bearer ${albyhub_jwt}" >/dev/null
+  fi
+  mine_blocks 6
+  # Alby Hub's node polls bitcoind; a block now and then makes it notice the confirmations.
+  for _ in $(seq 1 40); do
+    albyhub_channel_active "$receiver_id" && break
+    sleep 3
+    mine_blocks 1
+  done
+  wait_for "Alby Hub channel active" 30 albyhub_channel_active "$receiver_id"
+fi
+
 echo "Waiting for helper API..."
 wait_for "helper API" 60 curl --fail --silent "$(helper_url)/health"
 
@@ -211,6 +303,10 @@ Wallet integration tests:
 
 Helper API:
   $(helper_url)
+  NWC connection: GET /get-nwc-uri?node=payer (cln-nip47) or ?node=albyhub (Alby Hub)
+
+Alby Hub (password ${RAYL_NWC_ALBYHUB_PASSWORD}):
+  ${albyhub_url}
 
 Relay URLs:
   Host/iOS: ${RAYL_NWC_PUBLIC_RELAY_URL}

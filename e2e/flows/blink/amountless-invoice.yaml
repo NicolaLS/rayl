@@ -1,5 +1,5 @@
 # An invoice without an amount, paid from Blink: the amount entered is what the receiver gets.
-# (NWC's amountless case is covered by NwcWalletIntegrationTest.)
+# (NWC's amountless case is covered by NwcWalletServiceContract, on cln-nip47 and Alby Hub.)
 appId: ${APP_ID}
 tags:
   - blink

@@ -3,6 +3,9 @@ import json
 import os
 import subprocess
 import time
+import threading
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -14,6 +17,16 @@ NODES = {
     "payer": "/cln/payer",
     "receiver": "/cln/receiver",
 }
+# Alby Hub, the second NWC wallet service that can pay (node "albyhub").
+ALBYHUB_URL = os.environ.get("RAYL_NWC_ALBYHUB_URL", "http://albyhub:8080")
+ALBYHUB_PASSWORD = os.environ.get("RAYL_NWC_ALBYHUB_PASSWORD", "rayl-regtest")
+ALBYHUB_SCOPES = ["pay_invoice", "lookup_invoice", "get_info", "get_balance", "list_transactions"]
+ALBYHUB_LOCK = threading.Lock()
+# Alby Hub keeps one relay subscription per connection, and nostr-rs-relay allows 32 per client
+# connection (fixed in 0.9.0). Every test creates a connection, so older test connections are
+# deleted to stay well below that. Only connections this helper created are touched.
+ALBYHUB_APP_PREFIX = "rayl-test:"
+ALBYHUB_KEEP_APPS = 20
 
 
 class RequestError(Exception):
@@ -111,6 +124,58 @@ def create_or_get_nwc_uri(node, label, budget_msat, budget_interval):
     if not uri:
         raise RequestError(502, f"nip47-create returned no URI for label '{label}'", created)
     return rewrite_nwc_relay(uri, PUBLIC_RELAY_URL)
+
+
+def albyhub(method, path, body=None, token=None, timeout=30):
+    """One Alby Hub API call. Unlocking and creating apps are rate limited to about one per
+    second for all callers, so a 429 is retried."""
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    for _ in range(20):
+        request = urllib.request.Request(f"{ALBYHUB_URL}{path}", data=data, method=method)
+        request.add_header("content-type", "application/json")
+        if token:
+            request.add_header("authorization", f"Bearer {token}")
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                raw = response.read().decode("utf-8")
+                return json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")
+            if exc.code == 429:
+                time.sleep(1.1)
+                continue
+            raise RequestError(502, f"Alby Hub {method} {path} answered {exc.code}", detail) from exc
+        except urllib.error.URLError as exc:
+            raise RequestError(502, f"Alby Hub is not reachable: {exc.reason}") from exc
+    raise RequestError(502, f"Alby Hub {method} {path} stayed rate limited")
+
+
+def create_albyhub_nwc_uri(label, budget_msat):
+    with ALBYHUB_LOCK:
+        token = albyhub(
+            "POST", "/api/unlock", {"unlockPassword": ALBYHUB_PASSWORD, "permission": "full"}
+        )["token"]
+        prune_albyhub_apps(token)
+        created = albyhub("POST", "/api/apps", {
+            "name": f"{ALBYHUB_APP_PREFIX}{label}",
+            "maxAmountSat": int(budget_msat) // 1000,
+            "budgetRenewal": "never",
+            "scopes": ALBYHUB_SCOPES,
+        }, token=token)
+    uri = created.get("pairingUri", "")
+    if not uri:
+        raise RequestError(502, "Alby Hub returned no pairing URI", created)
+    return rewrite_nwc_relay(uri, PUBLIC_RELAY_URL)
+
+
+def prune_albyhub_apps(token):
+    listed = albyhub("GET", "/api/apps?limit=500", token=token).get("apps", [])
+    ours = sorted(
+        (app for app in listed if app.get("name", "").startswith(ALBYHUB_APP_PREFIX)),
+        key=lambda app: app.get("id", 0),
+    )
+    for app in ours[: max(0, len(ours) - (ALBYHUB_KEEP_APPS - 1))]:
+        albyhub("DELETE", f"/api/apps/{app['appPubkey']}", token=token)
 
 
 def invoice_status(node, payment_hash="", label=""):
@@ -222,6 +287,10 @@ class Handler(BaseHTTPRequestHandler):
                 "id": info.get("id", ""),
                 "alias": info.get("alias", node),
             }
+        hub = albyhub("GET", "/api/info", timeout=5)
+        if not hub.get("running"):
+            raise RequestError(503, "Alby Hub is not running", hub.get("startupError"))
+        nodes["albyhub"] = {"version": hub.get("version", "")}
         self.write_json(200, {"ok": True, "relay": PUBLIC_RELAY_URL, "nodes": nodes})
 
     def handle_get_nwc_uri(self, query):
@@ -229,7 +298,10 @@ class Handler(BaseHTTPRequestHandler):
         label = first(query.get("label"), f"rayl-nwc-{node}")
         budget_msat = first(query.get("budget_msat"), "100000000")
         budget_interval = first(query.get("budget_interval"), "1d")
-        uri = create_or_get_nwc_uri(node, label, budget_msat, budget_interval)
+        if node == "albyhub":
+            uri = create_albyhub_nwc_uri(label, budget_msat)
+        else:
+            uri = create_or_get_nwc_uri(node, label, budget_msat, budget_interval)
         self.write_json(200, {"uri": uri, "node": node, "label": label, "relay": PUBLIC_RELAY_URL})
 
     def handle_create_invoice(self):

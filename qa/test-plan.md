@@ -388,7 +388,7 @@ changes, but is shared and can't be controlled).
 | Wallet | Local (behaviour tests, Maestro flows) | Hosted (nightly check against the real service) |
 |---|---|---|
 | Rayl's wallet, Spark | — (the Breez SDK needs Lightspark's operators) | Lightspark hosted regtest with the regtest bank (`tools/regtest`) |
-| NWC | Docker Compose: bitcoind regtest, Core Lightning with the `cln-nip47` plugin, a nostr relay (revived from the Blip harness, `d17dc43b`) | NWC faucet (`faucet.nwc.dev`, Alby Hub sub-wallets), optional |
+| NWC | Docker Compose: bitcoind regtest, two NWC wallet services that run the same tests (Core Lightning with the `cln-nip47` plugin; Alby Hub, the most used one), a nostr relay (revived from the Blip harness, `d17dc43b`) | NWC faucet (`faucet.nwc.dev`, Alby Hub sub-wallets), optional |
 | Blink | Blink's own `quickstart` Docker Compose on regtest (bitcoind, LND, Blink API, API-key service, Blink's LNURL server), pinned and started by `tools/blink-stack` | Blink staging on signet (`api.staging.blink.sv`). Account requested by Nicola, 2026-11-06 |
 | LNURL, Lightning addresses | Blink quickstart's LNURL server | Blink staging (`test@pay.staging.blink.sv`) |
 

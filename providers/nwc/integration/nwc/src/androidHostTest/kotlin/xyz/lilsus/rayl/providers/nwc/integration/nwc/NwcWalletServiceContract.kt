@@ -26,13 +26,17 @@ import kotlinx.serialization.json.longOrNull
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
 
 /**
- * Rayl's NWC wallet against a real NWC wallet service on a local regtest stack (Core Lightning
- * with the cln-nip47 plugin and a local nostr relay, qa/test-plan.md §6.9). Rayl pays from the
- * `payer` node to invoices of the `receiver` node; the receiver's invoice says what really
- * arrived. Start the stack first: `tools/nwc-stack/bin/up`.
+ * Rayl's NWC wallet against real NWC wallet services on a local regtest stack with a local nostr
+ * relay (qa/test-plan.md §6.9). The same tests run against two independent implementations, so a
+ * failure on only one of them points at that service rather than at Rayl:
+ * - [ClnNip47WalletIntegrationTest]: Core Lightning with the cln-nip47 plugin;
+ * - [AlbyHubWalletIntegrationTest]: Alby Hub, the most used NWC wallet service.
+ *
+ * Rayl pays from the service's node to invoices of the `receiver` node (Core Lightning); the
+ * receiver's invoice says what really arrived. Start the stack first: `tools/nwc-stack/bin/up`.
  * Run: `./gradlew :providers:nwc:integration:nwc:walletIntegrationTest`.
  */
-class NwcWalletIntegrationTest {
+abstract class NwcWalletServiceContract(private val service: NwcWalletService) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val wallets = mutableListOf<NwcWallet>()
 
@@ -145,7 +149,7 @@ class NwcWalletIntegrationTest {
 
     @Test
     fun aPaymentTheWalletCannotRouteIsRefusedDefinitely() = runBlocking<Unit> {
-        // More than the payer's channel holds; the connection's budget allows it.
+        // More than the service's channel holds (1M sats); the connection's budget allows it.
         val wallet = connect(budgetSats = 10_000_000)
         val invoice = receiverInvoice(amountSats = 2_000_000)
 
@@ -186,12 +190,12 @@ class NwcWalletIntegrationTest {
     }
 
     /**
-     * Waits until the relay and the wallet service answer again. The service (Core Lightning's
-     * NIP-47 plugin) doesn't reconnect to a restarted relay on its own, so it is restarted too;
-     * that's the test environment, not Rayl.
+     * Waits until the relay and the wallet service answer again. Core Lightning's NIP-47 plugin
+     * doesn't reconnect to a restarted relay on its own, so it is restarted too; that's the test
+     * environment, not Rayl.
      */
     private suspend fun awaitRelay() {
-        docker("restart", "$PROJECT-payer-1")
+        if (service.restartAfterRelayRestart) docker("restart", "$PROJECT-${service.container}-1")
         repeat(30) {
             val probe = runCatching { connect(label = "probe-${System.nanoTime()}") }.getOrNull()
             if (probe?.pay(receiverInvoice(amountSats = 1)) is NwcPayOutcome.Settled) return
@@ -200,14 +204,14 @@ class NwcWalletIntegrationTest {
         error("The NWC stack didn't answer again after the relay restart")
     }
 
-    /** A new NWC connection to the payer node, connected the way the app connects a pasted URI. */
+    /** A new NWC connection to the service, connected the way the app connects a pasted URI. */
     private suspend fun connect(
         budgetSats: Long = 100_000,
         label: String = "rayl-it-${System.nanoTime()}"
     ): NwcWallet {
         val uri = helper(
             "GET",
-            "/get-nwc-uri?node=payer&label=$label&budget_msat=${budgetSats * 1_000}"
+            "/get-nwc-uri?node=${service.node}&label=$label&budget_msat=${budgetSats * 1_000}"
         )
             .getValue("uri").jsonPrimitive.content
         val wallet = createNwcWallet(
@@ -288,3 +292,20 @@ class NwcWalletIntegrationTest {
 
 /** [assertIs] that says what the value was, so a failure in CI explains itself. */
 private inline fun <reified T> expectType(value: Any?): T = assertIs<T>(value, "Was $value")
+
+/** An NWC wallet service of the local stack that can pay. */
+enum class NwcWalletService(
+    /** The helper's name for it (`/get-nwc-uri?node=`). */
+    val node: String,
+    /** Its Docker Compose service. */
+    val container: String,
+    /** Whether it has to be restarted to reconnect to a restarted relay. */
+    val restartAfterRelayRestart: Boolean
+) {
+    ClnNip47(node = "payer", container = "payer", restartAfterRelayRestart = true),
+    AlbyHub(node = "albyhub", container = "albyhub", restartAfterRelayRestart = false)
+}
+
+class ClnNip47WalletIntegrationTest : NwcWalletServiceContract(NwcWalletService.ClnNip47)
+
+class AlbyHubWalletIntegrationTest : NwcWalletServiceContract(NwcWalletService.AlbyHub)

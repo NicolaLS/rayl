@@ -85,6 +85,33 @@ services:
     volumes:
       - receiver-data:/data
 
+  # Alby Hub, the most used NWC wallet service, as a second payer next to cln-nip47: its own
+  # Lightning node (LDK, Alby Hub's default) on this regtest bitcoind, answering NWC requests on
+  # the local relay. Set up headlessly by bin/up; nothing is sent to Alby.
+  albyhub:
+    image: ${RAYL_NWC_ALBYHUB_IMAGE:-ghcr.io/getalby/hub:v1.24.6}
+    environment:
+      WORK_DIR: /data/albyhub
+      NETWORK: regtest
+      LDK_NETWORK: regtest
+      LDK_BITCOIND_RPC_HOST: bitcoind
+      LDK_BITCOIND_RPC_PORT: "18443"
+      LDK_BITCOIND_RPC_USER: rayl
+      LDK_BITCOIND_RPC_PASSWORD: rayl
+      RELAY: ws://nostr:8080
+      AUTO_UNLOCK_PASSWORD: ${RAYL_NWC_ALBYHUB_PASSWORD:-rayl-regtest}
+      SEND_EVENTS_TO_ALBY: "false"
+      AUTO_LINK_ALBY_ACCOUNT: "false"
+      ENABLE_ADVANCED_SETUP: "true"
+      LOG_TO_FILE: "false"
+    ports:
+      - "${RAYL_NWC_BIND_HOST:-127.0.0.1}:${RAYL_NWC_ALBYHUB_PORT:-8083}:8080"
+    depends_on:
+      - bitcoind
+      - nostr
+    volumes:
+      - albyhub-data:/data
+
   helper:
     build:
       context: .
@@ -96,6 +123,8 @@ services:
     image: ${RAYL_NWC_HELPER_IMAGE:-rayl-nwc-helper:local}
     environment:
       RAYL_NWC_PUBLIC_RELAY_URL: ${RAYL_NWC_PUBLIC_RELAY_URL:-ws://127.0.0.1:8081}
+      RAYL_NWC_ALBYHUB_URL: http://albyhub:8080
+      RAYL_NWC_ALBYHUB_PASSWORD: ${RAYL_NWC_ALBYHUB_PASSWORD:-rayl-regtest}
     ports:
       - "${RAYL_NWC_BIND_HOST:-127.0.0.1}:${RAYL_NWC_HELPER_PORT:-8082}:8080"
     depends_on:
@@ -110,3 +139,4 @@ volumes:
   nostr-data:
   payer-data:
   receiver-data:
+  albyhub-data:
