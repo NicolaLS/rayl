@@ -37,6 +37,15 @@ prices aggregated from several public sources, and every provider reads fiat
 prices from it through `integration/exchange-rate`. `core/rayl-api` is its wire
 contract and holds the production base URL.
 
+The store app reports anonymous usage data to the same backend through
+`core/telemetry`, unless the user turned it off. The
+[catalogue](../core/rayl-api/src/commonMain/kotlin/xyz/lilsus/raylsuite/core/raylapi/TelemetryCatalog.kt)
+in the wire contract is the only definition of what an event may carry: the app
+builds events from it and the backend drops everything else. Events hold listed
+values and bounded numbers, never an identifier or free text, and no third-party
+SDK is involved. The [privacy policy](../distribution/privacy.md) promises this
+to users.
+
 The dependency rules in [`verifyModuleDependencies`](../build.gradle.kts)
 keep providers independent of one another and of the app, neutral modules
 independent of the app and providers, and the Nostr SDK independent of Rayl.

@@ -14,7 +14,7 @@ implementations.
 
 - `app`: Rayl composition, platform entry points, and wallet selection
 - `providers/rayl`, `providers/blink`, `providers/nwc`, `providers/spark`: independent provider implementations
-- `core/*`: provider-neutral models, platform services, and UI primitives
+- `core/*`: provider-neutral models, platform services, and UI primitives; `core/telemetry` holds the trace and the anonymous usage data
 - `feature/*`: reusable provider-neutral user stories
 - `integration/*`: shared external-service adapters
 - `distribution/*`: distribution artifacts
@@ -37,7 +37,13 @@ so have `.envrc` run `scripts/xcode-secrets`, which mirrors the key into the git
 
 Debug builds log payment-path timings (milliseconds since launch) under the `RaylTiming`
 tag: `adb logcat -s RaylTiming` on Android, or filter Console.app or the Xcode console
-for `RaylTiming` on iOS.
+for `RaylTiming` on iOS. The same marks are trace sections (`camera.*`, `payment.*`) in
+Perfetto and Instruments.
+
+The store app sends anonymous usage data to the Rayl backend unless the user turns it off
+in Settings. [`TelemetryCatalog.kt`](core/rayl-api/src/commonMain/kotlin/xyz/lilsus/raylsuite/core/raylapi/TelemetryCatalog.kt)
+lists everything it can contain. Debug builds log each event under `RaylTelemetry` instead
+of sending it (`adb logcat -s RaylTelemetry`); E2E and benchmark builds keep nothing.
 
 ```shell
 ./gradlew :app:androidApp:assembleDebug

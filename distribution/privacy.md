@@ -1,6 +1,6 @@
 # Rayl Privacy Policy
 
-Last updated: November 3, 2026
+Last updated: November 10, 2026
 
 This policy covers **Rayl** for Android and iOS, maintained by **Bitcoin Coast**
 ("we" or "the maintainer"). For privacy questions or requests, contact
@@ -13,10 +13,40 @@ a built-in self-custodial wallet ("Rayl's wallet"), and you can instead connect
 a wallet you already have: a Blink account, a wallet through Nostr Wallet
 Connect (NWC), or a Spark wallet.
 
-There is no Rayl account. Rayl contains no analytics, advertising, tracking, or
-crash-reporting SDKs, and it sends no logs to us. The maintainer does not
-operate a wallet, payment processor, Nostr relay, or analytics service, and
-never receives your wallet keys, passkey, balance, or payment history.
+There is no Rayl account. Rayl contains no advertising, tracking, third-party
+analytics, or crash-reporting SDKs, and it sends no logs to us. The only data
+Rayl sends to us is the anonymous usage data described below, which you can
+turn off. The maintainer does not operate a wallet, payment processor, or
+Nostr relay, and never receives your wallet keys, passkey, balance, or payment
+history.
+
+## Anonymous usage data
+
+To find problems and keep Rayl fast, the app sends anonymous usage data to the
+Rayl backend, which we operate. You can turn it off at any time in
+**Settings → Share anonymous usage data**; turning it off also discards
+anything not yet sent.
+
+- **What is sent:** counts and timings. For example: that a payment was made,
+  with which kind of wallet, whether it succeeded or what category of error it
+  hit, and how long each step took; how long the camera needed to start and
+  read a code; which onboarding steps were completed; that a setting was
+  changed (not its value). Each batch also carries the app version, the
+  operating system version, and the device model (such as "Pixel 8").
+- **What is never sent:** amounts, invoices, payment hashes, addresses,
+  balances, keys, Lightning addresses, contact names, error messages, what a
+  scanned code contains, or any identifier of you, your device, or your
+  installation. The data cannot hold free text, so these cannot be included by
+  accident. The complete list of what can be sent is
+  [public](https://github.com/NicolaLS/rayl/blob/main/core/rayl-api/src/commonMain/kotlin/xyz/lilsus/raylsuite/core/raylapi/TelemetryCatalog.kt).
+- **How it is stored:** in a database we run with our hosting provider
+  (Railway). We do not store your IP address with the data, and we record only
+  the hour in which it arrived. Individual records are deleted after 90 days;
+  daily totals and averages, without device models, are kept.
+- **Who sees it:** only us. It is not shared with or sold to anyone, and it is
+  not used for advertising.
+
+Rayl 1.1 and earlier, and debug and test builds, do not send usage data.
 
 ## Information stored on your device
 
@@ -49,8 +79,10 @@ you use:
 - **Recent payments in Rayl:** Up to ten payment results shown in Rayl are kept
   in memory and are cleared when the app process ends or you change wallets.
   The wallet's own payment history is stored as described above.
-- **Preferences:** Theme, language, display currency, and payment-confirmation
-  settings are stored locally.
+- **Preferences:** Theme, language, display currency, payment-confirmation
+  settings, and your usage-data choice are stored locally, together with
+  markers that keep one-time events (such as "onboarding completed") from
+  being sent twice.
 - **Camera and clipboard:** Camera frames are used only to scan QR codes on the
   device and are never saved or uploaded. Clipboard text is read only when you
   paste.
@@ -91,8 +123,9 @@ under its own terms and privacy policy.
 - **Nostr Wallet Connect (NWC):** When you use NWC, Rayl sends encrypted
   requests to the relays named in your connection URI. Those relays and your
   wallet service process them under their own terms.
-- **Exchange rates:** Rayl requests aggregated Bitcoin exchange rates from the
-  Rayl exchange-rate service to show amounts in your display currency. These
+- **Rayl backend:** Rayl requests aggregated Bitcoin exchange rates from the
+  Rayl backend to show amounts in your display currency, and sends it the
+  anonymous usage data described above unless you turned that off. These
   requests contain no wallet credentials, contacts, payment history, or user
   identifiers.
 - **Lightning addresses and LNURL:** Paying a Lightning address or LNURL
@@ -131,7 +164,8 @@ route them, and on-chain transactions are public and permanent.
 - **Everything else:** Clearing Rayl's storage on Android or deleting the app
   on iOS erases Rayl's local data.
 
-Because we hold no data about you, we usually have nothing to access, correct,
+Because the usage data is anonymous, we cannot tell which records came from
+you, so we hold no data about you and usually have nothing to access, correct,
 or delete. You can still contact us with any request or question. For data held
 by Breez, Blink, your password manager, or another service, contact that
 service. Data recorded on Bitcoin, Spark, or Nostr networks cannot be deleted

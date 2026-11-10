@@ -265,10 +265,11 @@ the interview.
 - **Field data in two steps:**
   1. Start with sources that need no change to the privacy policy: Google Play Android
      vitals (cold start rates) and Xcode Organizer/MetricKit launch metrics.
-  2. Custom "scan → paid" percentiles need Rayl's own telemetry. The current
-     [privacy policy](../distribution/privacy.md) says Rayl has no analytics, so this
-     needs a product and legal decision first (opt-in, anonymous, aggregated). Open
-     decision D-02.
+  2. Custom "scan → paid" percentiles come from Rayl's anonymous usage data (MOB-92,
+     decided 2026-11-10: on by default with a Settings toggle, no identifier, stored in
+     Rayl's own database). The `payment`, `scan` and `launch` events in
+     [`TelemetryCatalog.kt`](../core/rayl-api/src/commonMain/kotlin/xyz/lilsus/raylsuite/core/raylapi/TelemetryCatalog.kt)
+     carry the stage durations, per platform, app version and device model.
 
 **Security and privacy (PR-11, PR-20, PR-21):**
 - static checks for secrets in logs and `toString`
@@ -675,7 +676,8 @@ See [product-risks.md, project risks](product-risks.md#project-risks) (PJ-01 to 
 
 **Decided (review of open questions, 2026-11-02)**
 - D-02 **Telemetry is out of scope for 1.1.** High priority afterwards: privacy-aligned
-  insight into what happens in the app (MOB-92).
+  insight into what happens in the app (MOB-92). Implemented on `main` on 2026-11-10 for
+  the release after 1.1; see §6.4.
 - D-04 **Mainnet budget: 1,000 sats per release candidate.**
 - D-05 **The App Live matrix in §7 is accepted.**
 - D-06 O-05: **no screen-capture protection for now.** It blocks testing on remote devices
