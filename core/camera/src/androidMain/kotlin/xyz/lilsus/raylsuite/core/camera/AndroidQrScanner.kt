@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.util.Size
 import androidx.annotation.OptIn
@@ -30,6 +31,10 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
+import xyz.lilsus.raylsuite.core.telemetry.TraceInterval
+import xyz.lilsus.raylsuite.core.telemetry.TracePoint
+import xyz.lilsus.raylsuite.core.telemetry.TraceSpan
 
 private const val TAG = "QrScanner"
 private const val ANALYSIS_EXECUTOR_SHUTDOWN_DELAY_MILLIS = 2_000L
@@ -68,8 +73,10 @@ private class AndroidQrScannerController(
     private val isBound = AtomicBoolean(false)
     private var bindGeneration = 0L
     private var hasStartedOnce = false
-    private var startToReadyTrace: AndroidCameraTraceInterval? = null
-    private var startToFirstFrameTrace: AndroidCameraTraceInterval? = null
+    private var startToReadyTrace: TraceInterval? = null
+    private var startToFirstFrameTrace: TraceInterval? = null
+    private val config = CameraVariant.current.androidCameraConfig()
+    private val scanTelemetry = ScanTelemetry()
 
     override fun start(
         onQrCodeScanned: (String) -> Unit,
@@ -84,15 +91,12 @@ private class AndroidQrScannerController(
             return false
         }
         if (isBound.compareAndSet(false, true)) {
-            if (hasStartedOnce) {
-                AndroidCameraTrace.event(CameraTraceEvent.RESTART)
-            }
+            if (hasStartedOnce) RaylTrace.mark(TracePoint.CameraRestart)
             hasStartedOnce = true
             bindGeneration += 1
-            startToReadyTrace = AndroidCameraTrace.beginInterval(CameraTraceEvent.START_TO_READY)
-            startToFirstFrameTrace = AndroidCameraTrace.beginInterval(
-                CameraTraceEvent.START_TO_FIRST_FRAME
-            )
+            scanTelemetry.sessionStarted()
+            startToReadyTrace = RaylTrace.begin(TraceSpan.CameraStartToReady)
+            startToFirstFrameTrace = RaylTrace.begin(TraceSpan.CameraStartToFirstFrame)
             bindCamera(
                 generation = bindGeneration,
                 startToReadyTrace = startToReadyTrace,
@@ -103,7 +107,7 @@ private class AndroidQrScannerController(
     }
 
     override fun stop() {
-        val stopTrace = AndroidCameraTrace.beginInterval(CameraTraceEvent.STOP)
+        val stopTrace = RaylTrace.begin(TraceSpan.CameraStop)
         try {
             bindGeneration += 1
             startToReadyTrace?.end()
@@ -129,8 +133,8 @@ private class AndroidQrScannerController(
 
     private fun bindCamera(
         generation: Long,
-        startToReadyTrace: AndroidCameraTraceInterval?,
-        startToFirstFrameTrace: AndroidCameraTraceInterval?
+        startToReadyTrace: TraceInterval?,
+        startToFirstFrameTrace: TraceInterval?
     ) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener(
@@ -154,7 +158,7 @@ private class AndroidQrScannerController(
                         barcodeScanner = newBarcodeScanner(),
                         onQrCodeObserved = { value ->
                             qrPresenceGate.observe(value)?.let { emittedValue ->
-                                AndroidCameraTrace.event(CameraTraceEvent.QR_DETECTED)
+                                scanTelemetry.qrDetected()
                                 mainExecutor.execute {
                                     if (isCurrentGeneration(generation)) {
                                         onQrCodeScanned?.invoke(emittedValue)
@@ -165,8 +169,10 @@ private class AndroidQrScannerController(
                         onFirstFrame = {
                             if (isCurrentGeneration(generation)) {
                                 startToFirstFrameTrace?.end()
+                                scanTelemetry.firstFrame()
                             }
-                        }
+                        },
+                        onFrameAnalyzed = scanTelemetry::frameAnalyzed
                     ).also {
                         analyzer = it
                     }
@@ -177,11 +183,8 @@ private class AndroidQrScannerController(
                         .setResolutionSelector(
                             ResolutionSelector.Builder()
                                 .setResolutionStrategy(
-                                    // NOTE: MlKit recommends around 1920x1080 resolution which is 16:9.
-                                    // But we do not need a WYSIWYG experience so we prefer the most common
-                                    // native sensor aspect ratio which is 4:3.
                                     ResolutionStrategy(
-                                        Size(1920, 1440),
+                                        config.analysisResolution,
                                         ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
                                     )
                                 )
@@ -206,6 +209,7 @@ private class AndroidQrScannerController(
                         camera.cameraControl.setZoomRatio(it)
                     }
                     startToReadyTrace?.end()
+                    scanTelemetry.ready()
                 } catch (failure: Throwable) {
                     if (!isCurrentGeneration(generation)) return@addListener
                     if (
@@ -246,6 +250,15 @@ private class AndroidQrScannerController(
     )
 }
 
+/** The scanner settings a [CameraVariant] stands for on Android. */
+internal class AndroidCameraConfig(val analysisResolution: Size)
+
+internal fun CameraVariant.androidCameraConfig(): AndroidCameraConfig = when (this) {
+    // ML Kit recommends around 1920x1080, which is 16:9. Nothing is shown to the user, so the
+    // most common native sensor aspect ratio, 4:3, is preferred.
+    CameraVariant.Control -> AndroidCameraConfig(analysisResolution = Size(1920, 1440))
+}
+
 private class DroppingExecutor : Executor {
     private val delegate: ExecutorService = Executors.newSingleThreadExecutor()
     private val shutdownHandler = Handler(Looper.getMainLooper())
@@ -280,7 +293,8 @@ private class DroppingExecutor : Executor {
 private class QrCodeAnalyzer(
     private val barcodeScanner: BarcodeScanner,
     private val onQrCodeObserved: (String?) -> Unit,
-    private val onFirstFrame: () -> Unit
+    private val onFirstFrame: () -> Unit,
+    private val onFrameAnalyzed: (durationMs: Long, width: Int, height: Int) -> Unit
 ) : ImageAnalysis.Analyzer {
     private val firstFrameReported = AtomicBoolean(false)
 
@@ -291,7 +305,7 @@ private class QrCodeAnalyzer(
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
         val imageClosed = AtomicBoolean(false)
-        var analysisTrace: AndroidCameraTraceInterval? = null
+        var analysisTrace: TraceInterval? = null
         fun closeImage() {
             if (imageClosed.compareAndSet(false, true)) {
                 image.close()
@@ -308,11 +322,17 @@ private class QrCodeAnalyzer(
             if (firstFrameReported.compareAndSet(false, true)) {
                 onFirstFrame()
             }
-            analysisTrace = AndroidCameraTrace.beginInterval(CameraTraceEvent.FRAME_ANALYSIS)
+            analysisTrace = RaylTrace.begin(TraceSpan.CameraFrameAnalysis)
+            val analysisStartedMs = SystemClock.elapsedRealtime()
             val input = InputImage.fromMediaImage(mediaImage, image.imageInfo.rotationDegrees)
             barcodeScanner.process(input)
                 .addOnCompleteListener(DirectExecutor) { task ->
                     try {
+                        onFrameAnalyzed(
+                            SystemClock.elapsedRealtime() - analysisStartedMs,
+                            image.width,
+                            image.height
+                        )
                         if (!task.isSuccessful) {
                             Log.e(TAG, "Barcode scanning failed", task.exception)
                             return@addOnCompleteListener

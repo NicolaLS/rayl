@@ -6,7 +6,7 @@ import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPaymentProblem
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketPayments
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketQuote
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketQuoteResult
-import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketTimings
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentSettlement
 import xyz.lilsus.raylsuite.feature.paymentflow.PaymentUiError
 import xyz.lilsus.raylsuite.feature.paymentflow.PreparedPayment
@@ -29,7 +29,7 @@ class RaylPayment internal constructor(
  */
 class RaylPaymentSettlement(private val pocket: PocketPayments) : PaymentSettlement<RaylPayment> {
     override suspend fun prepare(request: PreparedPayment): SettlementPreparation<RaylPayment> {
-        PocketTimings.mark("payment admitted")
+        RaylTrace.debug("payment admitted")
         val overrideMsats = request.amountOverrideMsats
         if (overrideMsats != null && overrideMsats % MSATS_PER_SAT != 0L) {
             return unavailable(RaylPaymentError.SubSatoshiAmount)
@@ -57,7 +57,7 @@ class RaylPaymentSettlement(private val pocket: PocketPayments) : PaymentSettlem
     }
 
     override suspend fun settle(payment: RaylPayment): SettlementOutcome {
-        PocketTimings.mark("payment confirmed")
+        RaylTrace.debug("payment confirmed")
         val outcome = try {
             pocket.pay(payment.quote)
         } catch (cause: CancellationException) {

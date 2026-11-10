@@ -14,9 +14,9 @@ import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.rayl.feature.payment.RaylPaymentSettlement
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketSetup
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketStatus
-import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketTimings
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPocket
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
 import xyz.lilsus.raylsuite.core.ui.platform.HapticFeedbackManager
 import xyz.lilsus.raylsuite.feature.appshell.AppTabState
 import xyz.lilsus.raylsuite.feature.currencysettings.DefaultCurrencyPreferences
@@ -95,7 +95,7 @@ internal class RaylRuntime(
     val exitTarget: RaylExitTarget? get() = walletExit.target
 
     init {
-        PocketTimings.mark("experience created")
+        RaylTrace.debug("experience created")
         pocket.start()
         scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.

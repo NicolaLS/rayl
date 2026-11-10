@@ -18,6 +18,7 @@ kotlin {
         commonMain.dependencies {
             // The Compose compiler plugin runs for this module's Android renderers.
             implementation(libs.compose.runtime)
+            implementation(project(":core:telemetry"))
         }
         androidMain.dependencies {
             implementation(libs.compose.ui)
@@ -26,7 +27,6 @@ kotlin {
             implementation(libs.androidx.camera.camera2)
             implementation(libs.androidx.camera.lifecycle)
             implementation(libs.androidx.lifecycle.runtimeCompose)
-            implementation(libs.androidx.tracing)
             implementation(libs.mlkit.barcode.scanning)
         }
         commonTest.dependencies {

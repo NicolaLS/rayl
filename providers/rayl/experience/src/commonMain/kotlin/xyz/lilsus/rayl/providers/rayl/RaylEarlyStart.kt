@@ -1,7 +1,7 @@
 package xyz.lilsus.rayl.providers.rayl
 
-import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketTimings
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPocket
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
 
 /**
  * Starts the pocket at process start, before any UI exists, so connecting overlaps app launch and
@@ -24,6 +24,6 @@ internal object RaylEarlyStart {
 
 /** Debug builds: log payment-path timings under the `RaylTiming` tag. Call first at launch. */
 fun enableRaylTimings() {
-    PocketTimings.enabled = true
-    PocketTimings.mark("process start")
+    RaylTrace.debugLog = true
+    RaylTrace.debug("process start")
 }

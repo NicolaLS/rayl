@@ -21,6 +21,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
+import xyz.lilsus.raylsuite.core.telemetry.TracePoint
 
 enum class PocketStatus {
     Starting,
@@ -77,7 +79,7 @@ class RaylPocket internal constructor(
      */
     fun start() {
         if (closed || wallet != null) return
-        PocketTimings.mark("pocket start")
+        RaylTrace.debug("pocket start")
         mutableStatus.value = PocketStatus.Starting
         scope.launch { connect() }
     }
@@ -167,12 +169,12 @@ class RaylPocket internal constructor(
                 }
                 // The SDK keeps running after a cancelled connect, so always take ownership of the
                 // session to be able to disconnect it.
-                PocketTimings.mark("pocket key ready")
+                RaylTrace.debug("pocket key ready")
                 withContext(NonCancellable) { connector.connect(key) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                PocketTimings.mark("pocket connect failed: ${error.message}")
+                RaylTrace.debug("pocket connect failed: ${error.message}")
                 mutableStatus.value = PocketStatus.Failed
                 return
             }
@@ -186,7 +188,7 @@ class RaylPocket internal constructor(
                     refreshBalance(connected)
                 }
             }
-            PocketTimings.mark("pocket ready")
+            RaylTrace.mark(TracePoint.WalletReady)
             mutableStatus.value = PocketStatus.Ready
             scope.launch { refreshBalance(connected) }
         }

@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
 
 enum class PocketNetwork {
     Regtest,
@@ -102,7 +103,7 @@ private class BreezPocketWallet private constructor(
         sdk.getInfo(GetInfoRequest(ensureSynced = false)).balanceSats.toLong()
 
     override suspend fun quote(invoice: String, amountSats: Long?): PocketQuoteResult = try {
-        PocketTimings.mark("quote start")
+        RaylTrace.debug("quote start")
         awaitInitialSync()
         val response = sdk.prepareSendPayment(
             PrepareSendPaymentRequest(
@@ -113,7 +114,7 @@ private class BreezPocketWallet private constructor(
                 feePolicy = null
             )
         )
-        PocketTimings.mark("quote done")
+        RaylTrace.debug("quote done")
         when (val method = response.paymentMethod) {
             is SendPaymentMethod.Bolt11Invoice -> PocketQuoteResult.Quoted(
                 BreezQuote(response, feeSats = method.lightningFeeSats.toLong())
@@ -140,7 +141,7 @@ private class BreezPocketWallet private constructor(
         // without a completion timeout (submitted, still pending), which is faster but can show
         // success for a payment that later fails. A middle ground: wait briefly for completion,
         // then show a distinct "sent, confirming" state.
-        PocketTimings.mark("send start")
+        RaylTrace.debug("send start")
         val payment = try {
             sdk.sendPayment(
                 SendPaymentRequest(
@@ -170,8 +171,8 @@ private class BreezPocketWallet private constructor(
                 PocketPaymentProblem.Other -> PocketPayOutcome.Unknown(error.detail())
             }
         }
-        PocketTimings.mark("send returned ${payment.status.name.lowercase()}")
-        return awaitOutcome(payment).also { PocketTimings.mark("payment outcome $it") }
+        RaylTrace.debug("send returned ${payment.status.name.lowercase()}")
+        return awaitOutcome(payment).also { RaylTrace.debug("payment outcome $it") }
     }
 
     override suspend fun createInvoice(amountSats: Long?, description: String): String {
@@ -216,7 +217,7 @@ private class BreezPocketWallet private constructor(
      */
     private suspend fun awaitInitialSync() {
         if (!awaitingInitialSync) return
-        PocketTimings.mark("awaiting initial sync")
+        RaylTrace.debug("awaiting initial sync")
         val synced = try {
             withTimeoutOrNull(INITIAL_SYNC_WAIT_MILLIS) {
                 sdk.getInfo(GetInfoRequest(ensureSynced = true))
@@ -263,7 +264,7 @@ private class BreezPocketWallet private constructor(
         listenerId = sdk.addEventListener(
             object : EventListener {
                 override suspend fun onEvent(event: SdkEvent) {
-                    PocketTimings.mark("sdk event ${event.describe()}")
+                    RaylTrace.debug("sdk event ${event.describe()}")
                     if (event is SdkEvent.PaymentSucceeded &&
                         event.payment.paymentType == PaymentType.RECEIVE
                     ) {

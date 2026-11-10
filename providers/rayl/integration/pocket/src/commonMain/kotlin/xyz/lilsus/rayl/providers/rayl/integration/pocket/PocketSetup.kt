@@ -3,6 +3,7 @@ package xyz.lilsus.rayl.providers.rayl.integration.pocket
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
 
 sealed interface PocketSetupResult {
     /** The key is stored and the pocket is connecting. */
@@ -81,13 +82,13 @@ internal class PasskeyPocketSetup(
     override suspend fun hasKey(): Boolean = pocket.hasKey()
 
     override suspend fun start(): PocketSetupResult = attempt {
-        PocketTimings.mark("passkey connect")
+        RaylTrace.debug("passkey connect")
         val opened = if (withoutPrf.isEmpty()) {
             accounts.connect(credentialId)
         } else {
             accounts.register(excludeCredentials = withoutPrf.toList())
         }
-        PocketTimings.mark("passkey connected, ${opened.labels.size} accounts")
+        RaylTrace.debug("passkey connected, ${opened.labels.size} accounts")
         connection = opened
         opened.credentialId?.let { credentialId = it }
         // A passkey created just now has no other accounts, and its default label is still being
@@ -95,7 +96,7 @@ internal class PasskeyPocketSetup(
         if (opened.created) return@attempt install(opened.phrase)
         // Listing again surfaces a relay failure that connecting hides as "no accounts".
         val labels = opened.labels.ifEmpty { accounts.list() }.distinct()
-        PocketTimings.mark("passkey listed ${labels.size} accounts")
+        RaylTrace.debug("passkey listed ${labels.size} accounts")
         if (labels.isEmpty()) {
             install(opened.phrase)
         } else {
@@ -137,7 +138,7 @@ internal class PasskeyPocketSetup(
         }
 
     private suspend fun attempt(block: suspend () -> PocketSetupResult): PocketSetupResult =
-        lock.withLock { attemptLocked(block).also { PocketTimings.mark("passkey setup: $it") } }
+        lock.withLock { attemptLocked(block).also { RaylTrace.debug("passkey setup: $it") } }
 
     private suspend fun attemptLocked(block: suspend () -> PocketSetupResult): PocketSetupResult =
         try {

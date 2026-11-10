@@ -18,6 +18,7 @@ import breez_sdk_spark.SignInRequest
 import breez_sdk_spark.Wallet
 import fr.acinq.bitcoin.crypto.Digest
 import fr.acinq.bitcoin.crypto.hmac
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
 
 internal class BreezPasskeyAccounts(prfProvider: PrfProvider, breezApiKey: String?) :
     PasskeyAccounts {
@@ -86,7 +87,7 @@ internal class BreezPasskeyAccounts(prfProvider: PrfProvider, breezApiKey: Strin
     private inline fun <T> translated(block: () -> T): T = try {
         block()
     } catch (error: PasskeyException) {
-        PocketTimings.mark("passkey error: ${error::class.simpleName} ${error.message}")
+        RaylTrace.debug("passkey error: ${error::class.simpleName} ${error.message}")
         throw when (error) {
             is PasskeyException.Prf -> when (error.v1) {
                 is PrfProviderException.UserCancelled,

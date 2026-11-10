@@ -16,6 +16,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:settings"))
+            implementation(project(":core:telemetry"))
             implementation(libs.bitcoin.kmp)
             implementation(libs.breez.sdk.spark)
             api(libs.kotlinx.coroutines.core)

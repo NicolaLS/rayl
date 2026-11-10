@@ -14,6 +14,7 @@ kotlin {
             implementation(project(":core:model"))
             implementation(project(":core:network"))
             implementation(project(":core:settings"))
+            implementation(project(":core:telemetry"))
             implementation(project(":core:ui"))
             implementation(project(":feature:app-shell"))
             implementation(project(":feature:currency-settings"))

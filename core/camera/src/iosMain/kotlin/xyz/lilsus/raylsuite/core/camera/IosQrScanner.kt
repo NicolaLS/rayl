@@ -63,6 +63,9 @@ import platform.darwin.dispatch_get_main_queue
 import platform.darwin.dispatch_queue_create
 import platform.darwin.dispatch_queue_t
 import platform.darwin.dispatch_time
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
+import xyz.lilsus.raylsuite.core.telemetry.TracePoint
+import xyz.lilsus.raylsuite.core.telemetry.TraceSpan
 
 /** Creates the iOS scanner for a native SwiftUI-owned screen lifecycle. */
 fun createNativeQrScannerController(): QrScannerController =
@@ -100,6 +103,8 @@ private class IosQrScannerController : QrScannerController {
     private val qrPresenceGate = QrPresenceGate()
     private var hasStartedOnce = false
     private var generation = 0L
+    private val config = CameraVariant.current.iosCameraConfig()
+    private val scanTelemetry = ScanTelemetry()
 
     override fun start(
         onQrCodeScanned: (String) -> Unit,
@@ -113,13 +118,12 @@ private class IosQrScannerController : QrScannerController {
         this.onQrCodeScanned = onQrCodeScanned
         this.onScannerUnavailable = onScannerUnavailable
         ensureLifecycleObserver()
-        if (hasStartedOnce) {
-            IosCameraTrace.event(CameraTraceEvent.RESTART)
-        }
+        if (hasStartedOnce) RaylTrace.mark(TracePoint.CameraRestart)
         hasStartedOnce = true
         generation += 1
         val currentGeneration = generation
-        val startTrace = IosCameraTrace.beginInterval(CameraTraceEvent.START_TO_READY)
+        scanTelemetry.sessionStarted()
+        val startTrace = RaylTrace.begin(TraceSpan.CameraStartToReady)
         dispatch_async(sessionQueue) {
             try {
                 if (generation != currentGeneration) return@dispatch_async
@@ -138,7 +142,7 @@ private class IosQrScannerController : QrScannerController {
         removeLifecycleObserver()
         onQrCodeScanned = null
         onScannerUnavailable = null
-        val stopTrace = IosCameraTrace.beginInterval(CameraTraceEvent.STOP)
+        val stopTrace = RaylTrace.begin(TraceSpan.CameraStop)
         dispatch_async(sessionQueue) {
             try {
                 started = false
@@ -157,13 +161,19 @@ private class IosQrScannerController : QrScannerController {
             reportScannerUnavailable()
             return
         }
-        if (!session.running && started) session.startRunning()
+        if (!session.running && started) {
+            // Blocks until the session delivers frames; AVFoundation decodes them itself, so this
+            // is the closest there is to a first frame.
+            session.startRunning()
+            scanTelemetry.ready()
+            scanTelemetry.firstFrame()
+        }
     }
 
     private fun configureSession(): Boolean {
-        val configurationTrace = IosCameraTrace.beginInterval(CameraTraceEvent.CONFIGURE_SESSION)
+        val configurationTrace = RaylTrace.begin(TraceSpan.CameraConfigureSession)
         try {
-            val selection = selectScannerCamera() ?: return false
+            val selection = selectScannerCamera(config) ?: return false
             val device = selection.device
             val input = createDeviceInput(device) ?: return false
             val metadataOutput = AVCaptureMetadataOutput()
@@ -171,11 +181,13 @@ private class IosQrScannerController : QrScannerController {
             session.beginConfiguration()
             return try {
                 removeAllInputsAndOutputs()
-                val preferredFormatApplied = applyPreferredCaptureFormat(
+                val appliedFormat = applyPreferredCaptureFormat(
                     device = device,
-                    target = selection.formatTarget
+                    target = selection.formatTarget,
+                    captureFps = config.captureFps
                 )
-                val sessionPreset = if (preferredFormatApplied) {
+                appliedFormat?.let { scanTelemetry.frameSize(it.width, it.height) }
+                val sessionPreset = if (appliedFormat != null) {
                     AVCaptureSessionPresetInputPriority
                 } else {
                     AVCaptureSessionPresetHigh
@@ -234,7 +246,7 @@ private class IosQrScannerController : QrScannerController {
 
     private fun observeQrCode(value: String?) {
         val emittedValue = qrPresenceGate.observe(value) ?: return
-        IosCameraTrace.event(CameraTraceEvent.QR_DETECTED)
+        scanTelemetry.qrDetected()
         val callback = onQrCodeScanned ?: return
         val currentGeneration = generation
         dispatch_async(dispatch_get_main_queue()) {
@@ -314,7 +326,7 @@ private data class ScannerCameraSelection(
     val formatTarget: CaptureFormatTarget
 )
 
-private data class CaptureFormatTarget(
+internal data class CaptureFormatTarget(
     val targetAspectRatio: Double,
     val preferredPixels: Int,
     val minimumPixels: Int,
@@ -333,7 +345,7 @@ private data class CaptureFormatCandidate(
         get() = width.toDouble() / height.toDouble()
 }
 
-private fun selectScannerCamera(): ScannerCameraSelection? {
+private fun selectScannerCamera(config: IosCameraConfig): ScannerCameraSelection? {
     val discovery = AVCaptureDeviceDiscoverySession.discoverySessionWithDeviceTypes(
         deviceTypes = SCANNER_CAMERA_DEVICE_TYPES,
         mediaType = AVMediaTypeVideo,
@@ -355,24 +367,26 @@ private fun selectScannerCamera(): ScannerCameraSelection? {
     }
 
     return when {
-        virtualWide != null -> ScannerCameraSelection(virtualWide, FOUR_THREE_CAPTURE_TARGET)
+        virtualWide != null -> ScannerCameraSelection(virtualWide, config.fourThreeTarget)
 
-        ultraWide != null -> ScannerCameraSelection(ultraWide, FOUR_THREE_CAPTURE_TARGET)
+        ultraWide != null -> ScannerCameraSelection(ultraWide, config.fourThreeTarget)
 
-        wide != null -> ScannerCameraSelection(wide, WIDE_FALLBACK_CAPTURE_TARGET)
+        wide != null -> ScannerCameraSelection(wide, config.wideFallbackTarget)
 
         else -> AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)?.let {
-            ScannerCameraSelection(it, WIDE_FALLBACK_CAPTURE_TARGET)
+            ScannerCameraSelection(it, config.wideFallbackTarget)
         }
     }
 }
 
+/** The format now active on [device], or null when none of its formats could be applied. */
 private fun applyPreferredCaptureFormat(
     device: AVCaptureDevice,
-    target: CaptureFormatTarget
-): Boolean {
+    target: CaptureFormatTarget,
+    captureFps: Double
+): CaptureFormatCandidate? {
     @Suppress("UNCHECKED_CAST")
-    val formats = device.formats as? List<AVCaptureDeviceFormat> ?: return false
+    val formats = device.formats as? List<AVCaptureDeviceFormat> ?: return null
     val candidates = formats.mapNotNull { format ->
         val description = format.formatDescription ?: return@mapNotNull null
         val dimensions = CMVideoFormatDescriptionGetDimensions(description)
@@ -384,7 +398,7 @@ private fun applyPreferredCaptureFormat(
             ?: return@mapNotNull null
         val maximumFrameRate = frameRateRanges.maxOfOrNull { it.maxFrameRate }
             ?: return@mapNotNull null
-        if (maximumFrameRate < TARGET_CAPTURE_FPS) return@mapNotNull null
+        if (maximumFrameRate < captureFps) return@mapNotNull null
         CaptureFormatCandidate(format, width, height, maximumFrameRate)
     }
     val comparator = compareBy<CaptureFormatCandidate> {
@@ -405,19 +419,20 @@ private fun applyPreferredCaptureFormat(
     }.sortedWith(comparator)
     ranked += candidates.filter(aspectMatches).sortedWith(comparator)
 
-    return ranked.any { candidate -> applyCaptureFormat(device, candidate) }
+    return ranked.firstOrNull { candidate -> applyCaptureFormat(device, candidate, captureFps) }
 }
 
 private fun applyCaptureFormat(
     device: AVCaptureDevice,
-    candidate: CaptureFormatCandidate
+    candidate: CaptureFormatCandidate,
+    captureFps: Double
 ): Boolean = memScoped {
     val error = alloc<ObjCObjectVar<NSError?>>()
     if (!device.lockForConfiguration(error.ptr)) return@memScoped false
     try {
         val frameDuration = CMTimeMake(
             value = 1,
-            timescale = TARGET_CAPTURE_FPS.toInt()
+            timescale = captureFps.toInt()
         )
         device.activeFormat = candidate.format
         device.activeVideoMinFrameDuration = frameDuration
@@ -447,22 +462,35 @@ private fun applyFixedCameraControls(device: AVCaptureDevice) = memScoped {
     }
 }
 
-private const val TARGET_CAPTURE_FPS = 30.0
 private const val MAXIMUM_ASPECT_DELTA = 0.08
 
-private val FOUR_THREE_CAPTURE_TARGET = CaptureFormatTarget(
-    targetAspectRatio = 4.0 / 3.0,
-    preferredPixels = 1920 * 1440,
-    minimumPixels = 1440 * 1080,
-    maximumPixels = 2304 * 1728
+/**
+ * The scanner settings a [CameraVariant] stands for on iOS: the capture rate, the format wanted
+ * from a camera with an ultra-wide lens, and the one wanted from a wide-angle-only camera.
+ */
+internal class IosCameraConfig(
+    val captureFps: Double,
+    val fourThreeTarget: CaptureFormatTarget,
+    val wideFallbackTarget: CaptureFormatTarget
 )
 
-private val WIDE_FALLBACK_CAPTURE_TARGET = CaptureFormatTarget(
-    targetAspectRatio = 16.0 / 9.0,
-    preferredPixels = 2560 * 1440,
-    minimumPixels = 1920 * 1080,
-    maximumPixels = 3072 * 1728
-)
+internal fun CameraVariant.iosCameraConfig(): IosCameraConfig = when (this) {
+    CameraVariant.Control -> IosCameraConfig(
+        captureFps = 30.0,
+        fourThreeTarget = CaptureFormatTarget(
+            targetAspectRatio = 4.0 / 3.0,
+            preferredPixels = 1920 * 1440,
+            minimumPixels = 1440 * 1080,
+            maximumPixels = 2304 * 1728
+        ),
+        wideFallbackTarget = CaptureFormatTarget(
+            targetAspectRatio = 16.0 / 9.0,
+            preferredPixels = 2560 * 1440,
+            minimumPixels = 1920 * 1080,
+            maximumPixels = 3072 * 1728
+        )
+    )
+}
 
 private val SCANNER_CAMERA_DEVICE_TYPES = listOf(
     AVCaptureDeviceTypeBuiltInDualWideCamera,
