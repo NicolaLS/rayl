@@ -15,9 +15,16 @@ tunnel open and runs Grafana until you press Ctrl+C. The first run creates the r
 `.env` (gitignored); `connect --rotate` replaces the password. It needs the Railway CLI (logged
 in), `psql` (`brew install libpq`) and Docker.
 
-The dashboard is `dashboards/usage-data.json`. Changes made in the Grafana UI are lost when the
-container is removed: export the dashboard's JSON and replace the file to keep them. What the
-events mean is in
+There are five dashboards in `dashboards/`, linked to each other at the top of every page:
+
+- **Overview**: is Rayl healthy? Each headline number next to the same number for the period before.
+- **Speed**: every step of the payment path, version by version, typical and slowest 10%.
+- **Camera**: Android and iPhone separately, including which code reader wins on iPhone.
+- **Wallets**: all wallets side by side, then one wallet in detail (pick it at the top).
+- **Product**: onboarding, how people pay, fake doors, settings, and sharing of usage data.
+
+Changes made in the Grafana UI are lost when the container is removed: export the dashboard's JSON
+and replace its file to keep them. What the events mean is in
 [`TelemetryCatalog.kt`](../../core/rayl-api/src/commonMain/kotlin/xyz/lilsus/raylsuite/core/raylapi/TelemetryCatalog.kt).
 
 To try it without production data, point `.env` at any Postgres that has the tables

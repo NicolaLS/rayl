@@ -1,0 +1,247 @@
+{
+  "uid": "rayl-speed",
+  "title": "Rayl: Speed",
+  "tags": [
+    "rayl"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "1m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "platform",
+        "label": "Platform",
+        "type": "custom",
+        "query": "android,ios",
+        "multi": true,
+        "includeAll": true,
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "android",
+            "value": "android",
+            "selected": false
+          },
+          {
+            "text": "ios",
+            "value": "ios",
+            "selected": false
+          }
+        ],
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        }
+      }
+    ]
+  },
+  "links": [
+    {
+      "type": "dashboards",
+      "tags": [
+        "rayl"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "title": "Rayl"
+    }
+  ],
+  "panels": [
+    {
+      "type": "table",
+      "title": "Version by version",
+      "id": 1,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "The check after a release: is the newest version (top) slower than the one below it? All times in ms. 'Slowest 10%' is what the unlucky tenth of payments got.",
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select app_version as version, platform, count(*) as \"payments (no tap)\",\n  round(percentile_cont(0.5) within group (order by (measures->>'process_to_outcome_ms')::numeric) filter (where measures ? 'process_to_outcome_ms' and (measures->>'camera_to_qr_ms')::numeric < 1500)) as \"point, open \u2192 paid: typical\",\n  round(percentile_cont(0.9) within group (order by (measures->>'process_to_outcome_ms')::numeric) filter (where measures ? 'process_to_outcome_ms' and (measures->>'camera_to_qr_ms')::numeric < 1500)) as \"slowest 10%\",\n  round(percentile_cont(0.5) within group (order by (measures->>'qr_to_outcome_ms')::numeric)) as \"code read \u2192 paid: typical\",\n  round(percentile_cont(0.9) within group (order by (measures->>'qr_to_outcome_ms')::numeric)) as \"slowest 10% \"\nfrom telemetry_events where name = 'payment' and measures ? 'qr_to_outcome_ms' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\ngroup by 1, 2 order by 1 desc, 2"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "Every step, version by version",
+      "id": 2,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "Each step of the path for each version, in ms. Read it step by step: within one step, compare the versions.",
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select step, app_version as version, platform, count(*) as samples,\n  round(percentile_cont(0.5) within group (order by ms)) as typical,\n  round(percentile_cont(0.9) within group (order by ms)) as \"slowest 10%\"\nfrom (\n  select app_version, platform, received_hour, m.value::numeric as ms,\n    case m.key\n      when 'process_to_first_frame_ms' then '1 App start \u2192 camera sees'\n      when 'wallet_ready_ms' then '2 App start \u2192 wallet ready'\n      when 'camera_start_to_first_frame_ms' then '3 Camera starts'\n      when 'qr_to_admitted_ms' then '4 Code read \u2192 payment accepted'\n      when 'admitted_to_prepared_ms' then '5 Wallet prepares'\n      when 'submit_to_outcome_ms' then '6 Wallet pays'\n      when 'qr_to_outcome_ms' then '7 Code read \u2192 paid (whole)'\n    end as step\n  from telemetry_events, jsonb_each_text(measures) m\n  where name in ('launch', 'scan', 'payment') and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\n) steps where step is not null\ngroup by 1, 2, 3 order by 1, 2 desc, 3"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "Pointed first, or was the app already open?",
+      "id": 3,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "Scanned payments without a tap, grouped by how long the camera had been on when it read the code. If the waiting groups prepare or pay slower, leaving the app open costs something (a stale connection); if faster, the wait warmed the wallet up. Times in ms.",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select case\n    when (measures->>'camera_to_qr_ms')::numeric < 1500 then '1 Pointed first (code read within 1.5 s)'\n    when (measures->>'camera_to_qr_ms')::numeric < 15000 then '2 App open a few seconds'\n    else '3 App open and waiting (15 s or more)' end as situation,\n  count(*) as payments,\n  round(percentile_cont(0.5) within group (order by (measures->>'admitted_to_prepared_ms')::numeric)) as \"wallet prepares: typical\", round(percentile_cont(0.9) within group (order by (measures->>'admitted_to_prepared_ms')::numeric)) as \"slowest 10%\",\n  round(percentile_cont(0.5) within group (order by (measures->>'submit_to_outcome_ms')::numeric)) as \"wallet pays: typical\", round(percentile_cont(0.9) within group (order by (measures->>'submit_to_outcome_ms')::numeric)) as \"slowest 10% \",\n  round(percentile_cont(0.5) within group (order by (measures->>'qr_to_outcome_ms')::numeric)) as \"code read \u2192 paid: typical\", round(percentile_cont(0.9) within group (order by (measures->>'qr_to_outcome_ms')::numeric)) as \"slowest 10%  \"\nfrom telemetry_events\nwhere name = 'payment' and dimensions->>'outcome' = 'paid' and measures ? 'camera_to_qr_ms' and dimensions->>'confirmation' = 'auto' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\ngroup by 1 order by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Code read \u2192 paid, day by day",
+      "id": 4,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "A step up on one day that stays up is a regression or a slower network; a single spike is a bad day.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select date_trunc('day', received_hour) as time, 'typical' as metric, round(percentile_cont(0.5) within group (order by (measures->>'qr_to_outcome_ms')::numeric)) as value\nfrom telemetry_events where name = 'payment' and measures ? 'qr_to_outcome_ms' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1\nunion all\nselect date_trunc('day', received_hour), 'slowest 10%', round(percentile_cont(0.9) within group (order by (measures->>'qr_to_outcome_ms')::numeric))\nfrom telemetry_events where name = 'payment' and measures ? 'qr_to_outcome_ms' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1\norder by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "First payment after opening vs later ones",
+      "id": 5,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "If the first payment prepares much slower than later ones, the wallet is not warmed up when the app opens. Times in ms.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select case dimensions->>'first_in_launch' when 'yes' then 'First payment after opening the app' else 'Later payments' end as payment,\n  count(*) as payments, round(percentile_cont(0.5) within group (order by (measures->>'admitted_to_prepared_ms')::numeric)) as \"wallet prepares: typical\", round(percentile_cont(0.9) within group (order by (measures->>'admitted_to_prepared_ms')::numeric)) as \"slowest 10%\",\n  round(percentile_cont(0.5) within group (order by (measures->>'submit_to_outcome_ms')::numeric)) as \"wallet pays: typical\"\nfrom telemetry_events where name = 'payment' and dimensions->>'outcome' = 'paid' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    }
+  ]
+}

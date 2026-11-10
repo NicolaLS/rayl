@@ -1,0 +1,468 @@
+{
+  "uid": "rayl-camera",
+  "title": "Rayl: Camera",
+  "tags": [
+    "rayl"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "1m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "platform",
+        "label": "Platform",
+        "type": "custom",
+        "query": "android,ios",
+        "multi": true,
+        "includeAll": true,
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "android",
+            "value": "android",
+            "selected": false
+          },
+          {
+            "text": "ios",
+            "value": "ios",
+            "selected": false
+          }
+        ],
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        }
+      }
+    ]
+  },
+  "links": [
+    {
+      "type": "dashboards",
+      "tags": [
+        "rayl"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "title": "Rayl"
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Android (reads codes with Google ML Kit)",
+      "id": 1,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false
+    },
+    {
+      "type": "table",
+      "title": "By phone model",
+      "id": 2,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "Times in ms. 'Finds the code' is from the first scan after opening the app and includes the user aiming (or waiting, if the app was opened early). Many frames at a normal ms per frame means the code was in view but hard to read.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select device_model as phone, count(*) as scans,\n  round(percentile_cont(0.5) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as \"camera starts: typical\", round(percentile_cont(0.9) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as \"slowest 10%\",\n  round(percentile_cont(0.5) within group (order by (measures->>'first_frame_to_qr_ms')::numeric) filter (where dimensions->>'session' = 'first')) as \"finds the code: typical\", round(percentile_cont(0.9) within group (order by (measures->>'first_frame_to_qr_ms')::numeric) filter (where dimensions->>'session' = 'first')) as \"slowest 10% \",\n  round(percentile_cont(0.5) within group (order by (measures->>'frames_analyzed')::numeric) filter (where dimensions->>'session' = 'first')) as \"frames needed\", round(percentile_cont(0.5) within group (order by (measures->>'frame_analysis_avg_ms')::numeric)) as \"ms per frame\" \nfrom telemetry_events where name = 'scan' and platform = 'android' and $__timeFilter(received_hour) group by 1 order by 2 desc limit 30"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Camera start, day by day",
+      "id": 3,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "How long the camera needs to deliver its first picture.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select date_trunc('day', received_hour) as time, 'typical' as metric, round(percentile_cont(0.5) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as value from telemetry_events where name = 'scan' and platform = 'android' and $__timeFilter(received_hour) group by 1\nunion all select date_trunc('day', received_hour), 'slowest 10%', round(percentile_cont(0.9) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) from telemetry_events where name = 'scan' and platform = 'android' and $__timeFilter(received_hour) group by 1\norder by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Camera settings being compared",
+      "id": 4,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "One row per camera setting in the field. 'control' is the current one; more rows appear when a new setting is being tried on a share of launches.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'camera_variant' as setting, count(*) as scans,\n  round(percentile_cont(0.5) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as \"camera starts: typical\",\n  round(percentile_cont(0.5) within group (order by (measures->>'first_frame_to_qr_ms')::numeric) filter (where dimensions->>'session' = 'first')) as \"finds the code: typical\", round(percentile_cont(0.9) within group (order by (measures->>'first_frame_to_qr_ms')::numeric) filter (where dimensions->>'session' = 'first')) as \"slowest 10%\"\nfrom telemetry_events where name = 'scan' and platform = 'android' and $__timeFilter(received_hour) group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "row",
+      "title": "iPhone (two readers race: Apple's built-in one and Apple Vision)",
+      "id": 5,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "collapsed": false
+    },
+    {
+      "type": "table",
+      "title": "By phone model",
+      "id": 6,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "Times in ms. 'Finds the code' is from the first scan after opening the app and includes the user aiming (or waiting, if the app was opened early). Many frames at a normal ms per frame means the code was in view but hard to read.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select device_model as phone, count(*) as scans,\n  round(percentile_cont(0.5) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as \"camera starts: typical\", round(percentile_cont(0.9) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as \"slowest 10%\",\n  round(percentile_cont(0.5) within group (order by (measures->>'first_frame_to_qr_ms')::numeric) filter (where dimensions->>'session' = 'first')) as \"finds the code: typical\", round(percentile_cont(0.9) within group (order by (measures->>'first_frame_to_qr_ms')::numeric) filter (where dimensions->>'session' = 'first')) as \"slowest 10% \",\n  round(percentile_cont(0.5) within group (order by (measures->>'frames_analyzed')::numeric) filter (where dimensions->>'session' = 'first')) as \"frames needed\", round(percentile_cont(0.5) within group (order by (measures->>'frame_analysis_avg_ms')::numeric)) as \"ms per frame\" \nfrom telemetry_events where name = 'scan' and platform = 'ios' and $__timeFilter(received_hour) group by 1 order by 2 desc limit 30"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Camera start, day by day",
+      "id": 7,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "How long the camera needs to deliver its first picture.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select date_trunc('day', received_hour) as time, 'typical' as metric, round(percentile_cont(0.5) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as value from telemetry_events where name = 'scan' and platform = 'ios' and $__timeFilter(received_hour) group by 1\nunion all select date_trunc('day', received_hour), 'slowest 10%', round(percentile_cont(0.9) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) from telemetry_events where name = 'scan' and platform = 'ios' and $__timeFilter(received_hour) group by 1\norder by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Camera settings being compared",
+      "id": 8,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "One row per camera setting in the field. 'control' is the current one; more rows appear when a new setting is being tried on a share of launches.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'camera_variant' as setting, count(*) as scans,\n  round(percentile_cont(0.5) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as \"camera starts: typical\",\n  round(percentile_cont(0.5) within group (order by (measures->>'first_frame_to_qr_ms')::numeric) filter (where dimensions->>'session' = 'first')) as \"finds the code: typical\", round(percentile_cont(0.9) within group (order by (measures->>'first_frame_to_qr_ms')::numeric) filter (where dimensions->>'session' = 'first')) as \"slowest 10%\"\nfrom telemetry_events where name = 'scan' and platform = 'ios' and $__timeFilter(received_hour) group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "piechart",
+      "title": "Which reader is first",
+      "id": 9,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "How often each reader read the code first. avfoundation is Apple's built-in reader, vision is Apple Vision.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'decoder' as reader, count(*) as wins from telemetry_events where name = 'scan' and platform = 'ios' and $__timeFilter(received_hour) and dimensions ? 'runner_up' group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "donut"
+      }
+    },
+    {
+      "type": "table",
+      "title": "How far behind the other reader is",
+      "id": 10,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "After the first read the camera stays on for up to half a second for the other reader; 'never read it' means it did not manage in that time. A reader that wins often AND by a wide margin is the better one.",
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 32
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'decoder' as \"first reader\", count(*) as scans,\n  round(100.0 * count(*) filter (where dimensions->>'runner_up' = 'decoded') / count(*), 1) as \"other also read it %\",\n  round(percentile_cont(0.5) within group (order by (measures->>'runner_up_lag_ms')::numeric)) as \"other later by: typical (ms)\", round(percentile_cont(0.9) within group (order by (measures->>'runner_up_lag_ms')::numeric)) as \"slowest 10% (ms)\",\n  count(*) filter (where dimensions->>'runner_up' = 'missed') as \"other never read it\"\nfrom telemetry_events where name = 'scan' and platform = 'ios' and $__timeFilter(received_hour) and dimensions ? 'runner_up' group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "First reader, first scan vs later scans",
+      "id": 11,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "Whether one reader is better right after the camera comes on and the other once it is running.",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select case dimensions->>'session' when 'first' then 'First scan after opening the app' else 'Later scans' end as scan,\n  dimensions->>'decoder' as \"first reader\", count(*) as wins\nfrom telemetry_events where name = 'scan' and platform = 'ios' and $__timeFilter(received_hour) and dimensions ? 'runner_up' group by 1, 2 order by 1, 3 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "Vision: is it getting frames?",
+      "id": 12,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "A check on the race itself. Frames per scan should grow with how long a scan takes (about 25 to 30 per second). Stuck at 13, 26 or 39 means Vision is starved of frames and the race is not fair.",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select count(*) as scans, round(percentile_cont(0.5) within group (order by (measures->>'frames_analyzed')::numeric)) as \"frames per scan: typical\", round(percentile_cont(0.5) within group (order by (measures->>'frame_analysis_avg_ms')::numeric)) as \"ms per frame\"\nfrom telemetry_events where name = 'scan' and platform = 'ios' and $__timeFilter(received_hour) and dimensions ? 'runner_up'"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    }
+  ]
+}

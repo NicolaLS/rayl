@@ -1,0 +1,946 @@
+{
+  "uid": "rayl-wallets",
+  "title": "Rayl: Wallets",
+  "tags": [
+    "rayl"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "1m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "platform",
+        "label": "Platform",
+        "type": "custom",
+        "query": "android,ios",
+        "multi": true,
+        "includeAll": true,
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "android",
+            "value": "android",
+            "selected": false
+          },
+          {
+            "text": "ios",
+            "value": "ios",
+            "selected": false
+          }
+        ],
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        }
+      },
+      {
+        "name": "wallet",
+        "label": "Wallet",
+        "type": "custom",
+        "query": "rayl,blink,nwc,spark",
+        "multi": false,
+        "includeAll": false,
+        "options": [
+          {
+            "text": "rayl",
+            "value": "rayl",
+            "selected": true
+          },
+          {
+            "text": "blink",
+            "value": "blink",
+            "selected": false
+          },
+          {
+            "text": "nwc",
+            "value": "nwc",
+            "selected": false
+          },
+          {
+            "text": "spark",
+            "value": "spark",
+            "selected": false
+          }
+        ],
+        "current": {
+          "text": "rayl",
+          "value": "rayl"
+        }
+      }
+    ]
+  },
+  "links": [
+    {
+      "type": "dashboards",
+      "tags": [
+        "rayl"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "title": "Rayl"
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "All wallets side by side",
+      "id": 1,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false
+    },
+    {
+      "type": "table",
+      "title": "Compared",
+      "id": 2,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "rayl is the built-in wallet. 'Prepares' is the wallet getting the payment ready; 'pays' is how fast it settles once it has the request. Times in ms. Success does not count insufficient funds.",
+      "gridPos": {
+        "h": 7,
+        "w": 14,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'wallet' as wallet,\n  count(*) filter (where dimensions->>'outcome' = 'paid') as paid,\n  round(100.0 * count(*) filter (where dimensions->>'outcome' = 'paid') / nullif(sum(count(*) filter (where dimensions->>'outcome' = 'paid')) over (), 0), 1) as \"share of payments %\",\n  round(100.0 * count(*) filter (where dimensions->>'outcome' = 'paid') / nullif(count(*) filter (where dimensions->>'outcome' in ('paid', 'failed', 'unknown') and dimensions->>'error' <> 'insufficient_funds'), 0), 1) as \"succeed %\",\n  round(percentile_cont(0.5) within group (order by (measures->>'admitted_to_prepared_ms')::numeric)) as \"prepares: typical\", round(percentile_cont(0.9) within group (order by (measures->>'admitted_to_prepared_ms')::numeric)) as \"slowest 10%\",\n  round(percentile_cont(0.5) within group (order by (measures->>'submit_to_outcome_ms')::numeric) filter (where dimensions->>'outcome' = 'paid')) as \"pays: typical\", round(percentile_cont(0.9) within group (order by (measures->>'submit_to_outcome_ms')::numeric) filter (where dimensions->>'outcome' = 'paid')) as \"slowest 10% \"\nfrom telemetry_events where name = 'payment' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "The whole path, by wallet",
+      "id": 3,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "What the user experiences with each wallet, in ms: from the invoice being read to paid, and the full point-tap-pay from a cold start.",
+      "gridPos": {
+        "h": 7,
+        "w": 10,
+        "x": 14,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'wallet' as wallet, count(*) as \"payments (no tap)\",\n  round(percentile_cont(0.5) within group (order by (measures->>'qr_to_outcome_ms')::numeric)) as \"code read \u2192 paid: typical\", round(percentile_cont(0.9) within group (order by (measures->>'qr_to_outcome_ms')::numeric)) as \"slowest 10%\",\n  round(percentile_cont(0.5) within group (order by (measures->>'process_to_outcome_ms')::numeric) filter (where measures ? 'process_to_outcome_ms' and (measures->>'camera_to_qr_ms')::numeric < 1500)) as \"point, open \u2192 paid: typical\"\nfrom telemetry_events where name = 'payment' and measures ? 'qr_to_outcome_ms' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "piechart",
+      "title": "Payments by wallet",
+      "id": 4,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "Which wallet the money actually moves through.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'wallet' as wallet, count(*) as payments from telemetry_events where name = 'payment' and dimensions->>'outcome' = 'paid' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "donut"
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "App opens by wallet",
+      "id": 5,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "The closest there is to 'how many people use which wallet': Rayl counts app opens, not people.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'wallet' as wallet, count(*) as opens from telemetry_events where name = 'launch' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "donut"
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "How fast each wallet pays (typical)",
+      "id": 6,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "From handing the payment to the wallet until it is confirmed.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'wallet' as wallet, round(percentile_cont(0.5) within group (order by (measures->>'submit_to_outcome_ms')::numeric)) as ms from telemetry_events where name = 'payment' and dimensions->>'outcome' = 'paid' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "color"
+      }
+    },
+    {
+      "type": "table",
+      "title": "What goes wrong, by wallet",
+      "id": 7,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "failed = the wallet said no. unknown = the wallet gave no answer. rejected = stopped before the wallet was asked.",
+      "gridPos": {
+        "h": 7,
+        "w": 14,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'wallet' as wallet, replace(dimensions->>'error', '_', ' ') as problem, dimensions->>'outcome' as \"ended as\", count(*) as times\nfrom telemetry_events where name = 'payment' and dimensions->>'error' <> 'none' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1, 2, 3 order by 1, 4 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "Wallets connected and removed",
+      "id": 8,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "External wallets only. Many removals compared to connections means people try the wallet and go back to Rayl's.",
+      "gridPos": {
+        "h": 7,
+        "w": 10,
+        "x": 14,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'wallet' as wallet,\n  count(*) filter (where dimensions->>'action' = 'connected') as connected,\n  count(*) filter (where dimensions->>'action' = 'removed') as removed\nfrom telemetry_events where name = 'wallet_changed' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "row",
+      "title": "One wallet: $wallet (pick it at the top)",
+      "id": 9,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Payments made",
+      "id": 10,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select count(*) from telemetry_events where name = 'payment' and dimensions->>'outcome' = 'paid' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Payments that succeed",
+      "id": 11,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "Not counting insufficient funds.",
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 4,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select round(100.0 * count(*) filter (where dimensions->>'outcome' = 'paid') / nullif(count(*), 0), 1) from telemetry_events where name = 'payment' and dimensions->>'outcome' in ('paid', 'failed', 'unknown') and dimensions->>'error' <> 'insufficient_funds' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Pays in (typical)",
+      "id": 12,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 9,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select round(percentile_cont(0.5) within group (order by (measures->>'submit_to_outcome_ms')::numeric)) from telemetry_events where name = 'payment' and dimensions->>'outcome' = 'paid' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Pays in (slowest 10%)",
+      "id": 13,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 14,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select round(percentile_cont(0.9) within group (order by (measures->>'submit_to_outcome_ms')::numeric)) from telemetry_events where name = 'payment' and dimensions->>'outcome' = 'paid' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Code read \u2192 paid (typical)",
+      "id": 14,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 19,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select round(percentile_cont(0.5) within group (order by (measures->>'qr_to_outcome_ms')::numeric)) from telemetry_events where name = 'payment' and measures ? 'qr_to_outcome_ms' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value"
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Where the time goes with this wallet",
+      "id": 15,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "The machine's share of a payment, step by step. The longest bar is where speeding up pays off. Aiming the camera and tapping are left out.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select step, ms from (\n  select 1 as n, 'Camera starts' as step, round(percentile_cont(0.5) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as ms\n    from telemetry_events where name = 'scan' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\n  union all select 2, 'Code read \u2192 payment accepted', round(percentile_cont(0.5) within group (order by (measures->>'qr_to_admitted_ms')::numeric))\n    from telemetry_events where name = 'payment' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\n  union all select 3, 'Wallet prepares', round(percentile_cont(0.5) within group (order by (measures->>'admitted_to_prepared_ms')::numeric))\n    from telemetry_events where name = 'payment' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\n  union all select 4, 'Wallet pays', round(percentile_cont(0.5) within group (order by (measures->>'submit_to_outcome_ms')::numeric))\n    from telemetry_events where name = 'payment' and dimensions->>'outcome' = 'paid' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\n) steps where ms is not null order by n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "color"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Payments per day",
+      "id": 16,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "paid = went through. failed = the wallet said no. unknown = the wallet gave no answer. rejected = stopped before the wallet (for example not a valid invoice). dismissed = the user closed the confirmation.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select date_trunc('day', received_hour) as time, dimensions->>'outcome' as metric, count(*) as value\nfrom telemetry_events where name = 'payment' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1, 2 order by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "min": 0,
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "paid"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "already_paid"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "super-light-green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unknown"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rejected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "dismissed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "gray"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "What goes wrong",
+      "id": 17,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "Payment attempts that did not end in a payment, by reason. Empty is good.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select replace(dimensions->>'error', '_', ' ') as problem, count(*) as times\nfrom telemetry_events where name = 'payment' and dimensions->>'error' <> 'none' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\ngroup by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "color"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Pays in, day by day",
+      "id": 18,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "A wallet or its network getting slower shows here first.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select date_trunc('day', received_hour) as time, 'typical' as metric, round(percentile_cont(0.5) within group (order by (measures->>'submit_to_outcome_ms')::numeric)) as value from telemetry_events where name = 'payment' and dimensions->>'outcome' = 'paid' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1\nunion all select date_trunc('day', received_hour), 'slowest 10%', round(percentile_cont(0.9) within group (order by (measures->>'submit_to_outcome_ms')::numeric)) from telemetry_events where name = 'payment' and dimensions->>'outcome' = 'paid' and dimensions->>'wallet' = '$wallet' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1\norder by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ]
+}
