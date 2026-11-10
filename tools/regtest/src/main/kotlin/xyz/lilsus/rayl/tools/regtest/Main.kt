@@ -17,6 +17,7 @@ import breez_sdk_spark.PrepareSendPaymentRequest
 import breez_sdk_spark.ReceivePaymentMethod
 import breez_sdk_spark.ReceivePaymentRequest
 import breez_sdk_spark.SdkEvent
+import breez_sdk_spark.SdkException
 import breez_sdk_spark.Seed
 import breez_sdk_spark.SendPaymentMethod
 import breez_sdk_spark.SendPaymentOptions
@@ -101,15 +102,21 @@ private class Bank(private val sdk: BreezSdk) {
     }
 
     suspend fun pay(invoice: String, amountSats: Long?): Int {
-        val prepared = sdk.prepareSendPayment(
-            PrepareSendPaymentRequest(
-                paymentRequest = PaymentRequest.Input(invoice.removePrefix("lightning:")),
-                amount = amountSats?.let(BigInteger::fromLong),
-                tokenIdentifier = null,
-                conversionOptions = null,
-                feePolicy = null
+        val prepared = try {
+            sdk.prepareSendPayment(
+                PrepareSendPaymentRequest(
+                    paymentRequest = PaymentRequest.Input(invoice.removePrefix("lightning:")),
+                    amount = amountSats?.let(BigInteger::fromLong),
+                    tokenIdentifier = null,
+                    conversionOptions = null,
+                    feePolicy = null
+                )
             )
-        )
+        } catch (error: SdkException.InvalidInput) {
+            // Add funds invoices have no amount: the payer chooses it.
+            if (amountSats != null) throw error
+            fail("This invoice has no amount; pass one, e.g. --amount 1000")
+        }
         val options = when (prepared.paymentMethod) {
             // Regtest has no Lightning network: invoices from Spark wallets settle over Spark.
             is SendPaymentMethod.Bolt11Invoice -> SendPaymentOptions.Bolt11Invoice(
