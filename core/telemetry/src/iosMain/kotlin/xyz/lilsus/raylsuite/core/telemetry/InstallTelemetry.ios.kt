@@ -9,12 +9,13 @@ import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationDidEnterBackgroundNotification
+import platform.UIKit.UIApplicationWillResignActiveNotification
 import platform.UIKit.UIBackgroundTaskInvalid
 import xyz.lilsus.raylsuite.core.network.createHttpClient
 
 /**
  * Starts usage data for this process; call it first at app initialisation. Events are sent when
- * the app enters the background and a few seconds after a payment result.
+ * the app leaves the foreground, a few seconds after a payment result, and a while after a scan.
  */
 fun installTelemetry(
     settings: Settings,
@@ -42,24 +43,31 @@ fun installTelemetry(
             send = sender::send
         )
     )
-    NSNotificationCenter.defaultCenter.addObserverForName(
-        name = UIApplicationDidEnterBackgroundNotification,
-        `object` = null,
-        queue = NSOperationQueue.mainQueue
-    ) { _ ->
-        // iOS suspends the app moments after this; the task keeps it alive for the request.
-        val application = UIApplication.sharedApplication
-        var task = UIBackgroundTaskInvalid
-        fun end() {
-            if (task != UIBackgroundTaskInvalid) application.endBackgroundTask(task)
-            task = UIBackgroundTaskInvalid
-        }
-        task = application.beginBackgroundTaskWithName("rayl.usage-data", ::end)
-        scope.launch {
-            try {
-                Telemetry.flushNow()
-            } finally {
-                launch(Dispatchers.Main) { end() }
+    // Leaving the foreground starts with "will resign active": that is all an app gets when it is
+    // swiped away from the app switcher, which never puts it in the background first.
+    listOf(
+        UIApplicationWillResignActiveNotification,
+        UIApplicationDidEnterBackgroundNotification
+    ).forEach { notification ->
+        NSNotificationCenter.defaultCenter.addObserverForName(
+            name = notification,
+            `object` = null,
+            queue = NSOperationQueue.mainQueue
+        ) { _ ->
+            // iOS may suspend the app moments after this; the task keeps it alive for the request.
+            val application = UIApplication.sharedApplication
+            var task = UIBackgroundTaskInvalid
+            fun end() {
+                if (task != UIBackgroundTaskInvalid) application.endBackgroundTask(task)
+                task = UIBackgroundTaskInvalid
+            }
+            task = application.beginBackgroundTaskWithName("rayl.usage-data", ::end)
+            scope.launch {
+                try {
+                    Telemetry.flushNow()
+                } finally {
+                    launch(Dispatchers.Main) { end() }
+                }
             }
         }
     }

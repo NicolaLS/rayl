@@ -16,7 +16,8 @@ class ScanTelemetryTest {
         recorder = { recorded += it },
         nowMs = { now },
         countsFromLaunch = countsFromLaunch,
-        firstSessionOfProcess = { sessions++ == 0 }
+        firstSessionOfProcess = { sessions++ == 0 },
+        afterScan = {}
     )
 
     @Test

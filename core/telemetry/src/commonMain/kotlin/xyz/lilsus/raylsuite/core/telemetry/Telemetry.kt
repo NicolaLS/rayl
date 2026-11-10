@@ -139,6 +139,15 @@ object Telemetry : TelemetryRecorder {
         engine?.flushAfter(FLUSH_SOON_DELAY_MS)
     }
 
+    /**
+     * Sends some seconds from now: for a scan that no payment follows, such as a code that asks
+     * for an amount the user never enters. A payment's result brings the upload forward.
+     */
+    fun flushAfterScan() {
+        recordLaunch()
+        engine?.flushAfter(FLUSH_AFTER_SCAN_DELAY_MS)
+    }
+
     /** One per process, written when the first batch leaves so its timings are complete. */
     private fun recordLaunch() {
         if (!launchRecorded.compareAndSet(false, true)) return
@@ -161,4 +170,7 @@ object Telemetry : TelemetryRecorder {
     }
 
     private const val FLUSH_SOON_DELAY_MS = 3_000L
+
+    // Longer than a payment usually takes, so the upload stays out of its way.
+    private const val FLUSH_AFTER_SCAN_DELAY_MS = 10_000L
 }

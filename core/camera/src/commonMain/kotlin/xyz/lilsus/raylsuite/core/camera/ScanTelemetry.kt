@@ -25,7 +25,8 @@ internal class ScanTelemetry(
     private val recorder: TelemetryRecorder = Telemetry,
     private val nowMs: () -> Long = RaylTrace::nowMs,
     private val countsFromLaunch: Boolean = RaylTrace.countsFromLaunch,
-    private val firstSessionOfProcess: () -> Boolean = { firstSession.compareAndSet(true, false) }
+    private val firstSessionOfProcess: () -> Boolean = { firstSession.compareAndSet(true, false) },
+    private val afterScan: () -> Unit = Telemetry::flushAfterScan
 ) {
     @Volatile
     private var session: Session? = null
@@ -142,6 +143,7 @@ internal class ScanTelemetry(
                 measures = scan.measures + measures
             )
         )
+        afterScan()
     }
 
     private class PendingScan(

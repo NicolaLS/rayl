@@ -15,7 +15,8 @@ class DecoderRaceTest {
         recorder = { recorded += it },
         nowMs = { now },
         countsFromLaunch = false,
-        firstSessionOfProcess = { true }
+        firstSessionOfProcess = { true },
+        afterScan = {}
     ).also { it.sessionStarted() }
     private val race = DecoderRace(telemetry)
 
