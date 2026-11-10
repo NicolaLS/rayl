@@ -11,11 +11,28 @@ PROJECT=9bbf2625-4edc-4a92-bc7c-b3e9f6c840be
 PORT=54320
 PSQL="$(command -v psql || echo "$(brew --prefix libpq)/bin/psql")"
 
+# The CLI tunnels through an ssh process that can outlive it; one left over from an earlier run
+# would hold the port, and the CLI refuses a port it did not open.
+close_tunnel() {
+  for pid in $(lsof -nP -t -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null); do
+    case "$(ps -o comm= -p "$pid")" in
+      *ssh | *railway) kill "$pid" 2>/dev/null || true ;;
+      *)
+        echo "Port $PORT is in use by another program (pid $pid)." >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+close_tunnel
+sleep 1
+
 railway connect Postgres -p "$PROJECT" -e production --tunnel-only -P "$PORT" >/dev/null 2>&1 &
 TUNNEL=$!
 cleanup() {
   docker compose down >/dev/null 2>&1 || true
   kill "$TUNNEL" 2>/dev/null || true
+  close_tunnel
 }
 trap cleanup EXIT
 trap 'exit 0' INT TERM
@@ -71,4 +88,5 @@ fi
 
 docker compose up -d --force-recreate >/dev/null 2>&1
 echo "Dashboard: http://localhost:3000   (Ctrl+C closes the tunnel and stops Grafana)"
-wait "$TUNNEL"
+wait "$TUNNEL" || true
+echo "The tunnel closed."
