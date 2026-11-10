@@ -8,6 +8,7 @@ package xyz.lilsus.raylsuite.core.camera
 import kotlin.math.abs
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.autoreleasepool
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.useContents
@@ -62,7 +63,7 @@ import platform.UIKit.UIApplicationDidBecomeActiveNotification
 import platform.Vision.VNBarcodeObservation
 import platform.Vision.VNBarcodeSymbologyQR
 import platform.Vision.VNDetectBarcodesRequest
-import platform.Vision.VNImageRequestHandler
+import platform.Vision.VNSequenceRequestHandler
 import platform.darwin.DISPATCH_TIME_NOW
 import platform.darwin.NSEC_PER_MSEC
 import platform.darwin.NSObject
@@ -227,6 +228,10 @@ private class IosQrScannerController : QrScannerController {
             // Blocks until the session delivers frames; AVFoundation decodes them itself, so this
             // is the closest there is to a first frame.
             session.startRunning()
+        }
+        // Also when a start overtook a stop that was still waiting for the runner-up: the camera
+        // never went off, so it is ready at once.
+        if (session.running && started) {
             scanTelemetry.ready()
             scanTelemetry.firstFrame()
         }
@@ -384,6 +389,11 @@ private class VisionDelegate(
         symbologies = listOf(VNBarcodeSymbologyQR)
     }
 
+    // One handler for every frame. A handler made per frame keeps its frame's buffer alive until
+    // Kotlin's garbage collector gets to it; the camera has only a few buffers, so it stopped
+    // delivering frames after about a dozen and Vision went blind until the next collection.
+    private val handler = VNSequenceRequestHandler()
+
     override fun captureOutput(
         output: AVCaptureOutput,
         didOutputSampleBuffer: CMSampleBufferRef?,
@@ -392,10 +402,11 @@ private class VisionDelegate(
         if (!isActive()) return
         val pixelBuffer = CMSampleBufferGetImageBuffer(didOutputSampleBuffer) ?: return
         val startedMs = RaylTrace.nowMs()
-        val handler = VNImageRequestHandler(pixelBuffer, options = emptyMap<Any?, Any>())
-        val performed = memScoped {
-            val error = alloc<ObjCObjectVar<NSError?>>()
-            handler.performRequests(listOf(request), error.ptr)
+        val performed = autoreleasepool {
+            memScoped {
+                val error = alloc<ObjCObjectVar<NSError?>>()
+                handler.performRequests(listOf(request), pixelBuffer, error.ptr)
+            }
         }
         val now = RaylTrace.nowMs()
         onFrameAnalyzed(
