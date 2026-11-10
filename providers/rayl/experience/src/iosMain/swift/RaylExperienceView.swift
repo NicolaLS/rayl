@@ -461,6 +461,8 @@ private struct RaylFundingSheet: View {
         .presentationDragIndicator(.visible)
     }
 
+    @State private var copiedInvoice = false
+
     @ViewBuilder
     private func content(_ snapshot: RaylNativeWalletSettingsSnapshot) -> some View {
         VStack(spacing: 20) {
@@ -495,8 +497,15 @@ private struct RaylFundingSheet: View {
                     Button(snapshot.openInWalletTitle) { UIApplication.shared.open(url) }
                         .buttonStyle(.borderedProminent)
                 }
-                Button(snapshot.copyInvoiceTitle) { UIPasteboard.general.string = invoice }
-                    .buttonStyle(.bordered)
+                Button(copiedInvoice ? snapshot.copiedTitle : snapshot.copyInvoiceTitle) {
+                    UIPasteboard.general.string = invoice
+                    copiedInvoice = true
+                    Task {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                        copiedInvoice = false
+                    }
+                }
+                .buttonStyle(.bordered)
             } else {
                 title(snapshot)
                 ProgressView()

@@ -1,5 +1,6 @@
 package xyz.lilsus.rayl.providers.blink
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -91,6 +92,9 @@ fun BlinkExperience(
         LocalProductName provides configuration.appName
     ) {
         RaylSuiteTheme(themePreference = themePreference) {
+            BackHandler(enabled = connected == null) {
+                if (runtime.blinkWallet.connection.value == null) runtime.removeWallet()
+            }
             Column(
                 modifier = if (connected == null) {
                     Modifier.windowInsetsPadding(

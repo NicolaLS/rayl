@@ -202,6 +202,7 @@ fun SettingsScreen(
                         }
                     ),
                     subtitle = stringResource(R.string.settings_usage_data_subtitle),
+                    subtitleMaxLines = 2,
                     icon = Icons.Filled.Insights,
                     testTag = SettingsTestTags.USAGE_DATA_ROW
                 ) {

@@ -71,7 +71,7 @@ fun LanguageSettingsScreen(
                     .consumeWindowInsets(padding)
                     .navigationBarsPadding()
                     .padding(AppListDefaults.ScreenPadding),
-            showSearchBar = true,
+            showSearchBar = false,
             searchQuery = state.searchQuery,
             onSearchQueryChange = onQueryChange,
             searchPlaceholder = stringResource(R.string.search_placeholder)

@@ -1,5 +1,6 @@
 package xyz.lilsus.rayl.providers.spark
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -145,6 +146,9 @@ fun SparkExperience(
                     )
                 } else {
                     Modifier
+                }
+                BackHandler(enabled = canChooseWallet) {
+                    if (runtime.canCancelSetup) exiting = true
                 }
                 Column(modifier = cancellationInsets) {
                     if (canChooseWallet) {

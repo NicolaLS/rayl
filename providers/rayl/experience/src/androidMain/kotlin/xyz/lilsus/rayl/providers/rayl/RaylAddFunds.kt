@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -26,13 +27,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -40,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import kotlinx.coroutines.delay
 import xyz.lilsus.rayl.providers.rayl.experience.R
 import xyz.lilsus.raylsuite.core.model.DisplayAmount
 import xyz.lilsus.raylsuite.core.model.DisplayCurrency
@@ -109,11 +116,18 @@ private fun InvoiceToPay(invoice: String) {
     val hasWalletApp = remember { walletIntent(invoice).canBeOpened(context) }
     Title()
     Text(text = stringResource(R.string.rayl_add_funds_body), textAlign = TextAlign.Center)
-    Image(
-        painter = rememberQrCodePainter(invoice.uppercase()),
-        contentDescription = null,
-        modifier = Modifier.size(QrSize).testTag("rayl_funding_qr")
-    )
+    // Scanners need dark modules on a light field with a quiet zone, whatever the theme is.
+    Surface(
+        modifier = Modifier.size(QrSize).testTag("rayl_funding_qr"),
+        shape = MaterialTheme.shapes.large,
+        color = Color.White
+    ) {
+        Image(
+            painter = rememberQrCodePainter(invoice.uppercase()),
+            contentDescription = stringResource(R.string.rayl_add_funds),
+            modifier = Modifier.fillMaxSize().padding(16.dp)
+        )
+    }
     Text(
         text = stringResource(R.string.rayl_waiting_for_payment),
         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -126,15 +140,23 @@ private fun InvoiceToPay(invoice: String) {
             Text(stringResource(R.string.rayl_open_in_wallet))
         }
     }
+    var copied by remember(invoice) { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(2_000)
+            copied = false
+        }
+    }
     OutlinedButton(
         onClick = {
             context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(
                 ClipData.newPlainText("Lightning invoice", invoice)
             )
+            copied = true
         },
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(stringResource(R.string.rayl_copy_invoice))
+        Text(stringResource(if (copied) R.string.rayl_copied else R.string.rayl_copy_invoice))
     }
 }
 

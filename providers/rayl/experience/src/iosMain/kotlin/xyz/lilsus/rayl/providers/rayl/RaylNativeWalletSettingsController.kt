@@ -23,6 +23,7 @@ data class RaylNativeWalletSettingsSnapshot(
     val addFundsBody: String,
     val openInWalletTitle: String,
     val copyInvoiceTitle: String,
+    val copiedTitle: String,
     val waitingForPayment: String,
     val fundsAdded: String,
     /** The amount the last funding payment added, once it arrived. */
@@ -111,6 +112,7 @@ class RaylNativeWalletSettingsController internal constructor(
         addFundsBody = text("rayl_add_funds_body"),
         openInWalletTitle = text("rayl_open_in_wallet"),
         copyInvoiceTitle = text("rayl_copy_invoice"),
+        copiedTitle = text("rayl_copied"),
         waitingForPayment = text("rayl_waiting_for_payment"),
         fundsAdded = text("rayl_funds_added"),
         fundsAddedAmount = (funding as? FundingState.Received)?.let {

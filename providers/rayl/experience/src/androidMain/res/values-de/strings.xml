@@ -4,6 +4,7 @@
     <string name="rayl_add_funds">Guthaben aufladen</string>
     <string name="rayl_add_funds_body">Bezahle diese Rechnung mit einer beliebigen Lightning-Wallet. Den Betrag wählst du dort.</string>
     <string name="rayl_open_in_wallet">In Wallet öffnen</string>
+    <string name="rayl_copied">Kopiert</string>
     <string name="rayl_copy_invoice">Rechnung kopieren</string>
     <string name="rayl_waiting_for_payment">Warte auf Zahlung…</string>
     <string name="rayl_funds_added">Guthaben aufgeladen</string>

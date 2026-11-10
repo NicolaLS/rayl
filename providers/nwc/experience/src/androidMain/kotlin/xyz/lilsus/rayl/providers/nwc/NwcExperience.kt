@@ -1,5 +1,6 @@
 package xyz.lilsus.rayl.providers.nwc
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -113,6 +114,11 @@ private fun NwcExperienceContent(runtime: NwcRuntime, onConnectionChanged: (Bool
         )
     } else {
         Modifier
+    }
+    BackHandler(enabled = connected == null) {
+        if (runtime.nwcWallet.connection.value == null && !runtime.removalPending.value) {
+            runtime.removeWallet()
+        }
     }
     Column(modifier = cancellationInsets) {
         if (connected == null) {

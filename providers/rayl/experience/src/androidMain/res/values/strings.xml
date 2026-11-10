@@ -4,6 +4,7 @@
     <string name="rayl_add_funds">Add funds</string>
     <string name="rayl_add_funds_body">Pay this invoice from any Lightning wallet. You choose the amount there.</string>
     <string name="rayl_open_in_wallet">Open in wallet</string>
+    <string name="rayl_copied">Copied</string>
     <string name="rayl_copy_invoice">Copy invoice</string>
     <string name="rayl_waiting_for_payment">Waiting for payment…</string>
     <string name="rayl_funds_added">Funds added</string>
