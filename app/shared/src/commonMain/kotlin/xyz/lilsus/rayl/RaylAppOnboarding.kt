@@ -3,6 +3,8 @@ package xyz.lilsus.rayl
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryOnboardingStep
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 import xyz.lilsus.raylsuite.feature.currencysettings.DefaultCurrencyPreferences
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
@@ -21,9 +23,18 @@ internal class RaylAppOnboarding(private val settings: Settings) {
     )
     val step = mutableStep.asStateFlow()
 
+    init {
+        if (mutableStep.value == AppOnboardingStep.Welcome) {
+            Telemetry.onboarding(TelemetryOnboardingStep.Welcome)
+        }
+    }
+
     fun moveTo(step: AppOnboardingStep) {
         if (mutableStep.value == AppOnboardingStep.Complete) return
-        if (step == AppOnboardingStep.Complete) settings.putBoolean(ONBOARDED_KEY, true)
+        if (step == AppOnboardingStep.Complete) {
+            settings.putBoolean(ONBOARDED_KEY, true)
+            Telemetry.onboarding(TelemetryOnboardingStep.AppOnboarded)
+        }
         mutableStep.value = step
     }
 

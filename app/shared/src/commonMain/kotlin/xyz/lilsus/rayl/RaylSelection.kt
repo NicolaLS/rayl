@@ -8,13 +8,25 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryOnboardingStep
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryWallet
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryWalletAction
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 
 /**
  * Owns which wallet Rayl pays with: its built-in wallet unless an external wallet is connected or
  * being set up. At most one external wallet may own a connection. See SPEC-wallet-lifecycle.
  */
-internal class RaylSelection(private val settings: Settings) {
+internal class RaylSelection(
+    private val settings: Settings,
+    private val reportWalletChange: (TelemetryWallet, TelemetryWalletAction) -> Unit =
+        Telemetry::walletChanged
+) {
     private val mutableExternal = MutableStateFlow(configuredExternalWallet(settings))
+
+    init {
+        Telemetry.wallet = mutableExternal.value.telemetryWallet()
+    }
 
     /** The external wallet in use or in setup; `null` means Rayl's built-in wallet. */
     val external = mutableExternal.asStateFlow()
@@ -57,7 +69,13 @@ internal class RaylSelection(private val settings: Settings) {
         if (mutableExternal.value == wallet &&
             mutablePreparation.value == WalletPreparation.Ready
         ) {
+            // Wallets report their connection on every launch; only the first is a change.
+            val alreadyConnected = configuredExternalWallet(settings) == wallet
             settings.putString(EXTERNAL_WALLET_KEY, wallet.name)
+            if (!alreadyConnected) {
+                reportWalletChange(wallet.telemetryWallet(), TelemetryWalletAction.Connected)
+                Telemetry.onboarding(TelemetryOnboardingStep.WalletReady)
+            }
         }
     }
 
@@ -72,14 +90,20 @@ internal class RaylSelection(private val settings: Settings) {
         startMode = WalletStartMode.Fresh
         mutableSession.value = Random.nextLong()
         mutableExternal.value = wallet
+        Telemetry.wallet = wallet.telemetryWallet()
     }
 
     /** Back to Rayl's wallet, after removing the external connection or cancelling its setup. */
     fun clear() {
         mutablePreparation.value = WalletPreparation.Cleaning
+        // A cancelled setup never connected, so there is nothing to report as removed.
+        configuredExternalWallet(settings)?.let { removed ->
+            reportWalletChange(removed.telemetryWallet(), TelemetryWalletAction.Removed)
+        }
         settings.remove(EXTERNAL_WALLET_KEY)
         mutableSession.value = Random.nextLong()
         mutableExternal.value = null
+        Telemetry.wallet = TelemetryWallet.Rayl
     }
 
     /** Mounts a new session of Rayl's wallet, e.g. after a debug build erased it. */
@@ -103,6 +127,14 @@ internal enum class ExternalWallet {
 }
 
 private const val EXTERNAL_WALLET_KEY = "rayl.wallet"
+
+/** How usage data names the wallet; `null` is Rayl's built-in wallet. */
+private fun ExternalWallet?.telemetryWallet(): TelemetryWallet = when (this) {
+    null -> TelemetryWallet.Rayl
+    ExternalWallet.Blink -> TelemetryWallet.Blink
+    ExternalWallet.Nwc -> TelemetryWallet.Nwc
+    ExternalWallet.Spark -> TelemetryWallet.Spark
+}
 
 /** The external wallet that completed setup on an earlier launch, if any. */
 internal fun configuredExternalWallet(settings: Settings): ExternalWallet? =

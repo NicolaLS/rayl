@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.core.model.ThemePreference
+import xyz.lilsus.raylsuite.core.raylapi.TelemetrySetting
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 
 data class ThemeSettingsUiState(val selected: ThemePreference = ThemePreference.System)
 
@@ -35,6 +37,7 @@ class ThemeSettingsViewModel(
         if (preference == mutableUiState.value.selected) return
 
         mutableUiState.value = ThemeSettingsUiState(selected = preference)
+        Telemetry.settingChanged(TelemetrySetting.Theme)
         scope.launch {
             preferences.set(preference)
         }

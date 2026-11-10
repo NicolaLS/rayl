@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.core.model.LanguageCatalog
 import xyz.lilsus.raylsuite.core.model.LanguagePreference
+import xyz.lilsus.raylsuite.core.raylapi.TelemetrySetting
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 
 data class LanguageSettingsUiState(
     val searchQuery: String = "",
@@ -61,6 +63,7 @@ class LanguageSettingsViewModel(
     fun selectOption(optionId: String) {
         if (repository.management != LanguageManagement.InApp) return
 
+        Telemetry.settingChanged(TelemetrySetting.Language)
         scope.launch {
             if (optionId.equals(mutableUiState.value.deviceCode, ignoreCase = true)) {
                 repository.clearOverride()

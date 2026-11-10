@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
+import xyz.lilsus.raylsuite.core.raylapi.TelemetrySetting
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 
 data class CurrencySettingsUiState(
     val selectedCode: String = CurrencyCatalog.DEFAULT_CODE,
@@ -41,6 +43,7 @@ class CurrencySettingsViewModel(
     fun selectCurrency(code: String) {
         val normalisedCode = CurrencyCatalog.infoFor(code).code
         mutableUiState.value = mutableUiState.value.copy(selectedCode = normalisedCode)
+        Telemetry.settingChanged(TelemetrySetting.Currency)
         scope.launch {
             preferences.setCode(normalisedCode)
         }

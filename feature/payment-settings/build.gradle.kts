@@ -10,6 +10,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:model"))
+            implementation(project(":core:telemetry"))
             implementation(project(":core:payment"))
             implementation(project(":core:ui"))
             implementation(project(":feature:currency-settings"))

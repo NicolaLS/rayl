@@ -18,6 +18,8 @@ import xyz.lilsus.raylsuite.core.model.PaymentConfirmationMode
 import xyz.lilsus.raylsuite.core.model.PaymentPreferences
 import xyz.lilsus.raylsuite.core.model.convertMsatsToDisplayAmount
 import xyz.lilsus.raylsuite.core.payment.BitcoinPriceProvider
+import xyz.lilsus.raylsuite.core.raylapi.TelemetrySetting
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 import xyz.lilsus.raylsuite.feature.currencysettings.CurrencyPreferences
 
 class PaymentSettingsViewModel(
@@ -54,30 +56,40 @@ class PaymentSettingsViewModel(
     }
 
     fun selectConfirmationMode(mode: PaymentConfirmationMode) {
+        Telemetry.settingChanged(
+            when (mode) {
+                PaymentConfirmationMode.Always -> TelemetrySetting.ConfirmationAlways
+                PaymentConfirmationMode.Above -> TelemetrySetting.ConfirmationThreshold
+            }
+        )
         scope.launch {
             paymentPreferences.setConfirmationMode(mode)
         }
     }
 
     fun updateConfirmationThreshold(thresholdSats: Long) {
+        Telemetry.settingChanged(TelemetrySetting.ConfirmationAmount)
         scope.launch {
             paymentPreferences.setConfirmationThreshold(thresholdSats)
         }
     }
 
     fun setOfferToSaveNewTargets(enabled: Boolean) {
+        Telemetry.settingChanged(TelemetrySetting.OfferToSaveTargets)
         scope.launch {
             paymentPreferences.setOfferToSaveNewTargets(enabled)
         }
     }
 
     fun setVibrateOnScan(enabled: Boolean) {
+        Telemetry.settingChanged(TelemetrySetting.Haptics)
         scope.launch {
             paymentPreferences.setVibrateOnScan(enabled)
         }
     }
 
     fun setVibrateOnPayment(enabled: Boolean) {
+        Telemetry.settingChanged(TelemetrySetting.Haptics)
         scope.launch {
             paymentPreferences.setVibrateOnPayment(enabled)
         }

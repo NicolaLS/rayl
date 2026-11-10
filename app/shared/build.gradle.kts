@@ -39,6 +39,7 @@ kotlin {
             implementation(project(":core:camera"))
             implementation(project(":providers:blink:integration:blink"))
             implementation(project(":core:settings"))
+            api(project(":core:telemetry"))
             implementation(project(":core:model"))
             implementation(project(":core:ui"))
             implementation(project(":feature:theme-settings"))

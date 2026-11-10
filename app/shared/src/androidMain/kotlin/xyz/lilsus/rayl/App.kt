@@ -1,5 +1,6 @@
 package xyz.lilsus.rayl
 
+import android.app.Application
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,8 @@ import xyz.lilsus.rayl.shared.R
 import xyz.lilsus.raylsuite.core.model.ThemePreference
 import xyz.lilsus.raylsuite.core.settings.createAppSettings
 import xyz.lilsus.raylsuite.core.settings.rememberAppSettings
+import xyz.lilsus.raylsuite.core.telemetry.TelemetryMode
+import xyz.lilsus.raylsuite.core.telemetry.installTelemetry
 import xyz.lilsus.raylsuite.core.ui.platform.rememberRetainedInstance
 import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
@@ -161,6 +164,21 @@ private fun externalWalletOptions(): List<RaylWalletOption> = ExternalWallet.ent
         ExternalWallet.Spark -> R.string.spark_title to R.string.spark_body
     }
     RaylWalletOption(wallet.id, stringResource(title), stringResource(description))
+}
+
+/**
+ * Starts Rayl's anonymous usage data for this process; call it first in `Application.onCreate`.
+ * Only installations that are not onboarded yet report onboarding steps.
+ */
+fun installRaylTelemetry(application: Application, mode: TelemetryMode, appVersion: String) {
+    val settings = createAppSettings(application, RAYL_PREFERENCES)
+    installTelemetry(
+        application = application,
+        settings = settings,
+        mode = mode,
+        appVersion = appVersion,
+        newInstallation = { !appOnboarded(settings) }
+    )
 }
 
 /** Starts Rayl's wallet before any UI when it is in use, so it connects while the app launches. */

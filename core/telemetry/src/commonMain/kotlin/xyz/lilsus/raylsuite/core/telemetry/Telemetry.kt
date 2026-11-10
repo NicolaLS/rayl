@@ -33,6 +33,7 @@ object Telemetry : TelemetryRecorder {
     private val notInstalled = MutableStateFlow(false)
     private val launchRecorded = AtomicBoolean(false)
     private val firstPaymentTaken = AtomicBoolean(false)
+    private val changedSettings = mutableSetOf<TelemetrySetting>()
 
     /** The wallet in use, set by the app when it mounts one. */
     @Volatile
@@ -79,7 +80,12 @@ object Telemetry : TelemetryRecorder {
         )
     }
 
+    /**
+     * Reports that [setting] was changed, once per process: a slider reports every step, and how
+     * often someone toggles a switch back and forth says nothing. Main thread only.
+     */
     fun settingChanged(setting: TelemetrySetting) {
+        if (!changedSettings.add(setting)) return
         record(telemetryEvent(TelemetryCatalog.settingChanged, mapOf("setting" to setting)))
     }
 

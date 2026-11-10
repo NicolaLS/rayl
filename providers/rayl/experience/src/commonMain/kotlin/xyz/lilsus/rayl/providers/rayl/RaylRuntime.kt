@@ -10,13 +10,16 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.rayl.feature.payment.RaylPaymentSettlement
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketSetup
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketStatus
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPocket
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryOnboardingStep
 import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 import xyz.lilsus.raylsuite.core.ui.platform.HapticFeedbackManager
 import xyz.lilsus.raylsuite.feature.appshell.AppTabState
 import xyz.lilsus.raylsuite.feature.currencysettings.DefaultCurrencyPreferences
@@ -97,6 +100,15 @@ internal class RaylRuntime(
     init {
         RaylTrace.debug("experience created")
         pocket.start()
+        // Onboarding steps for usage data; each is reported once per installation.
+        scope.launch {
+            pocket.status.first { it == PocketStatus.Ready }
+            Telemetry.onboarding(TelemetryOnboardingStep.WalletReady)
+        }
+        scope.launch {
+            pocket.balanceSats.first { it != null && it > 0 }
+            Telemetry.onboarding(TelemetryOnboardingStep.Funded)
+        }
         scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.
             paymentCoordinator.uiState.collect { state ->

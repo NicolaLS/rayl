@@ -11,8 +11,42 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryWallet
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryWalletAction
 
 class RaylSelectionTest {
+    @Test
+    fun usageDataHearsOfAWalletOnceWhenItConnectsAndOnceWhenItIsRemoved() = runTest {
+        val settings = MapSettings()
+        val changes = mutableListOf<Pair<TelemetryWallet, TelemetryWalletAction>>()
+        fun selection() = RaylSelection(settings) { wallet, action -> changes += wallet to action }
+        val selection = selection()
+        selection.prepare { true }
+
+        // A setup that was cancelled never connected, so nothing was removed either.
+        selection.choose(ExternalWallet.Nwc)
+        selection.clear()
+        selection.prepare { true }
+        assertEquals(emptyList(), changes)
+
+        selection.choose(ExternalWallet.Blink)
+        selection.connected(ExternalWallet.Blink)
+        // A wallet reports its connection again whenever it reconnects, and on every launch.
+        selection.connected(ExternalWallet.Blink)
+        val restarted = selection()
+        restarted.prepare { true }
+        restarted.connected(ExternalWallet.Blink)
+        restarted.clear()
+
+        assertEquals(
+            listOf(
+                TelemetryWallet.Blink to TelemetryWalletAction.Connected,
+                TelemetryWallet.Blink to TelemetryWalletAction.Removed
+            ),
+            changes
+        )
+    }
+
     @Test
     fun abandonedSetupIsNotRestoredAndOrphanCredentialsAreErasedBeforeChoosing() = runTest {
         ExternalWallet.entries.forEach { wallet ->

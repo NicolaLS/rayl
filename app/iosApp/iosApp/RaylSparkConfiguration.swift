@@ -8,6 +8,20 @@ func configureRaylSpark() {
 #else
     let debugTools = false
 #endif
+    // Anonymous usage data: sent by the store app only. Debug builds log it under
+    // `RaylTelemetry`; automated builds must not report their runs as usage.
+#if RAYL_E2E
+    let usageData = "off"
+#elseif DEBUG
+    let usageData = "log"
+#else
+    let usageData = "upload"
+#endif
+    // Before `RaylIosApp` exists: creating it already reports the first onboarding step.
+    RaylTelemetryKt.configureRaylTelemetry(
+        mode: usageData,
+        appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+    )
 #if RAYL_E2E
     // Simulators in automated runs cannot complete passkey ceremonies: use the stand-in passkey.
     let passkeys: RaylPasskeyAuthenticator? = nil

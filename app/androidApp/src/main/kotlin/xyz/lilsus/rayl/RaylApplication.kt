@@ -8,6 +8,7 @@ import xyz.lilsus.rayl.providers.rayl.RaylPasskeys
 import xyz.lilsus.rayl.providers.rayl.enableRaylTimings
 import xyz.lilsus.rayl.providers.spark.SparkEnvironment
 import xyz.lilsus.raylsuite.core.network.initializeNetworkConnectivity
+import xyz.lilsus.raylsuite.core.telemetry.TelemetryMode
 
 class RaylApplication :
     Application(),
@@ -21,6 +22,19 @@ class RaylApplication :
     override fun onCreate() {
         super.onCreate()
         if (BuildConfig.DEBUG) enableRaylTimings()
+        installRaylTelemetry(
+            application = this,
+            mode = when (BuildConfig.BUILD_TYPE) {
+                "release" -> TelemetryMode.Upload
+
+                // Logged under `RaylTelemetry`, never sent.
+                "debug", "debugMainnet" -> TelemetryMode.Log
+
+                // Automated builds (e2e, benchmark) must not report runs as usage.
+                else -> TelemetryMode.Off
+            },
+            appVersion = BuildConfig.VERSION_NAME
+        )
         initializeNetworkConnectivity(this)
         val configuration = androidRaylConfiguration()
         startConfiguredWalletEarly(this, configuration.environment, configuration.breezApiKey)
