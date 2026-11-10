@@ -6,6 +6,9 @@ import kotlinx.serialization.Serializable
 object RaylApi {
     const val BASE_URL = "https://rayl-production.up.railway.app"
     const val BITCOIN_PRICES_PATH = "/v1/bitcoin/prices"
+
+    /** Accepts a [TelemetryBatch]; see `TelemetryCatalog.kt` for everything it can contain. */
+    const val TELEMETRY_PATH = "/v1/telemetry"
 }
 
 /**
