@@ -25,6 +25,7 @@ struct NativeSettingsView: View {
     @StateObject private var model: NativeSettingsViewModel
     private let leadingContent: AnyView?
     private let trailingContent: AnyView?
+    @State private var confirmUsageDataOff = false
 
     init(
         controller: NativeSettingsController,
@@ -152,6 +153,29 @@ struct NativeSettingsView: View {
                     }
                 }
 
+                Section {
+                    // Turning usage data off asks once, with the reason to keep it.
+                    Toggle(
+                        isOn: Binding(
+                            get: { snapshot.usageDataEnabled },
+                            set: { enabled in
+                                if enabled {
+                                    model.controller.setUsageDataEnabled(enabled: true)
+                                } else {
+                                    confirmUsageDataOff = true
+                                }
+                            }
+                        )
+                    ) {
+                        settingsLabel(
+                            title: snapshot.text.usageDataTitle,
+                            subtitle: snapshot.text.usageDataSubtitle,
+                            symbol: "chart.bar"
+                        )
+                    }
+                    .accessibilityIdentifier("settings_usage_data_row")
+                }
+
                 if let trailingContent {
                     Section {
                         trailingContent
@@ -161,6 +185,14 @@ struct NativeSettingsView: View {
                 Section {
                     NativeSettingsFooter(snapshot: snapshot)
                 }
+            }
+            .alert(snapshot.text.usageDataOffTitle, isPresented: $confirmUsageDataOff) {
+                Button(snapshot.text.usageDataOffKeep, role: .cancel) {}
+                Button(snapshot.text.usageDataOffConfirm, role: .destructive) {
+                    model.controller.setUsageDataEnabled(enabled: false)
+                }
+            } message: {
+                Text(snapshot.text.usageDataOffBody)
             }
             .navigationTitle(snapshot.text.settingsTitle)
             .navigationBarTitleDisplayMode(.inline)

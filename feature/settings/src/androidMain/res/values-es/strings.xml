@@ -21,4 +21,10 @@
     <string name="settings_footer_privacy">Política de privacidad</string>
     <string name="settings_footer_terms">Términos</string>
     <string name="settings_footer_repo">Código fuente</string>
+    <string name="settings_usage_data">Compartir datos de uso anónimos</string>
+    <string name="settings_usage_data_subtitle">Ayuda a que Rayl sea más rápido y mejor</string>
+    <string name="settings_usage_data_off_title">¿Desactivar los datos de uso?</string>
+    <string name="settings_usage_data_off_body">Rayl comparte tiempos y recuentos anónimos, por ejemplo cuánto tarda un pago. Nunca importes, facturas ni nada que te identifique. Así encontramos problemas y mejoramos Rayl para ti.</string>
+    <string name="settings_usage_data_off_confirm">Desactivar</string>
+    <string name="settings_usage_data_off_keep">Mantener activado</string>
 </resources>

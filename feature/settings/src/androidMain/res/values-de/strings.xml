@@ -21,4 +21,10 @@
     <string name="settings_footer_privacy">Datenschutz</string>
     <string name="settings_footer_terms">Nutzungsbedingungen</string>
     <string name="settings_footer_repo">Quellcode</string>
+    <string name="settings_usage_data">Anonyme Nutzungsdaten teilen</string>
+    <string name="settings_usage_data_subtitle">Hilft, Rayl schneller und besser zu machen</string>
+    <string name="settings_usage_data_off_title">Nutzungsdaten ausschalten?</string>
+    <string name="settings_usage_data_off_body">Rayl teilt anonyme Zeitmessungen und Zähler, zum Beispiel wie lange eine Zahlung dauert. Niemals Beträge, Rechnungen oder etwas, das dich identifiziert. So finden wir Probleme und machen Rayl für dich besser.</string>
+    <string name="settings_usage_data_off_confirm">Ausschalten</string>
+    <string name="settings_usage_data_off_keep">Eingeschaltet lassen</string>
 </resources>

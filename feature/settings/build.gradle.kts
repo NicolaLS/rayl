@@ -11,6 +11,7 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core:model"))
             implementation(project(":core:payment"))
+            implementation(project(":core:telemetry"))
             implementation(project(":core:ui"))
             api(project(":feature:currency-settings"))
             api(project(":feature:language-settings"))

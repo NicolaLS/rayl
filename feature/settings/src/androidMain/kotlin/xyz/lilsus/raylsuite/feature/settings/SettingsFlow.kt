@@ -20,6 +20,7 @@ import xyz.lilsus.raylsuite.core.model.LanguageCatalog
 import xyz.lilsus.raylsuite.core.model.LanguagePreference
 import xyz.lilsus.raylsuite.core.model.ThemePreference
 import xyz.lilsus.raylsuite.core.payment.BitcoinPriceProvider
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 import xyz.lilsus.raylsuite.feature.currencysettings.CurrencyPreferences
 import xyz.lilsus.raylsuite.feature.currencysettings.CurrencySettingsScreen
 import xyz.lilsus.raylsuite.feature.currencysettings.CurrencySettingsViewModel
@@ -189,6 +190,7 @@ private fun SettingsOverview(
     val languagePreference by languageRepository.preference.collectAsStateWithLifecycle()
     val themePreference by
         themePreferences.preference.collectAsStateWithLifecycle(ThemePreference.System)
+    val usageDataEnabled by Telemetry.enabled.collectAsStateWithLifecycle()
 
     SettingsScreen(
         onBack = onBack,
@@ -203,7 +205,9 @@ private fun SettingsOverview(
         themeSubtitle = themeSubtitle(themePreference),
         overviewBottomContent = overviewBottomContent,
         leadingEntries = leadingEntries,
-        trailingEntries = trailingEntries
+        trailingEntries = trailingEntries,
+        usageDataEnabled = usageDataEnabled,
+        onUsageDataChanged = Telemetry::setEnabled
     )
 }
 

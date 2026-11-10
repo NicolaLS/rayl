@@ -13,6 +13,7 @@ import xyz.lilsus.raylsuite.core.model.PaymentConfirmationMode
 import xyz.lilsus.raylsuite.core.model.PaymentPreferences
 import xyz.lilsus.raylsuite.core.model.ThemePreference
 import xyz.lilsus.raylsuite.core.payment.BitcoinPriceProvider
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
 import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 import xyz.lilsus.raylsuite.feature.currencysettings.CurrencyPreferences
@@ -61,7 +62,13 @@ data class NativeSettingsText(
     val paymentOfferSaveTargets: String,
     val paymentHapticsTitle: String,
     val paymentHapticsScan: String,
-    val paymentHapticsPayment: String
+    val paymentHapticsPayment: String,
+    val usageDataTitle: String,
+    val usageDataSubtitle: String,
+    val usageDataOffTitle: String,
+    val usageDataOffBody: String,
+    val usageDataOffConfirm: String,
+    val usageDataOffKeep: String
 )
 
 data class NativeSettingsSnapshot(
@@ -74,6 +81,8 @@ data class NativeSettingsSnapshot(
     val currencyOptions: List<NativeSettingsOption>,
     val selectedCurrencyId: String,
     val payment: NativePaymentSettingsSnapshot,
+    /** Whether anonymous usage data is shared; see `TelemetryCatalog.kt`. */
+    val usageDataEnabled: Boolean,
     val versionText: String,
     val legalLinks: List<NativeSettingsLink>
 )
@@ -109,8 +118,9 @@ class NativeSettingsController(
                     theme.uiState,
                     language.uiState,
                     currency.uiState,
-                    payment.uiState
-                ) { themeState, languageState, currencyState, paymentState ->
+                    payment.uiState,
+                    Telemetry.enabled
+                ) { themeState, languageState, currencyState, paymentState, usageDataEnabled ->
                     val resources = loadResources(legalLinks, appVersionName)
                     NativeSettingsSnapshot(
                         text = resources.text,
@@ -140,6 +150,7 @@ class NativeSettingsController(
                                 vibrateOnScan = paymentState.vibrateOnScan,
                                 vibrateOnPayment = paymentState.vibrateOnPayment
                             ),
+                        usageDataEnabled = usageDataEnabled,
                         versionText = resources.versionText,
                         legalLinks = resources.legalLinks
                     )
@@ -191,6 +202,11 @@ class NativeSettingsController(
 
     fun setVibrateOnPayment(enabled: Boolean) {
         payment.setVibrateOnPayment(enabled)
+    }
+
+    /** Turning it off also discards what has not been sent yet. */
+    fun setUsageDataEnabled(enabled: Boolean) {
+        Telemetry.setEnabled(enabled)
     }
 
     fun clear() {
@@ -340,7 +356,28 @@ private suspend fun loadResources(
                 paymentOfferSaveTargets = paymentStrings.getValue("offerSaveTargets"),
                 paymentHapticsTitle = paymentStrings.getValue("hapticsTitle"),
                 paymentHapticsScan = paymentStrings.getValue("hapticsScan"),
-                paymentHapticsPayment = paymentStrings.getValue("hapticsPayment")
+                paymentHapticsPayment = paymentStrings.getValue("hapticsPayment"),
+                usageDataTitle = nativeString(
+                    NativeStringResource(table = "Settings", key = "settings_usage_data")
+                ),
+                usageDataSubtitle = nativeString(
+                    NativeStringResource(table = "Settings", key = "settings_usage_data_subtitle")
+                ),
+                usageDataOffTitle = nativeString(
+                    NativeStringResource(table = "Settings", key = "settings_usage_data_off_title")
+                ),
+                usageDataOffBody = nativeString(
+                    NativeStringResource(table = "Settings", key = "settings_usage_data_off_body")
+                ),
+                usageDataOffConfirm = nativeString(
+                    NativeStringResource(
+                        table = "Settings",
+                        key = "settings_usage_data_off_confirm"
+                    )
+                ),
+                usageDataOffKeep = nativeString(
+                    NativeStringResource(table = "Settings", key = "settings_usage_data_off_keep")
+                )
             ),
         themeOptions = themeOptions,
         languageOptions = languageOptions,

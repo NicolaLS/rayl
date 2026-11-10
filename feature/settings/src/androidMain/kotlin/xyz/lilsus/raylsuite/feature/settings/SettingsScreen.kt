@@ -9,27 +9,37 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.CurrencyExchange
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -70,8 +80,35 @@ fun SettingsScreen(
     themeSubtitle: String? = null,
     overviewBottomContent: (@Composable () -> Unit)? = null,
     leadingEntries: List<SettingsEntry> = emptyList(),
-    trailingEntries: List<SettingsEntry> = emptyList()
+    trailingEntries: List<SettingsEntry> = emptyList(),
+    usageDataEnabled: Boolean = true,
+    onUsageDataChanged: (Boolean) -> Unit = {}
 ) {
+    // Turning usage data off asks once, with the reason to keep it; turning it on does not.
+    var confirmUsageDataOff by rememberSaveable { mutableStateOf(false) }
+    if (confirmUsageDataOff) {
+        AlertDialog(
+            onDismissRequest = { confirmUsageDataOff = false },
+            title = { Text(stringResource(R.string.settings_usage_data_off_title)) },
+            text = { Text(stringResource(R.string.settings_usage_data_off_body)) },
+            confirmButton = {
+                TextButton(onClick = { confirmUsageDataOff = false }) {
+                    Text(stringResource(R.string.settings_usage_data_off_keep))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.testTag(SettingsTestTags.USAGE_DATA_TURN_OFF),
+                    onClick = {
+                        confirmUsageDataOff = false
+                        onUsageDataChanged(false)
+                    }
+                ) {
+                    Text(stringResource(R.string.settings_usage_data_off_confirm))
+                }
+            }
+        )
+    }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val resolvedCurrencySubtitle =
         currencySubtitle ?: stringResource(R.string.settings_currency_subtitle)
@@ -141,6 +178,23 @@ fun SettingsScreen(
         ) {
             items(entries, key = { entry -> "entry:${entry.id}" }) { entry ->
                 SettingsListItem(entry)
+            }
+            item(key = "usage-data") {
+                AppSettingsRow(
+                    title = stringResource(R.string.settings_usage_data),
+                    modifier = Modifier.toggleable(
+                        value = usageDataEnabled,
+                        role = Role.Switch,
+                        onValueChange = { enabled ->
+                            if (enabled) onUsageDataChanged(true) else confirmUsageDataOff = true
+                        }
+                    ),
+                    subtitle = stringResource(R.string.settings_usage_data_subtitle),
+                    icon = Icons.Filled.Insights,
+                    testTag = SettingsTestTags.USAGE_DATA_ROW
+                ) {
+                    Switch(checked = usageDataEnabled, onCheckedChange = null)
+                }
             }
             overviewBottomContent?.let { content ->
                 item(key = "slot:overview-bottom-content") {
@@ -226,6 +280,8 @@ object SettingsTestTags {
     const val CURRENCY_ROW = "settings_currency_row"
     const val LANGUAGE_ROW = "settings_language_row"
     const val THEME_ROW = "settings_theme_row"
+    const val USAGE_DATA_ROW = "settings_usage_data_row"
+    const val USAGE_DATA_TURN_OFF = "settings_usage_data_turn_off"
 }
 
 @Preview
