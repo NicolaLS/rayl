@@ -112,6 +112,24 @@ enum class TelemetryScanSession(override val wire: String) : TelemetryValue {
     Restart("restart")
 }
 
+/** Which code reader decoded the code first. */
+enum class TelemetryScanDecoder(override val wire: String) : TelemetryValue {
+    /** Android: Google ML Kit. */
+    MlKit("mlkit"),
+
+    /** iOS: AVFoundation's metadata output. */
+    AvFoundation("avfoundation"),
+
+    /** iOS: Apple's Vision framework on the camera's frames. */
+    Vision("vision")
+}
+
+/** Where two code readers race: what the slower one did before the scanner stopped. */
+enum class TelemetryScanRunnerUp(override val wire: String) : TelemetryValue {
+    Decoded("decoded"),
+    Missed("missed")
+}
+
 /** Sent at most once per installation, and only by installations that started after telemetry. */
 enum class TelemetryOnboardingStep(override val wire: String) : TelemetryValue {
     Welcome("welcome"),
@@ -187,7 +205,9 @@ object TelemetryCatalog {
         name = "scan",
         dimensions = mapOf(
             CAMERA_VARIANT to TelemetryCameraVariant.entries,
-            "session" to TelemetryScanSession.entries
+            "session" to TelemetryScanSession.entries,
+            "decoder" to TelemetryScanDecoder.entries,
+            "runner_up" to TelemetryScanRunnerUp.entries
         ),
         measures = setOf(
             "camera_start_to_ready_ms",
@@ -198,7 +218,11 @@ object TelemetryCatalog {
             "frame_analysis_avg_ms",
             "frame_width",
             "frame_height",
-            "process_to_qr_ms"
+            "process_to_qr_ms",
+            // How much later the slower reader decoded the same code, or how long the scanner
+            // still ran without it doing so.
+            "runner_up_lag_ms",
+            "runner_up_wait_ms"
         )
     )
 

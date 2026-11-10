@@ -6,7 +6,7 @@
   ],
   "timezone": "utc",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": true,
   "refresh": "1m",
   "time": {
@@ -777,6 +777,91 @@
       "options": {}
     },
     {
+      "type": "piechart",
+      "title": "iPhone: which code reader is first",
+      "id": 16,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "On iPhone two code readers watch the camera at once: Apple's built-in one (avfoundation) and Apple's Vision. This is how often each one read the code first.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 27
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'decoder' as reader, count(*) as wins from telemetry_events where name = 'scan' and dimensions ? 'runner_up' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "donut"
+      }
+    },
+    {
+      "type": "table",
+      "title": "iPhone: how far behind the other reader is",
+      "id": 17,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "For each winner: how often the other reader also read the code before the scanner stopped, and how much later (typical). 'Never read it' with a long wait means the other reader really failed on that code; with a short wait it just ran out of time.",
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 27
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select dimensions->>'decoder' as \"first reader\", count(*) as scans,\n  round(100.0 * count(*) filter (where dimensions->>'runner_up' = 'decoded') / count(*), 1) as \"other also read it %\",\n  round(percentile_cont(0.5) within group (order by (measures->>'runner_up_lag_ms')::numeric)) as \"other was later by (ms)\",\n  count(*) filter (where dimensions->>'runner_up' = 'missed') as \"other never read it\",\n  round(percentile_cont(0.5) within group (order by (measures->>'runner_up_wait_ms')::numeric)) as \"...after waiting (ms)\"\nfrom telemetry_events where name = 'scan' and dimensions ? 'runner_up' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
       "type": "table",
       "title": "Camera by phone model",
       "id": 14,
@@ -789,7 +874,7 @@
         "h": 8,
         "w": 14,
         "x": 0,
-        "y": 27
+        "y": 35
       },
       "targets": [
         {
@@ -823,7 +908,7 @@
         "h": 8,
         "w": 10,
         "x": 14,
-        "y": 27
+        "y": 35
       },
       "targets": [
         {

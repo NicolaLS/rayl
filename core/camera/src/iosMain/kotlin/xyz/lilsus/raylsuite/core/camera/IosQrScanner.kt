@@ -33,6 +33,8 @@ import platform.AVFoundation.AVCaptureOutput
 import platform.AVFoundation.AVCaptureSession
 import platform.AVFoundation.AVCaptureSessionPresetHigh
 import platform.AVFoundation.AVCaptureSessionPresetInputPriority
+import platform.AVFoundation.AVCaptureVideoDataOutput
+import platform.AVFoundation.AVCaptureVideoDataOutputSampleBufferDelegateProtocol
 import platform.AVFoundation.AVFrameRateRange
 import platform.AVFoundation.AVMediaTypeVideo
 import platform.AVFoundation.AVMetadataMachineReadableCodeObject
@@ -46,13 +48,21 @@ import platform.AVFoundation.isFocusModeSupported
 import platform.AVFoundation.maxAvailableVideoZoomFactor
 import platform.AVFoundation.minAvailableVideoZoomFactor
 import platform.AVFoundation.videoZoomFactor
+import platform.CoreMedia.CMSampleBufferGetImageBuffer
+import platform.CoreMedia.CMSampleBufferRef
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMVideoFormatDescriptionGetDimensions
+import platform.CoreVideo.CVPixelBufferGetHeight
+import platform.CoreVideo.CVPixelBufferGetWidth
 import platform.Foundation.NSError
 import platform.Foundation.NSLog
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.UIKit.UIApplicationDidBecomeActiveNotification
+import platform.Vision.VNBarcodeObservation
+import platform.Vision.VNBarcodeSymbologyQR
+import platform.Vision.VNDetectBarcodesRequest
+import platform.Vision.VNImageRequestHandler
 import platform.darwin.DISPATCH_TIME_NOW
 import platform.darwin.NSEC_PER_MSEC
 import platform.darwin.NSObject
@@ -63,6 +73,7 @@ import platform.darwin.dispatch_get_main_queue
 import platform.darwin.dispatch_queue_create
 import platform.darwin.dispatch_queue_t
 import platform.darwin.dispatch_time
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryScanDecoder
 import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
 import xyz.lilsus.raylsuite.core.telemetry.TracePoint
 import xyz.lilsus.raylsuite.core.telemetry.TraceSpan
@@ -91,7 +102,29 @@ private class IosQrScannerController : QrScannerController {
     private val metadataDelegate = MetadataDelegate(
         isActive = { started },
         onMetadataObjects = { metadataObjects ->
-            observeQrCode(selectPreferredMetadataValue(metadataObjects))
+            observeQrCode(
+                TelemetryScanDecoder.AvFoundation,
+                selectPreferredMetadataValue(metadataObjects),
+                atMs = RaylTrace.nowMs()
+            )
+        }
+    )
+
+    // Vision decodes on its own queue so its work never delays the metadata reader's callbacks;
+    // both report to the session queue with the time they decoded at.
+    private val visionQueue: dispatch_queue_t = dispatch_queue_create(
+        "xyz.lilsus.raylsuite.qr.vision",
+        null
+    )
+    private val visionDelegate = VisionDelegate(
+        isActive = { started },
+        onFrameAnalyzed = { durationMs, width, height ->
+            scanTelemetry.frameAnalyzed(durationMs, width, height)
+        },
+        onValue = { value, atMs ->
+            dispatch_async(sessionQueue) {
+                observeQrCode(TelemetryScanDecoder.Vision, value, atMs)
+            }
         }
     )
 
@@ -105,6 +138,8 @@ private class IosQrScannerController : QrScannerController {
     private var generation = 0L
     private val config = CameraVariant.current.iosCameraConfig()
     private val scanTelemetry = ScanTelemetry()
+    private val race = DecoderRace(scanTelemetry)
+    private var racing = false
 
     override fun start(
         onQrCodeScanned: (String) -> Unit,
@@ -128,6 +163,7 @@ private class IosQrScannerController : QrScannerController {
             try {
                 if (generation != currentGeneration) return@dispatch_async
                 qrPresenceGate.reset()
+                race.reset()
                 started = true
                 ensureSessionRunning()
             } finally {
@@ -146,6 +182,7 @@ private class IosQrScannerController : QrScannerController {
         dispatch_async(sessionQueue) {
             try {
                 started = false
+                scanTelemetry.sessionEnded()
                 if (session.running) session.stopRunning()
                 teardownSession()
                 configured = false
@@ -205,6 +242,7 @@ private class IosQrScannerController : QrScannerController {
                     metadataOutput.availableMetadataObjectTypes as? List<Any> ?: emptyList()
                 if (availableTypes.none { it == AVMetadataObjectTypeQRCode }) return false
                 metadataOutput.metadataObjectTypes = listOf(AVMetadataObjectTypeQRCode)
+                racing = config.raceVision && addVisionOutput()
                 applyFixedCameraControls(device)
                 true
             } finally {
@@ -244,9 +282,24 @@ private class IosQrScannerController : QrScannerController {
         outputs.forEach(session::removeOutput)
     }
 
-    private fun observeQrCode(value: String?) {
-        val emittedValue = qrPresenceGate.observe(value) ?: return
-        scanTelemetry.qrDetected()
+    /** A second output on the same session, feeding the camera's frames to Vision. */
+    private fun addVisionOutput(): Boolean {
+        val videoOutput = AVCaptureVideoDataOutput()
+        if (!session.canAddOutput(videoOutput)) return false
+        // A frame that arrives while Vision is busy is dropped, never queued.
+        videoOutput.alwaysDiscardsLateVideoFrames = true
+        videoOutput.setSampleBufferDelegate(visionDelegate, visionQueue)
+        session.addOutput(videoOutput)
+        return true
+    }
+
+    /** On the session queue. */
+    private fun observeQrCode(decoder: TelemetryScanDecoder, value: String?, atMs: Long) {
+        val emittedValue = if (racing) {
+            race.observe(decoder, value, atMs)
+        } else {
+            qrPresenceGate.observe(value)?.also { scanTelemetry.qrDetected(decoder) }
+        } ?: return
         val callback = onQrCodeScanned ?: return
         val currentGeneration = generation
         dispatch_async(dispatch_get_main_queue()) {
@@ -283,6 +336,61 @@ private class IosQrScannerController : QrScannerController {
     private fun removeLifecycleObserver() {
         lifecycleObserver?.let(NSNotificationCenter.defaultCenter::removeObserver)
         lifecycleObserver = null
+    }
+}
+
+/**
+ * Reads QR codes from the camera's frames with Apple's Vision framework, one frame at a time.
+ * It reports every frame's result, also "no code", like the metadata reader does.
+ */
+private class VisionDelegate(
+    private val isActive: () -> Boolean,
+    private val onFrameAnalyzed: (durationMs: Long, width: Int, height: Int) -> Unit,
+    private val onValue: (value: String?, atMs: Long) -> Unit
+) : NSObject(),
+    AVCaptureVideoDataOutputSampleBufferDelegateProtocol {
+    private val request = VNDetectBarcodesRequest().apply {
+        symbologies = listOf(VNBarcodeSymbologyQR)
+    }
+
+    override fun captureOutput(
+        output: AVCaptureOutput,
+        didOutputSampleBuffer: CMSampleBufferRef?,
+        fromConnection: AVCaptureConnection
+    ) {
+        if (!isActive()) return
+        val pixelBuffer = CMSampleBufferGetImageBuffer(didOutputSampleBuffer) ?: return
+        val startedMs = RaylTrace.nowMs()
+        val handler = VNImageRequestHandler(pixelBuffer, options = emptyMap<Any?, Any>())
+        val performed = memScoped {
+            val error = alloc<ObjCObjectVar<NSError?>>()
+            handler.performRequests(listOf(request), error.ptr)
+        }
+        val now = RaylTrace.nowMs()
+        onFrameAnalyzed(
+            now - startedMs,
+            CVPixelBufferGetWidth(pixelBuffer).toInt(),
+            CVPixelBufferGetHeight(pixelBuffer).toInt()
+        )
+        if (!performed) return
+        val candidates = request.results.orEmpty().mapNotNull { result ->
+            val code = result as? VNBarcodeObservation ?: return@mapNotNull null
+            val value = code.payloadStringValue?.trim()?.takeIf(String::isNotEmpty)
+                ?: return@mapNotNull null
+            // Vision's box is normalised with its origin at the bottom left.
+            code.boundingBox.useContents {
+                val left = origin.x.toFloat()
+                val top = 1f - (origin.y + size.height).toFloat()
+                QrDetectionCandidate(
+                    value = value,
+                    left = left,
+                    top = top,
+                    right = left + size.width.toFloat(),
+                    bottom = top + size.height.toFloat()
+                )
+            }
+        }
+        onValue(pickPreferredQrValue(candidates, frameWidth = 1f, frameHeight = 1f), now)
     }
 }
 
@@ -466,9 +574,12 @@ private const val MAXIMUM_ASPECT_DELTA = 0.08
 
 /**
  * The scanner settings a [CameraVariant] stands for on iOS: the capture rate, the format wanted
- * from a camera with an ultra-wide lens, and the one wanted from a wide-angle-only camera.
+ * from a camera with an ultra-wide lens, the one wanted from a wide-angle-only camera, and
+ * whether Vision reads the frames next to AVFoundation's metadata reader. With [raceVision] the
+ * first of the two to decode a code hands it on, and usage data learns which one it was.
  */
 internal class IosCameraConfig(
+    val raceVision: Boolean,
     val captureFps: Double,
     val fourThreeTarget: CaptureFormatTarget,
     val wideFallbackTarget: CaptureFormatTarget
@@ -476,6 +587,7 @@ internal class IosCameraConfig(
 
 internal fun CameraVariant.iosCameraConfig(): IosCameraConfig = when (this) {
     CameraVariant.Control -> IosCameraConfig(
+        raceVision = true,
         captureFps = 30.0,
         fourThreeTarget = CaptureFormatTarget(
             targetAspectRatio = 4.0 / 3.0,

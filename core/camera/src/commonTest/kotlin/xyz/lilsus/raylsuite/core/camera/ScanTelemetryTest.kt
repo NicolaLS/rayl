@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryEvent
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryScanDecoder
 
 class ScanTelemetryTest {
     private var now = 0L
@@ -31,16 +32,16 @@ class ScanTelemetryTest {
         telemetry.frameAnalyzed(durationMs = 50, width = 1920, height = 1440)
         now = 2_150
 
-        telemetry.qrDetected()
+        telemetry.qrDetected(TelemetryScanDecoder.MlKit)
         // The same code still in view, or the next one, is not another scan.
         now = 9_000
-        telemetry.qrDetected()
+        telemetry.qrDetected(TelemetryScanDecoder.MlKit)
 
         assertEquals(
             listOf(
                 TelemetryEvent(
                     name = "scan",
-                    dimensions = mapOf("camera_variant" to "control", "session" to "first"),
+                    dimensions = mapOf("camera_variant" to "control", "session" to "first", "decoder" to "mlkit"),
                     measures = mapOf(
                         "camera_start_to_ready_ms" to 120L,
                         "camera_start_to_first_frame_ms" to 350L,
@@ -61,16 +62,16 @@ class ScanTelemetryTest {
     fun aRestartedScannerDoesNotCountFromProcessStart() {
         val telemetry = telemetry()
         telemetry.sessionStarted()
-        telemetry.qrDetected()
+        telemetry.qrDetected(TelemetryScanDecoder.MlKit)
         now = 60_000
         telemetry.sessionStarted()
         now = 60_200
         telemetry.firstFrame()
         now = 60_900
 
-        telemetry.qrDetected()
+        telemetry.qrDetected(TelemetryScanDecoder.MlKit)
 
-        assertEquals(mapOf("camera_variant" to "control", "session" to "restart"), recorded.last().dimensions)
+        assertEquals("restart", recorded.last().dimensions["session"])
         // Without Rayl's own frame analysis (iOS) there is nothing to say about frames.
         assertEquals(
             mapOf("camera_start_to_first_frame_ms" to 200L, "first_frame_to_qr_ms" to 700L),
@@ -84,7 +85,7 @@ class ScanTelemetryTest {
         telemetry.sessionStarted()
         now = 500
 
-        telemetry.qrDetected()
+        telemetry.qrDetected(TelemetryScanDecoder.MlKit)
 
         assertEquals(emptyMap(), recorded.single().measures)
     }
