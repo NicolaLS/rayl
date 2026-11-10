@@ -1,0 +1,16 @@
+apiVersion: 1
+datasources:
+  - name: Rayl usage data
+    uid: rayl-usage-data
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: ${RAYL_DB_HOST}:${RAYL_DB_PORT}
+    user: ${RAYL_DB_USER}
+    isDefault: true
+    editable: false
+    jsonData:
+      database: ${RAYL_DB_NAME}
+      sslmode: ${RAYL_DB_SSLMODE}
+      postgresVersion: 1700
+    secureJsonData:
+      password: ${RAYL_DB_PASSWORD}

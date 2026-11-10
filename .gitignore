@@ -30,3 +30,6 @@ dist/
 
 # Local Firebase configuration is never part of a release by file presence alone.
 app/androidApp/**/google-services.json
+
+# The usage dashboard's database connection (tools/usage-dashboard/connect writes it).
+tools/usage-dashboard/.env
