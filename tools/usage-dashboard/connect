@@ -7,7 +7,17 @@ set -eu
 cd "$(dirname "$0")"
 PSQL="$(command -v psql || echo "$(brew --prefix libpq)/bin/psql")"
 URL=$(railway variable list -p 9bbf2625-4edc-4a92-bc7c-b3e9f6c840be -e production -s Postgres --json |
-  python3 -c "import json,sys; print(json.load(sys.stdin).get('DATABASE_PUBLIC_URL', ''))")
+  python3 -c "
+import json, sys, urllib.parse
+v = json.load(sys.stdin)
+host, port = v.get('RAILWAY_TCP_PROXY_DOMAIN'), v.get('RAILWAY_TCP_PROXY_PORT')
+if v.get('DATABASE_PUBLIC_URL'):
+    print(v['DATABASE_PUBLIC_URL'])
+elif host and port:
+    # Railway names the proxy's endpoint; the service does not always define a public URL itself.
+    password = urllib.parse.quote(v['PGPASSWORD'], safe='')
+    print(f\"postgresql://{v['PGUSER']}:{password}@{host}:{port}/{v['PGDATABASE']}\")
+")
 if [ -z "$URL" ]; then
   echo "The Postgres service has no public endpoint yet; add the TCP proxy first (see above)." >&2
   exit 1
