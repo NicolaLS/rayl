@@ -107,7 +107,7 @@ update this table and the risk register.
 
 | Change | Status | Effect on testing |
 |---|---|---|
-| **Remove all deep links** (payment and wallet connection). Rayl is built for in-person checkout and Hub payments, not to be a general wallet's link handler. Add funds still hands its invoice to another wallet as a `lightning:` link. | Done (2026-11-01) | Nothing to test for incoming links. Add funds: the handoff, and the invoice sheet when no wallet app is installed. Automated runs need an E2E-only way to inject scanned input (§12, after 1.1); the regtest tool's `--open` is gone. |
+| **Remove all deep links** (payment and wallet connection). Rayl is built for in-person checkout and Hub payments, not to be a general wallet's link handler. Add funds shows its invoice and hands it to another wallet as a `lightning:` link only when the user taps Open in wallet. | Done (2026-11-01) | Nothing to test for incoming links. Add funds: the invoice sheet, the handoff, and no Open in wallet button when no wallet app is installed. Automated runs need an E2E-only way to inject scanned input (§12, after 1.1); the regtest tool's `--open` is gone. |
 | Replace the custom payment-input parser with the Breez SDK parser | Not pursued (2026-11-01, D-10) | The custom parser stays: corpus and property tests are in scope (P1.9, PR-14). |
 | Get fiat rates from the Breez SDK instead of `backend/rayl` | Not pursued (2026-11-01, D-10) | The backend stays: contract and degradation tests are in scope (P1.8, PR-18). |
 | **Fee limit setting** (SI-01, MOB-93) | Decided 2026-11-02, not scheduled (no feature work now) | New decision-table conditions (P1.2) once built. Not in 1.1. |

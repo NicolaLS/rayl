@@ -335,14 +335,9 @@ private struct RaylWalletSettingsActions: View {
     var body: some View {
         if let snapshot = model.snapshot {
             balanceRow(snapshot)
-                .onChange(of: snapshot.fundingStage, initial: true) { _, stage in
-                    if stage == "open", let invoice = model.snapshot?.invoice {
-                        openInWallet(invoice)
-                    }
-                }
                 .sheet(
                     isPresented: Binding(
-                        get: { ["shown", "received"].contains(model.snapshot?.fundingStage ?? "") },
+                        get: { (model.snapshot?.fundingStage ?? "idle") != "idle" },
                         set: { if !$0 { model.controller.resetFunding() } }
                     )
                 ) {
@@ -387,17 +382,7 @@ private struct RaylWalletSettingsActions: View {
             Button { model.controller.retryPocket() } label: { balance(snapshot) }
         } else {
             Button { model.controller.addFunds() } label: { balance(snapshot) }
-                .disabled(snapshot.fundingStage == "creating")
                 .accessibilityIdentifier("rayl_balance")
-                .alert(
-                    snapshot.invoiceFailed,
-                    isPresented: Binding(
-                        get: { model.snapshot?.fundingStage == "failed" },
-                        set: { if !$0 { model.controller.resetFunding() } }
-                    )
-                ) {
-                    Button(snapshot.doneTitle) { model.controller.resetFunding() }
-                }
         }
     }
 
@@ -410,9 +395,7 @@ private struct RaylWalletSettingsActions: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if snapshot.fundingStage == "creating" {
-                ProgressView()
-            } else if snapshot.keyUnreadable {
+            if snapshot.keyUnreadable {
                 Text(snapshot.setUpAgainTitle)
                     .foregroundStyle(.tint)
             } else if !snapshot.pocketFailed {
@@ -421,22 +404,6 @@ private struct RaylWalletSettingsActions: View {
             }
         }
         .contentShape(Rectangle())
-    }
-
-    /// Hands the amountless invoice to a wallet app, where the user chooses the amount. Rayl does
-    /// not register `lightning:`, so iOS reports failure when no wallet app is installed.
-    private func openInWallet(_ invoice: String) {
-        guard let url = URL(string: "lightning:\(invoice)") else {
-            model.controller.showInvoice()
-            return
-        }
-        UIApplication.shared.open(url) { opened in
-            if opened {
-                model.controller.openedInWallet()
-            } else {
-                model.controller.showInvoice()
-            }
-        }
     }
 
     private func detail(_ title: String, _ body: String, systemImage: String) -> some View {
@@ -470,9 +437,12 @@ private struct RaylUseAnotherWalletView: View {
     }
 }
 
-/// The funding invoice when no other wallet app opened it, then the amount that arrived.
+/// Add funds, open for as long as funding is: the invoice to scan, copy, or open in a wallet app on
+/// this phone, then the amount that arrived.
 private struct RaylFundingSheet: View {
     @ObservedObject var model: RaylWalletSettingsModel
+    /// The sheet is as tall as what it shows, so the short "funds added" does not fill the screen.
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -481,9 +451,13 @@ private struct RaylFundingSheet: View {
                     .padding(24)
                     .frame(maxWidth: 520)
                     .frame(maxWidth: .infinity)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                        contentHeight = $0
+                    }
             }
         }
-        .presentationDetents([.large])
+        .scrollBounceBehavior(.basedOnSize)
+        .presentationDetents([contentHeight > 0 ? .height(contentHeight) : .medium])
         .presentationDragIndicator(.visible)
     }
 
@@ -503,22 +477,46 @@ private struct RaylFundingSheet: View {
                 }
                 Button(snapshot.doneTitle) { model.controller.resetFunding() }
                     .buttonStyle(.borderedProminent)
+            } else if snapshot.fundingStage == "failed" {
+                title(snapshot)
+                Text(snapshot.invoiceFailed)
+                    .multilineTextAlignment(.center)
+                Button(snapshot.retryTitle) { model.controller.addFunds() }
+                    .buttonStyle(.borderedProminent)
             } else if let invoice = snapshot.invoice {
-                Text(snapshot.addFundsTitle)
-                    .font(.title2.bold())
+                title(snapshot)
                 Text(snapshot.addFundsBody)
                     .multilineTextAlignment(.center)
                 RaylQRCode(value: invoice.uppercased())
-                Text(invoice)
-                    .font(.footnote.monospaced())
-                    .lineLimit(2)
-                    .truncationMode(.middle)
-                Button(snapshot.copyInvoiceTitle) { UIPasteboard.general.string = invoice }
-                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("rayl_funding_qr")
                 Text(snapshot.waitingForPayment)
                     .foregroundStyle(.secondary)
+                if let url = Self.walletURL(invoice) {
+                    Button(snapshot.openInWalletTitle) { UIApplication.shared.open(url) }
+                        .buttonStyle(.borderedProminent)
+                }
+                Button(snapshot.copyInvoiceTitle) { UIPasteboard.general.string = invoice }
+                    .buttonStyle(.bordered)
+            } else {
+                title(snapshot)
+                ProgressView()
+                    .frame(width: 240, height: 240)
             }
         }
+    }
+
+    private func title(_ snapshot: RaylNativeWalletSettingsSnapshot) -> some View {
+        Text(snapshot.addFundsTitle)
+            .font(.title2.bold())
+    }
+
+    /// The `lightning:` link for a wallet app on this phone, or nil when none is installed. Rayl
+    /// does not register the scheme itself; asking needs it in `LSApplicationQueriesSchemes`.
+    private static func walletURL(_ invoice: String) -> URL? {
+        guard let url = URL(string: "lightning:\(invoice)"),
+              UIApplication.shared.canOpenURL(url)
+        else { return nil }
+        return url
     }
 }
 

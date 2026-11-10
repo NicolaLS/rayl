@@ -461,6 +461,29 @@
         }
       }
     },
+    "rayl_open_in_wallet" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Wallet öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in wallet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir en billetera"
+          }
+        }
+      }
+    },
     "rayl_passkey_failed" : {
       "extractionState" : "stale",
       "localizations" : {

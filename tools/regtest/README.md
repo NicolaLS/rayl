@@ -29,8 +29,7 @@ tools/regtest/regtest invoice 500            # Rayl pays this (scan the QR); wai
    `tools/regtest/regtest pay --from android --amount 1000` pays the latest
    invoice: debug builds log it under the `RaylRegtest` logcat tag, so no
    copying is needed (set `ANDROID_SERIAL` when several devices are connected).
-   When no wallet app opens it, Rayl shows the invoice; on the iOS
-   simulator, tap Copy invoice and run
+   On the iOS simulator, tap Copy invoice in the sheet and run
    `tools/regtest/regtest pay "$(pbpaste)" --amount 1000`; its clipboard syncs
    with the Mac.
 3. **Pay from Rayl.** `tools/regtest/regtest invoice 500` prints the invoice as a

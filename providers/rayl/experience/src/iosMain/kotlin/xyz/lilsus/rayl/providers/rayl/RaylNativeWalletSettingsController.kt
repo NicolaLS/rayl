@@ -21,17 +21,16 @@ data class RaylNativeWalletSettingsSnapshot(
     val setUpAgainTitle: String,
     val addFundsTitle: String,
     val addFundsBody: String,
+    val openInWalletTitle: String,
     val copyInvoiceTitle: String,
     val waitingForPayment: String,
     val fundsAdded: String,
     /** The amount the last funding payment added, once it arrived. */
     val fundsAddedAmount: String?,
     val invoiceFailed: String,
+    val retryTitle: String,
     val doneTitle: String,
-    /**
-     * `idle`, `creating`, `open` (open [invoice] in another wallet app, then report back),
-     * `inWallet`, `shown` (present [invoice]), `received`, or `failed`.
-     */
+    /** `idle`, `creating`, `awaiting` (present [invoice]), `received`, or `failed`. */
     val fundingStage: String,
     val invoice: String?,
     val useAnotherWalletTitle: String,
@@ -72,11 +71,6 @@ class RaylNativeWalletSettingsController internal constructor(
     /** Creates an amountless invoice for the user's other wallet to pay. */
     fun addFunds() = runtime.funding.request()
 
-    fun openedInWallet() = runtime.funding.openedInWallet()
-
-    /** No other wallet app opened the invoice. */
-    fun showInvoice() = runtime.funding.showInvoice()
-
     fun resetFunding() = runtime.funding.reset()
 
     fun retryPocket() = runtime.retryPocket()
@@ -115,6 +109,7 @@ class RaylNativeWalletSettingsController internal constructor(
         setUpAgainTitle = text("rayl_set_up_again"),
         addFundsTitle = text("rayl_add_funds"),
         addFundsBody = text("rayl_add_funds_body"),
+        openInWalletTitle = text("rayl_open_in_wallet"),
         copyInvoiceTitle = text("rayl_copy_invoice"),
         waitingForPayment = text("rayl_waiting_for_payment"),
         fundsAdded = text("rayl_funds_added"),
@@ -122,20 +117,13 @@ class RaylNativeWalletSettingsController internal constructor(
             currentAmountFormatter().format(DisplayAmount(it.amountSats, DisplayCurrency.Satoshi))
         },
         invoiceFailed = text("rayl_invoice_failed"),
+        retryTitle = text("rayl_retry"),
         doneTitle = text("rayl_done"),
         fundingStage = when (funding) {
             FundingState.Idle -> "idle"
-
             FundingState.Creating -> "creating"
-
-            is FundingState.Awaiting -> when (funding.presentation) {
-                FundingPresentation.OpenWallet -> "open"
-                FundingPresentation.InWallet -> "inWallet"
-                FundingPresentation.Shown -> "shown"
-            }
-
+            is FundingState.Awaiting -> "awaiting"
             is FundingState.Received -> "received"
-
             FundingState.Failed -> "failed"
         },
         invoice = (funding as? FundingState.Awaiting)?.invoice,

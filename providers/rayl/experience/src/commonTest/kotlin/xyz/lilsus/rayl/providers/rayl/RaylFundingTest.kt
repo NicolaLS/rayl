@@ -3,6 +3,7 @@ package xyz.lilsus.rayl.providers.rayl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.TestScope
@@ -13,17 +14,6 @@ import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketReceipt
 class RaylFundingTest {
     private val receipts = MutableSharedFlow<PocketReceipt>()
     private var invoices = 0
-
-    @Test
-    fun theInvoiceIsShownWhenNoOtherWalletCanOpenIt() = runTest {
-        val funding = funding()
-        funding.request()
-        funding.showInvoice()
-        assertEquals(
-            FundingState.Awaiting("lnbcrt1", FundingPresentation.Shown),
-            funding.state.value
-        )
-    }
 
     @Test
     fun aPaymentToTheInvoiceReportsTheAmountThePayerChose() = runTest {
@@ -39,12 +29,24 @@ class RaylFundingTest {
     fun eachRequestCreatesANewInvoice() = runTest {
         val funding = funding()
         funding.request()
-        funding.openedInWallet()
         funding.request()
-        assertEquals(
-            FundingState.Awaiting("lnbcrt2", FundingPresentation.OpenWallet),
-            funding.state.value
+        assertEquals(FundingState.Awaiting("lnbcrt2"), funding.state.value)
+    }
+
+    @Test
+    fun anInvoiceStillBeingCreatedIsNotShownAfterFundingWasClosed() = runTest {
+        val invoice = CompletableDeferred<String>()
+        val funding = RaylFunding(
+            createInvoice = { invoice.await() },
+            receipts = receipts,
+            description = "Rayl",
+            scope = unconfined()
         )
+        funding.request()
+        assertEquals(FundingState.Creating, funding.state.value)
+        funding.reset()
+        invoice.complete("lnbcrt1")
+        assertEquals(FundingState.Idle, funding.state.value)
     }
 
     @Test

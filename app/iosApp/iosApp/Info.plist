@@ -13,6 +13,11 @@
 		<string>de</string>
 		<string>es</string>
 	</array>
+	<!-- Lets add funds offer "Open in wallet" only when a Lightning wallet app is installed. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>lightning</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Rayl uses the camera to scan wallet connection and Bitcoin Lightning QR codes.</string>
 	<key>RaylPasskeyRPID</key>

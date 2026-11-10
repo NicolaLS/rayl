@@ -5,9 +5,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -17,25 +19,24 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
@@ -45,56 +46,49 @@ import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
 
 /**
- * Hands a new funding invoice to a wallet app, and presents the invoice when none can take
- * it, a payment arrives, or creating the invoice failed.
+ * The add funds sheet, open for as long as funding is: the invoice to scan, copy, or open in a
+ * wallet app on this phone, then the amount that arrived.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun RaylFundingEffects(funding: RaylFunding) {
+internal fun RaylFundingSheet(funding: RaylFunding) {
     val state by funding.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val current = state
-    LaunchedEffect(current) {
-        if (current is FundingState.Awaiting &&
-            current.presentation == FundingPresentation.OpenWallet
+    if (current == FundingState.Idle) return
+    ModalBottomSheet(
+        onDismissRequest = funding::reset,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (openInWallet(context, current.invoice)) {
-                funding.openedInWallet()
-            } else {
-                funding.showInvoice()
-            }
-        }
-    }
-    when {
-        current == FundingState.Failed -> AlertDialog(
-            onDismissRequest = funding::reset,
-            text = { Text(stringResource(R.string.rayl_invoice_failed)) },
-            confirmButton = {
-                TextButton(onClick = funding::reset) { Text(stringResource(R.string.rayl_done)) }
-            }
-        )
+            when (current) {
+                is FundingState.Received -> FundsAdded(current.amountSats, onDone = funding::reset)
 
-        current is FundingState.Received ||
-            (
-                current is FundingState.Awaiting &&
-                    current.presentation == FundingPresentation.Shown
-                ) -> ModalBottomSheet(
-            onDismissRequest = funding::reset,
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (current is FundingState.Received) {
-                    FundsAdded(current.amountSats, onDone = funding::reset)
-                } else if (current is FundingState.Awaiting) {
-                    InvoiceToPay(current.invoice)
+                FundingState.Failed -> {
+                    Title()
+                    Text(
+                        text = stringResource(R.string.rayl_invoice_failed),
+                        textAlign = TextAlign.Center
+                    )
+                    Button(onClick = funding::request, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.rayl_retry))
+                    }
+                }
+
+                is FundingState.Awaiting -> InvoiceToPay(current.invoice)
+
+                else -> {
+                    Title()
+                    Box(modifier = Modifier.size(QrSize), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
             }
         }
@@ -102,24 +96,36 @@ internal fun RaylFundingEffects(funding: RaylFunding) {
 }
 
 @Composable
-private fun InvoiceToPay(invoice: String) {
-    val context = LocalContext.current
+private fun Title() {
     Text(
         text = stringResource(R.string.rayl_add_funds),
         style = MaterialTheme.typography.headlineSmall
     )
+}
+
+@Composable
+private fun InvoiceToPay(invoice: String) {
+    val context = LocalContext.current
+    val hasWalletApp = remember { walletIntent(invoice).canBeOpened(context) }
+    Title()
     Text(text = stringResource(R.string.rayl_add_funds_body), textAlign = TextAlign.Center)
     Image(
         painter = rememberQrCodePainter(invoice.uppercase()),
         contentDescription = null,
-        modifier = Modifier.size(240.dp)
+        modifier = Modifier.size(QrSize).testTag("rayl_funding_qr")
     )
     Text(
-        text = invoice,
-        style = MaterialTheme.typography.bodySmall,
-        maxLines = 2,
-        overflow = TextOverflow.MiddleEllipsis
+        text = stringResource(R.string.rayl_waiting_for_payment),
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+    if (hasWalletApp) {
+        Button(
+            onClick = { openInWallet(context, invoice) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.rayl_open_in_wallet))
+        }
+    }
     OutlinedButton(
         onClick = {
             context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(
@@ -130,10 +136,6 @@ private fun InvoiceToPay(invoice: String) {
     ) {
         Text(stringResource(R.string.rayl_copy_invoice))
     }
-    Text(
-        text = stringResource(R.string.rayl_waiting_for_payment),
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
 }
 
 @Composable
@@ -159,13 +161,27 @@ private fun FundsAdded(amountSats: Long, onDone: () -> Unit) {
     }
 }
 
+private val QrSize = 240.dp
+
+/** Rayl does not handle `lightning:` links itself, so only other wallet apps match. */
+private fun walletIntent(invoice: String) =
+    Intent(Intent.ACTION_VIEW, Uri.parse("lightning:$invoice"))
+
+/** Needs the `lightning` query declared in this module's manifest. */
+private fun Intent.canBeOpened(context: Context): Boolean =
+    context.packageManager.queryIntentActivities(
+        this,
+        PackageManager.MATCH_DEFAULT_ONLY
+    ).isNotEmpty()
+
 /**
- * Opens `lightning:<invoice>` in the user's wallet app; Android picks their default or asks which
- * one. Rayl does not handle such links itself. Returns false when no app can open it.
+ * Always asks which wallet app to use: a default chosen with "Always" would otherwise tie adding
+ * funds to that one wallet.
  */
-private fun openInWallet(context: Context, invoice: String): Boolean = try {
-    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("lightning:$invoice")))
-    true
-} catch (_: ActivityNotFoundException) {
-    false
+private fun openInWallet(context: Context, invoice: String) {
+    try {
+        context.startActivity(Intent.createChooser(walletIntent(invoice), null))
+    } catch (_: ActivityNotFoundException) {
+        // The wallet app was removed while the sheet was open; the invoice is still on screen.
+    }
 }

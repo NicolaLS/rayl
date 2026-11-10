@@ -36,7 +36,7 @@ manager supports PRF; check once whether App Live devices can complete a passkey
 | R3 | Password manager without PRF | Asked to use another password manager; nothing set up |
 | R4 | No passkey support | Onboarding offers the external wallets |
 | R5 | Use another wallet, then go back to Rayl | Same wallet, same balance, no passkey prompt (P5, P7) |
-| R6 | Receive: add funds | Invoice shown or offered to another wallet app; a payment to it is shown with the amount |
+| R6 | Receive: add funds | The sheet shows the invoice QR and Copy invoice, and Open in wallet only when a wallet app is installed (Android asks which app every time); a payment to it is shown with the amount |
 
 ## P. Paying (each wallet in use: Rayl, Blink, NWC, Spark)
 

@@ -3,6 +3,7 @@
     <string name="rayl_balance_updating">Actualizando…</string>
     <string name="rayl_add_funds">Añadir fondos</string>
     <string name="rayl_add_funds_body">Paga esta factura desde cualquier billetera Lightning. Allí eliges el importe.</string>
+    <string name="rayl_open_in_wallet">Abrir en billetera</string>
     <string name="rayl_copy_invoice">Copiar factura</string>
     <string name="rayl_waiting_for_payment">Esperando el pago…</string>
     <string name="rayl_funds_added">Fondos añadidos</string>
