@@ -207,7 +207,9 @@ private fun SettingsOverview(
         leadingEntries = leadingEntries,
         trailingEntries = trailingEntries,
         usageDataEnabled = usageDataEnabled,
-        onUsageDataChanged = Telemetry::setEnabled
+        onUsageDataChanged = Telemetry::setEnabled,
+        onUsageDataAsked = Telemetry::usageDataAsked,
+        onUsageDataKeptOn = Telemetry::usageDataKeptOn
     )
 }
 

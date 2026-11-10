@@ -12,6 +12,7 @@ import xyz.lilsus.raylsuite.core.raylapi.TelemetryFakeDoor
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryFakeDoorAction
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryOnboardingStep
 import xyz.lilsus.raylsuite.core.raylapi.TelemetrySetting
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryUsageDataChoice
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryWallet
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryWalletAction
 import xyz.lilsus.raylsuite.core.raylapi.telemetryEvent
@@ -51,8 +52,28 @@ object Telemetry : TelemetryRecorder {
     val enabled: StateFlow<Boolean> get() = engine?.enabled ?: notInstalled
 
     fun setEnabled(enabled: Boolean) {
-        engine?.setEnabled(enabled)
+        val engine = engine ?: return
+        val turnedOnAgain = enabled && !engine.enabled.value
+        engine.setEnabled(enabled)
+        if (turnedOnAgain) record(usageDataChoice(TelemetryUsageDataChoice.TurnedOnAgain))
     }
+
+    /**
+     * The "turn off usage data?" question was shown. This goes out at once, while the user still
+     * shares usage data: whoever then turns it off is never heard from again, and is counted as
+     * someone who was asked and did not keep it on.
+     */
+    fun usageDataAsked() {
+        engine?.sendNow(usageDataChoice(TelemetryUsageDataChoice.Asked))
+    }
+
+    /** The user saw the question and kept usage data on. */
+    fun usageDataKeptOn() {
+        record(usageDataChoice(TelemetryUsageDataChoice.KeptOn))
+    }
+
+    private fun usageDataChoice(choice: TelemetryUsageDataChoice) =
+        telemetryEvent(TelemetryCatalog.usageDataChoice, mapOf("choice" to choice))
 
     override fun record(event: TelemetryEvent) {
         engine?.record(event)

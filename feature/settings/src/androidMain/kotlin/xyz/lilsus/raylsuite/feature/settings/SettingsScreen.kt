@@ -82,17 +82,24 @@ fun SettingsScreen(
     leadingEntries: List<SettingsEntry> = emptyList(),
     trailingEntries: List<SettingsEntry> = emptyList(),
     usageDataEnabled: Boolean = true,
-    onUsageDataChanged: (Boolean) -> Unit = {}
+    onUsageDataChanged: (Boolean) -> Unit = {},
+    /** The question to turn usage data off was shown, and answered with "keep on". */
+    onUsageDataAsked: () -> Unit = {},
+    onUsageDataKeptOn: () -> Unit = {}
 ) {
     // Turning usage data off asks once, with the reason to keep it; turning it on does not.
     var confirmUsageDataOff by rememberSaveable { mutableStateOf(false) }
     if (confirmUsageDataOff) {
+        val keepOn = {
+            confirmUsageDataOff = false
+            onUsageDataKeptOn()
+        }
         AlertDialog(
-            onDismissRequest = { confirmUsageDataOff = false },
+            onDismissRequest = keepOn,
             title = { Text(stringResource(R.string.settings_usage_data_off_title)) },
             text = { Text(stringResource(R.string.settings_usage_data_off_body)) },
             confirmButton = {
-                TextButton(onClick = { confirmUsageDataOff = false }) {
+                TextButton(onClick = keepOn) {
                     Text(stringResource(R.string.settings_usage_data_off_keep))
                 }
             },
@@ -186,7 +193,12 @@ fun SettingsScreen(
                         value = usageDataEnabled,
                         role = Role.Switch,
                         onValueChange = { enabled ->
-                            if (enabled) onUsageDataChanged(true) else confirmUsageDataOff = true
+                            if (enabled) {
+                                onUsageDataChanged(true)
+                            } else {
+                                confirmUsageDataOff = true
+                                onUsageDataAsked()
+                            }
                         }
                     ),
                     subtitle = stringResource(R.string.settings_usage_data_subtitle),

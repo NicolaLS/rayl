@@ -163,6 +163,7 @@ struct NativeSettingsView: View {
                                     model.controller.setUsageDataEnabled(enabled: true)
                                 } else {
                                     confirmUsageDataOff = true
+                                    model.controller.usageDataAsked()
                                 }
                             }
                         )
@@ -187,7 +188,9 @@ struct NativeSettingsView: View {
                 }
             }
             .alert(snapshot.text.usageDataOffTitle, isPresented: $confirmUsageDataOff) {
-                Button(snapshot.text.usageDataOffKeep, role: .cancel) {}
+                Button(snapshot.text.usageDataOffKeep, role: .cancel) {
+                    model.controller.usageDataKeptOn()
+                }
                 Button(snapshot.text.usageDataOffConfirm, role: .destructive) {
                     model.controller.setUsageDataEnabled(enabled: false)
                 }

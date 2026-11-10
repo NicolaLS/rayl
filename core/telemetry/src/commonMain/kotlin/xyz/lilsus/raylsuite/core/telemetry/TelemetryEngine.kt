@@ -73,6 +73,14 @@ class TelemetryEngine(
                     }
 
                     Command.Clear -> buffer.clear()
+
+                    is Command.SendAlone -> if (enabled.value) {
+                        if (mode == TelemetryMode.Log) {
+                            log(Json.encodeToString(TelemetryEvent.serializer(), command.event))
+                        } else {
+                            send(listOf(command.event))
+                        }
+                    }
                 }
             }
         }
@@ -95,6 +103,15 @@ class TelemetryEngine(
         if (mode != TelemetryMode.Off && enabled.value) {
             commands.trySend(Command.Record(event, onceKey = key))
         }
+    }
+
+    /**
+     * Sends [event] at once and on its own, without what is buffered. For the one event that must
+     * arrive before the user may turn usage data off: that they were asked. If it cannot be sent
+     * now it is dropped, never kept for later.
+     */
+    fun sendNow(event: TelemetryEvent) {
+        if (mode != TelemetryMode.Off && enabled.value) commands.trySend(Command.SendAlone(event))
     }
 
     fun recordOnboarding(key: String, event: TelemetryEvent) {
@@ -151,6 +168,8 @@ class TelemetryEngine(
         data class FlushAfter(val delayMs: Long) : Command
 
         data object Clear : Command
+
+        data class SendAlone(val event: TelemetryEvent) : Command
     }
 
     companion object {

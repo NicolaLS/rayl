@@ -31,7 +31,9 @@ anything not yet sent.
   with which kind of wallet, whether it succeeded or what category of error it
   hit, and how long each step took; how long the camera needed to start and
   read a code; which onboarding steps were completed; that a setting was
-  changed (not its value). Each batch also carries the app version, the
+  changed (not its value); that the question to turn usage data off was shown, which is
+  sent before you answer it, and that it was kept on or turned on again (never
+  that it was turned off: from then on nothing is sent). Each batch also carries the app version, the
   operating system version, and the device model (such as "Pixel 8").
 - **What is never sent:** amounts, invoices, payment hashes, addresses,
   balances, keys, Lightning addresses, contact names, error messages, what a

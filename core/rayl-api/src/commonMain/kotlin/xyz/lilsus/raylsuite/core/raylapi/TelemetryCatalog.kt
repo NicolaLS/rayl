@@ -156,6 +156,18 @@ enum class TelemetrySetting(override val wire: String) : TelemetryValue {
 }
 
 /**
+ * What happened around the switch for usage data itself. Nothing says that someone turned it
+ * off: from that moment the app sends nothing. Those who did are the difference between [Asked]
+ * and [KeptOn].
+ */
+enum class TelemetryUsageDataChoice(override val wire: String) : TelemetryValue {
+    /** The "turn off?" question was shown. Sent on its own at once, before the answer. */
+    Asked("asked"),
+    KeptOn("kept_on"),
+    TurnedOnAgain("turned_on_again")
+}
+
+/**
  * A feature that is offered before it exists, to learn whether it is wanted. Add a value here
  * together with the door itself.
  */
@@ -275,6 +287,11 @@ object TelemetryCatalog {
         dimensions = mapOf("setting" to TelemetrySetting.entries)
     )
 
+    val usageDataChoice = spec(
+        name = "usage_data_choice",
+        dimensions = mapOf("choice" to TelemetryUsageDataChoice.entries)
+    )
+
     /** Sent at most once per installation for each door and action. */
     val fakeDoor = spec(
         name = "fake_door",
@@ -285,7 +302,16 @@ object TelemetryCatalog {
     )
 
     val events: List<TelemetryEventSpec> =
-        listOf(launch, scan, payment, onboarding, walletChanged, settingChanged, fakeDoor)
+        listOf(
+            launch,
+            scan,
+            payment,
+            onboarding,
+            walletChanged,
+            settingChanged,
+            usageDataChoice,
+            fakeDoor
+        )
 
     private val eventsByName = events.associateBy(TelemetryEventSpec::name)
 

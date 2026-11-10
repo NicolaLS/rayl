@@ -209,6 +209,16 @@ class NativeSettingsController(
         Telemetry.setEnabled(enabled)
     }
 
+    /** The question to turn usage data off was shown. */
+    fun usageDataAsked() {
+        Telemetry.usageDataAsked()
+    }
+
+    /** The user answered that question with "keep on". */
+    fun usageDataKeptOn() {
+        Telemetry.usageDataKeptOn()
+    }
+
     fun clear() {
         theme.clear()
         language.clear()

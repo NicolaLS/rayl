@@ -124,6 +124,38 @@ class TelemetryEngineTest {
     }
 
     @Test
+    fun theQuestionToTurnUsageDataOffIsCountedEvenIfTheAnswerIsYes() = runTest {
+        // Whoever turns usage data off is never heard from again. That they were asked is sent
+        // on its own before they answer; what was buffered still goes nowhere.
+        val engine = engine()
+        engine.record(currency)
+
+        engine.sendNow(language)
+        runCurrent()
+        engine.setEnabled(false)
+        engine.sendNow(theme)
+        engine.flush()
+        runCurrent()
+
+        assertEquals(listOf(listOf(language)), sent)
+    }
+
+    @Test
+    fun whatMustGoNowIsNotKeptForLaterWhenTheBackendIsAway() = runTest {
+        val engine = engine()
+        backendUp = false
+        engine.sendNow(language)
+        runCurrent()
+
+        backendUp = true
+        engine.record(currency)
+        engine.flush()
+        runCurrent()
+
+        assertEquals(listOf(listOf(currency)), sent)
+    }
+
+    @Test
     fun recordsAOncePerInstallationEventOnlyOnceAcrossRestarts() = runTest {
         val engine = engine()
         engine.recordOnce("door", currency)
