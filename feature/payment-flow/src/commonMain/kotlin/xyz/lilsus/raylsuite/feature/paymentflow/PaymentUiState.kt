@@ -1,6 +1,7 @@
 package xyz.lilsus.raylsuite.feature.paymentflow
 
 import xyz.lilsus.raylsuite.core.model.DisplayAmount
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentError
 import xyz.lilsus.raylsuite.core.ui.resources.LocalizedText
 import xyz.lilsus.raylsuite.feature.paymentui.LnurlPayDisplay
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentConfirmationAmount
@@ -57,6 +58,9 @@ sealed interface PaymentUiError {
 /** A wallet-specific failure. The provider owns its wording. */
 interface ProviderPaymentError {
     fun toLocalizedText(): LocalizedText
+
+    /** The category usage data reports this failure as; never its text. */
+    val telemetryError: TelemetryPaymentError get() = TelemetryPaymentError.Wallet
 }
 
 data class SessionTransactionItem(

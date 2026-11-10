@@ -1,5 +1,6 @@
 package xyz.lilsus.rayl.providers.rayl.feature.payment
 
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentError
 import xyz.lilsus.raylsuite.core.ui.resources.LocalizedText
 import xyz.lilsus.raylsuite.core.ui.resources.LocalizedTextKey
 import xyz.lilsus.raylsuite.core.ui.resources.localizedTextWithOptionalDetail
@@ -33,6 +34,16 @@ sealed interface RaylPaymentError : ProviderPaymentError {
     data class Rejected(val detail: String?) : RaylPaymentError
 
     data class OutcomeUnknown(val detail: String?) : RaylPaymentError
+
+    override val telemetryError: TelemetryPaymentError
+        get() = when (this) {
+            InsufficientFunds -> TelemetryPaymentError.InsufficientFunds
+            PocketNotReady, BalanceSettling -> TelemetryPaymentError.WalletNotReady
+            SubSatoshiAmount -> TelemetryPaymentError.InvalidInvoice
+            InvoiceExpired -> TelemetryPaymentError.Expired
+            is Rejected -> TelemetryPaymentError.RejectedByWallet
+            is OutcomeUnknown -> TelemetryPaymentError.OutcomeUnknown
+        }
 
     override fun toLocalizedText(): LocalizedText = when (this) {
         InsufficientFunds -> LocalizedText(RaylPaymentTextKey.ErrorInsufficientFunds)

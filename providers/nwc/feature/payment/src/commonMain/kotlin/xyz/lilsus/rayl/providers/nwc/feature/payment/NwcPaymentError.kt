@@ -1,5 +1,6 @@
 package xyz.lilsus.rayl.providers.nwc.feature.payment
 
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentError
 import xyz.lilsus.raylsuite.core.ui.resources.LocalizedText
 import xyz.lilsus.raylsuite.core.ui.resources.LocalizedTextKey
 import xyz.lilsus.raylsuite.core.ui.resources.localizedTextWithOptionalDetail
@@ -33,6 +34,15 @@ sealed interface NwcPaymentError : ProviderPaymentError {
     data class OutcomeUnknown(override val detail: String?) : NwcPaymentError
 
     data class Unexpected(override val detail: String?) : NwcPaymentError
+
+    override val telemetryError: TelemetryPaymentError
+        get() = when (this) {
+            MissingWalletConnection -> TelemetryPaymentError.WalletNotReady
+            is Connection, is DefinitelyNotSent -> TelemetryPaymentError.Network
+            is Rejected -> TelemetryPaymentError.RejectedByWallet
+            is OutcomeUnknown -> TelemetryPaymentError.OutcomeUnknown
+            is Unexpected -> TelemetryPaymentError.Unexpected
+        }
 
     override fun toLocalizedText(): LocalizedText = when (this) {
         MissingWalletConnection -> LocalizedText(NwcPaymentTextKey.ErrorMissingWalletConnection)

@@ -3,6 +3,7 @@ package xyz.lilsus.rayl.providers.blink.feature.payment
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkApiError
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkErrorType
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWalletCurrency
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentError
 import xyz.lilsus.raylsuite.core.ui.resources.LocalizedText
 import xyz.lilsus.raylsuite.core.ui.resources.LocalizedTextKey
 import xyz.lilsus.raylsuite.core.ui.resources.localizedTextWithOptionalDetail
@@ -38,6 +39,24 @@ sealed interface BlinkPaymentError : ProviderPaymentError {
 
     /** Blink could not say whether the payment went through. */
     data object StatusUnknown : BlinkPaymentError
+
+    override val telemetryError: TelemetryPaymentError
+        get() = when (this) {
+            is Api -> when (error) {
+                BlinkApiError.MissingWalletConnection,
+                BlinkApiError.FundingWalletUnavailable -> TelemetryPaymentError.WalletNotReady
+
+                BlinkApiError.NetworkUnavailable,
+                BlinkApiError.Timeout -> TelemetryPaymentError.Network
+
+                is BlinkApiError.PaymentRejected,
+                is BlinkApiError.BlinkError -> TelemetryPaymentError.RejectedByWallet
+
+                is BlinkApiError.Unexpected -> TelemetryPaymentError.Unexpected
+            }
+
+            StatusUnknown -> TelemetryPaymentError.OutcomeUnknown
+        }
 
     override fun toLocalizedText(): LocalizedText = when (this) {
         is Api -> error.toLocalizedText()

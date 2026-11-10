@@ -13,7 +13,6 @@ kotlin {
             api(project(":feature:payment-flow"))
             api(project(":providers:rayl:integration:pocket"))
             implementation(project(":core:ui"))
-            implementation(project(":core:telemetry"))
             implementation(libs.bitcoin.kmp)
             implementation(libs.kotlinx.coroutines.core)
         }

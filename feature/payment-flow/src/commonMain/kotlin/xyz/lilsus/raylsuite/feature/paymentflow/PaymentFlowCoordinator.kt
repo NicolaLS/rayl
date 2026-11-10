@@ -16,6 +16,11 @@ import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.payment.BitcoinPriceProvider
 import xyz.lilsus.raylsuite.core.payment.LnurlPayClient
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentError
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentOutcome
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentSource
+import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
+import xyz.lilsus.raylsuite.core.telemetry.TraceSpan
 import xyz.lilsus.raylsuite.core.ui.platform.HapticFeedbackManager
 import xyz.lilsus.raylsuite.feature.currencysettings.CurrencyPreferences
 import xyz.lilsus.raylsuite.feature.paymentcurrency.PaymentCurrencyManager
@@ -39,7 +44,8 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
     private val haptics: HapticFeedbackManager,
     coroutineContext: CoroutineContext = Dispatchers.Main,
     /** Unix time in seconds, for invoice expiry; replaceable so tests can let an invoice expire. */
-    nowSeconds: () -> Long = { currentTimestampSeconds() }
+    nowSeconds: () -> Long = { currentTimestampSeconds() },
+    private val telemetry: PaymentTelemetry = PaymentTelemetry()
 ) {
     private val scope = CoroutineScope(SupervisorJob() + coroutineContext)
     private val currencyManager = PaymentCurrencyManager(bitcoinPriceProvider, scope)
@@ -86,6 +92,7 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
         }
         scope.launch {
             paymentHub.paymentRequests.collect { intent ->
+                startAttempt(TelemetryPaymentSource.Hub)
                 launchOperation { handleAdmissionResult(admission.payTarget(intent)) }
             }
         }
@@ -125,6 +132,7 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
 
     fun resetSession() {
         operation.reset()
+        telemetry.abandoned()
         admission.reset(currencyManager.state.value)
         confirmation.reset()
         presentation.reset()
@@ -145,14 +153,19 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
                     sessionTransactions.value.map(SessionTransactionItem::id)
                 )
 
-            is PaymentIntent.QrCodeScanned ->
+            is PaymentIntent.QrCodeScanned -> {
+                startAttempt(TelemetryPaymentSource.Scan)
                 launchOperation {
                     handleAdmissionResult(
                         admission.handlePaymentInput(rawInput = intent.rawValue)
                     )
                 }
+            }
 
-            PaymentIntent.ManualAmountDismiss -> admission.dismissManualAmount()
+            PaymentIntent.ManualAmountDismiss -> {
+                telemetry.abandoned()
+                admission.dismissManualAmount()
+            }
 
             PaymentIntent.ManualAmountSubmit ->
                 launchOperation { handleAdmissionResult(admission.submitManualAmount()) }
@@ -161,36 +174,56 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
                 admission.updateManualAmount(intent.key)
 
             PaymentIntent.ConfirmPaymentDismiss ->
-                if (confirmation.dismiss()) presentation.showActive()
+                if (confirmation.dismiss()) {
+                    telemetry.finished(
+                        TelemetryPaymentOutcome.Dismissed,
+                        TelemetryPaymentError.None
+                    )
+                    presentation.showActive()
+                }
 
             PaymentIntent.ConfirmPaymentSubmit ->
                 launchOperation { handleConfirmationResult(confirmation.submit()) }
 
-            is PaymentIntent.RawInputSubmitted ->
+            is PaymentIntent.RawInputSubmitted -> {
+                startAttempt(TelemetryPaymentSource.Input)
                 launchOperation {
                     handleAdmissionResult(
                         admission.handlePaymentInput(rawInput = intent.rawValue)
                     )
                 }
+            }
         }
+    }
+
+    /** Admission ignores input while something else is on screen; so does usage data. */
+    private fun startAttempt(source: TelemetryPaymentSource) {
+        if (presentation.uiState.value == PaymentUiState.Active) telemetry.started(source)
     }
 
     private suspend fun handleAdmissionResult(result: AdmissionResult) {
         currentCoroutineContext().ensureActive()
         when (result) {
-            AdmissionResult.Presented -> Unit
+            AdmissionResult.Presented -> telemetry.presented(presentation.uiState.value)
 
-            is AdmissionResult.Payment ->
-                handleConfirmationResult(
+            is AdmissionResult.Payment -> {
+                telemetry.admitted()
+                val prepare = RaylTrace.begin(TraceSpan.PaymentPrepare)
+                val confirmation = try {
                     confirmation.requestPayment(result.payment)
-                )
+                } finally {
+                    prepare?.end()
+                }
+                if (confirmation is ConfirmationResult.Execute) telemetry.prepared()
+                handleConfirmationResult(confirmation)
+            }
         }
     }
 
     private suspend fun handleConfirmationResult(result: ConfirmationResult<P>) {
         currentCoroutineContext().ensureActive()
         when (result) {
-            ConfirmationResult.Presented -> Unit
+            ConfirmationResult.Presented -> telemetry.presented(presentation.uiState.value)
 
             is ConfirmationResult.Execute ->
                 executePayment(result.payment)
@@ -205,7 +238,13 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
 
     private suspend fun executePayment(payment: P) {
         presentation.showLoading()
-        val outcome = settlement.settle(payment)
+        telemetry.submitted()
+        val settle = RaylTrace.begin(TraceSpan.PaymentSettle)
+        val outcome = try {
+            settlement.settle(payment)
+        } finally {
+            settle?.end()
+        }
         currentCoroutineContext().ensureActive()
         finishPayment(payment, outcome)
     }
@@ -234,14 +273,26 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
                 }
                 if (runtimePreferences.vibrateOnPayment) haptics.notifyPaymentSuccess()
                 presentation.showPaymentSuccess(result)
+                telemetry.finished(
+                    if (outcome.wasAlreadyPaid) {
+                        TelemetryPaymentOutcome.AlreadyPaid
+                    } else {
+                        TelemetryPaymentOutcome.Paid
+                    },
+                    TelemetryPaymentError.None
+                )
             }
 
             is SettlementOutcome.Failed -> {
                 history.record(paymentHash, amountMsats, error = outcome.error)
                 presentation.presentError(outcome.error)
+                telemetry.finished(TelemetryPaymentOutcome.Failed, outcome.error.telemetryError())
             }
 
-            is SettlementOutcome.Unknown -> presentation.presentError(outcome.error)
+            is SettlementOutcome.Unknown -> {
+                presentation.presentError(outcome.error)
+                telemetry.finished(TelemetryPaymentOutcome.Unknown, outcome.error.telemetryError())
+            }
         }
     }
 
@@ -263,7 +314,9 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
                 throw cause
             } catch (cause: Throwable) {
                 currentCoroutineContext().ensureActive()
-                presentation.presentError(settlement.errorFor(cause))
+                val error = settlement.errorFor(cause)
+                presentation.presentError(error)
+                telemetry.failedUnexpectedly(error)
             }
         }
     }

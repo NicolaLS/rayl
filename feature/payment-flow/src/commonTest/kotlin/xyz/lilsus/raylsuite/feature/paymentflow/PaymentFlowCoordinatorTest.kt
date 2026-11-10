@@ -32,7 +32,11 @@ import xyz.lilsus.raylsuite.core.payment.LnurlPayClient
 import xyz.lilsus.raylsuite.core.payment.LnurlPayMetadata
 import xyz.lilsus.raylsuite.core.payment.LnurlPayParams
 import xyz.lilsus.raylsuite.core.payment.LnurlResult
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryEvent
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentError
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryWallet
 import xyz.lilsus.raylsuite.core.ui.platform.HapticFeedbackManager
+import xyz.lilsus.raylsuite.core.ui.resources.LocalizedText
 import xyz.lilsus.raylsuite.feature.currencysettings.DefaultCurrencyPreferences
 import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetDraft
@@ -292,8 +296,177 @@ class PaymentFlowCoordinatorTest {
         assertIs<PaymentUiState.Success>(coordinator.uiState.value)
     }
 
+    // Usage data: one event per attempt, with categories and machine-stage durations only.
+
+    @Test
+    fun aScannedAutoPaidPaymentReportsItsStagesFromColdStart() = flowTest {
+        qrMs = 1_000
+        clockMs = 1_010
+        settlement.onPrepare = { clockMs += 300 }
+        settlement.onSettle = { clockMs += 1_500 }
+
+        scan(invoice(sats = 9_999))
+
+        assertEquals(
+            listOf(
+                TelemetryEvent(
+                    name = "payment",
+                    dimensions = mapOf(
+                        "wallet" to "rayl",
+                        "source" to "scan",
+                        "confirmation" to "auto",
+                        "outcome" to "paid",
+                        "error" to "none",
+                        "first_in_launch" to "yes"
+                    ),
+                    measures = mapOf(
+                        "qr_to_admitted_ms" to 10L,
+                        "admitted_to_prepared_ms" to 300L,
+                        "submit_to_outcome_ms" to 1_500L,
+                        "process_to_outcome_ms" to 2_810L
+                    )
+                )
+            ),
+            events
+        )
+    }
+
+    @Test
+    fun aConfirmedPaymentLeavesOutTheTimeTheUserTookAndASecondOneIsNotTheFirst() = flowTest {
+        scan(invoice(sats = 100))
+        dispatch(PaymentIntent.DismissResult)
+        qrMs = 60_000
+        clockMs = 60_020
+        settlement.onPrepare = { clockMs += 300 }
+        settlement.onSettle = { clockMs += 1_500 }
+
+        scan(invoice(sats = 10_000))
+        clockMs += 8_000
+        // The scanner keeps running behind the confirmation; what it sees is ignored.
+        scan(invoice(sats = 20_000))
+        dispatch(PaymentIntent.ConfirmPaymentSubmit)
+
+        assertEquals(
+            TelemetryEvent(
+                name = "payment",
+                dimensions = mapOf(
+                    "wallet" to "rayl",
+                    "source" to "scan",
+                    "confirmation" to "confirmed",
+                    "outcome" to "paid",
+                    "error" to "none",
+                    "first_in_launch" to "no"
+                ),
+                measures = mapOf(
+                    "qr_to_admitted_ms" to 20L,
+                    "admitted_to_prepared_ms" to 300L,
+                    "submit_to_outcome_ms" to 1_500L
+                )
+            ),
+            events.last()
+        )
+        assertEquals(2, events.size)
+    }
+
+    @Test
+    fun anEnteredAmountIsReportedAsTheConfirmationWithoutTheTimeItTook() = flowTest {
+        qrMs = 1_000
+        clockMs = 1_010
+        dispatch(PaymentIntent.QrCodeScanned("bob@example.com"))
+        clockMs += 6_000
+        listOf(1, 0, 0).forEach { dispatch(PaymentIntent.ManualAmountKeyPress(ManualAmountKey.Digit(it))) }
+        settlement.onSettle = { clockMs += 900 }
+
+        dispatch(PaymentIntent.ManualAmountSubmit)
+
+        assertEquals("amount_entered", events.single().dimensions["confirmation"])
+        assertEquals(mapOf("admitted_to_prepared_ms" to 0L, "submit_to_outcome_ms" to 900L), events.single().measures)
+    }
+
+    @Test
+    fun aFailureIsReportedByItsCategoryAndWhetherTheWalletGaveAVerdict() = flowTest {
+        settlement.outcome = SettlementOutcome.Failed(PaymentUiError.Provider(NotEnoughFunds))
+        scan(invoice(sats = 100))
+        dispatch(PaymentIntent.DismissResult)
+        settlement.outcome = SettlementOutcome.Unknown(PaymentUiError.NetworkUnavailable)
+        scan(invoice(sats = 100))
+
+        assertEquals(
+            listOf("failed" to "insufficient_funds", "unknown" to "network"),
+            events.map { it.dimensions["outcome"] to it.dimensions["error"] }
+        )
+    }
+
+    @Test
+    fun whatNeverReachesTheWalletIsRejectedAndDoesNotUseUpTheFirstPayment() = flowTest {
+        scan(invoice(sats = 100, createdSecondsAgo = 7_200, expirySeconds = 3_600))
+        dispatch(PaymentIntent.DismissResult)
+        settlement.preparation = { SettlementPreparation.Unavailable(PaymentUiError.Provider(NotEnoughFunds)) }
+        scan(invoice(sats = 100))
+        dispatch(PaymentIntent.DismissResult)
+        settlement.preparation = { SettlementPreparation.Ready(it) }
+        scan(invoice(sats = 100))
+
+        assertEquals(
+            listOf(
+                Triple("rejected", "invalid_invoice", "no"),
+                Triple("rejected", "insufficient_funds", "no"),
+                Triple("paid", "none", "yes")
+            ),
+            events.map { Triple(it.dimensions["outcome"], it.dimensions["error"], it.dimensions["first_in_launch"]) }
+        )
+        // The time it took to turn the payment down is not a settlement time.
+        assertNull(events.first().measures["submit_to_outcome_ms"])
+    }
+
+    @Test
+    fun dismissingTheConfirmationIsReportedAndAPaidAgainScanIsNot() = flowTest {
+        scan(invoice(sats = 10_000))
+        dispatch(PaymentIntent.ConfirmPaymentDismiss)
+        val paid = invoice(sats = 100)
+        scan(paid)
+        dispatch(PaymentIntent.DismissResult)
+        // Opens the receipt; no payment is attempted.
+        scan(paid)
+
+        assertEquals(listOf("dismissed", "paid"), events.map { it.dimensions["outcome"] })
+    }
+
+    @Test
+    fun aPaymentStartedFromTheHubIsReportedAsSuch() = flowTest {
+        val alice = hubRepository.saveContact(assertNotNull(LightningAddress.parse("alice@example.com")), "Alice")
+        val shortcut = assertNotNull(
+            hubRepository.saveWidget(
+                HubWidgetDraft(
+                    "local.shortcut",
+                    HubWidgetKind.Shortcut,
+                    LocalHubWidgets.Single,
+                    contactIds = listOf(alice.id),
+                    amount = StoredAmount(500, "SAT")
+                )
+            )
+        )
+        // A code the scanner decoded earlier has nothing to do with this payment.
+        qrMs = 5
+
+        hub.dispatch(PaymentHubIntent.SelectItem(assertNotNull(shortcut.targetId)))
+        testScheduler.advanceUntilIdle()
+        dispatch(PaymentIntent.ConfirmPaymentSubmit)
+
+        assertEquals("hub", events.single().dimensions["source"])
+        assertNull(events.single().measures["qr_to_admitted_ms"])
+    }
+
     private class Flow(val test: TestScope) {
         private val settings = MapSettings()
+
+        /** Milliseconds since process start as usage data sees them. */
+        var clockMs = 0L
+
+        /** When the scanner decoded its latest code, on the same clock. */
+        var qrMs: Long? = null
+        val events = mutableListOf<TelemetryEvent>()
+        private var firstPaymentTaken = false
 
         /** Unix seconds as the flow sees them; tests move it forward to let an invoice expire. */
         var now = currentTimestampSeconds()
@@ -310,7 +483,17 @@ class PaymentFlowCoordinatorTest {
             paymentHub = hub,
             haptics = NoHaptics,
             coroutineContext = StandardTestDispatcher(test.testScheduler),
-            nowSeconds = { now }
+            nowSeconds = { now },
+            telemetry = PaymentTelemetry(
+                recorder = { events += it },
+                nowMs = { clockMs },
+                latestQrMs = { qrMs },
+                wallet = { TelemetryWallet.Rayl },
+                takeFirstPayment = { !firstPaymentTaken.also { firstPaymentTaken = true } },
+                countsFromLaunch = true,
+                onPaid = {},
+                afterResult = {}
+            )
         )
         val testScheduler get() = test.testScheduler
 
@@ -364,16 +547,29 @@ private class RecordingSettlement : PaymentSettlement<PreparedPayment> {
     var prepared = 0
     val settled = mutableListOf<PreparedPayment>()
 
+    /** What the wallet's work costs in time, for tests that read durations. */
+    var onPrepare: () -> Unit = {}
+    var onSettle: () -> Unit = {}
+
     override suspend fun prepare(request: PreparedPayment): SettlementPreparation<PreparedPayment> {
         prepared += 1
+        onPrepare()
         return preparation(request)
     }
 
     override suspend fun settle(payment: PreparedPayment): SettlementOutcome {
         settled += payment
         gate?.await()
+        onSettle()
         return outcome
     }
+}
+
+/** A wallet failure whose text must not matter to usage data. */
+private object NotEnoughFunds : ProviderPaymentError {
+    override fun toLocalizedText(): LocalizedText = error("usage data never reads the text")
+
+    override val telemetryError = TelemetryPaymentError.InsufficientFunds
 }
 
 /** A well-behaved LNURL server for any Lightning address: "coffee", 1 sat to 1,000,000 sats. */
