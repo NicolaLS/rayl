@@ -835,7 +835,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "For each winner: how often the other reader also read the code before the scanner stopped, and how much later (typical). 'Never read it' with a long wait means the other reader really failed on that code; with a short wait it just ran out of time.",
+      "description": "For each winner: how often the other reader also read the code, and how much later (typical). After the first read the camera stays on for up to half a second for the other reader; 'never read it' means it did not manage in that time.",
       "gridPos": {
         "h": 8,
         "w": 16,
@@ -852,7 +852,7 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select dimensions->>'decoder' as \"first reader\", count(*) as scans,\n  round(100.0 * count(*) filter (where dimensions->>'runner_up' = 'decoded') / count(*), 1) as \"other also read it %\",\n  round(percentile_cont(0.5) within group (order by (measures->>'runner_up_lag_ms')::numeric)) as \"other was later by (ms)\",\n  count(*) filter (where dimensions->>'runner_up' = 'missed') as \"other never read it\",\n  round(percentile_cont(0.5) within group (order by (measures->>'runner_up_wait_ms')::numeric)) as \"...after waiting (ms)\"\nfrom telemetry_events where name = 'scan' and dimensions ? 'runner_up' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
+          "rawSql": "select dimensions->>'decoder' as \"first reader\", count(*) as scans,\n  round(100.0 * count(*) filter (where dimensions->>'runner_up' = 'decoded') / count(*), 1) as \"other also read it %\",\n  round(percentile_cont(0.5) within group (order by (measures->>'runner_up_lag_ms')::numeric)) as \"other was later by (ms)\",\n  count(*) filter (where dimensions->>'runner_up' = 'missed') as \"other never read it\"\nfrom telemetry_events where name = 'scan' and dimensions ? 'runner_up' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
         }
       ],
       "fieldConfig": {

@@ -141,6 +141,9 @@ private class IosQrScannerController : QrScannerController {
     private val race = DecoderRace(scanTelemetry)
     private var racing = false
 
+    /** Set while a stopped scanner keeps the camera on for the runner-up; session queue only. */
+    private var drainingGeneration: Long? = null
+
     override fun start(
         onQrCodeScanned: (String) -> Unit,
         onCameraPermissionMissing: () -> Unit,
@@ -162,6 +165,8 @@ private class IosQrScannerController : QrScannerController {
         dispatch_async(sessionQueue) {
             try {
                 if (generation != currentGeneration) return@dispatch_async
+                // A stop that was still waiting for the runner-up is overtaken by this start.
+                drainingGeneration = null
                 qrPresenceGate.reset()
                 race.reset()
                 started = true
@@ -178,17 +183,37 @@ private class IosQrScannerController : QrScannerController {
         removeLifecycleObserver()
         onQrCodeScanned = null
         onScannerUnavailable = null
-        val stopTrace = RaylTrace.begin(TraceSpan.CameraStop)
+        val stoppedGeneration = generation
         dispatch_async(sessionQueue) {
-            try {
-                started = false
-                scanTelemetry.sessionEnded()
-                if (session.running) session.stopRunning()
-                teardownSession()
-                configured = false
-            } finally {
-                stopTrace?.end()
+            if (!racing || !scanTelemetry.raceUndecided) {
+                finishStop()
+                return@dispatch_async
             }
+            // The payment screen stops the scanner as soon as a code is handed on, a few
+            // milliseconds after the first reader. The camera stays on a moment longer so the
+            // other reader can finish and the race has a second place; nothing is handed on.
+            drainingGeneration = stoppedGeneration
+            dispatch_after(
+                dispatch_time(DISPATCH_TIME_NOW, RUNNER_UP_GRACE_MS * NSEC_PER_MSEC.toLong()),
+                sessionQueue
+            ) {
+                if (drainingGeneration == stoppedGeneration) finishStop()
+            }
+        }
+    }
+
+    /** On the session queue. */
+    private fun finishStop() {
+        val stopTrace = RaylTrace.begin(TraceSpan.CameraStop)
+        try {
+            drainingGeneration = null
+            started = false
+            scanTelemetry.sessionEnded()
+            if (session.running) session.stopRunning()
+            teardownSession()
+            configured = false
+        } finally {
+            stopTrace?.end()
         }
     }
 
@@ -299,7 +324,13 @@ private class IosQrScannerController : QrScannerController {
             race.observe(decoder, value, atMs)
         } else {
             qrPresenceGate.observe(value)?.also { scanTelemetry.qrDetected(decoder) }
-        } ?: return
+        }
+        if (drainingGeneration != null) {
+            // Stopped and only waiting for the runner-up: close as soon as the race is decided.
+            if (!scanTelemetry.raceUndecided) finishStop()
+            return
+        }
+        if (emittedValue == null) return
         val callback = onQrCodeScanned ?: return
         val currentGeneration = generation
         dispatch_async(dispatch_get_main_queue()) {
@@ -571,6 +602,9 @@ private fun applyFixedCameraControls(device: AVCaptureDevice) = memScoped {
 }
 
 private const val MAXIMUM_ASPECT_DELTA = 0.08
+
+/** How long a stopped scanner keeps the camera on for the slower reader. */
+private const val RUNNER_UP_GRACE_MS = 500L
 
 /**
  * The scanner settings a [CameraVariant] stands for on iOS: the capture rate, the format wanted

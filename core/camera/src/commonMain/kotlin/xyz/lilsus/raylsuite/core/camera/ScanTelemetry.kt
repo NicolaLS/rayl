@@ -105,6 +105,9 @@ internal class ScanTelemetry(
         if (racing) session.pending = event else record(event)
     }
 
+    /** A first reader was reported as [racing] and the other has not decoded the code yet. */
+    val raceUndecided: Boolean get() = session?.pending != null
+
     /** The slower reader decoded the reported code too, [lagMs] after the first. */
     fun runnerUpDetected(lagMs: Long) {
         val pending = takePending() ?: return
