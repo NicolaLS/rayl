@@ -1,29 +1,51 @@
 #!/bin/sh
-# Creates the read-only database role Grafana uses and writes its connection to .env (gitignored).
-# Needs the Railway CLI (logged in), psql, and a public TCP proxy on the Postgres service:
-# Railway dashboard -> rayl-backend -> Postgres -> Settings -> Networking -> TCP Proxy, port 5432.
-# Run it again to rotate the role's password.
+# Opens the usage dashboard on production data without exposing the database: an encrypted tunnel
+# through the Railway CLI, held open until Ctrl+C, and Grafana in Docker reading through it.
+#
+# The first run creates the read-only role Grafana uses and writes its password to .env
+# (gitignored). `connect --rotate` gives the role a new password.
+# Needs the Railway CLI (logged in), psql (brew install libpq) and Docker.
 set -eu
 cd "$(dirname "$0")"
+PROJECT=9bbf2625-4edc-4a92-bc7c-b3e9f6c840be
+PORT=54320
 PSQL="$(command -v psql || echo "$(brew --prefix libpq)/bin/psql")"
-URL=$(railway variable list -p 9bbf2625-4edc-4a92-bc7c-b3e9f6c840be -e production -s Postgres --json |
-  python3 -c "
-import json, sys, urllib.parse
+
+railway connect Postgres -p "$PROJECT" -e production --tunnel-only -P "$PORT" >/dev/null 2>&1 &
+TUNNEL=$!
+cleanup() {
+  docker compose down >/dev/null 2>&1 || true
+  kill "$TUNNEL" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 0' INT TERM
+
+printf 'Opening the tunnel'
+tries=0
+until nc -z 127.0.0.1 "$PORT" 2>/dev/null; do
+  tries=$((tries + 1))
+  if [ "$tries" -gt 60 ] || ! kill -0 "$TUNNEL" 2>/dev/null; then
+    printf '\nThe tunnel did not open. Try: railway connect Postgres --tunnel-only\n' >&2
+    exit 1
+  fi
+  printf '.'
+  sleep 1
+done
+echo
+
+if [ ! -f .env ] || ! grep -q '^RAYL_DB_USER=grafana_reader$' .env || [ "${1:-}" = "--rotate" ]; then
+  PASSWORD=$(openssl rand -hex 24)
+  railway variable list -p "$PROJECT" -e production -s Postgres --json |
+    python3 -c "
+import json, sys
 v = json.load(sys.stdin)
-host, port = v.get('RAILWAY_TCP_PROXY_DOMAIN'), v.get('RAILWAY_TCP_PROXY_PORT')
-if v.get('DATABASE_PUBLIC_URL'):
-    print(v['DATABASE_PUBLIC_URL'])
-elif host and port:
-    # Railway names the proxy's endpoint; the service does not always define a public URL itself.
-    password = urllib.parse.quote(v['PGPASSWORD'], safe='')
-    print(f\"postgresql://{v['PGUSER']}:{password}@{host}:{port}/{v['PGDATABASE']}\")
-")
-if [ -z "$URL" ]; then
-  echo "The Postgres service has no public endpoint yet; add the TCP proxy first (see above)." >&2
-  exit 1
-fi
-PASSWORD=$(openssl rand -hex 24)
-"$PSQL" "$URL" -v ON_ERROR_STOP=1 -q <<SQL
+print(f\"export PGUSER='{v['PGUSER']}' PGPASSWORD='{v['PGPASSWORD']}' PGDATABASE='{v['PGDATABASE']}'\")
+" >.owner
+  # shellcheck disable=SC1091
+  (
+    . ./.owner
+    rm -f .owner
+    "$PSQL" -h 127.0.0.1 -p "$PORT" -v ON_ERROR_STOP=1 -q <<SQL
 do \$\$ begin
   if not exists (select from pg_roles where rolname = 'grafana_reader') then
     create role grafana_reader login;
@@ -33,14 +55,20 @@ alter role grafana_reader password '$PASSWORD';
 grant usage on schema public to grafana_reader;
 grant select on telemetry_events, telemetry_daily_counts, telemetry_daily_measures to grafana_reader;
 SQL
-python3 - "$URL" "$PASSWORD" <<'PY'
-import sys, urllib.parse
-url = urllib.parse.urlparse(sys.argv[1])
-with open(".env", "w") as env:
-    env.write(
-        f"RAYL_DB_HOST={url.hostname}\nRAYL_DB_PORT={url.port}\nRAYL_DB_NAME={url.path.lstrip('/')}\n"
-        f"RAYL_DB_USER=grafana_reader\nRAYL_DB_PASSWORD={sys.argv[2]}\nRAYL_DB_SSLMODE=require\n"
-    )
-PY
-chmod 600 .env
-echo "Wrote .env. Start the dashboard with: docker compose up -d"
+    umask 077
+    cat >.env <<ENV
+RAYL_DB_HOST=host.docker.internal
+RAYL_DB_PORT=$PORT
+RAYL_DB_NAME=$PGDATABASE
+RAYL_DB_USER=grafana_reader
+RAYL_DB_PASSWORD=$PASSWORD
+RAYL_DB_SSLMODE=disable
+ENV
+  )
+  rm -f .owner
+  echo "Created the read-only role and wrote .env."
+fi
+
+docker compose up -d --force-recreate >/dev/null 2>&1
+echo "Dashboard: http://localhost:3000   (Ctrl+C closes the tunnel and stops Grafana)"
+wait "$TUNNEL"

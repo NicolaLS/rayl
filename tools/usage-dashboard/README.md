@@ -4,15 +4,16 @@ Grafana on your machine, reading Rayl's anonymous usage data from the backend's 
 read-only role. Nothing is hosted: start it when you want to look.
 
 ```sh
-tools/usage-dashboard/connect                              # once, and to rotate the password
-docker compose -f tools/usage-dashboard/compose.yaml up -d
+tools/usage-dashboard/connect      # opens the dashboard; Ctrl+C closes everything
 open http://localhost:3000
-docker compose -f tools/usage-dashboard/compose.yaml down  # when done
 ```
 
-`connect` needs the Railway CLI, `psql`, and a public TCP proxy on the Postgres service. It
-creates the role `grafana_reader`, which can only read the three usage-data tables, and writes its
-connection to `.env` (gitignored).
+`connect` reaches the database through an encrypted tunnel of the Railway CLI
+(`railway connect Postgres --tunnel-only`), so the database needs no public endpoint. It holds the
+tunnel open and runs Grafana until you press Ctrl+C. The first run creates the role
+`grafana_reader`, which can only read the three usage-data tables, and writes its password to
+`.env` (gitignored); `connect --rotate` replaces the password. It needs the Railway CLI (logged
+in), `psql` (`brew install libpq`) and Docker.
 
 The dashboard is `dashboards/usage-data.json`. Changes made in the Grafana UI are lost when the
 container is removed: export the dashboard's JSON and replace the file to keep them. What the
