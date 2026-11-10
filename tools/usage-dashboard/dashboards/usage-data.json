@@ -8,7 +8,7 @@
   "schemaVersion": 39,
   "version": 1,
   "editable": true,
-  "refresh": "",
+  "refresh": "1m",
   "time": {
     "from": "now-30d",
     "to": "now"
