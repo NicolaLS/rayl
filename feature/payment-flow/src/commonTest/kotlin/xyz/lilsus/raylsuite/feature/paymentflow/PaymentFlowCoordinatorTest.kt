@@ -300,6 +300,7 @@ class PaymentFlowCoordinatorTest {
 
     @Test
     fun aScannedAutoPaidPaymentReportsItsStagesFromColdStart() = flowTest {
+        cameraMs = 700
         qrMs = 1_000
         clockMs = 1_010
         settlement.onPrepare = { clockMs += 300 }
@@ -323,6 +324,9 @@ class PaymentFlowCoordinatorTest {
                         "qr_to_admitted_ms" to 10L,
                         "admitted_to_prepared_ms" to 300L,
                         "submit_to_outcome_ms" to 1_500L,
+                        // The scanner had been looking for 300 ms: the user pointed first.
+                        "camera_to_qr_ms" to 300L,
+                        "qr_to_outcome_ms" to 1_810L,
                         "process_to_outcome_ms" to 2_810L
                     )
                 )
@@ -335,6 +339,8 @@ class PaymentFlowCoordinatorTest {
     fun aConfirmedPaymentLeavesOutTheTimeTheUserTookAndASecondOneIsNotTheFirst() = flowTest {
         scan(invoice(sats = 100))
         dispatch(PaymentIntent.DismissResult)
+        // The app had been open and waiting for most of a minute.
+        cameraMs = 900
         qrMs = 60_000
         clockMs = 60_020
         settlement.onPrepare = { clockMs += 300 }
@@ -360,7 +366,8 @@ class PaymentFlowCoordinatorTest {
                 measures = mapOf(
                     "qr_to_admitted_ms" to 20L,
                     "admitted_to_prepared_ms" to 300L,
-                    "submit_to_outcome_ms" to 1_500L
+                    "submit_to_outcome_ms" to 1_500L,
+                    "camera_to_qr_ms" to 59_100L
                 )
             ),
             events.last()
@@ -465,6 +472,9 @@ class PaymentFlowCoordinatorTest {
 
         /** When the scanner decoded its latest code, on the same clock. */
         var qrMs: Long? = null
+
+        /** When that scanner got its first camera frame. */
+        var cameraMs: Long? = null
         val events = mutableListOf<TelemetryEvent>()
         private var firstPaymentTaken = false
 
@@ -488,6 +498,7 @@ class PaymentFlowCoordinatorTest {
                 recorder = { events += it },
                 nowMs = { clockMs },
                 latestQrMs = { qrMs },
+                latestCameraFrameMs = { cameraMs },
                 wallet = { TelemetryWallet.Rayl },
                 takeFirstPayment = { !firstPaymentTaken.also { firstPaymentTaken = true } },
                 countsFromLaunch = true,

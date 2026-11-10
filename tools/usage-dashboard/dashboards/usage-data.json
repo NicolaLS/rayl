@@ -6,7 +6,7 @@
   ],
   "timezone": "utc",
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "editable": true,
   "refresh": "1m",
   "time": {
@@ -62,7 +62,7 @@
       "description": "Payments that went through in the selected time range.",
       "gridPos": {
         "h": 4,
-        "w": 5,
+        "w": 4,
         "x": 0,
         "y": 0
       },
@@ -108,8 +108,8 @@
       "description": "Of the payments the wallet was asked to make. Failed and unknown count against it; not having enough funds does not, since that is not Rayl failing.",
       "gridPos": {
         "h": 4,
-        "w": 5,
-        "x": 5,
+        "w": 4,
+        "x": 4,
         "y": 0
       },
       "targets": [
@@ -164,13 +164,13 @@
     },
     {
       "type": "stat",
-      "title": "Open app \u2192 paid (typical)",
+      "title": "Point, open app \u2192 paid (typical)",
       "id": 3,
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "The headline speed number: cold start, scan, paid, without any tap. Half of such payments are faster than this. Empty until someone pays that way (Auto Pay, first payment after opening the app).",
+      "description": "The user points at the invoice, opens Rayl, and it pays without a tap. Counted from the app starting to the payment confirmed, only when the code was read within 1.5 s of the camera coming on. Half of such payments are faster than this.",
       "gridPos": {
         "h": 4,
         "w": 5,
@@ -187,7 +187,55 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select percentile_cont(0.5) within group (order by (measures->>'process_to_outcome_ms')::numeric) from telemetry_events where name = 'payment' and measures ? 'process_to_outcome_ms' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+          "rawSql": "select percentile_cont(0.5) within group (order by (measures->>'process_to_outcome_ms')::numeric) from telemetry_events where name = 'payment' and measures ? 'process_to_outcome_ms' and (measures->>'camera_to_qr_ms')::numeric < 1500 and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Code read \u2192 paid (typical)",
+      "id": 18,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "From the moment the scanner reads the invoice to the payment confirmed, without a tap. This is what the user waits for no matter how long the app was open before.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select percentile_cont(0.5) within group (order by (measures->>'qr_to_outcome_ms')::numeric) from telemetry_events where name = 'payment' and measures ? 'qr_to_outcome_ms' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
         }
       ],
       "fieldConfig": {
@@ -221,8 +269,8 @@
       "description": "From handing the payment to the wallet until it is confirmed. Half of the payments are faster than this.",
       "gridPos": {
         "h": 4,
-        "w": 5,
-        "x": 15,
+        "w": 4,
+        "x": 16,
         "y": 0
       },
       "targets": [
@@ -657,6 +705,40 @@
     },
     {
       "type": "table",
+      "title": "Pointed first, or was the app already open?",
+      "id": 19,
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "rayl-usage-data"
+      },
+      "description": "Scanned payments without a tap, grouped by how long the camera had been on when it read the code. 'Pointed first' is the quick pay; the others had the app open and waiting. If the waiting groups prepare or pay slower, keeping the app open costs something (a stale connection); if faster, the wait warmed the wallet up.",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "rayl-usage-data"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "\nselect case\n    when (measures->>'camera_to_qr_ms')::numeric < 1500 then '1 Pointed first (code read within 1.5 s)'\n    when (measures->>'camera_to_qr_ms')::numeric < 15000 then '2 App open a few seconds'\n    else '3 App open and waiting (15 s or more)' end as situation,\n  count(*) as payments,\n  round(percentile_cont(0.5) within group (order by (measures->>'camera_to_qr_ms')::numeric)) as \"camera on before code (ms)\",\n  round(percentile_cont(0.5) within group (order by (measures->>'admitted_to_prepared_ms')::numeric)) as \"wallet prepares (ms)\",\n  round(percentile_cont(0.5) within group (order by (measures->>'submit_to_outcome_ms')::numeric)) as \"wallet pays (ms)\",\n  round(percentile_cont(0.5) within group (order by (measures->>'qr_to_outcome_ms')::numeric)) as \"code read \u2192 paid (ms)\"\nfrom telemetry_events\nwhere name = 'payment' and measures ? 'camera_to_qr_ms' and dimensions->>'outcome' = 'paid'\n  and dimensions->>'confirmation' = 'auto' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\ngroup by 1 order by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
       "title": "By wallet",
       "id": 11,
       "datasource": {
@@ -668,7 +750,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 20
+        "y": 26
       },
       "targets": [
         {
@@ -702,7 +784,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 20
+        "y": 26
       },
       "targets": [
         {
@@ -755,7 +837,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 20
+        "y": 26
       },
       "targets": [
         {
@@ -789,7 +871,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 27
+        "y": 33
       },
       "targets": [
         {
@@ -840,7 +922,7 @@
         "h": 8,
         "w": 16,
         "x": 8,
-        "y": 27
+        "y": 33
       },
       "targets": [
         {
@@ -869,12 +951,12 @@
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "Finding the code includes the user aiming. Many frames at a normal ms per frame means the code was in view but hard to read, which is what camera tuning can fix. Frame figures are Android only.",
+      "description": "Finding the code is taken from the first scan after opening the app only (later scans start right after a payment, so their time is mostly the user). It still includes aiming, or waiting if the app was opened early. Many frames at a normal ms per frame means the code was in view but hard to read.",
       "gridPos": {
         "h": 8,
         "w": 14,
         "x": 0,
-        "y": 35
+        "y": 41
       },
       "targets": [
         {
@@ -886,7 +968,7 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select device_model as phone, count(*) as scans,\n  round(percentile_cont(0.5) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as \"camera starts in (ms)\",\n  round(percentile_cont(0.5) within group (order by (measures->>'first_frame_to_qr_ms')::numeric)) as \"finds the code in (ms)\",\n  round(percentile_cont(0.5) within group (order by (measures->>'frames_analyzed')::numeric)) as \"frames needed\",\n  round(percentile_cont(0.5) within group (order by (measures->>'frame_analysis_avg_ms')::numeric)) as \"ms per frame\"\nfrom telemetry_events where name = 'scan' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\ngroup by 1 order by 2 desc limit 25"
+          "rawSql": "select device_model as phone, count(*) as scans,\n  round(percentile_cont(0.5) within group (order by (measures->>'camera_start_to_first_frame_ms')::numeric)) as \"camera starts in (ms)\",\n  round(percentile_cont(0.5) within group (order by (measures->>'first_frame_to_qr_ms')::numeric) filter (where dimensions->>'session' = 'first')) as \"finds the code in (ms)\",\n  round(percentile_cont(0.5) within group (order by (measures->>'frames_analyzed')::numeric)) as \"frames needed\",\n  round(percentile_cont(0.5) within group (order by (measures->>'frame_analysis_avg_ms')::numeric)) as \"ms per frame\"\nfrom telemetry_events where name = 'scan' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})\ngroup by 1 order by 2 desc limit 25"
         }
       ],
       "fieldConfig": {
@@ -908,7 +990,7 @@
         "h": 8,
         "w": 10,
         "x": 14,
-        "y": 35
+        "y": 41
       },
       "targets": [
         {

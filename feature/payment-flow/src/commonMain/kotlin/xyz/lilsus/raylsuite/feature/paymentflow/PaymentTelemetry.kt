@@ -25,6 +25,9 @@ class PaymentTelemetry(
     private val recorder: TelemetryRecorder = Telemetry,
     private val nowMs: () -> Long = RaylTrace::nowMs,
     private val latestQrMs: () -> Long? = { RaylTrace.latestMs(TracePoint.QrDetected) },
+    private val latestCameraFrameMs: () -> Long? = {
+        RaylTrace.latestMs(TracePoint.CameraFirstFrame)
+    },
     private val wallet: () -> TelemetryWallet = { Telemetry.wallet },
     private val takeFirstPayment: () -> Boolean = Telemetry::takeFirstPayment,
     private val countsFromLaunch: Boolean = RaylTrace.countsFromLaunch,
@@ -34,9 +37,11 @@ class PaymentTelemetry(
     private var attempt: Attempt? = null
 
     internal fun started(source: TelemetryPaymentSource) {
+        val scanned = source == TelemetryPaymentSource.Scan
         attempt = Attempt(
             source = source,
-            qrMs = if (source == TelemetryPaymentSource.Scan) latestQrMs() else null
+            qrMs = if (scanned) latestQrMs() else null,
+            cameraMs = if (scanned) latestCameraFrameMs() else null
         )
     }
 
@@ -119,6 +124,10 @@ class PaymentTelemetry(
                         attempt.admittedMs.takeIf { admittedByMachine }.since(attempt.qrMs),
                     "admitted_to_prepared_ms" to attempt.preparedMs.since(attempt.admittedMs),
                     "submit_to_outcome_ms" to attempt.submittedMs?.let { now - it },
+                    "camera_to_qr_ms" to attempt.qrMs.since(attempt.cameraMs),
+                    "qr_to_outcome_ms" to now.takeIf {
+                        untouched && outcome == TelemetryPaymentOutcome.Paid
+                    }.since(attempt.qrMs),
                     "process_to_outcome_ms" to now.takeIf {
                         first &&
                             untouched &&
@@ -133,7 +142,12 @@ class PaymentTelemetry(
         afterResult()
     }
 
-    private class Attempt(val source: TelemetryPaymentSource, val qrMs: Long?) {
+    private class Attempt(
+        val source: TelemetryPaymentSource,
+        val qrMs: Long?,
+        /** When the scanner that read the code got its first frame. */
+        val cameraMs: Long?
+    ) {
         var confirmation = TelemetryPaymentConfirmation.Auto
         var admittedMs: Long? = null
         var preparedMs: Long? = null

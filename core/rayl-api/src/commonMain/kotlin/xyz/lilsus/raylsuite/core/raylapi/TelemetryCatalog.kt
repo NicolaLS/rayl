@@ -242,7 +242,13 @@ object TelemetryCatalog {
             "admitted_to_prepared_ms",
             "submit_to_outcome_ms",
             // Cold start to paid without a tap: only for the first, scanned, unconfirmed payment.
-            "process_to_outcome_ms"
+            // It includes however long the app was open before a code came into view.
+            "process_to_outcome_ms",
+            // How long the scanner had been running when it read the code. Short: the user
+            // pointed at the code and then opened the app. Long: the app was open and waiting.
+            "camera_to_qr_ms",
+            // Code read to paid without a tap: what the user waits for in either case.
+            "qr_to_outcome_ms"
         )
     )
 
