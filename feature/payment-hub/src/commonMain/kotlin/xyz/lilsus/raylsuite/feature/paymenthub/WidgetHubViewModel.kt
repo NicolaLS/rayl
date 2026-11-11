@@ -14,6 +14,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.model.LightningAddress
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryCatalog
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubProduct
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubPurchaseStep
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubService
+import xyz.lilsus.raylsuite.core.raylapi.telemetryEvent
+import xyz.lilsus.raylsuite.core.telemetry.Telemetry
+import xyz.lilsus.raylsuite.core.telemetry.TelemetryRecorder
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroApi
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroDelivery
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroInvoice
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroLine
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroPayment
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroResult
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.claroPhone
 import xyz.lilsus.raylsuite.feature.paymenthub.create.cleanAmountInput
 import xyz.lilsus.raylsuite.feature.paymenthub.create.formatMinorAmount
 import xyz.lilsus.raylsuite.feature.paymenthub.create.hasFractionForWholeCurrency
@@ -22,6 +36,8 @@ import xyz.lilsus.raylsuite.feature.paymenthub.feedback.HubFeedbackApi
 import xyz.lilsus.raylsuite.feature.paymenthub.feedback.HubFeedbackKind
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubIntent
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubClaroProblem
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubClaroShop
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqProblem
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqTopUpError
@@ -36,11 +52,17 @@ class WidgetHubViewModel(
     private val defaultCurrencyCode: () -> String,
     /** Null where no ppq.ai account can be kept; its widget then stays unconnected. */
     private val ppq: HubPpqService? = null,
+    /** Null where Claro cannot be asked; its widget then opens nothing. */
+    private val claro: ClaroApi? = null,
     /** Null where feedback cannot be sent; the form is then not offered. */
     private val feedbackApi: HubFeedbackApi? = null,
     dispatcher: CoroutineDispatcher = Dispatchers.Main,
     /** Where the credential store is read and written. */
-    private val background: CoroutineDispatcher = Dispatchers.Default
+    private val background: CoroutineDispatcher = Dispatchers.Default,
+    private val telemetry: TelemetryRecorder = Telemetry,
+    /** Whether the user shares usage data. Without it nobody would learn what an order became. */
+    private val sharesUsageData: () -> Boolean = { Telemetry.enabled.value },
+    private val clock: () -> Long = ::platformCurrentTimeMillis
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutableState =
@@ -48,6 +70,11 @@ class WidgetHubViewModel(
     val state = mutableState.asStateFlow()
     private var ratesJob: Job? = null
     private var ppqJob: Job? = null
+    private var claroJob: Job? = null
+    private var claroOrdersJob: Job? = null
+
+    /** The open shop's number as Claro accepted it; orders are placed for it. */
+    private var claroLine: ClaroLine? = null
 
     init {
         scope.launch {
@@ -85,6 +112,7 @@ class WidgetHubViewModel(
     fun refreshLive() {
         refreshRates()
         refreshPpq()
+        followClaroOrders()
     }
 
     fun openGallery() {
@@ -165,6 +193,10 @@ class WidgetHubViewModel(
     }
 
     fun updateApiKey(value: String) = edit { it.copy(apiKeyInput = value.trim().take(200)) }
+
+    fun updatePhone(value: String) = edit { editor ->
+        editor.copy(phoneInput = value.filter { it.isDigit() || it in "+ " }.take(16))
+    }
 
     fun updateQuery(value: String) {
         mutableState.update { it.copy(query = value) }
@@ -293,7 +325,8 @@ class WidgetHubViewModel(
             editor.contactIds,
             amount,
             editor.comment,
-            editor.currencyCode.takeIf { editor.kind.quotesBitcoin }
+            editor.currencyCode.takeIf { editor.kind.quotesBitcoin },
+            claroPhone(editor.phoneInput).takeIf { editor.kind == HubWidgetKind.Claro }
         )
         mutate {
             if (editor.kind == HubWidgetKind.Ppq && editor.apiKeyInput.isNotBlank() &&
@@ -339,7 +372,8 @@ class WidgetHubViewModel(
                     currencyCode = amount?.normalizedCurrencyCode
                         ?: widget.currencyCode
                         ?: defaultCurrencyCode(),
-                    comment = target?.comment.orEmpty()
+                    comment = target?.comment.orEmpty(),
+                    phoneInput = widget.phone.orEmpty()
                 )
             )
         }
@@ -425,6 +459,84 @@ class WidgetHubViewModel(
 
     fun clearPpqTopUpError() = updatePpq { it.copy(topUpError = null) }
 
+    /** Opens the shop for a Claro widget and reads what Claro sells to its number. */
+    fun openClaro(widgetId: String) {
+        val api = claro ?: return
+        val phone = repository.hub.value.widget(widgetId)
+            ?.takeIf { it.kind == HubWidgetKind.Claro }?.phone
+        if (phone == null || mutableState.value.arranging) return
+        claroJob?.cancel()
+        claroLine = null
+        updateClaro { HubClaroShop(widgetId, phone, loading = true) }
+        claroJob = scope.launch {
+            val catalogue = api.catalogue(phone)
+            claroLine = (catalogue as? ClaroResult.Ok)?.value?.line
+            updateClaro { shop ->
+                when (catalogue) {
+                    is ClaroResult.Ok -> shop.copy(
+                        loading = false,
+                        products = catalogue.value.products,
+                        // A shop with nothing in it gives the user nothing to do but try again.
+                        problem = HubClaroProblem.Unreachable.takeIf {
+                            catalogue.value.products.isEmpty()
+                        }
+                    )
+
+                    ClaroResult.NotEligible ->
+                        shop.copy(loading = false, problem = HubClaroProblem.NotEligible)
+
+                    ClaroResult.Unavailable ->
+                        shop.copy(loading = false, problem = HubClaroProblem.Unreachable)
+                }
+            }
+        }
+    }
+
+    /**
+     * Orders a product of the open shop and hands Claro's invoice to the wallet, which presents
+     * and confirms it like any other payment. The shop closes to make room for it.
+     */
+    fun buyClaro(productId: String) {
+        val api = claro ?: return
+        val line = claroLine ?: return
+        val shop = mutableState.value.claro
+        val product = shop.products.firstOrNull { it.id == productId }
+        if (product == null || shop.ordering) return
+        updateClaro { it.copy(ordering = true, problem = null) }
+        claroJob = scope.launch {
+            val invoice = (api.invoice(line, product) as? ClaroResult.Ok)?.value
+                ?.takeUnless { overcharges(it, product.priceCents) }
+            if (invoice == null) {
+                reportClaro(product.topUp, TelemetryHubPurchaseStep.OrderFailed)
+                updateClaro { it.copy(ordering = false, problem = HubClaroProblem.OrderFailed) }
+            } else {
+                // Kept before the hand-over: the Hub may leave the screen for the payment.
+                if (sharesUsageData()) {
+                    keepClaroOrder(
+                        ClaroOrder(
+                            invoice.transactionId,
+                            invoice.checkout,
+                            line.phone,
+                            product.topUp,
+                            orderedAtMs = clock()
+                        )
+                    )
+                }
+                reportClaro(product.topUp, TelemetryHubPurchaseStep.Ordered)
+                claroLine = null
+                updateClaro { HubClaroShop() }
+                host.payInvoice(invoice.bolt11)
+            }
+        }
+    }
+
+    /** Leaves the shop. An order still on its way to an invoice is dropped, unpaid. */
+    fun closeClaro() {
+        claroJob?.cancel()
+        claroLine = null
+        updateClaro { HubClaroShop() }
+    }
+
     /** Sends what a tester wrote. The form stays open, and keeps their words, until it worked. */
     fun sendFeedback(kind: HubFeedbackKind, message: String, contact: String) {
         val api = feedbackApi ?: return
@@ -457,11 +569,125 @@ class WidgetHubViewModel(
     fun clear() {
         scope.cancel()
         ppq?.close()
+        claro?.close()
         feedbackApi?.close()
     }
 
     private fun updatePpq(transform: (HubPpqAccount) -> HubPpqAccount) {
         mutableState.update { it.copy(ppq = transform(it.ppq)) }
+    }
+
+    /**
+     * Asks, for every order whose outcome is not reported yet, whether it was paid and whether
+     * Claro delivered it, and reports what it learns to the usage data. Nothing of it is shown:
+     * the user's journey ends with the wallet's payment. It runs with [refreshLive], so an order
+     * is followed whenever the Hub is on screen, also after the app was closed in between. For
+     * someone who does not share usage data nothing is kept and nobody is asked.
+     */
+    private fun followClaroOrders() {
+        val api = claro ?: return
+        if (claroOrdersJob?.isActive == true) return
+        val orders = repository.hub.value.claroOrders
+        if (orders.isEmpty()) return
+        // Someone who stopped sharing usage data is not asked about, and no order is kept.
+        val follows = sharesUsageData()
+        claroOrdersJob = scope.launch {
+            try {
+                orders.forEach { order ->
+                    if (follows) {
+                        followClaroOrder(api, order)
+                    } else {
+                        repository.removeClaroOrder(order.transactionId)
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // The orders are still kept; the next refresh asks again.
+            }
+        }
+    }
+
+    /** An order that cannot be kept is paid for all the same; only its report is lost. */
+    private suspend fun keepClaroOrder(order: ClaroOrder) {
+        try {
+            repository.saveClaroOrder(order)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+        }
+    }
+
+    private suspend fun followClaroOrder(api: ClaroApi, order: ClaroOrder) {
+        val age = clock() - order.orderedAtMs
+        if (!order.paid) {
+            when (api.payment(order.checkout)) {
+                ClaroPayment.Paid -> {
+                    repository.saveClaroOrder(order.copy(paid = true))
+                    reportClaro(order.topUp, TelemetryHubPurchaseStep.Paid)
+                }
+
+                // The user did not pay after all: there is nothing to deliver.
+                ClaroPayment.Expired -> return repository.removeClaroOrder(order.transactionId)
+
+                ClaroPayment.Unknown -> {
+                    if (age >
+                        CLARO_FORGET_ORDER_MS
+                    ) {
+                        repository.removeClaroOrder(order.transactionId)
+                    }
+                    return
+                }
+            }
+        }
+        val step = when (api.delivery(order.phone, order.transactionId)) {
+            ClaroDelivery.Delivered -> TelemetryHubPurchaseStep.Delivered
+
+            // Claro needs a moment after the payment; only later is its silence a failure.
+            ClaroDelivery.NotConfirmed ->
+                if (age > CLARO_DELIVERY_WINDOW_MS) {
+                    TelemetryHubPurchaseStep.DeliveryFailed
+                } else {
+                    return
+                }
+
+            ClaroDelivery.NoAnswer -> {
+                if (age > CLARO_FORGET_ORDER_MS) repository.removeClaroOrder(order.transactionId)
+                return
+            }
+        }
+        repository.removeClaroOrder(order.transactionId)
+        reportClaro(order.topUp, step)
+    }
+
+    /** One step of a purchase, as a count: never the number, the product or the amount. */
+    private fun reportClaro(topUp: Boolean, step: TelemetryHubPurchaseStep) {
+        telemetry.record(
+            telemetryEvent(
+                TelemetryCatalog.hubPurchase,
+                mapOf(
+                    "service" to TelemetryHubService.Claro,
+                    "product" to
+                        if (topUp) TelemetryHubProduct.TopUp else TelemetryHubProduct.Package,
+                    "step" to step
+                )
+            )
+        )
+    }
+
+    private fun updateClaro(transform: (HubClaroShop) -> HubClaroShop) {
+        mutableState.update { it.copy(claro = transform(it.claro)) }
+    }
+
+    /**
+     * Whether [invoice] asks for more bitcoin than the dollar price the user chose is worth at
+     * the wallet's own rate, beyond the room two rates need to differ. Claro's payment provider
+     * sets the rate. Without a rate of its own the wallet's confirmation is the check.
+     */
+    private suspend fun overcharges(invoice: ClaroInvoice, priceCents: Long): Boolean {
+        val usdPerBitcoin = host.prices?.pricePerBitcoin("USD")?.takeIf { it > 0 } ?: return false
+        val worthSats = priceCents / 100.0 / usdPerBitcoin * SATS_PER_BITCOIN
+        return invoice.amountSats > worthSats * CLARO_RATE_TOLERANCE
     }
 
     private fun defaultFiatCode(): String =
@@ -608,10 +834,15 @@ class WidgetHubViewModel(
         val tiles = hub.widgets.map { widget ->
             val targets = when (widget.kind) {
                 HubWidgetKind.Contacts -> widget.contactIds.mapNotNull(hub::contactTarget)
+
                 HubWidgetKind.Shortcut -> listOfNotNull(widget.targetId?.let(hub::target))
+
                 HubWidgetKind.Favorites -> favorites.take(widget.variant.capacity)
+
                 HubWidgetKind.Recents -> recents.take(widget.variant.capacity)
-                HubWidgetKind.Rate, HubWidgetKind.Sats, HubWidgetKind.Ppq -> emptyList()
+
+                HubWidgetKind.Rate, HubWidgetKind.Sats, HubWidgetKind.Ppq, HubWidgetKind.Claro ->
+                    emptyList()
             }
             HubWidgetTile(
                 widget.id,
@@ -623,6 +854,7 @@ class WidgetHubViewModel(
                         it.id == widget.definitionId
                     }?.title,
                 currencyCode = widget.currencyCode,
+                phone = widget.phone,
                 people = targets.mapNotNull { target ->
                     hub.contact(target.contactId)?.let { contact ->
                         HubWidgetPerson(
@@ -647,3 +879,18 @@ class WidgetHubViewModel(
         }
     }
 }
+
+private const val SATS_PER_BITCOIN = 100_000_000.0
+
+/** How much above the wallet's own rate a Claro invoice may be before it is not paid. */
+private const val CLARO_RATE_TOLERANCE = 1.05
+
+/**
+ * How long after ordering a paid order may stay unconfirmed before that counts as a failed
+ * delivery. The invoice can be paid for about a quarter of an hour, and Claro then needs a
+ * moment of its own.
+ */
+private const val CLARO_DELIVERY_WINDOW_MS = 30 * 60_000L
+
+/** An order nobody could be asked about for this long is dropped, unreported. */
+private const val CLARO_FORGET_ORDER_MS = 3 * 24 * 60 * 60_000L

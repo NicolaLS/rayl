@@ -28,6 +28,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.delay
 import xyz.lilsus.raylsuite.core.settings.createSecureSettings
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.KtorClaroApi
 import xyz.lilsus.raylsuite.feature.paymenthub.feedback.KtorHubFeedbackApi
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.HubPpqService
@@ -56,6 +57,7 @@ fun PaymentHubTab(
             ppq = createHubPpqService(
                 createSecureSettings(context, HubPpqService.STORAGE_NAME)
             ),
+            claro = KtorClaroApi(),
             feedbackApi = KtorHubFeedbackApi(platform = "android")
         )
     }

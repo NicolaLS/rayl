@@ -34,11 +34,22 @@ private enum HubPalette {
     static let up = Color(red: 0.37, green: 0.88, blue: 0.55)
     static let down = Color(red: 1.0, green: 0.54, blue: 0.50)
     static let ember = Color(red: 1.0, green: 0.36, blue: 0.20)
+    static let claro = Color(red: 0.85, green: 0.16, blue: 0.11)
 
     static func glow(_ kind: String) -> Color? {
         switch kind {
         case "sats": return bitcoin
         case "ppq": return ember
+        case "claro": return claro
+        default: return nil
+        }
+    }
+
+    /// The mark of the service a widget belongs to. Only a service brings its own.
+    static func mark(_ kind: String) -> String? {
+        switch kind {
+        case "ppq": return "hub_ppq"
+        case "claro": return "hub_claro"
         default: return nil
         }
     }
@@ -87,6 +98,9 @@ struct NativePaymentHubView: View {
         .sheet(isPresented: $toppingUp) {
             HubPpqTopUpSheet(model: model)
         }
+        .sheet(isPresented: claroPresented) {
+            HubClaroSheet(model: model)
+        }
         .task(id: scenePhase) {
             // Prices and balances are fetched while the Hub is on screen and the app is in
             // front, and again when either comes back.
@@ -113,12 +127,23 @@ struct NativePaymentHubView: View {
         case "topup":
             model.controller.clearPpqTopUpError()
             toppingUp = true
+        case "claro":
+            model.controller.openClaro(id: tile.id)
         case "setup":
-            // Without a usable key there is nothing to top up; the widget's settings ask for one.
+            // Without a usable key or a number there is nothing to top up; the settings ask for it.
             model.controller.editWidget(id: tile.id)
         default:
             break
         }
+    }
+
+    /// The shop is open for as long as the shared state says so: it closes itself once Claro's
+    /// invoice is with the wallet.
+    private var claroPresented: Binding<Bool> {
+        Binding(
+            get: { model.snapshot?.claro.open == true },
+            set: { if !$0 { model.controller.closeClaro() } }
+        )
     }
 
     private var editorPresented: Binding<Bool> {
@@ -502,6 +527,7 @@ private struct HubEditorSheet: View {
                 gallerySection(state, title: state.text.sectionCollections, kinds: ["favorites", "recents"])
                 gallerySection(state, title: state.text.sectionInfo, kinds: ["rate", "sats"])
                 gallerySection(state, title: state.text.sectionAi, kinds: ["ppq"])
+                gallerySection(state, title: state.text.sectionMobile, kinds: ["claro"])
                 feedbackPrompt(state)
             }
             .padding(20)
@@ -701,6 +727,27 @@ private struct WidgetConfigurationView: View {
                             .autocorrectionDisabled()
                         } header: {
                             Text(state.text.apiKey)
+                        } footer: {
+                            Text(hint)
+                        }
+                    }
+                    if let hint = editor.phoneHint {
+                        Section {
+                            HStack(spacing: 6) {
+                                Text("+503").foregroundStyle(.secondary)
+                                TextField(
+                                    "7123 4567",
+                                    text: Binding(
+                                        get: { editor.phone },
+                                        set: { controller.updatePhone(value: $0) }
+                                    )
+                                )
+                                .keyboardType(.phonePad)
+                                .textContentType(.telephoneNumber)
+                                .monospacedDigit()
+                            }
+                        } header: {
+                            Text(state.text.phone)
                         } footer: {
                             Text(hint)
                         }
@@ -1088,8 +1135,8 @@ private struct WidgetContent: View {
     /// a service brings its own mark.
     private func header<Trailing: View>(_ title: String, @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: 7) {
-            if tile.kind == "ppq" {
-                Image("hub_ppq")
+            if let mark = HubPalette.mark(tile.kind) {
+                Image(mark)
                     .resizable()
                     .scaledToFit()
                     .padding(4)
@@ -1579,6 +1626,133 @@ private struct HubPpqTopUpSheet: View {
         }
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(model.snapshot?.ppq.toppingUp == true)
+    }
+}
+
+/// What Claro sells to one number. Choosing is one tap and paying another, because the wallet may
+/// pay a small invoice without asking again. Its own payment screen takes over once Claro sent
+/// the invoice.
+private struct HubClaroSheet: View {
+    @ObservedObject var model: NativePaymentHubModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var chosen: String?
+
+    var body: some View {
+        NavigationStack {
+            if let state = model.snapshot {
+                let shop = state.claro
+                Group {
+                    if shop.loading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let problem = shop.problem {
+                        ContentUnavailableView {
+                            Label(problem, systemImage: "antenna.radiowaves.left.and.right.slash")
+                        } actions: {
+                            // Asking again changes nothing for a number Claro does not sell to.
+                            if shop.canRetry {
+                                Button(state.text.claroRetry) { model.controller.retryClaro() }
+                                    .buttonStyle(.borderedProminent)
+                            }
+                        }
+                    } else {
+                        List {
+                            Section {
+                                HStack(spacing: 14) {
+                                    Image("hub_claro")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .padding(7)
+                                        .frame(width: 44, height: 44)
+                                        .background(.white, in: Circle())
+                                        .accessibilityHidden(true)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Claro").font(.headline)
+                                        Text(shop.phone)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                            .monospacedDigit()
+                                    }
+                                }
+                                .accessibilityElement(children: .combine)
+                            }
+                            products(state.text.claroTopUps, shop.topUps)
+                            products(state.text.claroPackages, shop.packages)
+                        }
+                        .disabled(shop.ordering)
+                        .safeAreaInset(edge: .bottom) {
+                            VStack(spacing: 0) {
+                                // Who sells what is bought here, and under whose terms.
+                                VStack(alignment: .leading, spacing: 4) {
+                                    if let error = shop.orderError {
+                                        Text(error).foregroundStyle(.red)
+                                    }
+                                    Text(state.text.claroNotice).foregroundStyle(.secondary)
+                                    if let terms = URL(string: shop.termsUrl) {
+                                        Link(state.text.claroTerms, destination: terms)
+                                    }
+                                }
+                                .font(.footnote)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 20)
+                                .padding(.top, 10)
+                                HubPrimaryButton(title: state.text.claroPay, busy: shop.ordering) {
+                                    if let chosen { model.controller.buyClaro(productId: chosen) }
+                                }
+                                .disabled(chosen == nil)
+                            }
+                            .background(.bar)
+                        }
+                    }
+                }
+                .navigationTitle(state.text.claroTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { dismiss() } label: { Image(systemName: "xmark") }
+                            .accessibilityLabel(state.text.cancel)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    @ViewBuilder
+    private func products(_ title: String, _ products: [NativeHubClaroProduct]) -> some View {
+        if !products.isEmpty {
+            Section(title) {
+                ForEach(products, id: \.id) { product in
+                    let isChosen = chosen == product.id
+                    Button {
+                        chosen = product.id
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(product.name)
+                                    .font(.body.weight(.medium))
+                                if let detail = product.detail {
+                                    Text(detail)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                            Text(product.price)
+                                .font(.body.weight(.semibold))
+                                .monospacedDigit()
+                            Image(systemName: isChosen ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(isChosen ? Color.accentColor : Color.secondary)
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isChosen ? .isSelected : [])
+                }
+            }
+        }
     }
 }
 

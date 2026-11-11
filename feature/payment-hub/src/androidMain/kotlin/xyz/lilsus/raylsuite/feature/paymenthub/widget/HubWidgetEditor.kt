@@ -126,6 +126,9 @@ internal fun HubWidgetEditorScreen(
                 if (editor.kind == HubWidgetKind.Ppq) {
                     ApiKeyField(editor, state.ppq.connected, viewModel, enabled = !state.busy)
                 }
+                if (editor.kind == HubWidgetKind.Claro) {
+                    PhoneField(editor, viewModel, enabled = !state.busy)
+                }
                 if (choosesContacts) {
                     EditorSection(stringResource(R.string.hub_widget_contacts)) {
                         selectedContacts.forEach { contact ->
@@ -300,6 +303,29 @@ private fun ApiKeyField(
             stringResource(
                 if (keySaved) R.string.hub_ppq_api_key_saved else R.string.hub_ppq_api_key_hint
             ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+    }
+}
+
+/** The number a Claro widget tops up. Claro El Salvador sells to Salvadoran numbers only. */
+@Composable
+private fun PhoneField(editor: HubWidgetEditor, viewModel: WidgetHubViewModel, enabled: Boolean) {
+    EditorSection(stringResource(R.string.hub_claro_phone)) {
+        OutlinedTextField(
+            value = editor.phoneInput,
+            onValueChange = viewModel::updatePhone,
+            enabled = enabled,
+            singleLine = true,
+            prefix = { Text("+503 ") },
+            placeholder = { Text("7123 4567") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            stringResource(R.string.hub_claro_phone_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp)

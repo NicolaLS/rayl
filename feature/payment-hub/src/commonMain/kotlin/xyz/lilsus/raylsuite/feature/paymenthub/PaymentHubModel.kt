@@ -41,14 +41,33 @@ data class HubWidget(
     val contactIds: List<String> = emptyList(),
     val targetId: HubItemId? = null,
     /** The fiat currency a Rate or Sats widget quotes bitcoin in. */
-    val currencyCode: String? = null
+    val currencyCode: String? = null,
+    /** The number a Claro widget tops up, as eight national digits; null until it is set up. */
+    val phone: String? = null
+)
+
+/**
+ * A Claro order the wallet was handed the invoice of. It is kept, and never shown, until the app
+ * could report to the usage data whether it was paid and delivered.
+ */
+data class ClaroOrder(
+    val transactionId: String,
+    /** The checkout at Claro's payment provider. */
+    val checkout: String,
+    /** Eight national digits. */
+    val phone: String,
+    val topUp: Boolean,
+    val orderedAtMs: Long,
+    /** The payment was seen, and reported. */
+    val paid: Boolean = false
 )
 
 /** Ordered widgets, the local contact book, and successful payment history share one atomic write. */
 data class PaymentHub(
     val contacts: List<HubContact> = emptyList(),
     val targets: List<DirectPaymentTarget> = emptyList(),
-    val widgets: List<HubWidget> = emptyList()
+    val widgets: List<HubWidget> = emptyList(),
+    val claroOrders: List<ClaroOrder> = emptyList()
 ) {
     fun contact(id: String): HubContact? = contacts.firstOrNull { it.id == id }
     fun target(id: HubItemId): DirectPaymentTarget? = targets.firstOrNull { it.id == id }
@@ -80,6 +99,14 @@ data class PaymentHub(
                 else -> widget
             }
         }
-        return PaymentHub(uniqueContacts, uniqueTargets, normalizedWidgets)
+        return PaymentHub(
+            uniqueContacts,
+            uniqueTargets,
+            normalizedWidgets,
+            // Only the newest are followed; an order nobody could ask about is no loss.
+            claroOrders.distinctBy { it.transactionId }.takeLast(MAX_CLARO_ORDERS)
+        )
     }
 }
+
+private const val MAX_CLARO_ORDERS = 20

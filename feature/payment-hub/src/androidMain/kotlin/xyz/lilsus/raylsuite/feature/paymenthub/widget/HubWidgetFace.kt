@@ -75,6 +75,7 @@ internal fun HubWidgetFace(
     val glow = when (tile.kind) {
         HubWidgetKind.Sats -> BitcoinOrange
         HubWidgetKind.Ppq -> PpqEmber
+        HubWidgetKind.Claro -> ClaroRed
         else -> null
     }
     Box(

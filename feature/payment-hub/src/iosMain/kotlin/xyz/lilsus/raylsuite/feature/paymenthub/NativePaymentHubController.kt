@@ -17,9 +17,15 @@ import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.HubGridSpan
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.gridRowCount
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.packHubGrid
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.CLARO_TERMS_URL
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroProduct
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.KtorClaroApi
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.claroPhone
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.claroPhoneLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.feedback.HubFeedbackKind
 import xyz.lilsus.raylsuite.feature.paymenthub.feedback.KtorHubFeedbackApi
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubClaroProblem
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqProblem
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqTopUpError
@@ -28,6 +34,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.live.changeLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.live.convertFiat
 import xyz.lilsus.raylsuite.feature.paymenthub.live.convertSats
 import xyz.lilsus.raylsuite.feature.paymenthub.live.forFace
+import xyz.lilsus.raylsuite.feature.paymenthub.live.priceAmount
 import xyz.lilsus.raylsuite.feature.paymenthub.live.priceLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.live.satsLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.HubPpqService
@@ -48,6 +55,7 @@ class NativePaymentHubController(
         host = host,
         defaultCurrencyCode = { currencyCode },
         ppq = createHubPpqService(createSecureSettings(HubPpqService.STORAGE_NAME)),
+        claro = KtorClaroApi(),
         feedbackApi = KtorHubFeedbackApi(platform = "ios")
     )
     private val snapshot = MutableStateFlow<NativePaymentHubSnapshot?>(null)
@@ -91,6 +99,19 @@ class NativePaymentHubController(
     fun topUpPpq(amount: String) = viewModel.topUpPpq(amount)
 
     fun clearPpqTopUpError() = viewModel.clearPpqTopUpError()
+
+    fun updatePhone(value: String) = viewModel.updatePhone(value)
+
+    fun openClaro(id: String) = viewModel.openClaro(id)
+
+    /** Reads the open shop's catalogue again after it did not load. */
+    fun retryClaro() {
+        viewModel.state.value.claro.widgetId?.let(viewModel::openClaro)
+    }
+
+    fun buyClaro(productId: String) = viewModel.buyClaro(productId)
+
+    fun closeClaro() = viewModel.closeClaro()
 
     /** [kind] is one of widget, idea, problem and other. */
     fun sendFeedback(kind: String, message: String, contact: String) {
@@ -247,13 +268,19 @@ class NativePaymentHubController(
                     } else {
                         null
                     },
+                    phone = editor.phoneInput,
+                    phoneHint = localized("hub_claro_phone_hint").takeIf {
+                        editor.kind == HubWidgetKind.Claro
+                    },
                     preview = if (editor.kind.showsInformation) {
                         previewTile(
                             state.selectedDefinition?.id ?: editor.definitionId,
                             editor.kind,
                             variant,
                             state,
-                            editor.currencyCode
+                            editor.currencyCode,
+                            // The picture of the widget shows the number being typed.
+                            phone = claroPhone(editor.phoneInput)
                         )
                     } else {
                         null
@@ -272,6 +299,8 @@ class NativePaymentHubController(
                         HubWidgetError.InvalidAmount -> localized("hub_error_enter_amount")
 
                         HubWidgetError.ApiKeyRequired -> localized("hub_ppq_error_enter_key")
+
+                        HubWidgetError.PhoneRequired -> localized("hub_claro_error_phone")
 
                         null -> null
 
@@ -306,6 +335,8 @@ class NativePaymentHubController(
                     HubWidgetError.InvalidApiKey -> localized("hub_ppq_error_key")
 
                     HubWidgetError.ServiceUnreachable -> localized("hub_ppq_error_unreachable")
+
+                    HubWidgetError.PhoneRequired -> localized("hub_claro_error_phone")
                 }
             },
             contactSavedSerial = state.contactSavedSerial,
@@ -328,7 +359,30 @@ class NativePaymentHubController(
                     null -> null
                 },
                 topUpSerial = state.ppq.topUpSerial
-            )
+            ),
+            claro = state.claro.let { shop ->
+                NativeHubClaro(
+                    open = shop.widgetId != null,
+                    phone = "+503 " + claroPhoneLabel(shop.phone),
+                    loading = shop.loading,
+                    topUps = shop.products.filter { it.topUp }.map { it.toNative() },
+                    packages = shop.products.filterNot { it.topUp }.map { it.toNative() },
+                    problem = when {
+                        shop.loading || shop.products.isNotEmpty() -> null
+
+                        shop.problem == HubClaroProblem.NotEligible ->
+                            localized("hub_claro_error_number")
+
+                        else -> localized("hub_claro_error_unreachable")
+                    },
+                    canRetry = shop.problem != HubClaroProblem.NotEligible,
+                    orderError = localized("hub_claro_error_order").takeIf {
+                        shop.problem == HubClaroProblem.OrderFailed
+                    },
+                    ordering = shop.ordering,
+                    termsUrl = CLARO_TERMS_URL
+                )
+            }
         )
     }
 
@@ -341,10 +395,25 @@ class NativePaymentHubController(
         variant: HubWidgetVariant,
         currencyCode: String?,
         state: WidgetHubState,
-        preview: Boolean
+        preview: Boolean,
+        phone: String? = null
     ): NativeHubInfo? {
         if (!kind.showsInformation) return null
         val name = localized(kind.titleKey())
+        if (kind == HubWidgetKind.Claro) {
+            val number = (phone ?: CLARO_SAMPLE_PHONE.takeIf { preview })?.let(::claroPhoneLabel)
+            val caption = localized("hub_claro_caption")
+            return NativeHubInfo(
+                headline = name,
+                value = number,
+                caption = caption,
+                // Before it knows a number there is nothing to shop for; the settings ask for one.
+                action = if (number == null) "setup" else "claro",
+                actionTitle = localized("hub_claro_top_up"),
+                hint = localized("hub_widget_needs_setup").takeIf { number == null },
+                accessibilityLabel = listOfNotNull(name, number, caption).joinToString()
+            )
+        }
         if (kind == HubWidgetKind.Ppq) {
             val account = if (preview && state.ppq.balanceUsd == null) {
                 HubPpqAccount(connected = true, balanceUsd = 12.5)
@@ -435,7 +504,8 @@ class NativePaymentHubController(
         variant: HubWidgetVariant,
         state: WidgetHubState,
         currencyCode: String? = null,
-        title: String? = null
+        title: String? = null,
+        phone: String? = null
     ) = NativeHubTile(
         id = "preview:$definitionId:${variant.id}",
         kind = kind.name.lowercase(),
@@ -471,7 +541,7 @@ class NativePaymentHubController(
         },
         sizes = emptyList(),
         emptyText = "",
-        info = infoFor(kind, variant, currencyCode, state, preview = true)
+        info = infoFor(kind, variant, currencyCode, state, preview = true, phone = phone)
     )
 
     private fun HubWidgetDefinition.toNative(state: WidgetHubState): NativeHubDefinition =
@@ -536,7 +606,7 @@ class NativePaymentHubController(
                     else -> "hub_widget_needs_setup"
                 }
             ),
-            info = infoFor(kind, variant, currencyCode, state, preview = false)
+            info = infoFor(kind, variant, currencyCode, state, preview = false, phone = phone)
         )
     }
 }
@@ -556,6 +626,7 @@ data class NativePaymentHubSnapshot(
     /** Choosing a layout already adds the widget, so that screen offers "Add" not "Continue". */
     val addsWithoutSetup: Boolean,
     val ppq: NativeHubPpq,
+    val claro: NativeHubClaro,
     val feedback: NativeHubFeedback
 )
 
@@ -571,6 +642,32 @@ data class NativeHubPpq(
     val topUpError: String?,
     /** Changes when an invoice was handed to the wallet, which closes the sheet. */
     val topUpSerial: Int
+)
+
+/** The Claro shop as its sheet shows it. */
+data class NativeHubClaro(
+    val open: Boolean,
+    /** The number being shopped for, as it is written: +503 7123 4567. */
+    val phone: String,
+    val loading: Boolean,
+    val topUps: List<NativeHubClaroProduct>,
+    val packages: List<NativeHubClaroProduct>,
+    /** Why there is nothing to choose from; null while there is, or while it loads. */
+    val problem: String?,
+    /** Asking again can help. It cannot for a number Claro does not sell to. */
+    val canRetry: Boolean,
+    /** Why the last order did not reach the wallet. */
+    val orderError: String?,
+    val ordering: Boolean,
+    /** Where Claro publishes the terms a purchase is made under. */
+    val termsUrl: String
+)
+
+data class NativeHubClaroProduct(
+    val id: String,
+    val name: String,
+    val detail: String?,
+    val price: String
 )
 
 data class NativeHubConversion(val fiat: String, val sats: String)
@@ -628,7 +725,7 @@ data class NativeHubInfo(
     /** The day's prices scaled to 0..1, oldest first; empty without a chart. */
     val chart: List<Float> = emptyList(),
     val currencyCode: String = "",
-    /** What a tap does: `none`, `convert`, `topup` or `setup`. */
+    /** What a tap does: `none`, `convert`, `topup`, `claro` or `setup`. */
     val action: String = "none",
     /** Names [action] on a wide widget, which has room to say it. */
     val actionTitle: String = "",
@@ -686,6 +783,9 @@ data class NativeHubEditor(
     val apiKey: String,
     /** Explains the ppq.ai API key field; null for every other widget. */
     val apiKeyHint: String?,
+    val phone: String,
+    /** Explains the Claro phone number field; null for every other widget. */
+    val phoneHint: String?,
     val preview: NativeHubTile?,
     val canSave: Boolean,
     val validationMessage: String?
@@ -698,6 +798,7 @@ data class NativePaymentHubCopy(
     val sectionCollections: String,
     val sectionInfo: String,
     val sectionAi: String,
+    val sectionMobile: String,
     val feedbackPrompt: String,
     val feedbackPromptBody: String,
     val feedbackThanks: String,
@@ -720,6 +821,14 @@ data class NativePaymentHubCopy(
     val topUpBody: String,
     val topUpAction: String,
     val topUpAmount: String,
+    val phone: String,
+    val claroTitle: String,
+    val claroTopUps: String,
+    val claroPackages: String,
+    val claroPay: String,
+    val claroNotice: String,
+    val claroTerms: String,
+    val claroRetry: String,
     val editHub: String,
     val addWidget: String,
     val editWidget: String,
@@ -761,6 +870,7 @@ private fun loadCopy() = NativePaymentHubCopy(
     sectionCollections = localized("hub_widget_section_collections"),
     sectionInfo = localized("hub_widget_section_info"),
     sectionAi = localized("hub_widget_section_ai"),
+    sectionMobile = localized("hub_widget_section_mobile"),
     feedbackPrompt = localized("hub_feedback_prompt"),
     feedbackPromptBody = localized("hub_feedback_prompt_body"),
     feedbackThanks = localized("hub_feedback_thanks"),
@@ -783,6 +893,14 @@ private fun loadCopy() = NativePaymentHubCopy(
     topUpBody = localized("hub_ppq_top_up_body"),
     topUpAction = localized("hub_ppq_top_up_action"),
     topUpAmount = localized("hub_ppq_amount"),
+    phone = localized("hub_claro_phone"),
+    claroTitle = localized("hub_claro_top_up"),
+    claroTopUps = localized("hub_claro_top_ups"),
+    claroPackages = localized("hub_claro_packages"),
+    claroPay = localized("hub_claro_pay"),
+    claroNotice = localized("hub_claro_notice"),
+    claroTerms = localized("hub_claro_terms"),
+    claroRetry = localized("hub_claro_retry"),
     editHub = localized("hub_edit_hub"),
     addWidget = localized("hub_widget_add"),
     editWidget = localized("hub_widget_edit"),
@@ -816,6 +934,12 @@ private fun loadCopy() = NativePaymentHubCopy(
     contactsTitle = localized("hub_widget_contacts"),
     automaticHint = localized("hub_widget_recents_hint")
 )
+
+private fun ClaroProduct.toNative() =
+    NativeHubClaroProduct(id, name, detail, currentAmountFormatter().format(priceAmount()))
+
+/** The number a picture of the Claro widget shows. */
+private const val CLARO_SAMPLE_PHONE = "71234567"
 
 private fun HubContact.toNative() = NativeHubContact(id, title, address.full, title.initials())
 

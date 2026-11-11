@@ -16,6 +16,7 @@ kotlin {
             api(project(":core:ui"))
             implementation(project(":core:network"))
             implementation(project(":core:rayl-api"))
+            implementation(project(":core:telemetry"))
             implementation(libs.compose.runtime)
             api(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)

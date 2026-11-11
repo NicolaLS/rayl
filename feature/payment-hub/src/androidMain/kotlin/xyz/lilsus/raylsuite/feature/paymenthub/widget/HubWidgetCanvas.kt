@@ -108,8 +108,24 @@ internal fun HubWidgetCanvas(
                 viewModel.editWidget(tile.id)
             }
 
+            // Before it knows a number there is nothing to shop for; the settings ask for one.
+            HubWidgetKind.Claro ->
+                if (tile.phone != null) {
+                    viewModel.openClaro(tile.id)
+                } else {
+                    viewModel.editWidget(tile.id)
+                }
+
             else -> Unit
         }
+    }
+    if (state.claro.widgetId != null) {
+        HubClaroSheet(
+            shop = state.claro,
+            onBuy = viewModel::buyClaro,
+            onRetry = { state.claro.widgetId?.let(viewModel::openClaro) },
+            onDismiss = viewModel::closeClaro
+        )
     }
     convertingCode?.let { code ->
         // The converter closes by itself if its price disappears.

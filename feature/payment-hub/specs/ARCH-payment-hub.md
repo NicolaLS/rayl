@@ -23,8 +23,19 @@ wallet experience only through `PaymentHubController`: it lends them the
 experience's bitcoin prices, and takes an invoice a widget obtained from its
 service into the same payment flow as a scanned invoice.
 
-The PPQ.AI widget is the Hub's one third-party service. Its client and API key
-belong to the Hub, not to a provider: the key lives in the Hub's own credential
-store, outside the Hub document and outside the external-wallet storage that
+The PPQ.AI and Claro widgets are the Hub's third-party services. Their clients
+belong to the Hub, not to a provider, and the phone calls each service directly:
+no Rayl backend sits in between. A service only issues an invoice; the wallet
+pays it.
+
+The PPQ.AI API key lives in the Hub's own credential store, outside the Hub
+document and outside the external-wallet storage that
 [SPEC-wallet-lifecycle](../../../specs/SPEC-wallet-lifecycle.md) erases, and is
-deleted with the last PPQ.AI widget.
+deleted with the last PPQ.AI widget. A Claro widget keeps only the phone number
+it tops up, in the Hub document.
+
+A Claro purchase ends for the user with the wallet's payment. The Hub keeps the
+order in its document and, while it is on screen, asks Claro's payment provider
+whether it was paid and Claro whether it was delivered. What it learns goes only
+to the anonymous usage data described in [ARCH-rayl](../../../specs/ARCH-rayl.md),
+as counts; then the order is forgotten.

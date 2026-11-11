@@ -2,6 +2,7 @@ package xyz.lilsus.raylsuite.feature.paymenthub.widget
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,6 +11,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -37,29 +41,43 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.platform.enableTestTagsAsResourceId
 import xyz.lilsus.raylsuite.feature.paymenthub.R
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.CLARO_TERMS_URL
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroProduct
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.claroPhoneLabel
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubClaroProblem
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubClaroShop
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubConversion
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqTopUpError
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubRate
 import xyz.lilsus.raylsuite.feature.paymenthub.live.convertFiat
 import xyz.lilsus.raylsuite.feature.paymenthub.live.convertSats
+import xyz.lilsus.raylsuite.feature.paymenthub.live.priceAmount
 import xyz.lilsus.raylsuite.feature.paymenthub.live.satsLabel
 
 /**
@@ -284,6 +302,216 @@ internal fun HubPpqTopUpSheet(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * What Claro sells to one number. Choosing is one tap and paying another, because the wallet may
+ * pay a small invoice without asking again. Its own payment screen takes over once Claro sent the
+ * invoice.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun HubClaroSheet(
+    shop: HubClaroShop,
+    onBuy: (String) -> Unit,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var chosen by rememberSaveable(shop.widgetId) { mutableStateOf<String?>(null) }
+    val formatter = rememberAmountFormatter()
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = Modifier.enableTestTagsAsResourceId()
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 16.dp)
+                .navigationBarsPadding()
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                ServiceMark(R.drawable.hub_claro, size = 44.dp)
+                Column {
+                    Text(
+                        stringResource(R.string.hub_widget_claro),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                    Text(
+                        "+503 " + claroPhoneLabel(shop.phone),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            when {
+                shop.loading -> Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxWidth().height(160.dp)
+                ) {
+                    CircularProgressIndicator()
+                }
+
+                shop.products.isEmpty() -> {
+                    val notEligible = shop.problem == HubClaroProblem.NotEligible
+                    Text(
+                        stringResource(
+                            if (notEligible) {
+                                R.string.hub_claro_error_number
+                            } else {
+                                R.string.hub_claro_error_unreachable
+                            }
+                        ),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(vertical = 24.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite }
+                    )
+                    // Asking again changes nothing for a number Claro does not sell to.
+                    if (!notEligible) {
+                        Button(
+                            onClick = onRetry,
+                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                        ) {
+                            Text(stringResource(R.string.hub_claro_retry))
+                        }
+                    }
+                }
+
+                else -> {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        listOf(
+                            R.string.hub_claro_top_ups to shop.products.filter { it.topUp },
+                            R.string.hub_claro_packages to shop.products.filterNot { it.topUp }
+                        ).forEach { (title, products) ->
+                            if (products.isEmpty()) return@forEach
+                            item(key = title) {
+                                Text(
+                                    stringResource(title),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                                        .semantics { heading() }
+                                )
+                            }
+                            items(products, key = ClaroProduct::id) { product ->
+                                ClaroProductRow(
+                                    product = product,
+                                    price = formatter.format(product.priceAmount()),
+                                    chosen = product.id == chosen,
+                                    enabled = !shop.ordering,
+                                    onChoose = { chosen = product.id }
+                                )
+                            }
+                        }
+                    }
+                    if (shop.problem == HubClaroProblem.OrderFailed) {
+                        Text(
+                            stringResource(R.string.hub_claro_error_order),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                        )
+                    }
+                    ClaroNotice()
+                    Button(
+                        onClick = { chosen?.let(onBuy) },
+                        enabled = chosen != null && !shop.ordering,
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    ) {
+                        if (shop.ordering) {
+                            CircularProgressIndicator(
+                                strokeWidth = 2.dp,
+                                color = LocalContentColor.current,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Icon(Icons.Filled.Bolt, contentDescription = null, Modifier.size(18.dp))
+                            Text(
+                                stringResource(R.string.hub_claro_pay),
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Who sells what is bought here, and under whose terms. */
+@Composable
+private fun ClaroNotice() {
+    val link = TextLinkStyles(
+        SpanStyle(
+            color = MaterialTheme.colorScheme.primary,
+            textDecoration = TextDecoration.Underline
+        )
+    )
+    val notice = stringResource(R.string.hub_claro_notice)
+    val terms = stringResource(R.string.hub_claro_terms)
+    Text(
+        buildAnnotatedString {
+            append(notice)
+            append(" ")
+            withLink(LinkAnnotation.Url(CLARO_TERMS_URL, link)) { append(terms) }
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+@Composable
+private fun ClaroProductRow(
+    product: ClaroProduct,
+    price: String,
+    chosen: Boolean,
+    enabled: Boolean,
+    onChoose: () -> Unit
+) {
+    Surface(
+        color = if (chosen) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHighest
+        },
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
+            .selectable(chosen, enabled = enabled, role = Role.RadioButton, onClick = onChoose)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(product.name, style = MaterialTheme.typography.titleSmall)
+                product.detail?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalContentColor.current.copy(alpha = 0.7f)
+                    )
+                }
+            }
+            Text(
+                price,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontFeatureSettings = "tnum"
+                )
+            )
         }
     }
 }

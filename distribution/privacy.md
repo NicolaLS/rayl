@@ -31,7 +31,9 @@ anything not yet sent.
   with which kind of wallet, whether it succeeded or what category of error it
   hit, and how long each step took; how long the camera needed to start and
   read a code; which onboarding steps were completed; that a setting was
-  changed (not its value); that the question to turn usage data off was shown, which is
+  changed (not its value); that a top-up or package was ordered through a Hub
+  widget and whether it was paid and delivered (not the phone number, the
+  product, or the price); that the question to turn usage data off was shown, which is
   sent before you answer it, and that it was kept on or turned on again (never
   that it was turned off: from then on nothing is sent). Each batch also carries the app version, the
   operating system version, and the device model (such as "Pixel 8").
@@ -93,6 +95,12 @@ you use:
 - **PPQ.AI API key:** If you add a PPQ.AI widget to the Hub, the ppq.ai API key
   you enter is stored in encrypted app storage on Android or the Keychain on
   iOS. It is deleted when you remove the last PPQ.AI widget.
+- **Claro phone number and orders:** If you add a Claro widget to the Hub, the
+  phone number you enter is stored in local app storage with the widget and is
+  removed with it. After you order through it, Rayl also keeps Claro's
+  reference for the order there, for at most three days, until it has asked
+  Claro whether the order was paid and delivered. It does neither if you
+  turned anonymous usage data off.
 - **Recent payments in Rayl:** Up to ten payment results shown in Rayl are kept
   in memory and are cleared when the app process ends or you change wallets.
   The wallet's own payment history is stored as described above.
@@ -151,6 +159,14 @@ under its own terms and privacy policy.
   ppq.ai API key to ppq.ai to show your balance, and to request a Lightning
   invoice when you top up. ppq.ai processes your account under its own terms
   and privacy policy.
+- **Claro El Salvador (Claro widget only):** If you add a Claro widget, Rayl
+  sends the phone number you entered to Claro El Salvador to list its top-ups
+  and packages, and together with the product you choose to request a Lightning
+  invoice. Claro's payment provider, BTCPaths, issues that invoice, and Rayl
+  contacts it to fetch it. Afterwards, unless you turned anonymous usage data
+  off, Rayl asks BTCPaths whether the invoice was paid and Claro whether the
+  order was delivered. Both process the order
+  under their own terms and privacy policies.
 - **Lightning addresses and LNURL:** Paying a Lightning address or LNURL
   contacts the domain it names to request an invoice, including the amount and
   any comment you enter. Wallet credentials are never sent to these services.

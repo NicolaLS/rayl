@@ -181,6 +181,38 @@ enum class TelemetryFakeDoorAction(override val wire: String) : TelemetryValue {
     Tapped("tapped")
 }
 
+/** A service a Hub widget buys from. */
+enum class TelemetryHubService(override val wire: String) : TelemetryValue {
+    Claro("claro")
+}
+
+/** The kind of thing bought, never which one or for how much. */
+enum class TelemetryHubProduct(override val wire: String) : TelemetryValue {
+    TopUp("top_up"),
+    Package("package")
+}
+
+/**
+ * How far a purchase got. Each step is an event of its own, sent when the app learns of it, so a
+ * delivered purchase was reported as [Ordered], [Paid] and [Delivered].
+ */
+enum class TelemetryHubPurchaseStep(override val wire: String) : TelemetryValue {
+    /** The service gave no invoice the wallet could be handed. */
+    OrderFailed("order_failed"),
+
+    /** The service's invoice was handed to the wallet. */
+    Ordered("ordered"),
+
+    /** The service received the payment. */
+    Paid("paid"),
+
+    /** The service confirmed that it delivered what was paid for. */
+    Delivered("delivered"),
+
+    /** Paid, and the service did not confirm delivery in time. */
+    DeliveryFailed("delivery_failed")
+}
+
 /** One kind of event: the only dimension values and measures it may carry. */
 class TelemetryEventSpec(
     val name: String,
@@ -301,6 +333,16 @@ object TelemetryCatalog {
         )
     )
 
+    /** One step of something bought from a service through a Hub widget. */
+    val hubPurchase = spec(
+        name = "hub_purchase",
+        dimensions = mapOf(
+            "service" to TelemetryHubService.entries,
+            "product" to TelemetryHubProduct.entries,
+            "step" to TelemetryHubPurchaseStep.entries
+        )
+    )
+
     val events: List<TelemetryEventSpec> =
         listOf(
             launch,
@@ -310,7 +352,8 @@ object TelemetryCatalog {
             walletChanged,
             settingChanged,
             usageDataChoice,
-            fakeDoor
+            fakeDoor,
+            hubPurchase
         )
 
     private val eventsByName = events.associateBy(TelemetryEventSpec::name)

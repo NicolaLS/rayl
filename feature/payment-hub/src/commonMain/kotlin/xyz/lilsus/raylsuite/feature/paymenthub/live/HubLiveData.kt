@@ -5,6 +5,7 @@ import kotlin.math.pow
 import kotlin.math.roundToLong
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.model.DisplayAmount
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroProduct
 import xyz.lilsus.raylsuite.feature.paymenthub.create.cleanAmountInput
 import xyz.lilsus.raylsuite.feature.paymenthub.create.parseMinorAmount
 
@@ -87,6 +88,34 @@ data class HubPpqAccount(
         val TOP_UP_PRESETS_USD = listOf(5, 10, 25, 50)
     }
 }
+
+enum class HubClaroProblem {
+    /** Claro sells nothing to this number online. */
+    NotEligible,
+
+    /** The catalogue did not load. */
+    Unreachable,
+
+    /** No invoice the wallet could be handed; nothing was paid. */
+    OrderFailed
+}
+
+/** The Claro shop a widget opened: what Claro sells to that widget's number. */
+data class HubClaroShop(
+    /** The widget being shopped for; null while the shop is closed. */
+    val widgetId: String? = null,
+    /** Eight national digits. */
+    val phone: String = "",
+    val loading: Boolean = false,
+    val products: List<ClaroProduct> = emptyList(),
+    val problem: HubClaroProblem? = null,
+    /** Claro is being asked for the invoice of a chosen product. */
+    val ordering: Boolean = false
+)
+
+/** Claro prices everything in US dollars, El Salvador's currency. */
+fun ClaroProduct.priceAmount(): DisplayAmount =
+    DisplayAmount(priceCents, CurrencyCatalog.infoFor("USD").currency)
 
 /** The feedback form: whether a message is on its way and how the last one went. */
 data class HubFeedbackState(

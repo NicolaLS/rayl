@@ -18,6 +18,7 @@ internal fun HubWidgetKind.label(): String = stringResource(
         HubWidgetKind.Rate -> R.string.hub_widget_rate
         HubWidgetKind.Sats -> R.string.hub_widget_sats
         HubWidgetKind.Ppq -> R.string.hub_widget_ppq
+        HubWidgetKind.Claro -> R.string.hub_widget_claro
     }
 )
 
@@ -33,6 +34,7 @@ internal fun HubWidgetDefinition.body(): String = description ?: when (kind) {
     HubWidgetKind.Rate -> stringResource(R.string.hub_widget_rate_body)
     HubWidgetKind.Sats -> stringResource(R.string.hub_widget_sats_body)
     HubWidgetKind.Ppq -> stringResource(R.string.hub_widget_ppq_body)
+    HubWidgetKind.Claro -> stringResource(R.string.hub_widget_claro_body)
 }
 
 /** Layouts are named after their contacts, except where a widget shows no contacts. */
@@ -84,4 +86,5 @@ internal fun HubWidgetError.label(capacity: Int): String = when (this) {
     HubWidgetError.ApiKeyRequired -> stringResource(R.string.hub_ppq_error_enter_key)
     HubWidgetError.InvalidApiKey -> stringResource(R.string.hub_ppq_error_key)
     HubWidgetError.ServiceUnreachable -> stringResource(R.string.hub_ppq_error_unreachable)
+    HubWidgetError.PhoneRequired -> stringResource(R.string.hub_claro_error_phone)
 }

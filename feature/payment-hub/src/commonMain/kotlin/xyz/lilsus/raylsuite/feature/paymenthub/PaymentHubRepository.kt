@@ -13,6 +13,10 @@ interface PaymentHubRepository {
     suspend fun moveWidget(id: String, index: Int)
     suspend fun saveContactAndWidget(address: LightningAddress, title: String): HubContact
     suspend fun recordSuccessfulPayment(id: HubItemId, paidAtMs: Long)
+
+    /** Keeps [order], replacing what was kept under its transaction. */
+    suspend fun saveClaroOrder(order: ClaroOrder)
+    suspend fun removeClaroOrder(transactionId: String)
 }
 
 data class HubWidgetDraft(
@@ -23,5 +27,6 @@ data class HubWidgetDraft(
     val contactIds: List<String> = emptyList(),
     val amount: StoredAmount? = null,
     val comment: String? = null,
-    val currencyCode: String? = null
+    val currencyCode: String? = null,
+    val phone: String? = null
 )

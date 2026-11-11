@@ -58,6 +58,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetVariant
 import xyz.lilsus.raylsuite.feature.paymenthub.R
 import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubState
 import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubViewModel
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.claroPhone
 
 @Composable
 internal fun HubWidgetGallery(
@@ -100,7 +101,8 @@ internal fun HubWidgetGallery(
                     listOf(HubWidgetKind.Favorites, HubWidgetKind.Recents),
                 R.string.hub_widget_section_info to
                     listOf(HubWidgetKind.Rate, HubWidgetKind.Sats),
-                R.string.hub_widget_section_ai to listOf(HubWidgetKind.Ppq)
+                R.string.hub_widget_section_ai to listOf(HubWidgetKind.Ppq),
+                R.string.hub_widget_section_mobile to listOf(HubWidgetKind.Claro)
             ).forEach { (title, kinds) ->
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
@@ -198,6 +200,7 @@ internal fun previewTile(
     // The preview quotes the currency being configured, or the one a new widget starts with.
     currencyCode = state.editor?.takeIf { it.kind.quotesBitcoin }?.currencyCode
         ?: state.defaultFiatCode,
+    phone = state.editor?.takeIf { it.kind == HubWidgetKind.Claro }?.phoneInput?.let(::claroPhone),
     people = state.contacts.take(variant.capacity).map { contact ->
         HubWidgetPerson(actionId = "", contactId = contact.id, title = contact.title, address = "")
     }

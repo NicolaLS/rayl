@@ -3,8 +3,10 @@ package xyz.lilsus.raylsuite.feature.paymenthub
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.model.StoredAmount
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.claroPhone
 import xyz.lilsus.raylsuite.feature.paymenthub.create.hasFractionForWholeCurrency
 import xyz.lilsus.raylsuite.feature.paymenthub.create.parseMinorAmount
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubClaroShop
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubFeedbackState
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubRate
@@ -22,13 +24,16 @@ enum class HubWidgetKind {
     Sats,
 
     /** The balance of the user's ppq.ai account, with Lightning top-ups. */
-    Ppq;
+    Ppq,
+
+    /** Top-ups and packages for one Claro El Salvador number. */
+    Claro;
 
     /** Quotes bitcoin in the widget's own fiat currency. */
     val quotesBitcoin: Boolean get() = this == Rate || this == Sats
 
-    /** Shows live information instead of people to pay. */
-    val showsInformation: Boolean get() = quotesBitcoin || this == Ppq
+    /** Shows a figure and opens something of its own, instead of people to pay. */
+    val showsInformation: Boolean get() = quotesBitcoin || this == Ppq || this == Claro
 }
 
 enum class HubWidgetScreen { Hub, Gallery, Variants, Configure }
@@ -66,7 +71,8 @@ data class HubWidgetTile(
     val variant: HubWidgetVariant,
     val title: String?,
     val people: List<HubWidgetPerson> = emptyList(),
-    val currencyCode: String? = null
+    val currencyCode: String? = null,
+    val phone: String? = null
 )
 
 data class HubWidgetEditor(
@@ -80,7 +86,9 @@ data class HubWidgetEditor(
     val currencyCode: String = "USD",
     val comment: String = "",
     /** A new ppq.ai API key. It is checked and stored on save, and never shown again. */
-    val apiKeyInput: String = ""
+    val apiKeyInput: String = "",
+    /** The number a Claro widget tops up, as the user typed it. */
+    val phoneInput: String = ""
 )
 
 enum class HubWidgetError {
@@ -93,7 +101,8 @@ enum class HubWidgetError {
     SaveFailed,
     ApiKeyRequired,
     InvalidApiKey,
-    ServiceUnreachable
+    ServiceUnreachable,
+    PhoneRequired
 }
 
 data class WidgetHubState(
@@ -114,6 +123,7 @@ data class WidgetHubState(
     /** The fiat currency a new Rate or Sats widget starts with. */
     val defaultFiatCode: String = "USD",
     val ppq: HubPpqAccount = HubPpqAccount(),
+    val claro: HubClaroShop = HubClaroShop(),
     val feedback: HubFeedbackState = HubFeedbackState()
 ) {
     /**
@@ -149,6 +159,9 @@ internal fun WidgetHubState.editorValidationError(): HubWidgetError? {
     if (editor.kind == HubWidgetKind.Ppq && editor.apiKeyInput.isBlank() && !ppq.connected) {
         return HubWidgetError.ApiKeyRequired
     }
+    if (editor.kind == HubWidgetKind.Claro && claroPhone(editor.phoneInput) == null) {
+        return HubWidgetError.PhoneRequired
+    }
     return null
 }
 
@@ -163,7 +176,8 @@ object LocalHubWidgets {
         HubWidgetDefinition("local.recents", HubWidgetKind.Recents, listOf(Row, Card)),
         HubWidgetDefinition("local.rate", HubWidgetKind.Rate, listOf(Single, Row, Card)),
         HubWidgetDefinition("local.sats", HubWidgetKind.Sats, listOf(Single, Row)),
-        HubWidgetDefinition("local.ppq", HubWidgetKind.Ppq, listOf(Single, Row))
+        HubWidgetDefinition("local.ppq", HubWidgetKind.Ppq, listOf(Single, Row)),
+        HubWidgetDefinition("local.claro", HubWidgetKind.Claro, listOf(Single, Row))
     )
 
     /** The currencies a Rate or Sats widget can quote bitcoin in. */

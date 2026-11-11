@@ -1,5 +1,6 @@
 package xyz.lilsus.raylsuite.feature.paymenthub.widget
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -45,6 +46,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
@@ -52,6 +54,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetKind
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetTile
 import xyz.lilsus.raylsuite.feature.paymenthub.R
 import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubState
+import xyz.lilsus.raylsuite.feature.paymenthub.claro.claroPhoneLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqProblem
 import xyz.lilsus.raylsuite.feature.paymenthub.live.changeLabel
@@ -62,9 +65,14 @@ import xyz.lilsus.raylsuite.feature.paymenthub.live.satsLabel
 /** Bitcoin's own orange marks the widgets that are about bitcoin rather than a person. */
 internal val BitcoinOrange = Color(0xFFF7931A)
 internal val PpqEmber = Color(0xFFFF5C33)
+internal val ClaroRed = Color(0xFFDA291C)
 private val RateUp = Color(0xFF5FE08D)
 private val RateDown = Color(0xFFFF8A80)
 private const val PPQ_NAME = "PPQ.AI"
+private const val CLARO_NAME = "Claro"
+
+/** The number a picture of the Claro widget shows. */
+private const val CLARO_SAMPLE_PHONE = "71234567"
 
 /** Everything a figure face shows, worked out per widget kind. */
 private class FigureContent(
@@ -132,6 +140,18 @@ internal fun HubInfoFace(
             actionIcon = Icons.Filled.SwapVert
         )
 
+        HubWidgetKind.Claro -> {
+            val phone = tile.phone ?: CLARO_SAMPLE_PHONE.takeIf { preview }
+            FigureContent(
+                headline = CLARO_NAME,
+                value = phone?.let(::claroPhoneLabel),
+                caption = stringResource(R.string.hub_claro_caption),
+                captionColor = plain,
+                action = stringResource(R.string.hub_claro_top_up),
+                hint = stringResource(R.string.hub_widget_needs_setup).takeIf { phone == null }
+            )
+        }
+
         else -> {
             val account = if (preview && state.ppq.balanceUsd == null) {
                 HubPpqAccount(connected = true, balanceUsd = 12.5)
@@ -195,10 +215,16 @@ private fun FigureFace(
         val small = tile.small
         TileHeader(
             content.headline,
-            mark = if (tile.kind == HubWidgetKind.Ppq) {
-                { PpqMark() }
-            } else {
-                null
+            mark = when (tile.kind) {
+                HubWidgetKind.Ppq -> {
+                    { ServiceMark(R.drawable.hub_ppq) }
+                }
+
+                HubWidgetKind.Claro -> {
+                    { ServiceMark(R.drawable.hub_claro) }
+                }
+
+                else -> null
             },
             trailing = if (action != null && content.hint == null) {
                 { FigureAction(action, content.actionIcon, wide = !small) }
@@ -247,15 +273,15 @@ private fun FigureFace(
 
 /** The service's own mark, the only one a tile's header carries. */
 @Composable
-private fun PpqMark() {
+internal fun ServiceMark(@DrawableRes mark: Int, size: Dp = 26.dp) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(26.dp).background(Color.White, CircleShape)
+        modifier = Modifier.size(size).background(Color.White, CircleShape)
     ) {
         Image(
-            painterResource(R.drawable.hub_ppq),
+            painterResource(mark),
             contentDescription = null,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(size * 0.7f)
         )
     }
 }
