@@ -74,6 +74,50 @@ class WidgetHubViewModelTest {
     }
 
     @Test
+    fun aWidgetIsPlacedBeforeItIsSetUpAndKeepsItsPlaceUntilItIs() = runTest {
+        val settings = MapSettings()
+        val repo = DefaultPaymentHubRepository(settings)
+        val host = PaymentHubController(repo, this)
+        val vm = WidgetHubViewModel(repo, host, { "USD" }, dispatcher = StandardTestDispatcher(testScheduler))
+        val alice = repo.saveContact(assertNotNull(LightningAddress.parse("alice@example.com")), "Alice")
+        advanceUntilIdle()
+        for (definition in listOf("local.contacts", "local.shortcut")) {
+            vm.selectDefinition(definition)
+            assertEquals(true, vm.state.value.addsWithoutSetup)
+            vm.continueFromVariants()
+            advanceUntilIdle()
+            assertEquals(HubWidgetScreen.Hub, vm.state.value.screen)
+        }
+        assertEquals(
+            listOf(HubWidgetKind.Contacts, HubWidgetKind.Shortcut),
+            vm.state.value.widgets.map { it.kind }
+        )
+        assertEquals(true, vm.state.value.widgets.all { it.people.isEmpty() })
+        // Nothing was invented for it: no payment target exists until the user chooses one.
+        assertEquals(emptyList(), repo.hub.value.targets)
+        assertEquals(2, DefaultPaymentHubRepository(settings).hub.value.widgets.size)
+
+        // Its settings still insist on the choices it cannot work without.
+        val shortcut = vm.state.value.widgets[1].id
+        vm.editWidget(shortcut)
+        assertEquals(false, vm.state.value.addsWithoutSetup)
+        vm.saveWidget()
+        assertEquals(HubWidgetError.SelectContacts, vm.state.value.error)
+        vm.toggleContact(alice.id)
+        vm.updateAmount("5")
+        vm.saveWidget()
+        advanceUntilIdle()
+        assertEquals(shortcut, vm.state.value.widgets[1].id)
+        assertEquals(500L, vm.state.value.widgets[1].people.single().amount?.minor)
+
+        // A set-up widget still leaves with the last person it was about.
+        repo.deleteContact(alice.id)
+        advanceUntilIdle()
+        assertEquals(listOf(HubWidgetKind.Contacts), vm.state.value.widgets.map { it.kind })
+        vm.clear()
+    }
+
+    @Test
     fun namedShortcutStillSaysWhoIsPaid() = runTest {
         val repo = DefaultPaymentHubRepository(MapSettings())
         val host = PaymentHubController(repo, this)

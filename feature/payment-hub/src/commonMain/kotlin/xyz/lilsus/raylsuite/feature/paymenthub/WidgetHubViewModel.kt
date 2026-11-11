@@ -155,9 +155,9 @@ class WidgetHubViewModel(
         }
     }
 
-    /** Leaves the layout choice: adds the widget when it needs no setup, else configures it. */
+    /** Leaves the layout choice: adds a new widget as it is, and goes on editing a placed one. */
     fun continueFromVariants() {
-        if (mutableState.value.addsWithoutSetup) saveWidget() else configureSelected()
+        if (mutableState.value.addsWithoutSetup) saveWidget(setUp = false) else configureSelected()
     }
 
     fun updateApiKey(value: String) = edit { it.copy(apiKeyInput = value.trim().take(200)) }
@@ -268,11 +268,14 @@ class WidgetHubViewModel(
 
     fun deleteContact(id: String) = mutate { repository.deleteContact(id) }
 
-    fun saveWidget() {
+    fun saveWidget() = saveWidget(setUp = true)
+
+    /** A widget that is not [setUp] yet is saved without the choices its settings ask for. */
+    private fun saveWidget(setUp: Boolean) {
         val snapshot = mutableState.value
         val editor = snapshot.editor ?: return
         val variant = snapshot.selectedVariant ?: return fail(HubWidgetError.Unavailable)
-        snapshot.editorValidationError()?.let { return fail(it) }
+        if (setUp) snapshot.editorValidationError()?.let { return fail(it) }
         val amount = if (editor.kind == HubWidgetKind.Shortcut) {
             editor.shortcutAmount()
         } else {

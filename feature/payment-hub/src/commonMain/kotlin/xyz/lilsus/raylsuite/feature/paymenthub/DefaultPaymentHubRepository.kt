@@ -50,7 +50,8 @@ class DefaultPaymentHubRepository(
                 return@mutate current
             }
             if (draft.kind == HubWidgetKind.Contacts || draft.kind == HubWidgetKind.Shortcut) {
-                if (contacts.isEmpty() || contacts.size > draft.variant.capacity ||
+                // No contacts at all is a widget that is added now and set up later.
+                if (contacts.size > draft.variant.capacity ||
                     contacts.any { current.contact(it) == null }
                 ) {
                     return@mutate current
@@ -66,7 +67,7 @@ class DefaultPaymentHubRepository(
                     updated = updated.withContactAction(it)
                 }
 
-                HubWidgetKind.Shortcut -> {
+                HubWidgetKind.Shortcut -> if (contacts.isNotEmpty() || draft.amount != null) {
                     val amount = draft.amount ?: return@mutate current
                     if (amount.minor <= 0 ||
                         amount.normalizedCurrencyCode !in CurrencyCatalog.supportedCodes ||

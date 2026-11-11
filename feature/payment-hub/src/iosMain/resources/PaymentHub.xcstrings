@@ -968,25 +968,25 @@
         }
       }
     },
-    "hub_widget_contacts_empty": {
+    "hub_widget_needs_setup": {
       "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose contacts for this widget."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wähle Kontakte für dieses Widget."
+            "value": "Noch nicht eingerichtet. Gedrückt halten zum Bearbeiten."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not set up yet. Touch and hold to edit."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Elige contactos para este widget."
+            "value": "Sin configurar. Mantén pulsado para editar."
           }
         }
       }
@@ -2091,6 +2091,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "24 h"
+          }
+        }
+      }
+    },
+    "hub_rate_headline": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurs"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Price"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Precio"
           }
         }
       }

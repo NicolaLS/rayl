@@ -100,7 +100,13 @@ struct NativePaymentHubView: View {
     }
 
     private func open(_ tile: NativeHubTile) {
-        guard let info = tile.info else { return }
+        guard let info = tile.info else {
+            // A widget that was added but not set up yet opens its settings.
+            if tile.people.isEmpty, tile.kind == "contacts" || tile.kind == "shortcut" {
+                model.controller.editWidget(id: tile.id)
+            }
+            return
+        }
         switch info.action {
         case "convert":
             converting = HubConverterTarget(id: tile.id, info: info)
@@ -1013,8 +1019,6 @@ private struct WidgetContent: View {
     /// A tap on a widget that opens something of its own instead of paying a person.
     var open: (NativeHubTile) -> Void = { _ in }
     var compactPreview = false
-    @ScaledMetric(relativeTo: .caption) private var nameLine: CGFloat = 22
-    @ScaledMetric(relativeTo: .caption2) private var amountLine: CGFloat = 15
 
     var body: some View {
         Group {
@@ -1049,76 +1053,116 @@ private struct WidgetContent: View {
         .clipShape(RoundedRectangle(cornerRadius: HubGeometry.corner, style: .continuous))
     }
 
-    /// What every people tile starts with, in the place and styles of a figure tile's header.
-    private var peopleHeader: some View {
+    private var small: Bool { tile.columns == 1 }
+    /// A small tile centres what it shows; a wide one keeps it on the leading edge.
+    private var bodyAlignment: Alignment { small ? .center : .leading }
+
+    /// What every tile starts with: what it is about, and what a tap does in the far corner. Only
+    /// a service brings its own mark.
+    private func header<Trailing: View>(_ title: String, @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: 7) {
-            Image(systemName: peopleSymbol)
-                .font(.system(size: 12, weight: .bold))
-                .frame(width: 26, height: 26)
-                .background(.white.opacity(0.14), in: Circle())
-                .accessibilityHidden(true)
-            Text(tile.title)
+            if tile.kind == "ppq" {
+                Image("hub_ppq")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(4)
+                    .frame(width: 26, height: 26)
+                    .background(.white, in: Circle())
+                    .accessibilityHidden(true)
+            }
+            Text(title)
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.8))
                 .lineLimit(1)
             Spacer(minLength: 0)
+            trailing()
         }
+        .frame(minHeight: 26)
     }
 
-    private var peopleSymbol: String {
-        switch tile.kind {
-        case "favorites": return "star.fill"
-        case "recents": return "clock.fill"
-        case "shortcut": return "bolt.fill"
-        default: return "person.2.fill"
-        }
+    /// The one line under a tile's figure or portrait.
+    private func caption(_ text: String, color: Color = .white.opacity(0.8)) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .frame(maxWidth: .infinity, alignment: bodyAlignment)
     }
+
+    /// Quiet words in place of content a tile does not have yet.
+    private func hint(_ text: String) -> some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(.white.opacity(0.6))
+            .multilineTextAlignment(small ? .center : .leading)
+            .minimumScaleFactor(0.85)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: bodyAlignment)
+    }
+
+    private func figureText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
+            .lineLimit(1)
+            .minimumScaleFactor(0.45)
+            .frame(maxWidth: .infinity, alignment: bodyAlignment)
+    }
+
+    /// Stands where a figure will be while it is not known, like a system widget's placeholder.
+    private var figurePlaceholder: some View {
+        RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .fill(.white.opacity(0.14))
+            .frame(width: 104, height: 30)
+            .frame(height: 43)
+            .frame(maxWidth: .infinity, alignment: bodyAlignment)
+            .accessibilityHidden(true)
+    }
+
+    private var needsSetup: Bool { tile.kind == "contacts" || tile.kind == "shortcut" }
 
     private var empty: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            peopleHeader
-            Spacer(minLength: 0)
-            Text(tile.emptyText)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.8))
-                .minimumScaleFactor(0.85)
+        HubTileAction(interactive: interactive && needsSetup, action: { open(tile) }) {
+            VStack(alignment: .leading, spacing: 8) {
+                header(tile.title) { EmptyView() }
+                hint(tile.emptyText)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .foregroundStyle(.white)
+            .contentShape(Rectangle())
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .foregroundStyle(.white)
+        .accessibilityElement(children: .combine)
     }
 
     /// Rate, sats and ppq.ai share the shortcut's frame, so tiles side by side line up: what the
-    /// figure is about on top, the figure right below it, and one caption on the bottom line.
+    /// figure is about on top, the figure in the middle, and one caption on the bottom line. A
+    /// chart takes the middle and moves the figure up.
     private func figure(_ info: NativeHubInfo) -> some View {
         HubTileAction(interactive: interactive && info.action != "none", action: { open(tile) }) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 7) {
-                    figureBadge
-                    Text(info.headline)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.8))
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                    figureAction(info)
+                header(info.headline) {
+                    if info.hint == nil { figureAction(info) }
                 }
-                Text(info.value ?? "—")
-                    .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.45)
-                    .opacity(info.value == nil ? 0.4 : 1)
-                if info.chart.count >= 2 {
-                    // The day's prices fill the room between the two, edge to edge.
-                    HubSparkline(points: info.chart.map { CGFloat($0.floatValue) })
-                        .padding(.horizontal, -14)
-                        .frame(maxHeight: .infinity)
+                if let setup = info.hint {
+                    hint(setup)
                 } else {
-                    Spacer(minLength: 0)
+                    let charted = info.chart.count >= 2
+                    if !charted { Spacer(minLength: 0) }
+                    if let value = info.value {
+                        figureText(value)
+                    } else {
+                        figurePlaceholder
+                    }
+                    if charted {
+                        // The day's prices fill the room below the price, edge to edge.
+                        HubSparkline(points: info.chart.map { CGFloat($0.floatValue) })
+                            .padding(.horizontal, -14)
+                            .frame(maxHeight: .infinity)
+                    } else {
+                        Spacer(minLength: 0)
+                    }
+                    caption(info.caption, color: captionColor(info.captionTone))
                 }
-                Text(info.caption)
-                    .font(.subheadline)
-                    .foregroundStyle(captionColor(info.captionTone))
-                    .lineLimit(1)
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -1129,30 +1173,6 @@ private struct WidgetContent: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(info.accessibilityLabel)
         .accessibilityAddTraits(info.action == "none" ? [] : .isButton)
-    }
-
-    /// A portrait-sized mark where a shortcut shows who is paid.
-    @ViewBuilder
-    private var figureBadge: some View {
-        switch tile.kind {
-        case "ppq":
-            Image("hub_ppq")
-                .resizable()
-                .scaledToFit()
-                .padding(4)
-                .frame(width: 26, height: 26)
-                .background(.white, in: Circle())
-        case "sats":
-            Image(systemName: "bolt.fill")
-                .font(.system(size: 13, weight: .bold))
-                .frame(width: 26, height: 26)
-                .background(HubPalette.bitcoin, in: Circle())
-        default:
-            Image(systemName: "bitcoinsign")
-                .font(.system(size: 14, weight: .bold))
-                .frame(width: 26, height: 26)
-                .background(HubPalette.bitcoin, in: Circle())
-        }
     }
 
     /// What a tap does, in the corner where a shortcut shows its bolt. A wide tile names it.
@@ -1188,29 +1208,18 @@ private struct WidgetContent: View {
     private func shortcut(_ person: NativeHubPerson) -> some View {
         HubTileAction(interactive: interactive, action: { pay(person.actionId) }) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 7) {
-                    Text(tile.title)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.8))
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
+                header(tile.title) {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 13, weight: .bold))
                         .frame(width: 26, height: 26)
                         .background(.white.opacity(0.14), in: Circle())
                         .accessibilityHidden(true)
                 }
-                Text(person.amount ?? "")
-                    .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.45)
+                Spacer(minLength: 0)
+                figureText(person.amount ?? "")
                 Spacer(minLength: 0)
                 // Where the money goes, on the line where a contact shows its address.
-                Text(person.address.isEmpty ? person.contactTitle : person.address)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                caption(person.address.isEmpty ? person.contactTitle : person.address)
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -1225,23 +1234,14 @@ private struct WidgetContent: View {
     /// One person, framed like a shortcut: the name as the tile's title, the portrait where the
     /// figure is, and the address on the bottom line.
     private func single(_ person: NativeHubPerson) -> some View {
-        let caption = person.address.isEmpty || person.address == person.title ? tile.title : person.address
-        return HubTileAction(interactive: interactive, action: { pay(person.actionId) }) {
+        HubTileAction(interactive: interactive, action: { pay(person.actionId) }) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(tile.customTitle ?? person.title)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.8))
-                    .lineLimit(1)
-                    .frame(height: 26)
+                header(tile.customTitle ?? person.title) { EmptyView() }
                 GeometryReader { proxy in
                     HubAvatar(initials: person.initials, size: max(24, min(proxy.size.width, proxy.size.height, 72)))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                Text(caption)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                caption(person.address.isEmpty || person.address == person.title ? tile.title : person.address)
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -1254,27 +1254,37 @@ private struct WidgetContent: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    /// Several people under the tile's header. A few are listed line by line with what they were
-    /// last paid; more than that stand side by side. Portraits have one size per tile height, so
-    /// two collections next to each other match.
+    /// Several people under the tile's title, always as lines of portrait and name so every
+    /// collection reads the same. A few get the tile's width and show what they were last paid at
+    /// the far end; more share it in two columns.
     private var group: some View {
         let card = tile.rows >= 2 && !compactPreview
-        let people = compactPreview ? Array(tile.people.prefix(2)) : tile.people
-        let listed = compactPreview || people.count <= (card ? 4 : 2)
+        let people = Array(tile.people.prefix(compactPreview ? 2 : card ? 6 : 4))
+        let paired = people.count > (card ? 3 : 2)
+        let avatar: CGFloat = card ? 44 : 34
+        let gap: CGFloat = card ? 12 : 6
         return VStack(alignment: .leading, spacing: 8) {
-            peopleHeader
-            if listed {
-                // A wide row ends on the same line as the figures beside it; a card reads from the top.
-                if !card { Spacer(minLength: 0) }
-                VStack(spacing: card ? 12 : 8) {
-                    ForEach(Array(people.enumerated()), id: \.element.id) { index, person in
-                        personLine(person, avatarSize: card ? 44 : 36, seed: index)
+            header(tile.title) { EmptyView() }
+            Group {
+                if paired {
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .leading), count: 2),
+                        alignment: .leading,
+                        spacing: gap
+                    ) {
+                        ForEach(Array(people.enumerated()), id: \.element.id) { index, person in
+                            personLine(person, avatarSize: avatar, seed: index, stacked: true)
+                        }
+                    }
+                } else {
+                    VStack(spacing: gap) {
+                        ForEach(Array(people.enumerated()), id: \.element.id) { index, person in
+                            personLine(person, avatarSize: avatar, seed: index, stacked: false)
+                        }
                     }
                 }
-                if card { Spacer(minLength: 0) }
-            } else {
-                peopleGrid(people, columns: card ? 3 : 4, rows: card ? 2 : 1, portrait: card ? 64 : 48)
             }
+            .frame(maxHeight: .infinity)
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -1282,59 +1292,26 @@ private struct WidgetContent: View {
         .accessibilityElement(children: .contain)
     }
 
-    private func peopleGrid(_ people: [NativeHubPerson], columns: Int, rows: Int, portrait: CGFloat) -> some View {
-        GeometryReader { proxy in
-            let amounts = people.contains { $0.amount != nil }
-            let cellWidth = (proxy.size.width - CGFloat(columns - 1) * 8) / CGFloat(columns)
-            let cellHeight = proxy.size.height / CGFloat(rows)
-            // The portrait keeps its size and only gives way when large text needs the room.
-            let avatar = max(20, min(portrait, cellWidth, cellHeight - nameLine - (amounts ? amountLine : 0) - 4))
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .leading), count: columns),
-                alignment: .leading,
-                spacing: 0
-            ) {
-                ForEach(Array(people.prefix(columns * rows).enumerated()), id: \.element.id) { index, person in
-                    personCell(person, avatarSize: avatar, amounts: amounts, seed: index)
-                        .frame(height: cellHeight, alignment: .bottomLeading)
-                }
-            }
-        }
-    }
-
-    private func personCell(_ person: NativeHubPerson, avatarSize: CGFloat, amounts: Bool, seed: Int) -> some View {
-        personAction(person) {
-            VStack(alignment: .leading, spacing: 6) {
+    private func personLine(_ person: NativeHubPerson, avatarSize: CGFloat, seed: Int, stacked: Bool) -> some View {
+        HubTileAction(interactive: interactive, action: {
+            if !person.actionId.isEmpty { pay(person.actionId) }
+        }) {
+            HStack(spacing: 10) {
                 HubAvatar(initials: person.initials, size: avatarSize, seed: seed)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(person.title)
-                        .font(.caption.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
-                    if amounts {
-                        Text(person.amount ?? " ")
-                            .font(.caption2)
+                    if stacked, let amount = person.amount {
+                        Text(amount)
+                            .font(.caption)
                             .foregroundStyle(.white.opacity(0.7))
                             .monospacedDigit()
                             .lineLimit(1)
-                            .minimumScaleFactor(0.65)
-                            .opacity(person.amount == nil ? 0 : 1)
                     }
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-        }
-    }
-
-    private func personLine(_ person: NativeHubPerson, avatarSize: CGFloat, seed: Int) -> some View {
-        personAction(person) {
-            HStack(spacing: 10) {
-                HubAvatar(initials: person.initials, size: avatarSize, seed: seed)
-                Text(person.title)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                if let amount = person.amount {
+                Spacer(minLength: 0)
+                if !stacked, let amount = person.amount {
                     Text(amount)
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.8))
@@ -1345,19 +1322,10 @@ private struct WidgetContent: View {
             }
             .contentShape(Rectangle())
         }
-    }
-
-    private func personAction<Content: View>(
-        _ person: NativeHubPerson,
-        @ViewBuilder content: @escaping () -> Content
-    ) -> some View {
-        HubTileAction(interactive: interactive, action: {
-            if !person.actionId.isEmpty { pay(person.actionId) }
-        }, content: content)
-            .allowsHitTesting(interactive)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(person.title + (person.amount.map { ", " + $0 } ?? ""))
-            .accessibilityAddTraits(.isButton)
+        .allowsHitTesting(interactive)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(person.title + (person.amount.map { ", " + $0 } ?? ""))
+        .accessibilityAddTraits(.isButton)
     }
 }
 

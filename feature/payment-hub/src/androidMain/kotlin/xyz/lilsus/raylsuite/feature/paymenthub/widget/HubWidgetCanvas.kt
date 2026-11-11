@@ -90,7 +90,13 @@ internal fun HubWidgetCanvas(
     var toppingUp by remember { mutableStateOf(false) }
     val open: (HubWidgetTile) -> Unit = { tile ->
         when (tile.kind) {
-            HubWidgetKind.Sats -> convertingCode = tile.currencyCode
+            // Both bitcoin widgets open the same converter, in the widget's own currency.
+            HubWidgetKind.Rate, HubWidgetKind.Sats ->
+                convertingCode = tile.currencyCode ?: state.defaultFiatCode
+
+            // A widget that was added but not set up yet opens its settings.
+            HubWidgetKind.Contacts, HubWidgetKind.Shortcut ->
+                if (tile.people.isEmpty()) viewModel.editWidget(tile.id)
 
             // Without a usable key there is nothing to top up; the widget's settings ask for one.
             HubWidgetKind.Ppq -> if (state.ppq.connected &&

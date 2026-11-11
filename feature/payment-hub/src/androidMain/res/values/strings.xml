@@ -70,7 +70,7 @@
     <string name="hub_widget_error_save">Could not save. Please try again.</string>
     <string name="hub_widget_shortcut_amount">Preset amount</string>
     <string name="hub_widget_recents_hint">Updates automatically after successful payments.</string>
-    <string name="hub_widget_contacts_empty">Choose contacts for this widget.</string>
+    <string name="hub_widget_needs_setup">Not set up yet. Touch and hold to edit.</string>
     <string name="hub_widget_select_variant">Choose a layout</string>
     <string name="hub_widget_unavailable">Temporarily unavailable</string>
     <string name="hub_widget_select_contacts_error">Choose at least one contact.</string>
@@ -92,6 +92,7 @@
     <string name="hub_widget_currency">Currency</string>
     <string name="hub_rate_unavailable">Rate unavailable</string>
     <string name="hub_rate_day">24h</string>
+    <string name="hub_rate_headline">Price</string>
     <string name="hub_sats_unit">sats</string>
     <string name="hub_converter_title">Convert</string>
     <string name="hub_ppq_balance">Balance</string>

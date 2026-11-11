@@ -75,13 +75,15 @@ private class FigureContent(
     val chart: List<Float> = emptyList(),
     /** Names what a tap does; null when a tap does nothing. */
     val action: String? = null,
-    val actionIcon: ImageVector = Icons.Filled.Add
+    val actionIcon: ImageVector = Icons.Filled.Add,
+    /** Says how to set the widget up, in place of a figure it cannot show before that. */
+    val hint: String? = null
 )
 
 /**
  * Faces of the widgets that show live information instead of people to pay. They share the
- * shortcut's frame, so tiles side by side line up: what the figure is about on top, the figure
- * right below it, and one caption on the bottom line.
+ * shortcut's frame, so tiles side by side line up: what the figure is about on top, the figure in
+ * the middle, and one caption on the bottom line.
  */
 @Composable
 internal fun HubInfoFace(
@@ -104,7 +106,7 @@ internal fun HubInfoFace(
         HubWidgetKind.Rate -> {
             val change = rate?.changeLabel()
             FigureContent(
-                headline = "BTC",
+                headline = stringResource(R.string.hub_rate_headline),
                 value = rate?.priceLabel(formatter),
                 // The day's move once the chart is known; until then what the price is in.
                 caption = unavailable
@@ -115,7 +117,9 @@ internal fun HubInfoFace(
                     (rate.changePercent ?: 0.0) >= 0 -> RateUp
                     else -> RateDown
                 },
-                chart = remember(rate) { rate?.chart().orEmpty() }
+                chart = remember(rate) { rate?.chart().orEmpty() },
+                action = stringResource(R.string.hub_converter_title).takeIf { rate != null },
+                actionIcon = Icons.Filled.SwapVert
             )
         }
 
@@ -153,7 +157,8 @@ internal fun HubInfoFace(
                 },
                 action = stringResource(
                     if (needsKey) R.string.hub_ppq_add_key else R.string.hub_ppq_top_up
-                )
+                ),
+                hint = stringResource(R.string.hub_widget_needs_setup).takeIf { !account.connected }
             )
         }
     }
@@ -187,40 +192,36 @@ private fun FigureFace(
             .clearAndSetSemantics { contentDescription = description }
             .padding(14.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp)
-        ) {
-            FigureBadge(tile.kind)
-            Text(
-                content.headline,
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.8f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            if (action !=
+        val small = tile.small
+        TileHeader(
+            content.headline,
+            mark = if (tile.kind == HubWidgetKind.Ppq) {
+                { PpqMark() }
+            } else {
                 null
-            ) {
-                FigureAction(action, content.actionIcon, wide = tile.variant.columns > 1)
+            },
+            trailing = if (action != null && content.hint == null) {
+                { FigureAction(action, content.actionIcon, wide = !small) }
+            } else {
+                null
             }
-        }
-        // The same figure and caption styles as a shortcut's amount and address.
-        Text(
-            content.value ?: "—",
-            color = Color.White.copy(alpha = if (content.value == null) 0.4f else 1f),
-            style = MaterialTheme.typography.headlineLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontFeatureSettings = "tnum",
-                letterSpacing = (-1).sp
-            ),
-            autoSize = TextAutoSize.StepBased(minFontSize = 16.sp, maxFontSize = 36.sp),
-            maxLines = 1,
-            modifier = Modifier.fillMaxWidth()
         )
-        if (content.chart.size >= 2) {
-            // The day's prices fill the room between the two, edge to edge.
+        if (content.hint != null) {
+            TileHint(content.hint, small)
+            return@Column
+        }
+        // A chart takes the middle and moves the figure up; without one the figure is centred.
+        val charted = content.chart.size >= 2
+        if (!charted) Spacer(Modifier.weight(1f))
+        if (content.value !=
+            null
+        ) {
+            TileFigure(content.value, small)
+        } else {
+            TileFigurePlaceholder(small)
+        }
+        if (charted) {
+            // The day's prices fill the room below the price, edge to edge.
             HubSparkline(
                 content.chart,
                 Modifier.weight(1f).fillMaxWidth()
@@ -240,40 +241,22 @@ private fun FigureFace(
         } else {
             Spacer(Modifier.weight(1f))
         }
-        Text(
-            content.caption,
-            style = MaterialTheme.typography.bodyMedium,
-            color = content.captionColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        TileCaption(content.caption, small, content.captionColor)
     }
 }
 
-/** A portrait-sized mark where a shortcut shows who is paid. */
+/** The service's own mark, the only one a tile's header carries. */
 @Composable
-private fun FigureBadge(kind: HubWidgetKind) {
+private fun PpqMark() {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(26.dp).background(
-            if (kind == HubWidgetKind.Ppq) Color.White else BitcoinOrange,
-            CircleShape
-        )
+        modifier = Modifier.size(26.dp).background(Color.White, CircleShape)
     ) {
-        if (kind == HubWidgetKind.Ppq) {
-            Image(
-                painterResource(R.drawable.hub_ppq),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-        } else {
-            Icon(
-                if (kind == HubWidgetKind.Sats) Icons.Filled.Bolt else Icons.Filled.CurrencyBitcoin,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(17.dp)
-            )
-        }
+        Image(
+            painterResource(R.drawable.hub_ppq),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 

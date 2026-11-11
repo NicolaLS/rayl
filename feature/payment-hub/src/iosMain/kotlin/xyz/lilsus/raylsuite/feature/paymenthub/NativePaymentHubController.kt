@@ -356,6 +356,7 @@ class NativePaymentHubController(
                 },
                 action = if (needsKey) "setup" else "topup",
                 actionTitle = localized(if (needsKey) "hub_ppq_add_key" else "hub_ppq_top_up"),
+                hint = localized("hub_widget_needs_setup").takeIf { !account.connected },
                 accessibilityLabel = listOfNotNull(name, value, caption).joinToString()
             )
         }
@@ -367,6 +368,11 @@ class NativePaymentHubController(
             null
         }
         val day = localized("hub_rate_day")
+        // Both bitcoin widgets open the same converter, in the widget's own currency.
+        val converterNote = rate?.let {
+            "1 BTC = " + currentAmountFormatter().format(it.priceAmount())
+        }.orEmpty()
+        val wholeUnits = CurrencyCatalog.infoFor(code).fractionDigits == 0
         if (kind == HubWidgetKind.Sats) {
             val value = rate?.satsLabel()
             val caption = unavailable ?: localized("hub_sats_unit")
@@ -377,18 +383,16 @@ class NativePaymentHubController(
                 currencyCode = code,
                 action = if (rate == null) "none" else "convert",
                 actionTitle = localized("hub_converter_title"),
-                converterNote = rate?.let {
-                    "1 BTC = " + currentAmountFormatter().format(it.priceAmount())
-                }.orEmpty(),
+                converterNote = converterNote,
                 converterPlaceholder = value.orEmpty(),
-                wholeUnits = CurrencyCatalog.infoFor(code).fractionDigits == 0,
+                wholeUnits = wholeUnits,
                 accessibilityLabel = listOfNotNull(name, "1 $code", value, caption).joinToString()
             )
         }
         val price = rate?.priceLabel(currentAmountFormatter())
         val change = rate?.changeLabel()
         return NativeHubInfo(
-            headline = "BTC",
+            headline = localized("hub_rate_headline"),
             value = price,
             // The day's move once the chart is known; until then just what the price is in.
             caption = unavailable ?: change?.let { "$it · $day" } ?: code,
@@ -399,6 +403,11 @@ class NativePaymentHubController(
             },
             chart = rate?.chart().orEmpty(),
             currencyCode = code,
+            action = if (rate == null) "none" else "convert",
+            actionTitle = localized("hub_converter_title"),
+            converterNote = converterNote,
+            converterPlaceholder = rate?.satsLabel().orEmpty(),
+            wholeUnits = wholeUnits,
             accessibilityLabel = listOfNotNull(name, price, change?.let { "$it $day" }, unavailable)
                 .joinToString()
         )
@@ -508,7 +517,7 @@ class NativePaymentHubController(
                 when (kind) {
                     HubWidgetKind.Favorites -> "hub_widget_favorites_empty"
                     HubWidgetKind.Recents -> "hub_widget_recent_empty"
-                    else -> "hub_widget_contacts_empty"
+                    else -> "hub_widget_needs_setup"
                 }
             ),
             info = infoFor(kind, variant, currencyCode, state, preview = false)
@@ -603,6 +612,8 @@ data class NativeHubInfo(
     val action: String = "none",
     /** Names [action] on a wide widget, which has room to say it. */
     val actionTitle: String = "",
+    /** Says how to set the widget up, in place of a figure it cannot show before that. */
+    val hint: String? = null,
     val converterNote: String = "",
     val converterPlaceholder: String = "",
     /** The currency has no minor unit, so its converter field takes no decimals. */

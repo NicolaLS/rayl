@@ -70,7 +70,7 @@
     <string name="hub_widget_error_save">Speichern fehlgeschlagen. Bitte versuche es erneut.</string>
     <string name="hub_widget_shortcut_amount">Voreingestellter Betrag</string>
     <string name="hub_widget_recents_hint">Aktualisiert sich automatisch nach erfolgreichen Zahlungen.</string>
-    <string name="hub_widget_contacts_empty">Wähle Kontakte für dieses Widget.</string>
+    <string name="hub_widget_needs_setup">Noch nicht eingerichtet. Gedrückt halten zum Bearbeiten.</string>
     <string name="hub_widget_select_variant">Layout wählen</string>
     <string name="hub_widget_unavailable">Vorübergehend nicht verfügbar</string>
     <string name="hub_widget_select_contacts_error">Wähle mindestens einen Kontakt.</string>
@@ -92,6 +92,7 @@
     <string name="hub_widget_currency">Währung</string>
     <string name="hub_rate_unavailable">Kurs nicht verfügbar</string>
     <string name="hub_rate_day">24 Std.</string>
+    <string name="hub_rate_headline">Kurs</string>
     <string name="hub_sats_unit">Sats</string>
     <string name="hub_converter_title">Umrechnen</string>
     <string name="hub_ppq_balance">Guthaben</string>

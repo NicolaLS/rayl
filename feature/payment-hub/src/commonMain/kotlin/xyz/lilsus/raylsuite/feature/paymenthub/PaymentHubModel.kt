@@ -64,11 +64,15 @@ data class PaymentHub(
         val targetIds = uniqueTargets.mapTo(mutableSetOf()) { it.id }
         val normalizedWidgets = widgets.distinctBy { it.id }.mapNotNull { widget ->
             when (widget.kind) {
+                // A widget that was added but not set up yet has nobody; it stays and asks to be
+                // set up. One whose people are all gone leaves with them.
                 HubWidgetKind.Contacts -> widget.copy(
                     contactIds = widget.contactIds.filter { it in contactIds }.distinct()
-                ).takeIf { it.contactIds.isNotEmpty() }
+                ).takeIf { it.contactIds.isNotEmpty() || widget.contactIds.isEmpty() }
 
-                HubWidgetKind.Shortcut -> widget.takeIf { it.targetId in targetIds }
+                HubWidgetKind.Shortcut -> widget.takeIf {
+                    it.targetId == null || it.targetId in targetIds
+                }
 
                 HubWidgetKind.Rate, HubWidgetKind.Sats ->
                     widget.takeIf { it.currencyCode in LocalHubWidgets.fiatCodes }

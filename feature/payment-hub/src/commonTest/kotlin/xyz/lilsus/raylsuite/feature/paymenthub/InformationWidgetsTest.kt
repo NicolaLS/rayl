@@ -199,9 +199,13 @@ class InformationWidgetsTest {
     fun ppqAsksForItsKeyOnceAndStoresOnlyAKeyTheServiceAccepts() = runTest {
         val hub = Hub(this)
         advanceUntilIdle()
+        // The widget is placed before it has a key; its settings then ask for one.
         hub.vm.selectDefinition("local.ppq")
-        assertEquals(false, hub.state.addsWithoutSetup)
         hub.vm.continueFromVariants()
+        advanceUntilIdle()
+        assertEquals(HubWidgetScreen.Hub, hub.state.screen)
+        assertEquals(false, hub.state.ppq.connected)
+        hub.vm.editWidget(hub.state.widgets.single().id)
         assertEquals(HubWidgetScreen.Configure, hub.state.screen)
         assertEquals(HubWidgetError.ApiKeyRequired, hub.state.editorValidationError())
 
@@ -210,7 +214,6 @@ class InformationWidgetsTest {
         advanceUntilIdle()
         assertEquals(HubWidgetError.InvalidApiKey, hub.state.error)
         assertEquals(emptyMap(), hub.secrets.values)
-        assertEquals(emptyList(), hub.state.widgets)
 
         hub.api.balance = PpqResult.Unreachable
         hub.vm.updateApiKey("sk-good")

@@ -115,15 +115,10 @@ data class WidgetHubState(
     val ppq: HubPpqAccount = HubPpqAccount()
 ) {
     /**
-     * Whether choosing a layout already adds the widget. Information widgets start with their
-     * defaults; ppq.ai needs its API key once.
+     * Whether choosing a layout already adds the widget. Every new widget is: it starts with its
+     * defaults, and one that cannot work without a choice asks on its face to be set up.
      */
-    val addsWithoutSetup: Boolean
-        get() {
-            val editor = editor ?: return false
-            return editor.existingWidgetId == null &&
-                (editor.kind.quotesBitcoin || (editor.kind == HubWidgetKind.Ppq && ppq.connected))
-        }
+    val addsWithoutSetup: Boolean get() = editor != null && editor.existingWidgetId == null
 
     val selectedDefinition: HubWidgetDefinition?
         get() = gallery.firstOrNull { it.id == editor?.definitionId }
