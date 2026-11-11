@@ -117,6 +117,17 @@ class BlinkWalletPaymentTest {
     }
 
     @Test
+    fun aPaymentThatStaysPendingIsReportedUnknownInsteadOfWaitingForever() = runTest {
+        val wallet = walletWithPendingSubmission(transactionQueryResponse("PENDING"))
+
+        val result = wallet.submitPayment(BlinkPaymentRequest("lnbc1test", TEST_BTC_WALLET))
+
+        // Unknown, never failed: the payment was submitted and may still settle.
+        assertEquals(BlinkPaymentOutcome.StatusUnknown(BlinkApiError.Timeout), result)
+        assertEquals(30_000L, testScheduler.currentTime)
+    }
+
+    @Test
     fun pendingSubmissionReturnsTheConfirmedFailure() = runTest {
         val wallet = walletWithPendingSubmission(transactionQueryResponse("FAILURE"))
 

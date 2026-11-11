@@ -242,6 +242,17 @@ class BlinkWallet internal constructor(
             )
         }
 
+        // A payment Blink keeps pending must not hold the payment screen until the app is killed.
+        return withTimeoutOrNull(PAYMENT_OUTCOME_BUDGET_MS) {
+            pollPaymentOutcome(apiKey, walletId, transactionId)
+        } ?: BlinkPaymentOutcome.StatusUnknown(BlinkApiError.Timeout)
+    }
+
+    private suspend fun pollPaymentOutcome(
+        apiKey: String,
+        walletId: String,
+        transactionId: String
+    ): BlinkPaymentOutcome {
         while (true) {
             delay(PAYMENT_STATUS_POLL_INTERVAL_MS)
             val outcome = try {
@@ -299,3 +310,6 @@ private fun BlinkApiException.toPaymentOutcome(): BlinkPaymentOutcome = when (er
 private val REQUIRED_SCOPES = setOf("READ", "WRITE")
 private const val PAYMENT_RESOURCE_GUARD_MS = 90_000L
 private const val PAYMENT_STATUS_POLL_INTERVAL_MS = 2_000L
+
+/** How long a pending payment is followed before its status is reported unknown; NWC waits as long. */
+private const val PAYMENT_OUTCOME_BUDGET_MS = 30_000L
