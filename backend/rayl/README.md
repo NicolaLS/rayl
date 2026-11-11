@@ -20,7 +20,7 @@ typed. Nothing else comes with it, not even the app version. It goes to the `fee
 the same database and stays until deleted. Read it with:
 
 ```sh
-backend/rayl/scripts/feedback.sh        # latest 50; `feedback.sh 200 widget` for more or one kind
+tools/feedback/feedback.sh        # latest 50; `feedback.sh 200 widget` for more or one kind
 ```
 
 Run locally on `127.0.0.1:8080`:

@@ -89,7 +89,7 @@ internal fun Route.feedbackRoute(store: FeedbackStore?, nowSeconds: () -> Long) 
     }
 }
 
-/** Feedback in Postgres, kept until someone deletes it. `scripts/feedback.sh` reads it. */
+/** Feedback in Postgres, kept until someone deletes it. `tools/feedback/feedback.sh` reads it. */
 class PostgresFeedbackStore(private val dataSource: DataSource) : FeedbackStore {
     suspend fun createTables() = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->

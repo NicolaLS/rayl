@@ -2,9 +2,9 @@
 export PATH="/opt/homebrew/opt/libpq/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 # Prints the feedback testers sent from the app, newest first.
 #
-#   backend/rayl/scripts/feedback.sh              # the latest 50
-#   backend/rayl/scripts/feedback.sh 200          # the latest 200
-#   backend/rayl/scripts/feedback.sh 50 widget    # only one kind: widget, idea, problem, other
+#   tools/feedback/feedback.sh              # the latest 50
+#   tools/feedback/feedback.sh 200          # the latest 200
+#   tools/feedback/feedback.sh 50 widget    # only one kind: widget, idea, problem, other
 #
 # Needs `psql`, the Railway CLI logged in (`railway login`), and an SSH key
 # registered with the Railway account (`railway connect --ssh` uses it).
