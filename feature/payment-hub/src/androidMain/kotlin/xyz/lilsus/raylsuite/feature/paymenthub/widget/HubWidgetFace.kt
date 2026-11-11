@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -74,28 +75,22 @@ internal fun HubWidgetFace(
         else -> null
     }
     Box(
-        modifier.clip(HubTileShape).then(
-            // People are on light tiles. The dark face is for the one figure a widget is about:
-            // an amount, a price, a balance.
-            if (shortcut || tile.kind.showsInformation) {
-                Modifier.background(
-                    Brush.verticalGradient(listOf(Color(0xFF29294D), Color(0xFF101520)))
-                ).drawBehind {
-                    // A trace of the widget's own colour, so a row of them is not one slab.
-                    if (glow != null) {
-                        drawRect(
-                            Brush.radialGradient(
-                                listOf(glow.copy(alpha = 0.26f), glow.copy(alpha = 0f)),
-                                center = Offset(size.width, 0f),
-                                radius = 190.dp.toPx()
-                            )
+        // Every tile is the same dark face, so a person, an amount and a price sit side by side
+        // as one family. Colour comes from the portraits and from a widget's own glow.
+        modifier.clip(HubTileShape)
+            .background(Brush.verticalGradient(listOf(Color(0xFF29294D), Color(0xFF101520))))
+            .drawBehind {
+                // A trace of the widget's own colour, so a row of them is not one slab.
+                if (glow != null) {
+                    drawRect(
+                        Brush.radialGradient(
+                            listOf(glow.copy(alpha = 0.26f), glow.copy(alpha = 0f)),
+                            center = Offset(size.width, 0f),
+                            radius = 190.dp.toPx()
                         )
-                    }
+                    )
                 }
-            } else {
-                Modifier.background(MaterialTheme.colorScheme.surfaceContainerLowest)
             }
-        )
     ) {
         when {
             tile.kind.showsInformation -> HubInfoFace(tile, state, preview, interactive, onOpen)
@@ -107,34 +102,46 @@ internal fun HubWidgetFace(
     }
 }
 
+private val Quiet = Color.White.copy(alpha = 0.8f)
+
+/** What every people tile starts with, in the place and styles of a figure tile's header. */
 @Composable
-private fun EmptyFace(tile: HubWidgetTile) {
-    val contentColor = if (tile.kind == HubWidgetKind.Shortcut) {
-        Color.White.copy(alpha = 0.8f)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxSize().padding(20.dp)
+private fun PeopleHeader(tile: HubWidgetTile) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        Icon(
-            when (tile.kind) {
-                HubWidgetKind.Favorites -> Icons.Filled.Star
-                HubWidgetKind.Recents -> Icons.Filled.AccessTime
-                else -> Icons.Filled.Person
-            },
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(28.dp)
-        )
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(26.dp).background(Color.White.copy(alpha = 0.14f), CircleShape)
+        ) {
+            Icon(
+                when (tile.kind) {
+                    HubWidgetKind.Favorites -> Icons.Filled.Star
+                    HubWidgetKind.Recents -> Icons.Filled.AccessTime
+                    HubWidgetKind.Shortcut -> Icons.Filled.Bolt
+                    else -> Icons.Filled.Group
+                },
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+        }
         Text(
             tile.title?.takeIf(String::isNotBlank) ?: tile.kind.label(),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = contentColor
+            style = MaterialTheme.typography.labelLarge,
+            color = Quiet,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+private fun EmptyFace(tile: HubWidgetTile) {
+    Column(Modifier.fillMaxSize().padding(14.dp)) {
+        PeopleHeader(tile)
+        Spacer(Modifier.weight(1f))
         Text(
             stringResource(
                 when (tile.kind) {
@@ -143,36 +150,46 @@ private fun EmptyFace(tile: HubWidgetTile) {
                     else -> R.string.hub_widget_contacts_empty
                 }
             ),
-            style = MaterialTheme.typography.bodySmall,
-            color = contentColor,
-            textAlign = TextAlign.Center
+            style = MaterialTheme.typography.bodyMedium,
+            color = Quiet,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
+/**
+ * One person, laid out like a shortcut: the portrait where the header is, the name where the
+ * figure is, and the address as its caption.
+ */
 @Composable
 private fun SingleContactFace(tile: HubWidgetTile, onPay: (String) -> Unit, interactive: Boolean) {
     val person = tile.people.firstOrNull()
-    BoxWithConstraints(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.fillMaxSize().payAction(person, interactive, onPay).padding(16.dp)
+    val name = person?.title ?: stringResource(R.string.hub_widget_contact_placeholder)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxSize().payAction(person, interactive, onPay).padding(14.dp)
     ) {
-        val textBudget = 42.dp * LocalDensity.current.fontScale
-        val avatar = minOf(maxWidth * 0.66f, maxHeight - textBudget).coerceIn(24.dp, 112.dp)
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            ContactAvatar(person?.title, size = avatar)
-            Text(
-                person?.title ?: stringResource(R.string.hub_widget_contact_placeholder),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
-        }
+        ContactAvatar(person?.title, size = 44.dp)
+        Spacer(Modifier.weight(1f))
+        Text(
+            name,
+            color = Color.White,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                lineHeight = 26.sp
+            ),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            tile.title?.takeIf { it.isNotBlank() && it != name }
+                ?: person?.address?.takeIf { it.isNotBlank() && it != name }
+                ?: tile.kind.label(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Quiet,
+            maxLines = 1,
+            overflow = TextOverflow.MiddleEllipsis
+        )
     }
 }
 
@@ -241,6 +258,11 @@ private fun ShortcutFace(
     }
 }
 
+/**
+ * Several people under the tile's header. A few are listed line by line with what they were last
+ * paid; more than that stand side by side. Portraits have one size per tile height, so two
+ * collections next to each other match.
+ */
 @Composable
 private fun ContactCollectionFace(
     tile: HubWidgetTile,
@@ -249,74 +271,94 @@ private fun ContactCollectionFace(
     interactive: Boolean,
     compactPreview: Boolean
 ) {
-    Column(Modifier.fillMaxSize().padding(14.dp)) {
-        if (tile.kind != HubWidgetKind.Contacts || !tile.title.isNullOrBlank()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 8.dp)
-            ) {
-                if (tile.kind == HubWidgetKind.Favorites || tile.kind == HubWidgetKind.Recents) {
-                    Icon(
-                        if (tile.kind ==
-                            HubWidgetKind.Favorites
-                        ) {
-                            Icons.Filled.Star
-                        } else {
-                            Icons.Filled.AccessTime
-                        },
-                        null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp)
+    val card = tile.variant.rows >= 2 && !compactPreview
+    val count = when {
+        compactPreview -> 2
+        preview -> tile.variant.capacity
+        else -> tile.people.size
+    }
+    val listed = compactPreview || count <= if (card) 4 else 2
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxSize().padding(14.dp)
+    ) {
+        PeopleHeader(tile)
+        if (listed) {
+            // A wide row ends on the same line as the figures beside it; a card reads from the top.
+            if (!card) Spacer(Modifier.weight(1f))
+            Column(verticalArrangement = Arrangement.spacedBy(if (card) 12.dp else 8.dp)) {
+                repeat(count) { index ->
+                    ContactLine(
+                        tile.people.getOrNull(index),
+                        onPay,
+                        interactive,
+                        index,
+                        avatar = if (card) 44.dp else 36.dp
                     )
                 }
-                Text(
-                    tile.title?.takeIf(String::isNotBlank) ?: tile.kind.label(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
-        }
-        // A card grows its portraits to fill itself: a few people get a few large cells rather
-        // than one small row in an empty tile.
-        val card = tile.variant.rows >= 2 && !compactPreview
-        val count = if (preview) tile.variant.capacity else tile.people.size
-        val columns = when {
-            compactPreview -> 2
-            card -> if (count <= 4) count.coerceIn(1, 2) else 3
-            else -> 4
-        }
-        val rows = when {
-            compactPreview -> 2
-            card -> if (count <= 2) 1 else 2
-            else -> 1
-        }
-        val reserveAmount = tile.people.any { it.amount != null }
-        repeat(rows) { row ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.weight(1f).fillMaxWidth()
-            ) {
-                repeat(columns) { column ->
-                    val index = row * columns + column
-                    val person = tile.people.getOrNull(index)
-                    if (person != null || preview) {
-                        ContactCell(
-                            person,
-                            onPay,
-                            interactive,
-                            reserveAmount,
-                            index,
-                            Modifier.weight(1f).fillMaxSize(),
-                            maxAvatar = if (card) 120.dp else 88.dp
-                        )
-                    } else {
-                        Spacer(Modifier.weight(1f))
+        } else {
+            val columns = if (card) 3 else 4
+            val reserveAmount = tile.people.any { it.amount != null }
+            repeat(if (card) 2 else 1) { row ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                ) {
+                    repeat(columns) { column ->
+                        val index = row * columns + column
+                        val person = tile.people.getOrNull(index)
+                        if (person != null || preview) {
+                            ContactCell(
+                                person,
+                                onPay,
+                                interactive,
+                                reserveAmount,
+                                index,
+                                Modifier.weight(1f).fillMaxSize(),
+                                portrait = if (card) 64.dp else 48.dp
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ContactLine(
+    person: HubWidgetPerson?,
+    onPay: (String) -> Unit,
+    interactive: Boolean,
+    seed: Int,
+    avatar: Dp
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+            .payAction(person, interactive, onPay)
+    ) {
+        ContactAvatar(person?.title, size = avatar, seed = seed)
+        Text(
+            person?.title ?: stringResource(R.string.hub_widget_contact_placeholder),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        person?.formattedAmount()?.let { amount ->
+            Text(
+                amount,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                color = Quiet,
+                maxLines = 1
+            )
         }
     }
 }
@@ -329,37 +371,37 @@ private fun ContactCell(
     reserveAmount: Boolean,
     seed: Int,
     modifier: Modifier,
-    maxAvatar: Dp = 88.dp
+    portrait: Dp
 ) {
     BoxWithConstraints(
         modifier = modifier.clip(MaterialTheme.shapes.medium).payAction(person, interactive, onPay),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.BottomStart
     ) {
-        val textHeight = (if (reserveAmount) 44.dp else 26.dp) * LocalDensity.current.fontScale
-        val avatar = minOf(
-            maxWidth - 4.dp,
-            maxHeight - textHeight - 8.dp
-        ).coerceIn(20.dp, maxAvatar)
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
+        val textHeight = (if (reserveAmount) 38.dp else 22.dp) * LocalDensity.current.fontScale
+        // The portrait keeps its size and only gives way when large text needs the room.
+        val avatar = minOf(maxWidth, maxHeight - textHeight - 6.dp).coerceIn(20.dp, portrait)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             ContactAvatar(person?.title, size = avatar, seed = seed)
-            Text(
-                person?.title ?: stringResource(R.string.hub_widget_contact_placeholder),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (reserveAmount) {
+            Column {
                 Text(
-                    person?.formattedAmount().orEmpty(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    person?.title ?: stringResource(R.string.hub_widget_contact_placeholder),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (reserveAmount) {
+                    Text(
+                        person?.formattedAmount().orEmpty(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFeatureSettings = "tnum"
+                        ),
+                        color = Color.White.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -394,11 +436,13 @@ internal fun ContactAvatar(
         ?.take(2)?.joinToString("") {
             it.substring(0, it.offsetByCodePoints(0, 1)).uppercase()
         }.orEmpty()
+    // Four quiet relatives of the tile's navy: enough to tell people apart, never louder than a
+    // figure.
     val colors = listOf(
-        Color(0xFF65D5DF) to Color(0xFF43B5C5),
-        Color(0xFF9381FF) to Color(0xFF7160DF),
-        Color(0xFF73A7F3) to Color(0xFF4D7AD1),
-        Color(0xFFF09BAC) to Color(0xFFD46E91)
+        Color(0xFF6BB0BC) to Color(0xFF4D8E9C),
+        Color(0xFF948EDC) to Color(0xFF746DC0),
+        Color(0xFF76A0DA) to Color(0xFF557CBB),
+        Color(0xFFCF93A8) to Color(0xFFAE6F89)
     )
     val colorIndex = if (initials.isEmpty()) seed else initials.sumOf { it.code }
     val color = colors[colorIndex.mod(colors.size)]
