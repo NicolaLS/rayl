@@ -59,6 +59,7 @@ fun NavGraphBuilder.nwcOnboarding(
 ) {
     composable<NwcOnboardingDestination.Agreement> {
         val state by onboardingViewModel.uiState.collectAsStateWithLifecycle()
+        val connection by nwcWallet.connection.collectAsStateWithLifecycle()
         AgreementScreen(
             body = stringResource(
                 R.string.onboarding_agreement_body,
@@ -73,7 +74,7 @@ fun NavGraphBuilder.nwcOnboarding(
                     onWalletConnected()
                 }
             },
-            onBack = onCancel.takeIf { nwcWallet.connection.value == null }
+            onBack = onCancel.takeIf { connection == null }
         )
     }
     composable<NwcOnboardingDestination.AddWallet> {
