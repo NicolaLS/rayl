@@ -26,10 +26,16 @@ import xyz.lilsus.raylsuite.feature.paymenthub.ppq.PpqResult
 class InformationWidgetsTest {
     private class Secrets : SecureStringStore {
         val values = mutableMapOf<String, String>()
+
+        /** The iOS Keychain refuses to be read while the device is locked. */
+        var locked = false
         override fun putString(key: String, value: String) {
             values[key] = value
         }
-        override fun getStringOrNull(key: String) = values[key]
+        override fun getStringOrNull(key: String): String? {
+            check(!locked) { "Unable to read secure value: Keychain status -25308" }
+            return values[key]
+        }
         override fun remove(key: String) {
             values.remove(key)
         }
@@ -273,6 +279,35 @@ class InformationWidgetsTest {
         hub.vm.refreshLive()
         advanceUntilIdle()
         assertEquals(HubPpqProblem.InvalidKey, hub.state.ppq.problem)
+        hub.vm.clear()
+    }
+
+    @Test
+    fun aLockedCredentialStoreIsReadAgainLaterInsteadOfCrashing() = runTest {
+        // The Hub keeps refreshing while it is on screen, also when the device locks under it.
+        val hub = Hub(this)
+        hub.secrets.putString("ppq.apiKey", "sk-good")
+        hub.secrets.locked = true
+        hub.vm.refreshLive()
+        advanceUntilIdle()
+        assertEquals(HubPpqAccount(), hub.state.ppq)
+
+        hub.vm.topUpPpq("5")
+        advanceUntilIdle()
+        assertEquals(HubPpqTopUpError.Unreachable, hub.state.ppq.topUpError)
+        assertEquals(emptyList(), hub.api.topUps)
+
+        hub.secrets.locked = false
+        hub.vm.refreshLive()
+        advanceUntilIdle()
+        assertEquals(12.5, hub.state.ppq.balanceUsd)
+
+        // Once read, the key is not asked for again, so a later lock changes nothing.
+        hub.secrets.locked = true
+        hub.vm.refreshLive()
+        advanceUntilIdle()
+        assertEquals(12.5, hub.state.ppq.balanceUsd)
+        assertNull(hub.state.ppq.problem)
         hub.vm.clear()
     }
 

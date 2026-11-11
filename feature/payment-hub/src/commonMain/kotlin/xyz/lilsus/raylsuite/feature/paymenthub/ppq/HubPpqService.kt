@@ -1,5 +1,6 @@
 package xyz.lilsus.raylsuite.feature.paymenthub.ppq
 
+import kotlin.concurrent.Volatile
 import xyz.lilsus.raylsuite.core.settings.SecureStringStore
 
 /**
@@ -7,11 +8,35 @@ import xyz.lilsus.raylsuite.core.settings.SecureStringStore
  * platform's credential store, never in the Hub document.
  */
 class HubPpqService(private val secrets: SecureStringStore, val api: PpqApi) {
-    fun apiKey(): String? = secrets.getStringOrNull(API_KEY)?.takeIf(String::isNotBlank)
+    @Volatile
+    private var known = false
 
-    fun saveApiKey(value: String) = secrets.putString(API_KEY, value)
+    @Volatile
+    private var key: String? = null
 
-    fun forgetApiKey() = secrets.remove(API_KEY)
+    /**
+     * The stored key, read from the credential store once. Throws while the store cannot be
+     * read, which on iOS is whenever the device is locked; the next call then tries again.
+     */
+    fun apiKey(): String? {
+        if (!known) {
+            key = secrets.getStringOrNull(API_KEY)?.takeIf(String::isNotBlank)
+            known = true
+        }
+        return key
+    }
+
+    fun saveApiKey(value: String) {
+        secrets.putString(API_KEY, value)
+        key = value
+        known = true
+    }
+
+    fun forgetApiKey() {
+        secrets.remove(API_KEY)
+        key = null
+        known = true
+    }
 
     fun close() = api.close()
 

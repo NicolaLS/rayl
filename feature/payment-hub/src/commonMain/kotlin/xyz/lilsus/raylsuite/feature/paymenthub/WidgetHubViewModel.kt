@@ -386,6 +386,10 @@ class WidgetHubViewModel(
                 } else {
                     service.api.createLightningTopUp(key, cents / 100.0)
                 }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // An unreadable credential store is reported like an unreachable service.
             } finally {
                 val outcome = result
                 updatePpq { account ->
@@ -467,7 +471,15 @@ class WidgetHubViewModel(
         val service = ppq ?: return
         ppqJob?.cancel()
         ppqJob = scope.launch {
-            val key = withContext(background) { service.apiKey() }
+            val key = try {
+                withContext(background) { service.apiKey() }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // The credential store is closed, as the iOS Keychain is while the device is
+                // locked. What is on screen stays, and the next refresh reads it again.
+                return@launch
+            }
             if (key == null) {
                 updatePpq { HubPpqAccount(topUpSerial = it.topUpSerial) }
                 return@launch

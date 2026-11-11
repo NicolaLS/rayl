@@ -51,6 +51,7 @@ struct NativePaymentHubView: View {
     @State private var hoveredId: String?
     @State private var converting: HubConverterTarget?
     @State private var toppingUp = false
+    @Environment(\.scenePhase) private var scenePhase
     init(controller: NativePaymentHubController) {
         _model = StateObject(wrappedValue: NativePaymentHubModel(controller: controller))
     }
@@ -77,9 +78,10 @@ struct NativePaymentHubView: View {
         .sheet(isPresented: $toppingUp) {
             HubPpqTopUpSheet(model: model)
         }
-        .task {
-            // Prices and balances are fetched while the Hub is on screen, and again when it
-            // comes back.
+        .task(id: scenePhase) {
+            // Prices and balances are fetched while the Hub is on screen and the app is in
+            // front, and again when either comes back.
+            guard scenePhase == .active else { return }
             while !Task.isCancelled {
                 model.controller.refreshLive()
                 try? await Task.sleep(for: .seconds(60))
