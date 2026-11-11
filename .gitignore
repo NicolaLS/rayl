@@ -28,6 +28,12 @@ dist/
 .envrc
 .envrc.local
 
+# Signing material never belongs in the repository.
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+
 # Local Firebase configuration is never part of a release by file presence alone.
 app/androidApp/**/google-services.json
 

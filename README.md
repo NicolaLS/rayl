@@ -24,8 +24,6 @@ implementations.
 
 Use JDK 21 and the root Gradle wrapper.
 
-For upload-key setup and Google Play releases, see [Distribution](distribution/README.md).
-
 Debug builds come in two apps that install side by side: **Rayl Dev** on Lightspark's
 Regtest (no key; see the [regtest bank](tools/regtest/README.md)) and **Rayl Dev
 Mainnet** on real bitcoin (`./gradlew :app:androidApp:installDebugMainnet`, or the
