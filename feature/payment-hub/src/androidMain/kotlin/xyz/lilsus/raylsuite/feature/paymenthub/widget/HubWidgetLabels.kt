@@ -15,6 +15,9 @@ internal fun HubWidgetKind.label(): String = stringResource(
         HubWidgetKind.Shortcut -> R.string.hub_widget_shortcut
         HubWidgetKind.Favorites -> R.string.hub_widget_favorites
         HubWidgetKind.Recents -> R.string.hub_widget_recents
+        HubWidgetKind.Rate -> R.string.hub_widget_rate
+        HubWidgetKind.Sats -> R.string.hub_widget_sats
+        HubWidgetKind.Ppq -> R.string.hub_widget_ppq
     }
 )
 
@@ -27,23 +30,45 @@ internal fun HubWidgetDefinition.body(): String = description ?: when (kind) {
     HubWidgetKind.Shortcut -> stringResource(R.string.hub_widget_shortcut_body)
     HubWidgetKind.Favorites -> stringResource(R.string.hub_widget_favorites_body)
     HubWidgetKind.Recents -> stringResource(R.string.hub_widget_recents_body)
+    HubWidgetKind.Rate -> stringResource(R.string.hub_widget_rate_body)
+    HubWidgetKind.Sats -> stringResource(R.string.hub_widget_sats_body)
+    HubWidgetKind.Ppq -> stringResource(R.string.hub_widget_ppq_body)
 }
 
+/** Layouts are named after their contacts, except where a widget shows no contacts. */
 @Composable
-internal fun HubWidgetVariant.label(): String = title ?: stringResource(
+internal fun HubWidgetVariant.label(kind: HubWidgetKind): String = title ?: stringResource(
     when {
-        columns == 1 && rows == 1 -> R.string.hub_widget_single
-        rows == 1 -> R.string.hub_widget_row
-        else -> R.string.hub_widget_card
+        columns == 1 && rows == 1 ->
+            if (kind.showsInformation) R.string.hub_widget_small else R.string.hub_widget_single
+
+        rows == 1 ->
+            if (kind.showsInformation) R.string.hub_widget_wide else R.string.hub_widget_row
+
+        else -> if (kind.showsInformation) R.string.hub_widget_large else R.string.hub_widget_card
     }
 )
 
 @Composable
-internal fun HubWidgetVariant.body(): String = stringResource(
+internal fun HubWidgetVariant.body(kind: HubWidgetKind): String = stringResource(
     when {
-        columns == 1 && rows == 1 -> R.string.hub_widget_single_body
-        rows == 1 -> R.string.hub_widget_row_body
-        else -> R.string.hub_widget_card_body
+        columns == 1 && rows == 1 -> if (kind.showsInformation) {
+            R.string.hub_widget_small_body
+        } else {
+            R.string.hub_widget_single_body
+        }
+
+        rows == 1 -> if (kind.showsInformation) {
+            R.string.hub_widget_wide_body
+        } else {
+            R.string.hub_widget_row_body
+        }
+
+        else -> if (kind.showsInformation) {
+            R.string.hub_widget_large_body
+        } else {
+            R.string.hub_widget_card_body
+        }
     }
 )
 
@@ -56,4 +81,7 @@ internal fun HubWidgetError.label(capacity: Int): String = when (this) {
     HubWidgetError.InvalidAmount -> stringResource(R.string.hub_error_enter_amount)
     HubWidgetError.Unavailable -> stringResource(R.string.hub_widget_unavailable)
     HubWidgetError.SaveFailed -> stringResource(R.string.hub_widget_error_save)
+    HubWidgetError.ApiKeyRequired -> stringResource(R.string.hub_ppq_error_enter_key)
+    HubWidgetError.InvalidApiKey -> stringResource(R.string.hub_ppq_error_key)
+    HubWidgetError.ServiceUnreachable -> stringResource(R.string.hub_ppq_error_unreachable)
 }

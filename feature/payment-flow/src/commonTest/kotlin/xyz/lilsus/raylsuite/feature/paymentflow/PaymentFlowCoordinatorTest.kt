@@ -464,6 +464,23 @@ class PaymentFlowCoordinatorTest {
         assertNull(events.single().measures["qr_to_admitted_ms"])
     }
 
+    @Test
+    fun anInvoiceFromAHubWidgetIsAdmittedLikeAScannedOne() = flowTest {
+        // MOB-117: a ppq.ai top-up invoice gets the wallet's usual confirmation, and usage data
+        // counts it as started from the Hub.
+        hub.payInvoice(invoice(sats = 20_000).write())
+        testScheduler.advanceUntilIdle()
+
+        assertIs<PaymentUiState.Confirm>(coordinator.uiState.value)
+        assertEquals(0, settlement.settled.size)
+
+        dispatch(PaymentIntent.ConfirmPaymentSubmit)
+
+        assertEquals(1, settlement.settled.size)
+        assertIs<PaymentUiState.Success>(coordinator.uiState.value)
+        assertEquals("hub", events.single().dimensions["source"])
+    }
+
     private class Flow(val test: TestScope) {
         private val settings = MapSettings()
 

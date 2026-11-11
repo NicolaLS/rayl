@@ -24,6 +24,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import xyz.lilsus.raylsuite.core.raylapi.BitcoinPriceHistory
 import xyz.lilsus.raylsuite.core.raylapi.BitcoinPrices
 import xyz.lilsus.raylsuite.core.raylapi.RaylApi
 import xyz.lilsus.raylsuite.core.raylapi.RaylApiError
@@ -48,12 +49,17 @@ fun main() {
         install(UserAgent) { agent = "rayl-backend" }
     }
     val board = PriceBoard(defaultPriceSources(http))
+    val history = PriceHistoryBoard(KrakenHistorySource(http))
     val telemetry = System.getenv("DATABASE_URL")?.takeIf(String::isNotBlank)?.let { url ->
         PostgresTelemetryStore(PostgresTelemetryStore.connect(url))
     }
     if (telemetry == null) println("DATABASE_URL is not set: usage data is accepted and dropped")
     embeddedServer(CIO, host = host, port = port) {
-        raylModule(telemetry, bitcoinPrices = board::current)
+        raylModule(
+            telemetry,
+            bitcoinPriceHistory = history::history,
+            bitcoinPrices = board::current
+        )
         launch {
             while (true) {
                 board.refresh()
@@ -88,6 +94,7 @@ private suspend fun maintainTelemetry(telemetry: PostgresTelemetryStore) {
 fun Application.raylModule(
     telemetry: TelemetryStore? = null,
     nowSeconds: () -> Long = { System.currentTimeMillis() / 1_000 },
+    bitcoinPriceHistory: suspend (String) -> BitcoinPriceHistory? = { null },
     bitcoinPrices: () -> BitcoinPrices?
 ) {
     install(ContentNegotiation) { json() }
@@ -106,6 +113,25 @@ fun Application.raylModule(
             } else {
                 call.response.header(HttpHeaders.CacheControl, "public, max-age=15")
                 call.respond(prices)
+            }
+        }
+        get(RaylApi.BITCOIN_PRICE_HISTORY_PATH) {
+            val currency = call.request.queryParameters[RaylApi.BITCOIN_PRICE_HISTORY_CURRENCY]
+                ?.uppercase()
+            val history = currency?.let { bitcoinPriceHistory(it) }
+            if (history == null) {
+                call.response.header(HttpHeaders.CacheControl, "no-store")
+                call.respond(
+                    if (currency in PriceHistoryBoard.CURRENCIES) {
+                        HttpStatusCode.ServiceUnavailable
+                    } else {
+                        HttpStatusCode.NotFound
+                    },
+                    RaylApiError("price_history_unavailable")
+                )
+            } else {
+                call.response.header(HttpHeaders.CacheControl, "public, max-age=300")
+                call.respond(history)
             }
         }
         get("/health") { call.respondText("ok") }

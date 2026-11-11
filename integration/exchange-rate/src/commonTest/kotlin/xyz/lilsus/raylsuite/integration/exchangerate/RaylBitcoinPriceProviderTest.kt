@@ -134,4 +134,42 @@ class RaylBitcoinPriceProviderTest {
         assertFailsWith<CancellationException> { provider.pricePerBitcoin("USD") }
         client.close()
     }
+
+    @Test
+    fun aDayOfPricesIsFetchedPerCurrencyAndReusedForFiveMinutes() = runTest {
+        val requested = mutableListOf<String>()
+        var now = 1_000L
+        val client = HttpClient(
+            MockEngine { request ->
+                requested += request.url.toString()
+                respond(
+                    """{"currency":"EUR","intervalSeconds":900,"prices":[55000.0,0.0,55500.0]}""",
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+            }
+        )
+        val provider = RaylBitcoinPriceProvider(client = client, baseUrl = "https://rayl.test", clock = { now })
+
+        assertEquals(listOf(55_000.0, 55_500.0), provider.priceHistory(" eur "))
+        now += 299_999L
+        provider.priceHistory("EUR")
+        assertEquals(listOf("https://rayl.test/v1/bitcoin/prices/history?currency=EUR"), requested)
+
+        now += 1L
+        provider.priceHistory("EUR")
+        assertEquals(2, requested.size)
+        client.close()
+    }
+
+    @Test
+    fun aMissingOrBrokenHistoryIsNoHistory() = runTest {
+        // A backend without the endpoint answers 404; the widget then shows the price alone.
+        val missing = HttpClient(MockEngine { respond("", HttpStatusCode.NotFound) })
+        assertNull(RaylBitcoinPriceProvider(client = missing, baseUrl = "https://rayl.test").priceHistory("USD"))
+        missing.close()
+
+        val short = HttpClient(MockEngine { respond("""{"currency":"USD","intervalSeconds":900,"prices":[1.0]}""") })
+        assertNull(RaylBitcoinPriceProvider(client = short, baseUrl = "https://rayl.test").priceHistory("USD"))
+        short.close()
+    }
 }

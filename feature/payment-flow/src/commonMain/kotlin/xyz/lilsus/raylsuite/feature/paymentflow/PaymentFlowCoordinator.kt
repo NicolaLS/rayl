@@ -97,6 +97,15 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
             }
         }
         scope.launch {
+            // An invoice a Hub widget obtained from its service is admitted like a scanned one.
+            paymentHub.invoiceRequests.collect { invoice ->
+                startAttempt(TelemetryPaymentSource.Hub)
+                launchOperation {
+                    handleAdmissionResult(admission.handlePaymentInput(rawInput = invoice))
+                }
+            }
+        }
+        scope.launch {
             currencyPreferences.code.collectLatest { code ->
                 currencyManager.setPreferredCurrency(CurrencyCatalog.infoFor(code).currency)
             }

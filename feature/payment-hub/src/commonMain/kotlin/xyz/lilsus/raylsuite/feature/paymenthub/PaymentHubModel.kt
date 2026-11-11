@@ -39,7 +39,9 @@ data class HubWidget(
     val variant: HubWidgetVariant,
     val title: String? = null,
     val contactIds: List<String> = emptyList(),
-    val targetId: HubItemId? = null
+    val targetId: HubItemId? = null,
+    /** The fiat currency a Rate or Sats widget quotes bitcoin in. */
+    val currencyCode: String? = null
 )
 
 /** Ordered widgets, the local contact book, and successful payment history share one atomic write. */
@@ -67,6 +69,9 @@ data class PaymentHub(
                 ).takeIf { it.contactIds.isNotEmpty() }
 
                 HubWidgetKind.Shortcut -> widget.takeIf { it.targetId in targetIds }
+
+                HubWidgetKind.Rate, HubWidgetKind.Sats ->
+                    widget.takeIf { it.currencyCode in LocalHubWidgets.fiatCodes }
 
                 else -> widget
             }

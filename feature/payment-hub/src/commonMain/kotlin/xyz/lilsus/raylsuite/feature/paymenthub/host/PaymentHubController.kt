@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.core.model.LightningAddress
+import xyz.lilsus.raylsuite.core.payment.BitcoinPriceHistoryProvider
+import xyz.lilsus.raylsuite.core.payment.BitcoinPriceProvider
 import xyz.lilsus.raylsuite.feature.paymenthub.DirectTargetAmountRule
 import xyz.lilsus.raylsuite.feature.paymenthub.HubItemId
 import xyz.lilsus.raylsuite.feature.paymenthub.PaymentHubRepository
@@ -19,11 +21,16 @@ import xyz.lilsus.raylsuite.feature.paymenthub.platformCurrentTimeMillis
  * Shared hub host logic: owns the post-payment save prompt and emits [DirectTargetPaymentIntent]
  * when a target is chosen. Each app maps that intent into its own provider-native payment flow.
  * Widget placement belongs to the Hub presentation, not here.
+ *
+ * It is also how widgets reach what the wallet experience already owns: its bitcoin [prices] and
+ * [priceHistory], and its payment flow for an invoice a widget obtained ([payInvoice]).
  */
 class PaymentHubController(
     private val repository: PaymentHubRepository,
     private val scope: CoroutineScope,
-    private val clock: () -> Long = ::platformCurrentTimeMillis
+    private val clock: () -> Long = ::platformCurrentTimeMillis,
+    val prices: BitcoinPriceProvider? = null,
+    val priceHistory: BitcoinPriceHistoryProvider? = null
 ) {
     private val mutableState = MutableStateFlow(PaymentHubHostState())
     val state: StateFlow<PaymentHubHostState> = mutableState.asStateFlow()
@@ -32,6 +39,11 @@ class PaymentHubController(
         MutableSharedFlow<DirectTargetPaymentIntent>(extraBufferCapacity = 4)
     val paymentRequests: SharedFlow<DirectTargetPaymentIntent> =
         mutablePaymentRequests.asSharedFlow()
+
+    private val mutableInvoiceRequests = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+    /** BOLT11 invoices to pay like any scanned invoice, with the wallet's usual confirmation. */
+    val invoiceRequests: SharedFlow<String> = mutableInvoiceRequests.asSharedFlow()
 
     private val hub get() = repository.hub.value
     private var saving = false
@@ -56,6 +68,12 @@ class PaymentHubController(
 
             PaymentHubIntent.SavePromptDismiss -> mutableState.update { it.copy(savePrompt = null) }
         }
+    }
+
+    /** Hands an invoice a widget obtained from its service to the wallet's payment flow. */
+    fun payInvoice(invoice: String) {
+        mutableState.update { it.copy(scannerRequested = false) }
+        mutableInvoiceRequests.tryEmit(invoice)
     }
 
     /** Reports a terminal successful wallet payment that was started from [targetId]. */

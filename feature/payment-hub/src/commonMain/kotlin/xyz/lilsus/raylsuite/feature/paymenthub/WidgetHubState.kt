@@ -1,11 +1,34 @@
 package xyz.lilsus.raylsuite.feature.paymenthub
 
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
+import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.model.StoredAmount
 import xyz.lilsus.raylsuite.feature.paymenthub.create.hasFractionForWholeCurrency
 import xyz.lilsus.raylsuite.feature.paymenthub.create.parseMinorAmount
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubRate
 
-enum class HubWidgetKind { Contacts, Shortcut, Favorites, Recents }
+enum class HubWidgetKind {
+    Contacts,
+    Shortcut,
+    Favorites,
+    Recents,
+
+    /** Bitcoin's price in a fiat currency, with the last day's chart. */
+    Rate,
+
+    /** How many sats one unit of a fiat currency buys; opens a converter. */
+    Sats,
+
+    /** The balance of the user's ppq.ai account, with Lightning top-ups. */
+    Ppq;
+
+    /** Quotes bitcoin in the widget's own fiat currency. */
+    val quotesBitcoin: Boolean get() = this == Rate || this == Sats
+
+    /** Shows live information instead of people to pay. */
+    val showsInformation: Boolean get() = quotesBitcoin || this == Ppq
+}
 
 enum class HubWidgetScreen { Hub, Gallery, Variants, Configure }
 
@@ -41,7 +64,8 @@ data class HubWidgetTile(
     val kind: HubWidgetKind,
     val variant: HubWidgetVariant,
     val title: String?,
-    val people: List<HubWidgetPerson> = emptyList()
+    val people: List<HubWidgetPerson> = emptyList(),
+    val currencyCode: String? = null
 )
 
 data class HubWidgetEditor(
@@ -53,7 +77,9 @@ data class HubWidgetEditor(
     val title: String = "",
     val amountInput: String = "",
     val currencyCode: String = "USD",
-    val comment: String = ""
+    val comment: String = "",
+    /** A new ppq.ai API key. It is checked and stored on save, and never shown again. */
+    val apiKeyInput: String = ""
 )
 
 enum class HubWidgetError {
@@ -63,7 +89,10 @@ enum class HubWidgetError {
     TooManyContacts,
     InvalidAmount,
     Unavailable,
-    SaveFailed
+    SaveFailed,
+    ApiKeyRequired,
+    InvalidApiKey,
+    ServiceUnreachable
 }
 
 data class WidgetHubState(
@@ -76,8 +105,26 @@ data class WidgetHubState(
     val arranging: Boolean = false,
     val busy: Boolean = false,
     val contactSavedSerial: Int = 0,
-    val error: HubWidgetError? = null
+    val error: HubWidgetError? = null,
+    /** Bitcoin prices by fiat currency code, for the widgets on the canvas and the previews. */
+    val rates: Map<String, HubRate> = emptyMap(),
+    /** The last refresh found no price, so a widget without one says so instead of loading. */
+    val ratesUnavailable: Boolean = false,
+    /** The fiat currency a new Rate or Sats widget starts with. */
+    val defaultFiatCode: String = "USD",
+    val ppq: HubPpqAccount = HubPpqAccount()
 ) {
+    /**
+     * Whether choosing a layout already adds the widget. Information widgets start with their
+     * defaults; ppq.ai needs its API key once.
+     */
+    val addsWithoutSetup: Boolean
+        get() {
+            val editor = editor ?: return false
+            return editor.existingWidgetId == null &&
+                (editor.kind.quotesBitcoin || (editor.kind == HubWidgetKind.Ppq && ppq.connected))
+        }
+
     val selectedDefinition: HubWidgetDefinition?
         get() = gallery.firstOrNull { it.id == editor?.definitionId }
 
@@ -102,6 +149,9 @@ internal fun WidgetHubState.editorValidationError(): HubWidgetError? {
     if (editor.kind == HubWidgetKind.Shortcut && editor.shortcutAmount() == null) {
         return HubWidgetError.InvalidAmount
     }
+    if (editor.kind == HubWidgetKind.Ppq && editor.apiKeyInput.isBlank() && !ppq.connected) {
+        return HubWidgetError.ApiKeyRequired
+    }
     return null
 }
 
@@ -113,6 +163,14 @@ object LocalHubWidgets {
         HubWidgetDefinition("local.contacts", HubWidgetKind.Contacts, listOf(Single, Row, Card)),
         HubWidgetDefinition("local.shortcut", HubWidgetKind.Shortcut, listOf(Single)),
         HubWidgetDefinition("local.favorites", HubWidgetKind.Favorites, listOf(Row, Card)),
-        HubWidgetDefinition("local.recents", HubWidgetKind.Recents, listOf(Row, Card))
+        HubWidgetDefinition("local.recents", HubWidgetKind.Recents, listOf(Row, Card)),
+        HubWidgetDefinition("local.rate", HubWidgetKind.Rate, listOf(Single, Row, Card)),
+        HubWidgetDefinition("local.sats", HubWidgetKind.Sats, listOf(Single, Row)),
+        HubWidgetDefinition("local.ppq", HubWidgetKind.Ppq, listOf(Single, Row))
     )
+
+    /** The currencies a Rate or Sats widget can quote bitcoin in. */
+    val fiatCodes: List<String> = CurrencyCatalog.supported
+        .filter { it.currency is DisplayCurrency.Fiat }
+        .map { it.code }
 }

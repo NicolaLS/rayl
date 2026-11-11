@@ -11,10 +11,14 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":core:model"))
+            api(project(":core:payment"))
+            api(project(":core:settings"))
             api(project(":core:ui"))
+            implementation(project(":core:network"))
             implementation(libs.compose.runtime)
             api(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.ktor.client.core)
             implementation(libs.multiplatform.settings)
         }
         androidMain.dependencies {
@@ -28,6 +32,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.ktor.client.mock)
             implementation(libs.multiplatform.settings.test)
         }
     }

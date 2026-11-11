@@ -8,6 +8,7 @@ import io.ktor.server.testing.testApplication
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.serialization.json.Json
+import xyz.lilsus.raylsuite.core.raylapi.BitcoinPriceHistory
 import xyz.lilsus.raylsuite.core.raylapi.BitcoinPrices
 import xyz.lilsus.raylsuite.core.raylapi.RaylApi
 
@@ -46,5 +47,36 @@ class RaylServerTest {
         val response = client.get(RaylApi.BITCOIN_PRICES_PATH)
         assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
         assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+    }
+
+    @Test
+    fun servesADayOfPricesForOneCurrency() = testApplication {
+        application {
+            raylModule(
+                bitcoinPriceHistory = { currency ->
+                    BitcoinPriceHistory(currency, 900, listOf(1.0, 2.0)).takeIf {
+                        it.currency ==
+                            "EUR"
+                    }
+                }
+            ) { null }
+        }
+
+        // The shape is spelled out for the same reason as the prices above.
+        val response = client.get(RaylApi.BITCOIN_PRICE_HISTORY_PATH + "?currency=eur")
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("public, max-age=300", response.headers[HttpHeaders.CacheControl])
+        assertEquals(
+            Json.parseToJsonElement(
+                """{"currency":"EUR","intervalSeconds":900,"prices":[1.0,2.0]}"""
+            ),
+            Json.parseToJsonElement(response.bodyAsText())
+        )
+
+        val unavailable = client.get(RaylApi.BITCOIN_PRICE_HISTORY_PATH + "?currency=USD")
+        assertEquals(HttpStatusCode.ServiceUnavailable, unavailable.status)
+        val unknown = client.get(RaylApi.BITCOIN_PRICE_HISTORY_PATH + "?currency=ARS")
+        assertEquals(HttpStatusCode.NotFound, unknown.status)
+        assertEquals(HttpStatusCode.NotFound, client.get(RaylApi.BITCOIN_PRICE_HISTORY_PATH).status)
     }
 }

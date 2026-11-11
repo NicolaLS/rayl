@@ -58,8 +58,13 @@ internal class RaylRuntime(
     val paymentPreferences = DefaultPaymentPreferencesRepository(appSettings)
     val paymentHubRepository = DefaultPaymentHubRepository(appSettings)
     val tabState = AppTabState()
-    val paymentHub = PaymentHubController(paymentHubRepository, scope)
     val bitcoinPriceProvider = RaylBitcoinPriceProvider()
+    val paymentHub = PaymentHubController(
+        repository = paymentHubRepository,
+        scope = scope,
+        prices = bitcoinPriceProvider,
+        priceHistory = bitcoinPriceProvider
+    )
     private val lnurlPayClient = KtorLnurlPayClient(networkConnectivity)
     val paymentCoordinator = PaymentFlowCoordinator(
         settlement = RaylPaymentSettlement(pocket),

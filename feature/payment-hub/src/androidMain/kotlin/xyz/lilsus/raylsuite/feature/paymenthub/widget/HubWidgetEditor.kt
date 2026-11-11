@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,6 +28,7 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,10 +45,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +58,7 @@ import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.feature.paymenthub.HubContact
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetEditor
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetKind
+import xyz.lilsus.raylsuite.feature.paymenthub.LocalHubWidgets
 import xyz.lilsus.raylsuite.feature.paymenthub.R
 import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubState
 import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubViewModel
@@ -84,14 +91,41 @@ internal fun HubWidgetEditorScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 20.dp)
             ) {
-                OutlinedTextField(
-                    value = editor.title,
-                    onValueChange = viewModel::updateTitle,
-                    enabled = !state.busy,
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.hub_widget_name)) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (editor.kind.showsInformation) {
+                    // These widgets show no name, so the form opens on the widget itself.
+                    HubWidgetFace(
+                        tile = previewTile(definition, variant, state),
+                        state = state,
+                        onPay = {},
+                        preview = true,
+                        interactive = false,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                            .then(
+                                if (variant.columns > 1) {
+                                    Modifier.fillMaxWidth()
+                                } else {
+                                    Modifier.width(168.dp)
+                                }
+                            )
+                            .height(168.dp)
+                            .clearAndSetSemantics {}
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = editor.title,
+                        onValueChange = viewModel::updateTitle,
+                        enabled = !state.busy,
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.hub_widget_name)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (editor.kind.quotesBitcoin) {
+                    CurrencyChoice(editor, viewModel, enabled = !state.busy)
+                }
+                if (editor.kind == HubWidgetKind.Ppq) {
+                    ApiKeyField(editor, state.ppq.connected, viewModel, enabled = !state.busy)
+                }
                 if (choosesContacts) {
                     EditorSection(stringResource(R.string.hub_widget_contacts)) {
                         selectedContacts.forEach { contact ->
@@ -216,6 +250,60 @@ private fun EditorSection(title: String, content: @Composable ColumnScope.() -> 
             modifier = Modifier.padding(start = 4.dp).semantics { heading() }
         )
         content()
+    }
+}
+
+/** The fiat currency a Rate or Sats widget quotes bitcoin in. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CurrencyChoice(
+    editor: HubWidgetEditor,
+    viewModel: WidgetHubViewModel,
+    enabled: Boolean
+) {
+    EditorSection(stringResource(R.string.hub_widget_currency)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LocalHubWidgets.fiatCodes.forEach { code ->
+                FilterChip(
+                    selected = code == editor.currencyCode,
+                    enabled = enabled,
+                    onClick = { viewModel.selectCurrency(code) },
+                    label = { Text(code) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ApiKeyField(
+    editor: HubWidgetEditor,
+    keySaved: Boolean,
+    viewModel: WidgetHubViewModel,
+    enabled: Boolean
+) {
+    EditorSection(stringResource(R.string.hub_ppq_api_key)) {
+        OutlinedTextField(
+            value = editor.apiKeyInput,
+            onValueChange = viewModel::updateApiKey,
+            enabled = enabled,
+            singleLine = true,
+            placeholder = { Text("sk-…") },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                autoCorrectEnabled = false
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            stringResource(
+                if (keySaved) R.string.hub_ppq_api_key_saved else R.string.hub_ppq_api_key_hint
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp)
+        )
     }
 }
 

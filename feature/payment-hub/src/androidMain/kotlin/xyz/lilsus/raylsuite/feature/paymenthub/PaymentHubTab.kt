@@ -11,17 +11,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationEventHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import kotlinx.coroutines.delay
+import xyz.lilsus.raylsuite.core.settings.createSecureSettings
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
+import xyz.lilsus.raylsuite.feature.paymenthub.ppq.HubPpqService
+import xyz.lilsus.raylsuite.feature.paymenthub.ppq.createHubPpqService
 import xyz.lilsus.raylsuite.feature.paymenthub.widget.HubWidgetCanvas
 import xyz.lilsus.raylsuite.feature.paymenthub.widget.HubWidgetEditorScreen
 import xyz.lilsus.raylsuite.feature.paymenthub.widget.HubWidgetGallery
@@ -37,16 +46,30 @@ fun PaymentHubTab(
     modifier: Modifier = Modifier
 ) {
     val currency by rememberUpdatedState(preferredCurrencyCode)
+    val context = LocalContext.current.applicationContext
     val viewModel = remember(repository, controller) {
         WidgetHubViewModel(
             repository = repository,
             host = controller,
-            defaultCurrencyCode = { currency() }
+            defaultCurrencyCode = { currency() },
+            ppq = createHubPpqService(
+                createSecureSettings(context, HubPpqService.STORAGE_NAME)
+            )
         )
     }
     DisposableEffect(viewModel) {
         onDispose {
             viewModel.clear()
+        }
+    }
+    // Prices and balances are fetched while the Hub is on screen, and again when it comes back.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(viewModel, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                viewModel.refreshLive()
+                delay(LIVE_REFRESH_MS)
+            }
         }
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -107,5 +130,7 @@ fun PaymentHubTab(
         }
     }
 }
+
+private const val LIVE_REFRESH_MS = 60_000L
 
 private data class WidgetHubNavigationInfo(val screen: HubWidgetScreen) : NavigationEventInfo()

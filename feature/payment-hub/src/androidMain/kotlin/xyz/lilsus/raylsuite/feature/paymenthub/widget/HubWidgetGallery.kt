@@ -48,6 +48,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetDefinition
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetKind
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetPerson
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetTile
+import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetVariant
 import xyz.lilsus.raylsuite.feature.paymenthub.R
 import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubState
 import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubViewModel
@@ -78,7 +79,10 @@ internal fun HubWidgetGallery(
                 R.string.hub_widget_section_people to
                     listOf(HubWidgetKind.Contacts, HubWidgetKind.Shortcut),
                 R.string.hub_widget_section_collections to
-                    listOf(HubWidgetKind.Favorites, HubWidgetKind.Recents)
+                    listOf(HubWidgetKind.Favorites, HubWidgetKind.Recents),
+                R.string.hub_widget_section_info to
+                    listOf(HubWidgetKind.Rate, HubWidgetKind.Sats),
+                R.string.hub_widget_section_ai to listOf(HubWidgetKind.Ppq)
             ).forEach { (title, kinds) ->
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
@@ -116,6 +120,7 @@ private fun GalleryEntry(
         val variant = definition.variants.first()
         HubWidgetFace(
             tile = previewTile(definition, variant, state),
+            state = state,
             onPay = {},
             preview = true,
             interactive = false,
@@ -135,9 +140,9 @@ private fun GalleryEntry(
     }
 }
 
-private fun previewTile(
+internal fun previewTile(
     definition: HubWidgetDefinition,
-    variant: xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetVariant,
+    variant: HubWidgetVariant,
     state: WidgetHubState
 ) = HubWidgetTile(
     id = "preview:${definition.id}:${variant.id}",
@@ -145,6 +150,9 @@ private fun previewTile(
     kind = definition.kind,
     variant = variant,
     title = definition.title,
+    // The preview quotes the currency being configured, or the one a new widget starts with.
+    currencyCode = state.editor?.takeIf { it.kind.quotesBitcoin }?.currencyCode
+        ?: state.defaultFiatCode,
     people = state.contacts.take(variant.capacity).map { contact ->
         HubWidgetPerson(actionId = "", contactId = contact.id, title = contact.title, address = "")
     }
@@ -224,6 +232,7 @@ internal fun HubWidgetVariants(
                             ) {
                                 HubWidgetFace(
                                     tile = previewTile(definition, variant, state),
+                                    state = state,
                                     onPay = {},
                                     preview = true,
                                     interactive = false,
@@ -257,11 +266,11 @@ internal fun HubWidgetVariants(
                     }
                     variants.getOrNull(pager.currentPage)?.let { variant ->
                         Text(
-                            variant.title ?: variant.label(),
+                            variant.label(definition.kind),
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            variant.body(),
+                            variant.body(definition.kind),
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -275,12 +284,22 @@ internal fun HubWidgetVariants(
         Button(
             onClick = {
                 variants.getOrNull(pager.currentPage)?.let { viewModel.selectVariant(it.id) }
-                viewModel.configureSelected()
+                viewModel.continueFromVariants()
             },
+            enabled = !state.busy,
             modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
                 .padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp).height(56.dp)
         ) {
-            Text(stringResource(R.string.hub_widget_continue))
+            // A widget that needs no setup is added from here, so the button says so.
+            Text(
+                stringResource(
+                    if (state.addsWithoutSetup) {
+                        R.string.hub_widget_add
+                    } else {
+                        R.string.hub_widget_continue
+                    }
+                )
+            )
         }
     }
 }

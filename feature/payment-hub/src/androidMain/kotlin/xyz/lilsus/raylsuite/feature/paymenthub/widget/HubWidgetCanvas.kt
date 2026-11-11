@@ -66,6 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetKind
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetTile
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetVariant
 import xyz.lilsus.raylsuite.feature.paymenthub.R
@@ -74,6 +75,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubViewModel
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.HubGridSpan
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.gridRowCount
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.packHubGrid
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqProblem
 
 @Composable
 internal fun HubWidgetCanvas(
@@ -83,6 +85,39 @@ internal fun HubWidgetCanvas(
 ) {
     DisposableEffect(viewModel) {
         onDispose { viewModel.setArranging(false) }
+    }
+    var convertingCode by remember { mutableStateOf<String?>(null) }
+    var toppingUp by remember { mutableStateOf(false) }
+    val open: (HubWidgetTile) -> Unit = { tile ->
+        when (tile.kind) {
+            HubWidgetKind.Sats -> convertingCode = tile.currencyCode
+
+            // Without a usable key there is nothing to top up; the widget's settings ask for one.
+            HubWidgetKind.Ppq -> if (state.ppq.connected &&
+                state.ppq.problem != HubPpqProblem.InvalidKey
+            ) {
+                viewModel.clearPpqTopUpError()
+                toppingUp = true
+            } else {
+                viewModel.editWidget(tile.id)
+            }
+
+            else -> Unit
+        }
+    }
+    convertingCode?.let { code ->
+        // The converter closes by itself if its price disappears.
+        state.rates[code]?.let { rate ->
+            HubSatsConverterDialog(rate, onDismiss = { convertingCode = null })
+        }
+    }
+    if (toppingUp) {
+        HubPpqTopUpSheet(
+            account = state.ppq,
+            onTopUp = viewModel::topUpPpq,
+            onClearError = viewModel::clearPpqTopUpError,
+            onDismiss = { toppingUp = false }
+        )
     }
     Column(modifier = modifier) {
         if (state.widgets.isNotEmpty()) {
@@ -145,6 +180,7 @@ internal fun HubWidgetCanvas(
                     WidgetGrid(
                         state = state,
                         viewModel = viewModel,
+                        onOpen = open,
                         columns = if (maxWidth >= 700.dp) 4 else 2,
                         scrollState = scrollState,
                         viewportHeight = constraints.maxHeight.toFloat(),
@@ -189,6 +225,7 @@ private fun HubEmptyCanvas(enabled: Boolean, onAdd: () -> Unit, modifier: Modifi
 private fun WidgetGrid(
     state: WidgetHubState,
     viewModel: WidgetHubViewModel,
+    onOpen: (HubWidgetTile) -> Unit,
     columns: Int,
     scrollState: ScrollState,
     viewportHeight: Float,
@@ -290,6 +327,8 @@ private fun WidgetGrid(
                     )
                     WidgetCanvasTile(
                         tile = tile,
+                        state = state,
+                        onOpen = onOpen,
                         interactive = !state.busy && !state.arranging && draggingId == null,
                         arranging = state.arranging,
                         enabled = !state.busy && draggingId == null,
@@ -385,6 +424,8 @@ private fun AddWidgetTile(enabled: Boolean, onClick: () -> Unit, modifier: Modif
 @Composable
 private fun WidgetCanvasTile(
     tile: HubWidgetTile,
+    state: WidgetHubState,
+    onOpen: (HubWidgetTile) -> Unit,
     interactive: Boolean,
     arranging: Boolean,
     enabled: Boolean,
@@ -448,9 +489,11 @@ private fun WidgetCanvasTile(
     ) {
         HubWidgetFace(
             tile,
+            state,
             onPay = viewModel::pay,
             modifier = Modifier.fillMaxSize(),
-            interactive = interactive
+            interactive = interactive,
+            onOpen = onOpen
         )
         if (arranging) {
             IconButton(
@@ -502,7 +545,7 @@ private fun WidgetCanvasTile(
                     })
                     variants.forEach { variant ->
                         DropdownMenuItem(
-                            text = { Text(variant.title ?: variant.label()) },
+                            text = { Text(variant.label(tile.kind)) },
                             enabled = variant.id != tile.variant.id,
                             onClick = {
                                 expanded = false

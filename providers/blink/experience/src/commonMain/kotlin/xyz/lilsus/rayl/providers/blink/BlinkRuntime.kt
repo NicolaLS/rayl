@@ -73,7 +73,14 @@ internal class BlinkRuntime(
     val paymentPreferences = DefaultPaymentPreferencesRepository(appSettings)
     val paymentHubRepository = DefaultPaymentHubRepository(appSettings)
     val tabState = AppTabState()
-    val paymentHub = PaymentHubController(paymentHubRepository, scope)
+
+    // The lambdas keep the price provider lazy until a Hub widget first asks for a price.
+    val paymentHub = PaymentHubController(
+        repository = paymentHubRepository,
+        scope = scope,
+        prices = { bitcoinPriceProvider.pricePerBitcoin(it) },
+        priceHistory = { bitcoinPriceProvider.priceHistory(it) }
+    )
 
     private val networkConnectivity by lazy { createNetworkConnectivity() }
     private val blinkWalletDelegate = lazy {

@@ -48,6 +48,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetKind
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetPerson
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetTile
 import xyz.lilsus.raylsuite.feature.paymenthub.R
+import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubState
 
 internal val HubTileShape = RoundedCornerShape(28.dp)
 
@@ -55,16 +56,20 @@ internal val HubTileShape = RoundedCornerShape(28.dp)
 @Composable
 internal fun HubWidgetFace(
     tile: HubWidgetTile,
+    state: WidgetHubState,
     onPay: (String) -> Unit,
     modifier: Modifier = Modifier,
     preview: Boolean = false,
     interactive: Boolean = true,
-    compactPreview: Boolean = false
+    compactPreview: Boolean = false,
+    /** A tap on a widget that opens something of its own instead of paying a person. */
+    onOpen: (HubWidgetTile) -> Unit = {}
 ) {
     val shortcut = tile.kind == HubWidgetKind.Shortcut
     Box(
         modifier.clip(HubTileShape).then(
-            if (shortcut) {
+            // The dark face is for the one figure a widget is about: an amount or a price.
+            if (shortcut || tile.kind == HubWidgetKind.Rate) {
                 Modifier.background(
                     Brush.verticalGradient(listOf(Color(0xFF29294D), Color(0xFF101520)))
                 )
@@ -74,6 +79,7 @@ internal fun HubWidgetFace(
         )
     ) {
         when {
+            tile.kind.showsInformation -> HubInfoFace(tile, state, preview, interactive, onOpen)
             tile.people.isEmpty() && !preview -> EmptyFace(tile)
             shortcut -> ShortcutFace(tile, onPay, interactive, preview)
             tile.variant.capacity == 1 -> SingleContactFace(tile, onPay, interactive)

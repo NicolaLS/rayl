@@ -80,8 +80,13 @@ internal class NwcRuntime(
     /** Connecting another wallet from the Settings tab. */
     private val mutableSettingsWalletFlow = MutableStateFlow(false)
     val settingsWalletFlow: StateFlow<Boolean> = mutableSettingsWalletFlow.asStateFlow()
-    val paymentHub = PaymentHubController(paymentHubRepository, scope)
     val bitcoinPriceProvider = RaylBitcoinPriceProvider()
+    val paymentHub = PaymentHubController(
+        repository = paymentHubRepository,
+        scope = scope,
+        prices = bitcoinPriceProvider,
+        priceHistory = bitcoinPriceProvider
+    )
     val connectionDraft = NwcConnectionDraft()
     val nwcWallet by lazy {
         createNwcWallet(

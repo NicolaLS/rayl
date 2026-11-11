@@ -58,7 +58,12 @@ internal class SparkRuntime(
     val paymentHubRepository = DefaultPaymentHubRepository(appSettings)
     val bitcoinPriceProvider = RaylBitcoinPriceProvider()
     val tabState = AppTabState()
-    val paymentHub = PaymentHubController(repository = paymentHubRepository, scope = scope)
+    val paymentHub = PaymentHubController(
+        repository = paymentHubRepository,
+        scope = scope,
+        prices = bitcoinPriceProvider,
+        priceHistory = bitcoinPriceProvider
+    )
 
     private val networkConnectivity by lazy { createNetworkConnectivity() }
     private val lnurlPayClient = KtorLnurlPayClient(networkConnectivity)

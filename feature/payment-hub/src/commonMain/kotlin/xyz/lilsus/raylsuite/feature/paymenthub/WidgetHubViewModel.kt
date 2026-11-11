@@ -4,31 +4,46 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.model.LightningAddress
 import xyz.lilsus.raylsuite.feature.paymenthub.create.cleanAmountInput
 import xyz.lilsus.raylsuite.feature.paymenthub.create.formatMinorAmount
 import xyz.lilsus.raylsuite.feature.paymenthub.create.hasFractionForWholeCurrency
+import xyz.lilsus.raylsuite.feature.paymenthub.create.parseMinorAmount
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubIntent
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqProblem
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqTopUpError
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubRate
+import xyz.lilsus.raylsuite.feature.paymenthub.ppq.HubPpqService
+import xyz.lilsus.raylsuite.feature.paymenthub.ppq.PpqResult
 
 /** Shared widget presentation state. Native platforms own sheets, controls, gestures and copy. */
 class WidgetHubViewModel(
     private val repository: PaymentHubRepository,
     private val host: PaymentHubController,
     private val defaultCurrencyCode: () -> String,
-    dispatcher: CoroutineDispatcher = Dispatchers.Main
+    /** Null where no ppq.ai account can be kept; its widget then stays unconnected. */
+    private val ppq: HubPpqService? = null,
+    dispatcher: CoroutineDispatcher = Dispatchers.Main,
+    /** Where the credential store is read and written. */
+    private val background: CoroutineDispatcher = Dispatchers.Default
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutableState =
         MutableStateFlow(WidgetHubState(gallery = LocalHubWidgets.definitions))
     val state = mutableState.asStateFlow()
+    private var ratesJob: Job? = null
+    private var ppqJob: Job? = null
 
     init {
         scope.launch {
@@ -53,8 +68,19 @@ class WidgetHubViewModel(
                     )
                 }
                 rebuildTiles()
+                // A widget added for another currency needs its price now, not in a minute.
+                refreshRates()
             }
         }
+    }
+
+    /**
+     * Fetches what the information widgets show. The platform calls this when the Hub appears
+     * and about once a minute while it stays on screen.
+     */
+    fun refreshLive() {
+        refreshRates()
+        refreshPpq()
     }
 
     fun openGallery() {
@@ -106,7 +132,11 @@ class WidgetHubViewModel(
                     id,
                     definition.kind,
                     definition.variants.first().id,
-                    currencyCode = defaultCurrencyCode()
+                    currencyCode = if (definition.kind.quotesBitcoin) {
+                        defaultFiatCode()
+                    } else {
+                        defaultCurrencyCode()
+                    }
                 )
             )
         }
@@ -124,6 +154,13 @@ class WidgetHubViewModel(
             it.copy(screen = HubWidgetScreen.Configure, query = "", error = null)
         }
     }
+
+    /** Leaves the layout choice: adds the widget when it needs no setup, else configures it. */
+    fun continueFromVariants() {
+        if (mutableState.value.addsWithoutSetup) saveWidget() else configureSelected()
+    }
+
+    fun updateApiKey(value: String) = edit { it.copy(apiKeyInput = value.trim().take(200)) }
 
     fun updateQuery(value: String) {
         mutableState.update { it.copy(query = value) }
@@ -185,7 +222,14 @@ class WidgetHubViewModel(
 
     fun selectCurrency(code: String) {
         if (code !in CurrencyCatalog.supportedCodes) return
-        edit { it.copy(currencyCode = code, amountInput = "") }
+        if (mutableState.value.editor?.kind?.quotesBitcoin == true) {
+            if (code !in LocalHubWidgets.fiatCodes) return
+            edit { it.copy(currencyCode = code) }
+            // The preview on the configuration screen shows this currency right away.
+            refreshRates()
+        } else {
+            edit { it.copy(currencyCode = code, amountInput = "") }
+        }
     }
 
     fun addContact(title: String, address: String) {
@@ -241,9 +285,15 @@ class WidgetHubViewModel(
             editor.title,
             editor.contactIds,
             amount,
-            editor.comment
+            editor.comment,
+            editor.currencyCode.takeIf { editor.kind.quotesBitcoin }
         )
         mutate {
+            if (editor.kind == HubWidgetKind.Ppq && editor.apiKeyInput.isNotBlank() &&
+                !connectPpq(editor.apiKeyInput)
+            ) {
+                return@mutate
+            }
             if (repository.saveWidget(draft, editor.existingWidgetId) == null) {
                 fail(HubWidgetError.SaveFailed)
             } else {
@@ -279,7 +329,9 @@ class WidgetHubViewModel(
                     amountInput = amount?.minor?.formatMinorAmount(
                         CurrencyCatalog.infoFor(amount.normalizedCurrencyCode).fractionDigits
                     ).orEmpty(),
-                    currencyCode = amount?.normalizedCurrencyCode ?: defaultCurrencyCode(),
+                    currencyCode = amount?.normalizedCurrencyCode
+                        ?: widget.currencyCode
+                        ?: defaultCurrencyCode(),
                     comment = target?.comment.orEmpty()
                 )
             )
@@ -289,6 +341,12 @@ class WidgetHubViewModel(
     fun removeWidget(id: String) = mutate {
         repository.deleteWidget(id)
         if (mutableState.value.editor?.existingWidgetId == id) close()
+        // The key is only there for the widgets; a Hub without one keeps no credential.
+        if (ppq != null && repository.hub.value.widgets.none { it.kind == HubWidgetKind.Ppq }) {
+            ppqJob?.cancel()
+            withContext(background) { ppq.forgetApiKey() }
+            mutableState.update { it.copy(ppq = HubPpqAccount()) }
+        }
     }
     fun moveWidget(id: String, targetId: String) {
         val index = repository.hub.value.widgets.indexOfFirst { it.id == targetId }
@@ -307,7 +365,155 @@ class WidgetHubViewModel(
         }
     }
 
-    fun clear() = scope.cancel()
+    /**
+     * Asks ppq.ai for a Lightning invoice over [amountInput] US dollars and hands it to the
+     * wallet, which presents and confirms it like any other payment.
+     */
+    fun topUpPpq(amountInput: String) {
+        val service = ppq ?: return
+        if (mutableState.value.ppq.toppingUp || mutableState.value.arranging) return
+        val cents = amountInput.parseMinorAmount(2)
+        if (cents == null || cents !in HubPpqAccount.TOP_UP_CENTS) {
+            return updatePpq { it.copy(topUpError = HubPpqTopUpError.Amount) }
+        }
+        updatePpq { it.copy(toppingUp = true, topUpError = null) }
+        scope.launch {
+            var result: PpqResult<String> = PpqResult.Unreachable
+            try {
+                val key = withContext(background) { service.apiKey() }
+                result = if (key == null) {
+                    PpqResult.InvalidKey
+                } else {
+                    service.api.createLightningTopUp(key, cents / 100.0)
+                }
+            } finally {
+                val outcome = result
+                updatePpq { account ->
+                    when (outcome) {
+                        is PpqResult.Ok -> account.copy(
+                            toppingUp = false,
+                            topUpSerial = account.topUpSerial + 1
+                        )
+
+                        PpqResult.InvalidKey -> account.copy(
+                            toppingUp = false,
+                            problem = HubPpqProblem.InvalidKey,
+                            topUpError = HubPpqTopUpError.InvalidKey
+                        )
+
+                        PpqResult.Unreachable -> account.copy(
+                            toppingUp = false,
+                            topUpError = HubPpqTopUpError.Unreachable
+                        )
+                    }
+                }
+            }
+            (result as? PpqResult.Ok)?.let { host.payInvoice(it.value) }
+        }
+    }
+
+    fun clearPpqTopUpError() = updatePpq { it.copy(topUpError = null) }
+
+    fun clear() {
+        scope.cancel()
+        ppq?.close()
+    }
+
+    private fun updatePpq(transform: (HubPpqAccount) -> HubPpqAccount) {
+        mutableState.update { it.copy(ppq = transform(it.ppq)) }
+    }
+
+    private fun defaultFiatCode(): String =
+        defaultCurrencyCode().uppercase().takeIf { it in LocalHubWidgets.fiatCodes } ?: "USD"
+
+    /** Prices first, so a figure shows before its chart arrives. */
+    private fun refreshRates() {
+        val prices = host.prices ?: return
+        val default = defaultFiatCode()
+        val editing = mutableState.value.editor?.takeIf { it.kind.quotesBitcoin }?.currencyCode
+        val codes = (
+            repository.hub.value.widgets.mapNotNull { it.currencyCode } + listOfNotNull(editing) +
+                default
+            ).filter { it in LocalHubWidgets.fiatCodes }.distinct()
+        mutableState.update { it.copy(defaultFiatCode = default) }
+        ratesJob?.cancel()
+        ratesJob = scope.launch {
+            var missing = false
+            codes.forEach { code ->
+                val price = prices.pricePerBitcoin(code)
+                if (price == null) {
+                    missing = true
+                } else {
+                    publishRate(code) { HubRate(code, price, it?.history.orEmpty()) }
+                }
+            }
+            mutableState.update { it.copy(ratesUnavailable = missing) }
+            val charts = host.priceHistory ?: return@launch
+            codes.forEach { code ->
+                val history = charts.priceHistory(code) ?: return@forEach
+                publishRate(code) { it?.copy(history = history) }
+            }
+        }
+    }
+
+    private fun publishRate(code: String, transform: (HubRate?) -> HubRate?) {
+        mutableState.update { current ->
+            val next = transform(current.rates[code]) ?: return@update current
+            current.copy(rates = current.rates + (code to next))
+        }
+    }
+
+    private fun refreshPpq() {
+        val service = ppq ?: return
+        ppqJob?.cancel()
+        ppqJob = scope.launch {
+            val key = withContext(background) { service.apiKey() }
+            if (key == null) {
+                updatePpq { HubPpqAccount(topUpSerial = it.topUpSerial) }
+                return@launch
+            }
+            updatePpq { it.copy(connected = true) }
+            when (val balance = service.api.balanceUsd(key)) {
+                is PpqResult.Ok ->
+                    updatePpq { it.copy(balanceUsd = balance.value, problem = null) }
+
+                PpqResult.InvalidKey ->
+                    updatePpq { it.copy(problem = HubPpqProblem.InvalidKey) }
+
+                PpqResult.Unreachable ->
+                    updatePpq { it.copy(problem = HubPpqProblem.Unreachable) }
+            }
+        }
+    }
+
+    /** Stores [apiKey] once ppq.ai accepted it. Reports the reason and returns false otherwise. */
+    private suspend fun connectPpq(apiKey: String): Boolean {
+        val service = ppq
+        if (service == null) {
+            fail(HubWidgetError.Unavailable)
+            return false
+        }
+        return when (val balance = service.api.balanceUsd(apiKey)) {
+            is PpqResult.Ok -> {
+                ppqJob?.cancel()
+                withContext(background) { service.saveApiKey(apiKey) }
+                updatePpq {
+                    it.copy(connected = true, balanceUsd = balance.value, problem = null)
+                }
+                true
+            }
+
+            PpqResult.InvalidKey -> {
+                fail(HubWidgetError.InvalidApiKey)
+                false
+            }
+
+            PpqResult.Unreachable -> {
+                fail(HubWidgetError.ServiceUnreachable)
+                false
+            }
+        }
+    }
 
     private fun edit(transform: (HubWidgetEditor) -> HubWidgetEditor) {
         if (mutableState.value.busy) return
@@ -356,6 +562,7 @@ class WidgetHubViewModel(
                 HubWidgetKind.Shortcut -> listOfNotNull(widget.targetId?.let(hub::target))
                 HubWidgetKind.Favorites -> favorites.take(widget.variant.capacity)
                 HubWidgetKind.Recents -> recents.take(widget.variant.capacity)
+                HubWidgetKind.Rate, HubWidgetKind.Sats, HubWidgetKind.Ppq -> emptyList()
             }
             HubWidgetTile(
                 widget.id,
@@ -366,6 +573,7 @@ class WidgetHubViewModel(
                     ?: mutableState.value.gallery.firstOrNull {
                         it.id == widget.definitionId
                     }?.title,
+                currencyCode = widget.currencyCode,
                 people = targets.mapNotNull { target ->
                     hub.contact(target.contactId)?.let { contact ->
                         HubWidgetPerson(

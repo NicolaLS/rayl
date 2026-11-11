@@ -1,6 +1,6 @@
 # Rayl Privacy Policy
 
-Last updated: November 10, 2026
+Last updated: November 11, 2026
 
 This policy covers **Rayl** for Android and iOS, maintained by **Bitcoin Coast**
 ("we" or "the maintainer"). For privacy questions or requests, contact
@@ -78,6 +78,9 @@ you use:
   storage. When you connect a Blink account, Rayl imports your Blink contact
   aliases and Lightning addresses into the Hub. Rayl does not access your
   device's address book.
+- **PPQ.AI API key:** If you add a PPQ.AI widget to the Hub, the ppq.ai API key
+  you enter is stored in encrypted app storage on Android or the Keychain on
+  iOS. It is deleted when you remove the last PPQ.AI widget.
 - **Recent payments in Rayl:** Up to ten payment results shown in Rayl are kept
   in memory and are cleared when the app process ends or you change wallets.
   The wallet's own payment history is stored as described above.
@@ -126,10 +129,15 @@ under its own terms and privacy policy.
   requests to the relays named in your connection URI. Those relays and your
   wallet service process them under their own terms.
 - **Rayl backend:** Rayl requests aggregated Bitcoin exchange rates from the
-  Rayl backend to show amounts in your display currency, and sends it the
+  Rayl backend to show amounts in your display currency, and the last day of
+  prices for the Hub's exchange rate widget. It also sends the backend the
   anonymous usage data described above unless you turned that off. These
   requests contain no wallet credentials, contacts, payment history, or user
   identifiers.
+- **ppq.ai (PPQ.AI widget only):** If you add a PPQ.AI widget, Rayl sends your
+  ppq.ai API key to ppq.ai to show your balance, and to request a Lightning
+  invoice when you top up. ppq.ai processes your account under its own terms
+  and privacy policy.
 - **Lightning addresses and LNURL:** Paying a Lightning address or LNURL
   contacts the domain it names to request an invoice, including the amount and
   any comment you enter. Wallet credentials are never sent to these services.
@@ -162,7 +170,9 @@ route them, and on-chain transactions are public and permanent.
   the device's Keychain until the device is erased. In both cases the funds
   stay in the wallet, and your passkey opens it again. If you delete the
   passkey as well, nobody can open the wallet or recover its funds.
-- **Contacts and widgets:** Delete them in the Hub.
+- **Contacts and widgets:** Delete them in the Hub. Removing the last PPQ.AI
+  widget deletes the stored API key from the device; it does not revoke the
+  key at ppq.ai.
 - **Everything else:** Clearing Rayl's storage on Android or deleting the app
   on iOS erases Rayl's local data.
 

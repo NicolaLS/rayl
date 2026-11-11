@@ -56,6 +56,9 @@ class DefaultPaymentHubRepository(
                     return@mutate current
                 }
             }
+            val quotesBitcoin = draft.kind == HubWidgetKind.Rate || draft.kind == HubWidgetKind.Sats
+            val currencyCode = draft.currencyCode?.trim()?.uppercase()
+            if (quotesBitcoin && currencyCode !in LocalHubWidgets.fiatCodes) return@mutate current
             var updated = current
             var targetId: HubItemId? = null
             when (draft.kind) {
@@ -99,7 +102,8 @@ class DefaultPaymentHubRepository(
                 variant = draft.variant,
                 title = draft.title?.trim()?.takeIf(String::isNotEmpty),
                 contactIds = if (draft.kind == HubWidgetKind.Contacts) contacts else emptyList(),
-                targetId = targetId
+                targetId = targetId,
+                currencyCode = currencyCode.takeIf { quotesBitcoin }
             )
             result = saved
             updated.copy(
@@ -260,7 +264,8 @@ private data class WidgetRecord(
     val capacity: Int,
     val title: String? = null,
     val contactIds: List<String> = emptyList(),
-    val actionId: String? = null
+    val actionId: String? = null,
+    val currency: String? = null
 )
 
 private fun PaymentHub.toRecord() = HubRecord(
@@ -289,7 +294,8 @@ private fun PaymentHub.toRecord() = HubRecord(
             widget.variant.capacity,
             widget.title,
             widget.contactIds,
-            widget.targetId?.value
+            widget.targetId?.value,
+            widget.currencyCode
         )
     }
 )
@@ -331,7 +337,8 @@ private fun HubRecord.toHub() = PaymentHub(
             HubWidgetVariant(record.variantId, record.columns, record.rows, record.capacity),
             record.title,
             record.contactIds,
-            record.actionId?.let(::HubItemId)
+            record.actionId?.let(::HubItemId),
+            record.currency
         )
     }
 )

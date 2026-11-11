@@ -4,6 +4,10 @@ Serves `GET /v1/bitcoin/prices` ([wire contract](../../core/rayl-api)). Every 30
 mempool.space, Coinbase, Kraken and blockchain.info, and it answers with the per-currency
 median of the quotes that are at most five minutes old. It returns 503 when no source is fresh.
 
+`GET /v1/bitcoin/prices/history?currency=USD` serves the last 24 hours in 15-minute steps for the
+Hub's exchange rate widget. It comes from Kraken's candles for the seven currencies the app can
+display, fetched on demand and cached for five minutes.
+
 It also accepts the app's anonymous usage data on `POST /v1/telemetry`. Everything a batch can
 contain is listed in [`TelemetryCatalog.kt`](../../core/rayl-api/src/commonMain/kotlin/xyz/lilsus/raylsuite/core/raylapi/TelemetryCatalog.kt);
 the backend drops the rest, stores no address or identifier, and cuts the arrival time to the
