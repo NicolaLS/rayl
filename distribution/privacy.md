@@ -14,7 +14,10 @@ a wallet you already have: a Blink account, a wallet through Nostr Wallet
 Connect (NWC), or a Spark wallet.
 
 There is no Rayl account. Rayl contains no advertising, tracking, third-party
-analytics, or crash-reporting SDKs, and it sends no logs to us. The only data
+analytics, or crash-reporting SDKs, and it sends no logs to us. The one
+exception is the code scanner on Android, Google ML Kit, which sends Google
+technical diagnostics as described under
+[Network requests and third parties](#network-requests-and-third-parties). The only data
 Rayl sends to us is the anonymous usage data described below, which you can
 turn off. The maintainer does not operate a wallet, payment processor, or
 Nostr relay, and never receives your wallet keys, passkey, balance, or payment
