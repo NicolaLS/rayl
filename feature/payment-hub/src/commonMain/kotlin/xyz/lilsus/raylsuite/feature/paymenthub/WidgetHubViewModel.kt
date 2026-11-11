@@ -18,6 +18,8 @@ import xyz.lilsus.raylsuite.feature.paymenthub.create.cleanAmountInput
 import xyz.lilsus.raylsuite.feature.paymenthub.create.formatMinorAmount
 import xyz.lilsus.raylsuite.feature.paymenthub.create.hasFractionForWholeCurrency
 import xyz.lilsus.raylsuite.feature.paymenthub.create.parseMinorAmount
+import xyz.lilsus.raylsuite.feature.paymenthub.feedback.HubFeedbackApi
+import xyz.lilsus.raylsuite.feature.paymenthub.feedback.HubFeedbackKind
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubIntent
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
@@ -34,6 +36,8 @@ class WidgetHubViewModel(
     private val defaultCurrencyCode: () -> String,
     /** Null where no ppq.ai account can be kept; its widget then stays unconnected. */
     private val ppq: HubPpqService? = null,
+    /** Null where feedback cannot be sent; the form is then not offered. */
+    private val feedbackApi: HubFeedbackApi? = null,
     dispatcher: CoroutineDispatcher = Dispatchers.Main,
     /** Where the credential store is read and written. */
     private val background: CoroutineDispatcher = Dispatchers.Default
@@ -421,9 +425,39 @@ class WidgetHubViewModel(
 
     fun clearPpqTopUpError() = updatePpq { it.copy(topUpError = null) }
 
+    /** Sends what a tester wrote. The form stays open, and keeps their words, until it worked. */
+    fun sendFeedback(kind: HubFeedbackKind, message: String, contact: String) {
+        val api = feedbackApi ?: return
+        if (mutableState.value.feedback.sending || message.isBlank()) return
+        mutableState.update { it.copy(feedback = it.feedback.copy(sending = true, failed = false)) }
+        scope.launch {
+            val sent = try {
+                api.send(kind, message, contact)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                false
+            }
+            mutableState.update {
+                it.copy(
+                    feedback = it.feedback.copy(
+                        sending = false,
+                        failed = !sent,
+                        sentSerial = it.feedback.sentSerial + if (sent) 1 else 0
+                    )
+                )
+            }
+        }
+    }
+
+    fun clearFeedbackError() = mutableState.update {
+        it.copy(feedback = it.feedback.copy(failed = false))
+    }
+
     fun clear() {
         scope.cancel()
         ppq?.close()
+        feedbackApi?.close()
     }
 
     private fun updatePpq(transform: (HubPpqAccount) -> HubPpqAccount) {

@@ -28,6 +28,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.delay
 import xyz.lilsus.raylsuite.core.settings.createSecureSettings
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
+import xyz.lilsus.raylsuite.feature.paymenthub.feedback.KtorHubFeedbackApi
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.HubPpqService
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.createHubPpqService
@@ -54,7 +55,8 @@ fun PaymentHubTab(
             defaultCurrencyCode = { currency() },
             ppq = createHubPpqService(
                 createSecureSettings(context, HubPpqService.STORAGE_NAME)
-            )
+            ),
+            feedbackApi = KtorHubFeedbackApi(platform = "android")
         )
     }
     DisposableEffect(viewModel) {

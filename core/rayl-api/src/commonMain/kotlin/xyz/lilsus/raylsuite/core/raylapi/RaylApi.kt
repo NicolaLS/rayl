@@ -13,6 +13,9 @@ object RaylApi {
 
     /** Accepts a [TelemetryBatch]; see `TelemetryCatalog.kt` for everything it can contain. */
     const val TELEMETRY_PATH = "/v1/telemetry"
+
+    /** Accepts a [FeedbackSubmission]. */
+    const val FEEDBACK_PATH = "/v1/feedback"
 }
 
 /**
@@ -35,3 +38,38 @@ data class BitcoinPriceHistory(
 
 @Serializable
 data class RaylApiError(val error: String)
+
+/**
+ * What a tester wrote in the app's feedback form, sent to [RaylApi.FEEDBACK_PATH]. Unlike usage
+ * data this is free text the user chose to send, so it is kept for reading, not counted. It
+ * carries no device or account information; [contact] is only what the user typed to be
+ * answered, if they wanted to.
+ */
+@Serializable
+data class FeedbackSubmission(
+    val kind: String,
+    val platform: String,
+    val message: String,
+    val contact: String? = null
+)
+
+object FeedbackCatalog {
+    const val MAX_MESSAGE_LENGTH = 2_000
+    const val MAX_CONTACT_LENGTH = 200
+    const val KIND_WIDGET = "widget"
+    const val KIND_IDEA = "idea"
+    const val KIND_PROBLEM = "problem"
+    const val KIND_OTHER = "other"
+    val kinds = setOf(KIND_WIDGET, KIND_IDEA, KIND_PROBLEM, KIND_OTHER)
+    val platforms = setOf("android", "ios")
+
+    /** The submission trimmed to what the backend stores, or null when it is not acceptable. */
+    fun sanitize(submission: FeedbackSubmission): FeedbackSubmission? {
+        val message = submission.message.trim()
+        val contact = submission.contact?.trim()?.takeIf(String::isNotEmpty)
+        if (submission.kind !in kinds || submission.platform !in platforms) return null
+        if (message.isEmpty() || message.length > MAX_MESSAGE_LENGTH) return null
+        if (contact != null && contact.length > MAX_CONTACT_LENGTH) return null
+        return FeedbackSubmission(submission.kind, submission.platform, message, contact)
+    }
+}

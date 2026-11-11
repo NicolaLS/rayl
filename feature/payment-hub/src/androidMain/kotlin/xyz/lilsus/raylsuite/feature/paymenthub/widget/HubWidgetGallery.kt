@@ -30,9 +30,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -59,6 +65,18 @@ internal fun HubWidgetGallery(
     viewModel: WidgetHubViewModel,
     modifier: Modifier = Modifier
 ) {
+    var feedbackOpen by rememberSaveable { mutableStateOf(false) }
+    if (feedbackOpen) {
+        HubFeedbackSheet(
+            feedback = state.feedback,
+            onSend = viewModel::sendFeedback,
+            onClearError = viewModel::clearFeedbackError,
+            onDismiss = {
+                feedbackOpen = false
+                viewModel.clearFeedbackError()
+            }
+        )
+    }
     Box(contentAlignment = Alignment.TopCenter, modifier = modifier) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
@@ -103,7 +121,34 @@ internal fun HubWidgetGallery(
                     })
                 }
             }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                FeedbackPrompt(thanked = state.feedback.sentSerial > 0) { feedbackOpen = true }
+            }
         }
+    }
+}
+
+/** The way out of the gallery for someone who did not find their widget. */
+@Composable
+private fun FeedbackPrompt(thanked: Boolean, onClick: () -> Unit) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large)
+            .clickable(role = Role.Button, onClick = onClick)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(16.dp)
+    ) {
+        Text(
+            stringResource(R.string.hub_feedback_prompt),
+            style = MaterialTheme.typography.titleMedium
+        )
+        Text(
+            stringResource(
+                if (thanked) R.string.hub_feedback_thanks else R.string.hub_feedback_prompt_body
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

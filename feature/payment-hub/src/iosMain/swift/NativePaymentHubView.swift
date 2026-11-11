@@ -399,6 +399,7 @@ struct NativePaymentHubView: View {
 
 private struct HubEditorSheet: View {
     @ObservedObject var model: NativePaymentHubModel
+    @State private var givingFeedback = false
 
     var body: some View {
         NavigationStack(path: navigationPath) {
@@ -413,6 +414,31 @@ private struct HubEditorSheet: View {
                 }
             }
         }
+        .sheet(isPresented: $givingFeedback) {
+            HubFeedbackSheet(model: model)
+        }
+    }
+
+    /// The way out of the gallery for someone who did not find their widget.
+    private func feedbackPrompt(_ state: NativePaymentHubSnapshot) -> some View {
+        Button {
+            model.controller.clearFeedbackError()
+            givingFeedback = true
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.text.feedbackPrompt).font(.headline).foregroundStyle(.primary)
+                Text(state.feedback.sentSerial > 0 ? state.text.feedbackThanks : state.text.feedbackPromptBody)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .multilineTextAlignment(.leading)
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 4)
     }
 
     private var routes: [HubRoute] {
@@ -476,6 +502,7 @@ private struct HubEditorSheet: View {
                 gallerySection(state, title: state.text.sectionCollections, kinds: ["favorites", "recents"])
                 gallerySection(state, title: state.text.sectionInfo, kinds: ["rate", "sats"])
                 gallerySection(state, title: state.text.sectionAi, kinds: ["ppq"])
+                feedbackPrompt(state)
             }
             .padding(20)
             .frame(maxWidth: 700)
@@ -1552,6 +1579,87 @@ private struct HubPpqTopUpSheet: View {
         }
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(model.snapshot?.ppq.toppingUp == true)
+    }
+}
+
+/// Where a tester tells the developer what the Hub is missing.
+private struct HubFeedbackSheet: View {
+    @ObservedObject var model: NativePaymentHubModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var kind = "widget"
+    @State private var message = ""
+    @State private var contact = ""
+    @State private var openedAt: Int32
+
+    init(model: NativePaymentHubModel) {
+        self.model = model
+        _openedAt = State(initialValue: model.snapshot?.feedback.sentSerial ?? 0)
+    }
+
+    var body: some View {
+        NavigationStack {
+            if let state = model.snapshot {
+                let kinds = [
+                    ("widget", state.text.feedbackKindWidget),
+                    ("idea", state.text.feedbackKindIdea),
+                    ("problem", state.text.feedbackKindProblem),
+                    ("other", state.text.feedbackKindOther),
+                ]
+                Form {
+                    Section {
+                        Picker(state.text.feedbackTitle, selection: $kind) {
+                            ForEach(kinds, id: \.0) { Text($0.1).tag($0.0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                    } footer: {
+                        Text(state.text.feedbackBody)
+                    }
+                    Section {
+                        TextField(state.text.feedbackMessage, text: $message, axis: .vertical)
+                            .lineLimit(5...10)
+                    }
+                    Section {
+                        TextField(state.text.feedbackContact, text: $contact)
+                            .textContentType(.emailAddress)
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    } footer: {
+                        if state.feedback.failed {
+                            Text(state.text.feedbackError).foregroundStyle(.red)
+                        } else {
+                            Text(state.text.feedbackContactHint)
+                        }
+                    }
+                }
+                .disabled(state.feedback.sending)
+                .scrollDismissesKeyboard(.interactively)
+                .safeAreaInset(edge: .bottom) {
+                    HubPrimaryButton(title: state.text.feedbackSend, busy: state.feedback.sending) {
+                        if !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            model.controller.sendFeedback(kind: kind, message: String(message.prefix(2000)), contact: String(contact.prefix(200)))
+                        }
+                    }
+                }
+                .navigationTitle(state.text.feedbackTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { dismiss() } label: { Image(systemName: "xmark") }
+                            .accessibilityLabel(state.text.cancel)
+                            .disabled(state.feedback.sending)
+                    }
+                }
+                .onChange(of: message) { _, _ in model.controller.clearFeedbackError() }
+                .onChange(of: state.feedback.sentSerial) { _, value in
+                    if value != openedAt { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .interactiveDismissDisabled(model.snapshot?.feedback.sending == true)
     }
 }
 

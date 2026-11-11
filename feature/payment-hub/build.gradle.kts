@@ -15,6 +15,7 @@ kotlin {
             api(project(":core:settings"))
             api(project(":core:ui"))
             implementation(project(":core:network"))
+            implementation(project(":core:rayl-api"))
             implementation(libs.compose.runtime)
             api(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)

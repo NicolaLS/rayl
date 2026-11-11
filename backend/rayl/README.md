@@ -14,6 +14,15 @@ the backend drops the rest, stores no address or identifier, and cuts the arriva
 hour. Events go to the Postgres database named by `DATABASE_URL` (without it they are accepted
 and dropped). They are deleted after 90 days; per-day counts and percentiles are kept.
 
+Testers can send feedback from the Hub's "Add widget" screen to `POST /v1/feedback`: a kind
+(widget request, idea, problem, other), the platform, free text and an optional contact the tester
+typed. Nothing else comes with it, not even the app version. It goes to the `feedback` table in
+the same database and stays until deleted. Read it with:
+
+```sh
+backend/rayl/scripts/feedback.sh        # latest 50; `feedback.sh 200 widget` for more or one kind
+```
+
 Run locally on `127.0.0.1:8080`:
 
 ```sh

@@ -88,6 +88,14 @@ data class HubPpqAccount(
     }
 }
 
+/** The feedback form: whether a message is on its way and how the last one went. */
+data class HubFeedbackState(
+    val sending: Boolean = false,
+    val failed: Boolean = false,
+    /** Counts messages the backend kept, so an open form knows to close. */
+    val sentSerial: Int = 0
+)
+
 /** Both sides of the converter, as the text its two fields show. */
 data class HubConversion(val fiat: String, val sats: String)
 

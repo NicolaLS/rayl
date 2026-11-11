@@ -50,13 +50,21 @@ fun main() {
     }
     val board = PriceBoard(defaultPriceSources(http))
     val history = PriceHistoryBoard(KrakenHistorySource(http))
-    val telemetry = System.getenv("DATABASE_URL")?.takeIf(String::isNotBlank)?.let { url ->
-        PostgresTelemetryStore(PostgresTelemetryStore.connect(url))
+    val database = System.getenv("DATABASE_URL")?.takeIf(String::isNotBlank)
+        ?.let(PostgresTelemetryStore::connect)
+    val telemetry = database?.let(::PostgresTelemetryStore)
+    val feedback = database?.let(PostgresFeedbackStore::from)
+    if (telemetry ==
+        null
+    ) {
+        println(
+            "DATABASE_URL is not set: usage data is accepted and dropped, feedback is refused"
+        )
     }
-    if (telemetry == null) println("DATABASE_URL is not set: usage data is accepted and dropped")
     embeddedServer(CIO, host = host, port = port) {
         raylModule(
             telemetry,
+            feedback = feedback,
             bitcoinPriceHistory = history::history,
             bitcoinPrices = board::current
         )
@@ -66,17 +74,21 @@ fun main() {
                 delay(REFRESH_INTERVAL)
             }
         }
-        if (telemetry != null) launch { maintainTelemetry(telemetry) }
+        if (telemetry != null && feedback != null) launch { maintainTelemetry(telemetry, feedback) }
     }.start(wait = true)
 }
 
 /** Creates the tables, then folds and expires usage data once a day. Prices never wait for it. */
-private suspend fun maintainTelemetry(telemetry: PostgresTelemetryStore) {
+private suspend fun maintainTelemetry(
+    telemetry: PostgresTelemetryStore,
+    feedback: PostgresFeedbackStore
+) {
     var tablesCreated = false
     while (true) {
         val interval = try {
             if (!tablesCreated) {
                 telemetry.createTables()
+                feedback.createTables()
                 tablesCreated = true
             }
             telemetry.maintain(nowSeconds = System.currentTimeMillis() / 1_000)
@@ -94,6 +106,7 @@ private suspend fun maintainTelemetry(telemetry: PostgresTelemetryStore) {
 fun Application.raylModule(
     telemetry: TelemetryStore? = null,
     nowSeconds: () -> Long = { System.currentTimeMillis() / 1_000 },
+    feedback: FeedbackStore? = null,
     bitcoinPriceHistory: suspend (String) -> BitcoinPriceHistory? = { null },
     bitcoinPrices: () -> BitcoinPrices?
 ) {
@@ -102,9 +115,13 @@ fun Application.raylModule(
         register(TELEMETRY_RATE_LIMIT) {
             rateLimiter(limit = TELEMETRY_BATCHES_PER_MINUTE, refillPeriod = 1.minutes)
         }
+        register(FEEDBACK_RATE_LIMIT) {
+            rateLimiter(limit = FEEDBACK_PER_MINUTE, refillPeriod = 1.minutes)
+        }
     }
     routing {
         telemetryRoute(telemetry, nowSeconds)
+        feedbackRoute(feedback, nowSeconds)
         get(RaylApi.BITCOIN_PRICES_PATH) {
             val prices = bitcoinPrices()
             if (prices == null) {

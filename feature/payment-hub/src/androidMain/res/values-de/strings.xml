@@ -111,4 +111,18 @@
     <string name="hub_ppq_error_amount">Gib einen Betrag zwischen 0,10 $ und 1.000 $ ein.</string>
     <string name="hub_ppq_not_updated">Nicht aktualisiert</string>
     <string name="hub_ppq_key_rejected">Schlüssel abgelehnt</string>
+    <string name="hub_feedback_prompt">Nicht gefunden, was du suchst?</string>
+    <string name="hub_feedback_prompt_body">Sag uns, welches Widget fehlt.</string>
+    <string name="hub_feedback_thanks">Danke, deine Nachricht wurde gesendet.</string>
+    <string name="hub_feedback_title">Was fehlt in deinem Hub?</string>
+    <string name="hub_feedback_body">Wünsche ein Widget, teile eine Idee oder melde ein Problem. Es geht direkt an den Entwickler.</string>
+    <string name="hub_feedback_kind_widget">Widget</string>
+    <string name="hub_feedback_kind_idea">Idee</string>
+    <string name="hub_feedback_kind_problem">Problem</string>
+    <string name="hub_feedback_kind_other">Sonstiges</string>
+    <string name="hub_feedback_message">Deine Nachricht</string>
+    <string name="hub_feedback_contact">E-Mail oder Handle (optional)</string>
+    <string name="hub_feedback_contact_hint">Nur, wenn du eine Antwort möchtest. Wir senden nichts anderes über dich.</string>
+    <string name="hub_feedback_send">Senden</string>
+    <string name="hub_feedback_error">Senden fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.</string>
 </resources>

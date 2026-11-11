@@ -17,6 +17,8 @@ import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.HubGridSpan
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.gridRowCount
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.packHubGrid
+import xyz.lilsus.raylsuite.feature.paymenthub.feedback.HubFeedbackKind
+import xyz.lilsus.raylsuite.feature.paymenthub.feedback.KtorHubFeedbackApi
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqProblem
@@ -45,7 +47,8 @@ class NativePaymentHubController(
         repository = repository,
         host = host,
         defaultCurrencyCode = { currencyCode },
-        ppq = createHubPpqService(createSecureSettings(HubPpqService.STORAGE_NAME))
+        ppq = createHubPpqService(createSecureSettings(HubPpqService.STORAGE_NAME)),
+        feedbackApi = KtorHubFeedbackApi(platform = "ios")
     )
     private val snapshot = MutableStateFlow<NativePaymentHubSnapshot?>(null)
 
@@ -88,6 +91,14 @@ class NativePaymentHubController(
     fun topUpPpq(amount: String) = viewModel.topUpPpq(amount)
 
     fun clearPpqTopUpError() = viewModel.clearPpqTopUpError()
+
+    /** [kind] is one of widget, idea, problem and other. */
+    fun sendFeedback(kind: String, message: String, contact: String) {
+        val chosen = HubFeedbackKind.entries.firstOrNull { it.wire == kind } ?: return
+        viewModel.sendFeedback(chosen, message, contact)
+    }
+
+    fun clearFeedbackError() = viewModel.clearFeedbackError()
 
     /** Both converter fields after the user typed [input] into the fiat one. */
     fun convertFiat(currencyCode: String, input: String): NativeHubConversion =
@@ -299,6 +310,11 @@ class NativePaymentHubController(
             },
             contactSavedSerial = state.contactSavedSerial,
             addsWithoutSetup = state.addsWithoutSetup,
+            feedback = NativeHubFeedback(
+                sending = state.feedback.sending,
+                failed = state.feedback.failed,
+                sentSerial = state.feedback.sentSerial
+            ),
             ppq = NativeHubPpq(
                 balance = state.ppq.balanceAmount()?.let {
                     localized("hub_ppq_balance") + " · " + currentAmountFormatter().format(it)
@@ -539,8 +555,12 @@ data class NativePaymentHubSnapshot(
     val contactSavedSerial: Int,
     /** Choosing a layout already adds the widget, so that screen offers "Add" not "Continue". */
     val addsWithoutSetup: Boolean,
-    val ppq: NativeHubPpq
+    val ppq: NativeHubPpq,
+    val feedback: NativeHubFeedback
 )
+
+/** The feedback form's progress. [sentSerial] changes when a message arrived, which closes it. */
+data class NativeHubFeedback(val sending: Boolean, val failed: Boolean, val sentSerial: Int)
 
 /** The ppq.ai account as the top-up sheet shows it. */
 data class NativeHubPpq(
@@ -678,6 +698,20 @@ data class NativePaymentHubCopy(
     val sectionCollections: String,
     val sectionInfo: String,
     val sectionAi: String,
+    val feedbackPrompt: String,
+    val feedbackPromptBody: String,
+    val feedbackThanks: String,
+    val feedbackTitle: String,
+    val feedbackBody: String,
+    val feedbackKindWidget: String,
+    val feedbackKindIdea: String,
+    val feedbackKindProblem: String,
+    val feedbackKindOther: String,
+    val feedbackMessage: String,
+    val feedbackContact: String,
+    val feedbackContactHint: String,
+    val feedbackSend: String,
+    val feedbackError: String,
     val currency: String,
     val apiKey: String,
     val convert: String,
@@ -727,6 +761,20 @@ private fun loadCopy() = NativePaymentHubCopy(
     sectionCollections = localized("hub_widget_section_collections"),
     sectionInfo = localized("hub_widget_section_info"),
     sectionAi = localized("hub_widget_section_ai"),
+    feedbackPrompt = localized("hub_feedback_prompt"),
+    feedbackPromptBody = localized("hub_feedback_prompt_body"),
+    feedbackThanks = localized("hub_feedback_thanks"),
+    feedbackTitle = localized("hub_feedback_title"),
+    feedbackBody = localized("hub_feedback_body"),
+    feedbackKindWidget = localized("hub_feedback_kind_widget"),
+    feedbackKindIdea = localized("hub_feedback_kind_idea"),
+    feedbackKindProblem = localized("hub_feedback_kind_problem"),
+    feedbackKindOther = localized("hub_feedback_kind_other"),
+    feedbackMessage = localized("hub_feedback_message"),
+    feedbackContact = localized("hub_feedback_contact"),
+    feedbackContactHint = localized("hub_feedback_contact_hint"),
+    feedbackSend = localized("hub_feedback_send"),
+    feedbackError = localized("hub_feedback_error"),
     currency = localized("hub_widget_currency"),
     apiKey = localized("hub_ppq_api_key"),
     convert = localized("hub_converter_title"),

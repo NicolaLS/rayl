@@ -111,4 +111,18 @@
     <string name="hub_ppq_error_amount">Enter between $0.10 and $1,000.</string>
     <string name="hub_ppq_not_updated">Not updated</string>
     <string name="hub_ppq_key_rejected">Key rejected</string>
+    <string name="hub_feedback_prompt">Can\'t find what you\'re looking for?</string>
+    <string name="hub_feedback_prompt_body">Tell us which widget is missing.</string>
+    <string name="hub_feedback_thanks">Thank you, your message was sent.</string>
+    <string name="hub_feedback_title">What\'s missing from your Hub?</string>
+    <string name="hub_feedback_body">Request a widget, share an idea or report a problem. It goes straight to the developer.</string>
+    <string name="hub_feedback_kind_widget">Widget</string>
+    <string name="hub_feedback_kind_idea">Idea</string>
+    <string name="hub_feedback_kind_problem">Problem</string>
+    <string name="hub_feedback_kind_other">Other</string>
+    <string name="hub_feedback_message">Your message</string>
+    <string name="hub_feedback_contact">Email or handle (optional)</string>
+    <string name="hub_feedback_contact_hint">Only if you\'d like a reply. We send nothing else about you.</string>
+    <string name="hub_feedback_send">Send</string>
+    <string name="hub_feedback_error">Could not send. Check your connection and try again.</string>
 </resources>

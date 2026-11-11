@@ -1,6 +1,6 @@
 # Rayl Privacy Policy
 
-Last updated: November 11, 2026
+Last updated: November 12, 2026
 
 This policy covers **Rayl** for Android and iOS, maintained by **Bitcoin Coast**
 ("we" or "the maintainer"). For privacy questions or requests, contact
@@ -49,6 +49,18 @@ anything not yet sent.
   not used for advertising.
 
 Rayl 1.1 and earlier, and debug and test builds, do not send usage data.
+
+## Feedback you choose to send
+
+The Hub's "Add widget" screen offers a form to tell us which widget is missing
+or to share an idea or problem. Nothing is sent unless you press **Send**. We
+receive what you wrote, the kind of message you chose, whether you use Android
+or iOS, the time it arrived, and the email or handle you typed if you chose to
+add one. We do not receive your IP address, wallet, contacts, or payments with
+it, so please do not write secrets in the message. It is stored in the same
+database as the usage data above, readable only by us, and kept until we delete
+it. Ask us at the address above to delete a message and we will, if you tell
+us roughly when you sent it and what it said.
 
 ## Information stored on your device
 
@@ -131,7 +143,8 @@ under its own terms and privacy policy.
 - **Rayl backend:** Rayl requests aggregated Bitcoin exchange rates from the
   Rayl backend to show amounts in your display currency, and the last day of
   prices for the Hub's exchange rate widget. It also sends the backend the
-  anonymous usage data described above unless you turned that off. These
+  anonymous usage data described above unless you turned that off, and the
+  feedback described above when you send it. These
   requests contain no wallet credentials, contacts, payment history, or user
   identifiers.
 - **ppq.ai (PPQ.AI widget only):** If you add a PPQ.AI widget, Rayl sends your

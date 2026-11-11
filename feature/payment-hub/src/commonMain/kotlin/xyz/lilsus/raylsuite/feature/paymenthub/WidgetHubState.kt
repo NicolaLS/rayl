@@ -5,6 +5,7 @@ import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.model.StoredAmount
 import xyz.lilsus.raylsuite.feature.paymenthub.create.hasFractionForWholeCurrency
 import xyz.lilsus.raylsuite.feature.paymenthub.create.parseMinorAmount
+import xyz.lilsus.raylsuite.feature.paymenthub.live.HubFeedbackState
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqAccount
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubRate
 
@@ -112,7 +113,8 @@ data class WidgetHubState(
     val ratesUnavailable: Boolean = false,
     /** The fiat currency a new Rate or Sats widget starts with. */
     val defaultFiatCode: String = "USD",
-    val ppq: HubPpqAccount = HubPpqAccount()
+    val ppq: HubPpqAccount = HubPpqAccount(),
+    val feedback: HubFeedbackState = HubFeedbackState()
 ) {
     /**
      * Whether choosing a layout already adds the widget. Every new widget is: it starts with its
