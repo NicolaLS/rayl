@@ -1,10 +1,6 @@
 package xyz.lilsus.raylsuite.backend.rayl
 
 import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.isSuccess
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -95,12 +91,6 @@ class BlockchainInfoSource(private val http: HttpClient) : PriceSource {
                 (ticker as? JsonObject)?.get("last")?.number()?.let { code to it }
             }.toMap()
     }
-}
-
-private suspend fun HttpClient.getJson(url: String): JsonElement {
-    val response = get(url)
-    check(response.status.isSuccess()) { "HTTP ${response.status.value} from $url" }
-    return Json.parseToJsonElement(response.bodyAsText())
 }
 
 /** Accepts JSON numbers and numeric strings, since upstreams use both. */

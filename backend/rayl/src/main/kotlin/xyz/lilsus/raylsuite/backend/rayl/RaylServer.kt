@@ -1,9 +1,6 @@
 package xyz.lilsus.raylsuite.backend.rayl
 
-import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.UserAgent
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -44,10 +41,7 @@ fun main() {
     val host = System.getenv("HOST") ?: "127.0.0.1"
     val port = (System.getenv("PORT") ?: "8080").toInt()
     require(port in 1..65_535) { "PORT must be between 1 and 65535" }
-    val http = HttpClient(OkHttp) {
-        install(HttpTimeout) { requestTimeoutMillis = 10_000 }
-        install(UserAgent) { agent = "rayl-backend" }
-    }
+    val http = upstreamHttpClient(OkHttp.create())
     val board = PriceBoard(defaultPriceSources(http))
     val history = PriceHistoryBoard(KrakenHistorySource(http))
     val database = System.getenv("DATABASE_URL")?.takeIf(String::isNotBlank)

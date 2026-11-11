@@ -60,6 +60,20 @@ class PriceBoardTest {
     }
 
     @Test
+    fun aSourceThatThrowsAnErrorCostsOnlyItsOwnQuotes() = runTest {
+        val overflowing = object : PriceSource {
+            override val name = "overflowing"
+            override suspend fun fetch(): Map<String, Double> = throw StackOverflowError()
+        }
+        val board = board(overflowing, FakeSource("steady", mapOf("USD" to 110.0)))
+
+        board.refresh()
+        board.refresh()
+
+        assertEquals(mapOf("USD" to 110.0), board.current()?.prices)
+    }
+
+    @Test
     fun nothingFreshMeansNoPrices() = runTest {
         val source = FakeSource("a", mapOf("USD" to 100.0))
         val board = board(source)

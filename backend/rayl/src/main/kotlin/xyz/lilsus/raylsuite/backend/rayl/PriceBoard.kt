@@ -33,8 +33,9 @@ class PriceBoard(
                     snapshots[source.name] = Snapshot(quotes, clock())
                 } catch (cancellation: CancellationException) {
                     throw cancellation
-                } catch (failure: Exception) {
-                    log("${source.name} failed: ${failure.message}")
+                } catch (failure: Throwable) {
+                    // An Error from one source must not cancel the others or end the refresh.
+                    log("${source.name} failed: ${failure.logLine()}")
                 }
             }
         }.awaitAll()

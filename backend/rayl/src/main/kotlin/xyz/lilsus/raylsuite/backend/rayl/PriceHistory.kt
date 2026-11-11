@@ -1,15 +1,11 @@
 package xyz.lilsus.raylsuite.backend.rayl
 
 import io.ktor.client.HttpClient
-import io.ktor.client.request.get
 import io.ktor.client.request.parameter
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.isSuccess
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -62,8 +58,9 @@ class PriceHistoryBoard(
         Chart(prices, now)
     } catch (cancellation: CancellationException) {
         throw cancellation
-    } catch (failure: Exception) {
-        log("price history for $currency failed: ${failure.message}")
+    } catch (failure: Throwable) {
+        // Any failure, an Error included, costs one chart and never the service.
+        log("price history for $currency failed: ${failure.logLine()}")
         null
     }
 
@@ -78,15 +75,13 @@ class PriceHistoryBoard(
 }
 
 class KrakenHistorySource(private val http: HttpClient) : PriceHistorySource {
-    override suspend fun fetch(currency: String, sinceSeconds: Long): List<Double> {
-        val response = http.get("https://api.kraken.com/0/public/OHLC") {
+    override suspend fun fetch(currency: String, sinceSeconds: Long): List<Double> = parse(
+        http.getJson("https://api.kraken.com/0/public/OHLC") {
             parameter("pair", "XBT$currency")
             parameter("interval", PriceHistoryBoard.INTERVAL_SECONDS / 60)
             parameter("since", sinceSeconds)
         }
-        check(response.status.isSuccess()) { "HTTP ${response.status.value} from kraken" }
-        return parse(Json.parseToJsonElement(response.bodyAsText()))
-    }
+    )
 
     companion object {
         /**
