@@ -33,6 +33,9 @@ private val TELEMETRY_MAINTENANCE_RETRY = 1.minutes
 /** At most this many usage-data batches per minute, over all senders. */
 private const val TELEMETRY_BATCHES_PER_MINUTE = 600
 
+/** At most this many from one sender. An app sends one when it is left and one after a scan. */
+internal const val TELEMETRY_BATCHES_PER_CLIENT_MINUTE = 20
+
 /**
  * Railway sets `PORT`; the container image sets `HOST=0.0.0.0`. `DATABASE_URL` names the Postgres
  * database for usage data; without it, batches are accepted and dropped.
@@ -106,8 +109,16 @@ fun Application.raylModule(
 ) {
     install(ContentNegotiation) { json() }
     install(RateLimit) {
+        register(TELEMETRY_CLIENT_RATE_LIMIT) {
+            rateLimiter(limit = TELEMETRY_BATCHES_PER_CLIENT_MINUTE, refillPeriod = 1.minutes)
+            requestKey { it.clientKey() }
+        }
         register(TELEMETRY_RATE_LIMIT) {
             rateLimiter(limit = TELEMETRY_BATCHES_PER_MINUTE, refillPeriod = 1.minutes)
+        }
+        register(FEEDBACK_CLIENT_RATE_LIMIT) {
+            rateLimiter(limit = FEEDBACK_PER_CLIENT_MINUTE, refillPeriod = 1.minutes)
+            requestKey { it.clientKey() }
         }
         register(FEEDBACK_RATE_LIMIT) {
             rateLimiter(limit = FEEDBACK_PER_MINUTE, refillPeriod = 1.minutes)

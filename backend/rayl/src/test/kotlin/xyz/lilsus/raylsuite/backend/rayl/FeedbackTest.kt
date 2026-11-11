@@ -1,5 +1,6 @@
 package xyz.lilsus.raylsuite.backend.rayl
 
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -22,8 +23,13 @@ class FeedbackTest {
         block()
     }
 
-    private suspend fun ApplicationTestBuilder.send(body: String): HttpResponse =
-        client.post(RaylApi.FEEDBACK_PATH) { setBody(body) }
+    private suspend fun ApplicationTestBuilder.send(
+        body: String,
+        sender: String = "203.0.113.1"
+    ): HttpResponse = client.post(RaylApi.FEEDBACK_PATH) {
+        header(CLIENT_ADDRESS_HEADER, sender)
+        setBody(body)
+    }
 
     @Test
     fun keepsWhatTheFormSendsAndNothingElse() = feedbackTest {
@@ -61,7 +67,11 @@ class FeedbackTest {
             """{"kind":"widget","platform":"windows","message":"hi"}""",
             """{"kind":"widget","platform":"ios","message":"$tooLong"}""",
             """{"kind":"widget","platform":"ios","message":"hi","contact":"${"c".repeat(201)}"}"""
-        ).forEach { assertEquals(HttpStatusCode.BadRequest, send(it).status, it.take(40)) }
+        ).forEachIndexed { case, body ->
+            // One sender each, so the limit per sender stays out of this test.
+            val status = send(body, sender = "203.0.113.$case").status
+            assertEquals(HttpStatusCode.BadRequest, status, body.take(40))
+        }
         assertEquals(emptyList(), stored)
     }
 

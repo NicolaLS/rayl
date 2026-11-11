@@ -23,6 +23,22 @@ the same database and stays until deleted. Read it with:
 tools/feedback/feedback.sh        # latest 50; `feedback.sh 200 widget` for more or one kind
 ```
 
+## Rate limits
+
+Usage data and feedback are limited per sender first (20 batches and 5 messages a minute), then
+over all senders (600 and 30 a minute). A sender over its own limit is refused before it can use
+up what the others share. Prices are not limited; they are served from memory.
+
+The sender is the address Railway's edge reports in `X-Real-IP`, with an IPv6 address cut to its
+/64. It is held in the limiter's memory for about a minute and is never logged or stored. The
+limiters live in the one running instance; with more than one replica each would count on its own.
+
+What this does not stop: many addresses together can still reach the limits over all senders,
+which blocks usage data and feedback for everyone and adds up to 120,000 rows a minute while it
+lasts. That is accepted. Anonymous data cannot be tied to an installation, so there is nothing
+stronger to limit by. Revisit if junk shows up in the dashboard or the database grows faster
+than the 90-day expiry removes.
+
 Run locally on `127.0.0.1:8080`:
 
 ```sh

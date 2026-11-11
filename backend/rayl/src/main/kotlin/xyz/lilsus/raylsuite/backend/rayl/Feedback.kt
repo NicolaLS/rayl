@@ -4,7 +4,6 @@ import com.zaxxer.hikari.HikariDataSource
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
-import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -35,10 +34,14 @@ fun interface FeedbackStore {
 }
 
 internal val FEEDBACK_RATE_LIMIT = RateLimitName("feedback")
+internal val FEEDBACK_CLIENT_RATE_LIMIT = RateLimitName("feedback-client")
 internal const val FEEDBACK_MAX_BODY_BYTES = 16L * 1024
 
 /** At most this many messages per minute, over all senders. */
 internal const val FEEDBACK_PER_MINUTE = 30
+
+/** At most this many from one sender. */
+internal const val FEEDBACK_PER_CLIENT_MINUTE = 5
 
 private val feedbackJson = Json { ignoreUnknownKeys = true }
 
@@ -47,7 +50,7 @@ private val feedbackJson = Json { ignoreUnknownKeys = true }
  * cannot be kept, so the app can tell the tester to try again.
  */
 internal fun Route.feedbackRoute(store: FeedbackStore?, nowSeconds: () -> Long) {
-    rateLimit(FEEDBACK_RATE_LIMIT) {
+    rateLimited(perClient = FEEDBACK_CLIENT_RATE_LIMIT, overall = FEEDBACK_RATE_LIMIT) {
         route(RaylApi.FEEDBACK_PATH) {
             install(RequestBodyLimit) { bodyLimit { FEEDBACK_MAX_BODY_BYTES } }
             post {

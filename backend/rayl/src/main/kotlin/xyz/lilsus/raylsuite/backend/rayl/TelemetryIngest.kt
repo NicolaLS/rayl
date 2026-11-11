@@ -3,7 +3,6 @@ package xyz.lilsus.raylsuite.backend.rayl
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
-import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -37,6 +36,7 @@ fun interface TelemetryStore {
 }
 
 internal val TELEMETRY_RATE_LIMIT = RateLimitName("telemetry")
+internal val TELEMETRY_CLIENT_RATE_LIMIT = RateLimitName("telemetry-client")
 internal const val TELEMETRY_MAX_BODY_BYTES = 64L * 1024
 
 private const val SECONDS_PER_HOUR = 3_600L
@@ -48,7 +48,7 @@ private val telemetryJson = Json { ignoreUnknownKeys = true }
  * [store], everything is dropped.
  */
 internal fun Route.telemetryRoute(store: TelemetryStore?, nowSeconds: () -> Long) {
-    rateLimit(TELEMETRY_RATE_LIMIT) {
+    rateLimited(perClient = TELEMETRY_CLIENT_RATE_LIMIT, overall = TELEMETRY_RATE_LIMIT) {
         route(RaylApi.TELEMETRY_PATH) {
             install(RequestBodyLimit) { bodyLimit { TELEMETRY_MAX_BODY_BYTES } }
             post {
