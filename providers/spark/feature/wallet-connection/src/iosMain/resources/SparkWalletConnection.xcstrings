@@ -283,19 +283,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Durch den Import einer Wiederherstellungsphrase erhält %1$@ Ausgabeberechtigung. Behalte deine primäre Wallet für Wiederherstellung und vollständige Verwaltung installiert."
+            "value" : "Gib die Wiederherstellungsphrase deiner Spark-Wallet ein. %1$@ kann dann daraus bezahlen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Importing a recovery phrase gives %1$@ spending authority. Keep your primary wallet installed for recovery and full wallet management."
+            "value" : "Enter the recovery phrase of your Spark wallet. %1$@ can then spend from it."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Importar una frase de recuperación otorga a %1$@ autorización para gastar. Conserva tu billetera principal instalada para recuperar y administrar la billetera por completo."
+            "value" : "Introduce la frase de recuperación de tu billetera Spark. %1$@ podrá gastar desde ella."
           }
         }
       }
@@ -306,19 +306,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spark-Wallet hinzufügen"
+            "value" : "Spark"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add Spark Wallet"
+            "value" : "Spark"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Añadir billetera Spark"
+            "value" : "Spark"
           }
         }
       }
@@ -733,29 +733,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reintentar"
-          }
-        }
-      }
-    },
-    "spark_wallet_storage_note" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mit dem sicheren Anmeldedatenspeicher dieses Geräts geschützt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Protected using this device's secure credential storage."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Protegida con el almacenamiento seguro de credenciales de este dispositivo."
           }
         }
       }

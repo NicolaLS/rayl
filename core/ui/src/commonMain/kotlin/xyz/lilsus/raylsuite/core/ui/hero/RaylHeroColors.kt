@@ -7,8 +7,8 @@ package xyz.lilsus.raylsuite.core.ui.hero
 object RaylHeroColorTokens {
     const val ON_SURFACE_VARIANT_LIGHT = 0xFF425A6BL
     const val ON_SURFACE_VARIANT_DARK = 0xFFB8C7D5L
-    const val PRIMARY_LIGHT = 0xFFF7931AL
-    const val PRIMARY_DARK = 0xFFF7931AL
+    const val PRIMARY_LIGHT = 0xFF2B66CFL
+    const val PRIMARY_DARK = 0xFF8DB6FFL
     const val TERTIARY_LIGHT = 0xFF006B52L
     const val TERTIARY_DARK = 0xFF4DE2B2L
     const val ERROR_LIGHT = 0xFFBA1A1AL

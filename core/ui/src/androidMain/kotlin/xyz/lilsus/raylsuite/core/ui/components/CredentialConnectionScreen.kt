@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,17 +16,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +52,12 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import xyz.lilsus.raylsuite.core.ui.R
 
-/** Shared connection chrome; providers own credentials, validation and connection work. */
+/**
+ * Shared connection chrome; providers own credentials, validation and connection work. [onBack]
+ * leaves the setup. [connectionNotice] is for what connecting does beyond storing the
+ * credential; [onShowInstructions] is offered, before the form, only where getting the credential
+ * needs a guide.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CredentialConnectionScreen(
@@ -62,13 +68,13 @@ fun CredentialConnectionScreen(
     isSubmitting: Boolean,
     onSubmit: () -> Unit,
     onBack: (() -> Unit)?,
-    onShowInstructions: (() -> Unit)?,
-    privacyPolicyUrl: String?,
-    termsUrl: String?,
     modifier: Modifier = Modifier,
     actionModifier: Modifier = Modifier,
     instructionsTitle: String? = null,
+    onShowInstructions: (() -> Unit)? = null,
     connectionNotice: String? = null,
+    privacyPolicyUrl: String? = null,
+    termsUrl: String? = null,
     termsTitle: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -83,27 +89,35 @@ fun CredentialConnectionScreen(
             )
         },
         bottomBar = {
-            Box(
+            Column(
                 modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding(),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Button(
+                AppPrimaryButton(
+                    text = actionTitle,
                     onClick = {
                         focusManager.clearFocus(force = true)
                         if (canSubmit) onSubmit()
                     },
                     enabled = canSubmit,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = actionModifier.widthIn(max = 608.dp).fillMaxWidth()
-                        .padding(24.dp).heightIn(min = 48.dp)
+                    isWorking = isSubmitting,
+                    modifier = actionModifier.widthIn(max = 608.dp)
+                        .padding(start = 24.dp, end = 24.dp, top = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.heightIn(min = 24.dp).padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    if (isSubmitting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(end = 8.dp).size(18.dp),
-                            strokeWidth = 2.dp
-                        )
+                    privacyPolicyUrl?.let { url ->
+                        LegalLink(stringResource(R.string.credential_privacy)) {
+                            uriHandler.openUri(url)
+                        }
                     }
-                    Text(actionTitle, style = MaterialTheme.typography.titleMedium)
+                    termsUrl?.let { url ->
+                        LegalLink(termsTitle ?: stringResource(R.string.credential_terms)) {
+                            uriHandler.openUri(url)
+                        }
+                    }
                 }
             }
         }
@@ -111,47 +125,72 @@ fun CredentialConnectionScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             Column(
                 modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 608.dp)
-                    .fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .fillMaxSize().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
                     description,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                onShowInstructions?.let {
-                    TextButton(onClick = it, enabled = !isSubmitting) {
-                        Text(instructionsTitle ?: stringResource(R.string.credential_instructions))
-                    }
-                }
-                Column {
-                    Text(
-                        connectionNotice ?: stringResource(R.string.credential_connection_notice),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        privacyPolicyUrl?.let { url ->
-                            TextButton(
-                                onClick = { uriHandler.openUri(url) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(stringResource(R.string.credential_privacy))
-                            }
-                        }
-                        termsUrl?.let { url ->
-                            TextButton(
-                                onClick = { uriHandler.openUri(url) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(termsTitle ?: stringResource(R.string.credential_terms))
-                            }
-                        }
+                if (instructionsTitle != null && onShowInstructions != null) {
+                    TextButton(
+                        onClick = onShowInstructions,
+                        enabled = !isSubmitting,
+                        contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 8.dp).size(18.dp)
+                        )
+                        Text(instructionsTitle)
                     }
                 }
                 content()
+                connectionNotice?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun LegalLink(title: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/** Fills a credential from the clipboard; pasting is how most credentials arrive. */
+@Composable
+fun CredentialPasteButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 16.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.ContentPaste,
+            contentDescription = null,
+            modifier = Modifier.padding(end = 8.dp).size(18.dp)
+        )
+        Text(stringResource(R.string.credential_paste))
     }
 }
 
@@ -170,7 +209,7 @@ fun CredentialInput(
 ) {
     var visible by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
@@ -212,12 +251,6 @@ fun CredentialInput(
                 }
             }
         )
-        TextButton(
-            onClick = onPaste,
-            enabled = enabled,
-            modifier = pasteModifier.align(Alignment.End)
-        ) {
-            Text(stringResource(R.string.credential_paste))
-        }
+        CredentialPasteButton(onClick = onPaste, modifier = pasteModifier, enabled = enabled)
     }
 }

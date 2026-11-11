@@ -32,22 +32,18 @@ import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingText
 
 data class NwcNativeOnboardingSnapshot(
     val step: String,
+    val canCancel: Boolean,
     val credentialText: NativeCredentialText,
     val privacyPolicyUrl: String?,
     val termsUrl: String?,
     val settingsFlow: Boolean,
     val connectionOnly: Boolean,
-    val stepIndex: Int,
-    val stepCount: Int,
     val backTitle: String,
     val agreementTitle: String,
     val agreementBody: String,
     val agreementCheckboxTitle: String,
     val agreementNextTitle: String,
     val hasAgreed: Boolean,
-    val instructionsTitle: String,
-    val instructionsIntro: String,
-    val instructionSteps: List<String>,
     val connectWalletTitle: String,
     val addTitle: String,
     val addDescription: String,
@@ -217,11 +213,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         moveTo(STEP_WALLET)
     }
 
-    fun showWalletInstructions() {
-        if (confirmationPresented) return
-        moveTo(STEP_INSTRUCTIONS)
-    }
-
     fun updateUri(uri: String) {
         if (confirmationPresented) return
         clipboard.retainFor(uri)
@@ -298,9 +289,9 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         scope.launch { publishSnapshot() }
     }
 
-    fun back() {
-        when (currentStep) {
-            STEP_INSTRUCTIONS -> moveTo(STEP_WALLET)
+    fun cancelSetup() {
+        if (runtime.canAcceptWalletInput && runtime.nwcWallet.connection.value == null) {
+            runtime.removeWallet()
         }
     }
 
@@ -405,22 +396,20 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         snapshot.value =
             NwcNativeOnboardingSnapshot(
                 step = currentStep,
+                canCancel =
+                    !settingsFlow && runtime.canAcceptWalletInput &&
+                        runtime.nwcWallet.connection.value == null,
                 credentialText = nativeCredentialText(),
                 privacyPolicyUrl = runtime.configuration.legalLinks.privacyPolicyUrl,
                 termsUrl = runtime.configuration.legalLinks.termsUrl,
                 settingsFlow = settingsFlow,
                 connectionOnly = connectionOnly,
-                stepIndex = 0,
-                stepCount = 0,
                 backTitle = common.back,
                 agreementTitle = common.agreementTitle,
                 agreementBody = nwc.agreementBody,
                 agreementCheckboxTitle = common.agreementCheckbox,
                 agreementNextTitle = common.agreementContinue,
                 hasAgreed = state.hasAgreed,
-                instructionsTitle = nwc.instructionsTitle,
-                instructionsIntro = nwc.instructionsIntro,
-                instructionSteps = nwc.instructionSteps,
                 connectWalletTitle = wallet.addTitle,
                 addTitle = wallet.addTitle,
                 addDescription = wallet.addDescription,
@@ -476,7 +465,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
 
     private companion object {
         const val STEP_AGREEMENT = "agreement"
-        const val STEP_INSTRUCTIONS = "instructions"
         const val STEP_WALLET = "wallet"
     }
 }

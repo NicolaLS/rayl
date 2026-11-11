@@ -19,6 +19,8 @@ import xyz.lilsus.rayl.providers.blink.feature.walletconnection.nativeBlinkWalle
 import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWallet
 import xyz.lilsus.rayl.providers.blink.ui.nativeBlinkErrorMessageFor
 import xyz.lilsus.raylsuite.core.ui.platform.CredentialClipboard
+import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
+import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
 import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingText
 import xyz.lilsus.raylsuite.feature.settings.SettingsLegalLinks
@@ -33,8 +35,8 @@ data class BlinkNativeOnboardingPage(
 data class BlinkNativeOnboardingSnapshot(
     val step: String,
     val canGoBack: Boolean,
-    val stepIndex: Int,
-    val stepCount: Int,
+    val canCancel: Boolean,
+    val cancelTitle: String,
     val backTitle: String,
     val agreementTitle: String,
     val agreementBody: String,
@@ -86,7 +88,8 @@ class BlinkNativeOnboardingController internal constructor(
     private val appName: String,
     private val legalLinks: SettingsLegalLinks,
     private val progress: BlinkOnboardingState,
-    private val canConnectWallet: () -> Boolean
+    private val canConnectWallet: () -> Boolean,
+    private val onCancelSetup: () -> Unit = {}
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val addWallet = AddBlinkWalletViewModel(blinkWallet)
@@ -187,6 +190,10 @@ class BlinkNativeOnboardingController internal constructor(
         }
     }
 
+    fun cancelSetup() {
+        if (canConnectWallet() && blinkWallet.connection.value == null) onCancelSetup()
+    }
+
     fun clear() {
         addWallet.clear()
         clipboard.discard()
@@ -235,12 +242,18 @@ class BlinkNativeOnboardingController internal constructor(
                 )
             }
         val currentStep = currentStep()
+        val cancelTitle =
+            nativeString(
+                NativeStringResource("WalletManagement", "settings_manage_wallet_cancel")
+            )
         snapshot.value =
             BlinkNativeOnboardingSnapshot(
                 step = currentStep,
                 canGoBack = currentStep == STEP_INSTRUCTIONS,
-                stepIndex = 0,
-                stepCount = 0,
+                canCancel =
+                    currentStep != STEP_INSTRUCTIONS && canConnectWallet() &&
+                        blinkWallet.connection.value == null && !walletState.isSaving,
+                cancelTitle = cancelTitle,
                 backTitle = common.back,
                 agreementTitle = common.agreementTitle,
                 agreementBody = blink.agreementBody,

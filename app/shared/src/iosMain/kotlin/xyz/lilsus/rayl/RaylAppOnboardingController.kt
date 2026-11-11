@@ -19,21 +19,19 @@ import xyz.lilsus.raylsuite.feature.onboarding.OnboardingUiState
 import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingText
 import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingThresholdLabel
 
-data class RaylAppOnboardingPage(val title: String, val subtitle: String, val body: String)
+/** One thing Rayl does for the user, shown on the welcome. */
+data class RaylAppOnboardingBenefit(val title: String, val body: String)
 
 data class RaylAppOnboardingSnapshot(
-    /** `welcome`, `features`, `autoPay`, or `complete`. */
+    /** `welcome`, `autoPay`, or `complete`. */
     val step: String,
     val canGoBack: Boolean,
-    val stepIndex: Int,
-    val stepCount: Int,
     val backTitle: String,
     val welcomeTitle: String,
     val welcomeBody: String,
     val getStartedTitle: String,
-    val featurePages: List<RaylAppOnboardingPage>,
-    val featurePage: Int,
-    val featuresNextTitle: String,
+    /** In order: scanning, Auto Pay, the balance. */
+    val benefits: List<RaylAppOnboardingBenefit>,
     val autoPayTitle: String,
     val autoPayBody: String,
     val autoPayAlwaysTitle: String,
@@ -68,11 +66,7 @@ class RaylAppOnboardingController internal constructor(
         return { job.cancel() }
     }
 
-    fun getStarted() = onboarding.moveTo(AppOnboardingStep.Features)
-
-    fun setFeaturePage(page: Int) = model().viewModel.setFeaturesPage(page)
-
-    fun continueFeatures() = onboarding.moveTo(AppOnboardingStep.AutoPay)
+    fun getStarted() = onboarding.moveTo(AppOnboardingStep.AutoPay)
 
     fun setConfirmationMode(value: String) = model().viewModel.setConfirmationMode(
         if (value == CONFIRMATION_ALWAYS) {
@@ -106,26 +100,20 @@ class RaylAppOnboardingController internal constructor(
         return RaylAppOnboardingSnapshot(
             step = when (step) {
                 AppOnboardingStep.Welcome -> "welcome"
-                AppOnboardingStep.Features -> "features"
                 AppOnboardingStep.AutoPay -> "autoPay"
                 AppOnboardingStep.Complete -> "complete"
             },
-            canGoBack = step == AppOnboardingStep.Features || step == AppOnboardingStep.AutoPay,
-            stepIndex = step.progressIndex(),
-            stepCount = APP_ONBOARDING_PROGRESS_STEPS,
+            canGoBack = step == AppOnboardingStep.AutoPay,
             backTitle = common.back,
             welcomeTitle = text("welcome_title"),
             welcomeBody = text("welcome_body"),
             getStartedTitle = text("get_started"),
-            featurePages = (1..3).map { page ->
-                RaylAppOnboardingPage(
-                    title = text("onboarding_page${page}_title"),
-                    subtitle = text("onboarding_page${page}_subtitle"),
-                    body = text("onboarding_page${page}_body")
+            benefits = listOf("scan", "autopay", "balance").map { benefit ->
+                RaylAppOnboardingBenefit(
+                    title = text("welcome_${benefit}_title"),
+                    body = text("welcome_${benefit}_body")
                 )
             },
-            featurePage = state.featuresPage,
-            featuresNextTitle = common.featuresContinue,
             autoPayTitle = common.autoPayTitle,
             autoPayBody = text("onboarding_autopay_body"),
             autoPayAlwaysTitle = common.autoPayAlways,

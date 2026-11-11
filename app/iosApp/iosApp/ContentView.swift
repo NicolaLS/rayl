@@ -16,12 +16,6 @@ struct ContentView: View {
         Group {
             if let snapshot = model.snapshot {
                 VStack(spacing: 0) {
-                    if snapshot.canCancelSetup {
-                        HStack {
-                            Button(snapshot.text["cancel_setup"] ?? "") { RaylIosApp.shared.cancelSetup() }
-                            Spacer()
-                        }.padding()
-                    }
                     if snapshot.preparingWallets {
                         VStack(spacing: 16) {
                             if snapshot.walletCleanupFailed {
@@ -99,8 +93,11 @@ private final class RaylAppOnboardingModel: ObservableObject {
     deinit { cancel?() }
 }
 
-/// Rayl's onboarding before any wallet: the welcome, what Rayl does, and Auto Pay.
+/// Rayl's onboarding before any wallet: the welcome, which says what Rayl does, and Auto Pay.
 private struct RaylAppOnboardingView: View {
+    /// In the controller's order: scanning, Auto Pay, the balance.
+    private static let benefitSymbols = ["qrcode.viewfinder", "bolt.fill", "creditcard"]
+
     @StateObject private var model: RaylAppOnboardingModel
 
     init(controller: RaylAppOnboardingController) {
@@ -136,27 +133,17 @@ private struct RaylAppOnboardingView: View {
         case "welcome":
             NativeOnboardingWelcomeView(
                 title: snapshot.welcomeTitle,
-                subtitle: "",
                 description: snapshot.welcomeBody,
-                actionTitle: snapshot.getStartedTitle,
-                action: model.controller.getStarted
-            )
-        case "features":
-            NativeOnboardingFeaturesView(
-                pages: snapshot.featurePages.enumerated().map { index, page in
-                    NativeOnboardingPageValue(
+                benefits: snapshot.benefits.enumerated().map { index, benefit in
+                    NativeOnboardingBenefit(
                         id: index,
-                        title: page.title,
-                        subtitle: page.subtitle,
-                        body: page.body
+                        symbol: Self.benefitSymbols[index % Self.benefitSymbols.count],
+                        title: benefit.title,
+                        body: benefit.body
                     )
                 },
-                currentPage: snapshot.featurePage,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
-                actionTitle: snapshot.featuresNextTitle,
-                onPageChanged: model.controller.setFeaturePage,
-                action: model.controller.continueFeatures
+                actionTitle: snapshot.getStartedTitle,
+                action: model.controller.getStarted
             )
         case "autoPay":
             NativeOnboardingAutoPayView(
@@ -170,8 +157,6 @@ private struct RaylAppOnboardingView: View {
                 confirmationMode: snapshot.confirmationMode,
                 thresholdIndex: snapshot.thresholdIndex,
                 thresholdStepCount: snapshot.thresholdStepCount,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
                 onConfirmationModeChanged: model.controller.setConfirmationMode,
                 onThresholdIndexChanged: model.controller.setThresholdIndex,
                 action: model.controller.continueAutoPay

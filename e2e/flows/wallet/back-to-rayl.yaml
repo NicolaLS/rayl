@@ -23,5 +23,5 @@ tags:
 # Nothing saved to connect with (a saved URI would be masked, so don't look for its text):
 # Connect leads nowhere. (iOS disables the button; Android ignores the tap.)
 - tapOn: "Connect"
-- assertVisible: "Add NWC Wallet"
-- assertNotVisible: "Active encryption.*"
+- assertVisible: "Wallet Connect URI"
+- assertNotVisible: "Wallet alias.*"

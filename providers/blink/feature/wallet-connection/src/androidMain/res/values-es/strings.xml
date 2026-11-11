@@ -1,6 +1,6 @@
 <resources>
-    <string name="add_blink_wallet_title">Añadir billetera Blink</string>
-    <string name="add_blink_wallet_description">Pega la clave API que creaste en el panel de Blink. %1$s la guarda de forma segura en este dispositivo.</string>
+    <string name="add_blink_wallet_title">Blink</string>
+    <string name="add_blink_wallet_description">Pega tu clave API de Blink para conectar %1$s.</string>
     <string name="add_blink_wallet_api_key_label">Clave API</string>
     <string name="add_blink_wallet_api_key_placeholder">blink_...</string>
     <string name="add_blink_wallet_show_api_key">Mostrar clave API</string>

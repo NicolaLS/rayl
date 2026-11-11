@@ -43,6 +43,10 @@ struct BlinkNativeOnboardingView: View {
                                             .labelStyle(.iconOnly)
                                     }
                                 }
+                            } else if snapshot.canCancel {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    Button(snapshot.cancelTitle, action: model.controller.cancelSetup)
+                                }
                             }
                         }
                 } else {
@@ -62,8 +66,6 @@ struct BlinkNativeOnboardingView: View {
                 checkboxTitle: snapshot.agreementCheckboxTitle,
                 actionTitle: snapshot.agreementNextTitle,
                 hasAgreed: snapshot.hasAgreed,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
                 onAgreementChanged: model.controller.setAgreement,
                 action: model.controller.continueAgreement
             )
@@ -77,10 +79,7 @@ struct BlinkNativeOnboardingView: View {
     }
 
     private func instructions(_ snapshot: BlinkNativeOnboardingSnapshot) -> some View {
-        NativeOnboardingProgressLayout(
-            stepIndex: 0,
-            stepCount: 0
-        ) {
+        NativeOnboardingLayout {
             VStack(spacing: 10) {
                 Text(snapshot.instructionsTitle)
                     .font(.title2.bold())
@@ -136,14 +135,6 @@ struct BlinkNativeOnboardingView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-
-            Button(action: model.controller.showWalletConnection) {
-                Text(snapshot.enterKeyTitle)
-                    .frame(maxWidth: .infinity, minHeight: 28)
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.roundedRectangle(radius: 16))
-            .controlSize(.large)
         }
     }
 
@@ -191,6 +182,7 @@ struct BlinkNativeOnboardingView: View {
             canSubmit: snapshot.canConnect,
             isSubmitting: snapshot.isConnecting,
             instructionsTitle: snapshot.walletInstructionsTitle,
+            // Blink also imports contacts, which the user must hear about before connecting.
             connectionNotice: snapshot.connectionNotice,
             privacyTitle: snapshot.privacyTitle,
             privacyPolicyUrl: snapshot.privacyPolicyUrl,

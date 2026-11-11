@@ -30,7 +30,8 @@ import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
  */
 class SparkIosExperience(
     host: SparkAppHost,
-    private val configuration: SparkExperienceConfiguration
+    private val configuration: SparkExperienceConfiguration,
+    private val onCancelSetup: () -> Unit = {}
 ) {
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var closed = false
@@ -84,6 +85,8 @@ class SparkIosExperience(
             appName = configuration.appName,
             connectionOnly = runtime.onboardingCompleted.value,
             onComplete = runtime::completeOnboarding,
+            canCancelSetup = ::canCancelSetup,
+            onCancelSetup = onCancelSetup,
             privacyPolicyUrl = configuration.legalLinks.privacyPolicyUrl,
             termsUrl = configuration.legalLinks.termsUrl
         ).also { if (closed) it.clear() }

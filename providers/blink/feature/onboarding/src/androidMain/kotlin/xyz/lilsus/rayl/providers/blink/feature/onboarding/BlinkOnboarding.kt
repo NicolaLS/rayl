@@ -26,6 +26,7 @@ fun BlinkOnboarding(
     step: BlinkOnboardingStep,
     blinkWallet: BlinkWallet,
     onboardingViewModel: OnboardingViewModel,
+    onCancel: () -> Unit,
     privacyPolicyUrl: String?,
     termsUrl: String?,
     onStepChanged: (BlinkOnboardingStep) -> Unit
@@ -34,6 +35,7 @@ fun BlinkOnboarding(
     when (step) {
         BlinkOnboardingStep.Connect -> AddWalletDestination(
             blinkWallet = blinkWallet,
+            onCancel = onCancel,
             privacyPolicyUrl = privacyPolicyUrl,
             termsUrl = termsUrl
         )
@@ -44,12 +46,11 @@ fun BlinkOnboarding(
                 xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
             ),
             hasAgreed = state.hasAgreed,
-            stepIndex = 0,
-            totalSteps = 0,
             onAgreementChanged = onboardingViewModel::setAgreement,
             onContinue = {
                 if (state.hasAgreed) onStepChanged(BlinkOnboardingStep.Complete)
             },
+            // The wallet is connected by now; Settings is where it is removed.
             onBack = null
         )
 
@@ -60,6 +61,7 @@ fun BlinkOnboarding(
 @Composable
 private fun AddWalletDestination(
     blinkWallet: BlinkWallet,
+    onCancel: () -> Unit,
     privacyPolicyUrl: String?,
     termsUrl: String?
 ) {
@@ -91,15 +93,14 @@ private fun AddWalletDestination(
 
     if (showInstructions) {
         BlinkWalletInstructionsScreen(
-            onConnectWallet = { showInstructions = false },
             onBack = { showInstructions = false }
         )
     } else {
         AddBlinkWalletScreen(
             state = state,
+            onBack = onCancel,
             privacyPolicyUrl = privacyPolicyUrl,
             termsUrl = termsUrl,
-            onBack = null,
             onShowInstructions = {
                 viewModel.reset()
                 clipboard.discard()

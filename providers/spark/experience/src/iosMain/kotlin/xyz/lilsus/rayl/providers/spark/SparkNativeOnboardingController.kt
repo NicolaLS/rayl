@@ -29,24 +29,18 @@ data class SparkNativeOnboardingSnapshot(
     val credentialText: NativeCredentialText,
     val privacyPolicyUrl: String?,
     val termsUrl: String?,
-    val stepIndex: Int,
-    val stepCount: Int,
-    val canGoBack: Boolean,
+    val canCancel: Boolean,
     val backTitle: String,
     val agreementTitle: String,
     val agreementBody: String,
     val agreementCheckboxTitle: String,
     val agreementNextTitle: String,
     val hasAgreed: Boolean,
-    val instructionsTitle: String,
-    val instructionsIntro: String,
-    val instructionSteps: List<String>,
     val connectWalletTitle: String,
     val walletKind: String,
     val walletTitle: String,
     val walletBody: String,
     val phraseLabel: String,
-    val storageNote: String,
     val passphraseToggle: String,
     val passphraseLabel: String,
     val passphraseHint: String,
@@ -84,6 +78,8 @@ class SparkNativeOnboardingController internal constructor(
     private val appName: String,
     private val connectionOnly: Boolean = false,
     private val onComplete: () -> Unit = {},
+    private val canCancelSetup: () -> Boolean = { false },
+    private val onCancelSetup: () -> Unit = {},
     private val privacyPolicyUrl: String? = null,
     private val termsUrl: String? = null
 ) {
@@ -135,13 +131,6 @@ class SparkNativeOnboardingController internal constructor(
     }
 
     fun showWalletConnection() = moveTo(STEP_WALLET)
-
-    fun showWalletInstructions() {
-        if (closed || wallet.state.value.access != WalletAccessState.NoWallet) return
-        clipboard.discard()
-        wallet.dispatch(WalletAction.RecoveryPhraseChanged(""))
-        moveTo(STEP_INSTRUCTIONS)
-    }
 
     fun updateWord(index: Int, value: String) {
         if (closed || wallet.state.value.access != WalletAccessState.NoWallet) return
@@ -200,10 +189,8 @@ class SparkNativeOnboardingController internal constructor(
         wallet.dispatch(WalletAction.ConfirmRemoval)
     }
 
-    fun back() {
-        when (effectiveStep(wallet.state.value.access)) {
-            STEP_INSTRUCTIONS -> moveTo(STEP_WALLET)
-        }
+    fun cancelSetup() {
+        if (!closed && canCancelSetup()) onCancelSetup()
     }
 
     private fun moveTo(step: String) {
@@ -251,24 +238,18 @@ class SparkNativeOnboardingController internal constructor(
                 credentialText = nativeCredentialText(),
                 privacyPolicyUrl = privacyPolicyUrl,
                 termsUrl = termsUrl,
-                stepIndex = 0,
-                stepCount = 0,
-                canGoBack = step == STEP_INSTRUCTIONS && !isRecovery(walletState.access),
+                canCancel = canCancelSetup(),
                 backTitle = common.back,
                 agreementTitle = common.agreementTitle,
                 agreementBody = spark.agreementBody,
                 agreementCheckboxTitle = common.agreementCheckbox,
                 agreementNextTitle = common.agreementContinue,
                 hasAgreed = state.hasAgreed,
-                instructionsTitle = spark.instructionsTitle,
-                instructionsIntro = spark.instructionsIntro,
-                instructionSteps = spark.instructionSteps,
                 connectWalletTitle = walletText.importAction,
                 walletKind = walletKind(walletState.access),
                 walletTitle = recovery?.first ?: walletText.importTitle,
                 walletBody = recovery?.second ?: walletText.importBody,
                 phraseLabel = walletText.phraseLabel,
-                storageNote = walletText.storageNote,
                 passphraseToggle = walletText.passphraseToggle,
                 passphraseLabel = walletText.passphraseLabel,
                 passphraseHint = walletText.passphraseHint,
@@ -309,7 +290,6 @@ class SparkNativeOnboardingController internal constructor(
 
     private companion object {
         const val STEP_AGREEMENT = "agreement"
-        const val STEP_INSTRUCTIONS = "instructions"
         const val STEP_WALLET = "wallet"
     }
 }

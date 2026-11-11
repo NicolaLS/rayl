@@ -646,24 +646,24 @@
       }
     },
     "rayl_use_another_wallet_info" : {
-      "extractionState" : "manual",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbinde eine Wallet, die du bereits hast, und bezahle damit. Dein Rayl-Guthaben bleibt auf diesem Gerät, und du kannst jederzeit in den Einstellungen zu Rayl zurückkehren."
+            "value" : "Bezahle mit einer Wallet, die du schon hast. Dein Rayl-Guthaben bleibt auf diesem Gerät, und du kannst jederzeit zurückkehren."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connect a wallet you already have and pay with it. Your Rayl balance stays on this device, and you can go back to Rayl in Settings at any time."
+            "value" : "Pay with a wallet you already have. Your Rayl balance stays on this device, and you can come back at any time."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Conecta una billetera que ya tienes y paga con ella. Tu saldo de Rayl se queda en este dispositivo y puedes volver a Rayl en Ajustes cuando quieras."
+            "value" : "Paga con una billetera que ya tienes. Tu saldo de Rayl se queda en este dispositivo y puedes volver cuando quieras."
           }
         }
       }

@@ -1,8 +1,3 @@
 <resources>
     <string name="onboarding_agreement_body">Usar %1$s es bajo tu propio riesgo. Esta app se conecta a tu propia billetera Lightning – eres totalmente responsable de los fondos en tu billetera y de cualquier pago realizado.\n\nRecomendamos encarecidamente conectar billeteras con saldos pequeños o usar conexiones NWC con presupuestos limitados.</string>
-    <string name="onboarding_add_wallet_title">Conectar vía NWC</string>
-    <string name="onboarding_add_wallet_intro">Crearás una conexión en tu billetera y traerás la cadena de conexión a %1$s.</string>
-    <string name="onboarding_add_wallet_step1">En tu billetera, crea una nueva conexión NWC para %1$s.</string>
-    <string name="onboarding_add_wallet_step2">Establece un presupuesto razonable y habilita los permisos de pago.</string>
-    <string name="onboarding_add_wallet_step3">Escanea el código QR o pega la cadena de conexión en la siguiente pantalla.</string>
 </resources>

@@ -16,11 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,40 +33,30 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.blink.feature.onboarding.R
+import xyz.lilsus.raylsuite.core.ui.components.AppPrimaryButton
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingScaffold
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingTestTags
 
 @Composable
-fun BlinkWalletInstructionsScreen(
-    onConnectWallet: () -> Unit,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun BlinkWalletInstructionsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val uriHandler = LocalUriHandler.current
     val pages = blinkDashboardInstructionPages()
     val pagerState = rememberPagerState { pages.size }
     val coroutineScope = rememberCoroutineScope()
 
-    OnboardingScaffold(
-        stepIndex = 0,
-        totalSteps = 0,
-        onBack = onBack
-    ) {
+    OnboardingScaffold(onBack = onBack) {
         Column(
             modifier =
                 modifier
                     .fillMaxSize()
-                    .testTag(OnboardingTestTags.WALLET_INSTRUCTIONS_SCREEN),
-            horizontalAlignment = Alignment.CenterHorizontally
+                    .testTag(OnboardingTestTags.WALLET_INSTRUCTIONS_SCREEN)
         ) {
             Text(
                 text = stringResource(R.string.blink_onboarding_add_wallet_title),
-                style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center
+                style = MaterialTheme.typography.headlineMedium
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -76,9 +64,8 @@ fun BlinkWalletInstructionsScreen(
                     R.string.blink_onboarding_add_wallet_intro,
                     xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
                 ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -134,22 +121,10 @@ fun BlinkWalletInstructionsScreen(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            Button(
-                onClick = { uriHandler.openUri(BLINK_DASHBOARD_URL) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.blink_onboarding_add_wallet_dashboard_button))
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onConnectWallet,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .testTag(OnboardingTestTags.WALLET_INSTRUCTIONS_CONTINUE)
-            ) {
-                Text(stringResource(R.string.blink_onboarding_add_wallet_enter_key_button))
-            }
+            AppPrimaryButton(
+                text = stringResource(R.string.blink_onboarding_add_wallet_dashboard_button),
+                onClick = { uriHandler.openUri(BLINK_DASHBOARD_URL) }
+            )
         }
     }
 }

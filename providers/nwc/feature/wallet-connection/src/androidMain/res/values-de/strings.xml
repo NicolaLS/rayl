@@ -1,6 +1,6 @@
 <resources>
-    <string name="add_wallet_title">NWC-Wallet hinzufügen</string>
-    <string name="add_wallet_description">Kopiere eine NWC-URI und kehre hierher zurück oder scanne den QR-Code.</string>
+    <string name="add_wallet_title">Nostr Wallet Connect</string>
+    <string name="add_wallet_description">Scanne den Verbindungs-QR-Code aus deiner Wallet oder füge den Link ein.</string>
     <string name="add_wallet_uri_label">Wallet-Connect-URI</string>
     <string name="add_wallet_uri_placeholder">nostr+walletconnect://dein-wallet-public-key?relay=…</string>
     <string name="add_wallet_uri_paste">Aus Zwischenablage einfügen</string>

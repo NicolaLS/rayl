@@ -99,19 +99,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Füge den im Blink-Dashboard erstellten API-Schlüssel ein. %1$@ speichert ihn sicher auf diesem Gerät."
+            "value" : "Füge deinen Blink-API-Schlüssel ein, um %1$@ zu verbinden."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paste the API key you created in the Blink dashboard. %1$@ stores it securely on this device."
+            "value" : "Paste your Blink API key to connect %1$@."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pega la clave API que creaste en el panel de Blink. %1$@ la guarda de forma segura en este dispositivo."
+            "value" : "Pega tu clave API de Blink para conectar %1$@."
           }
         }
       }
@@ -260,19 +260,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Blink-Wallet hinzufügen"
+            "value" : "Blink"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add Blink Wallet"
+            "value" : "Blink"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Añadir billetera Blink"
+            "value" : "Blink"
           }
         }
       }

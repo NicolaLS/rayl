@@ -1,113 +1,110 @@
 import SwiftUI
 import UIKit
 
-struct NativeOnboardingPageValue: Identifiable {
+/// One thing the app does for the user, shown on the welcome.
+struct NativeOnboardingBenefit: Identifiable {
     let id: Int
+    let symbol: String
     let title: String
-    let subtitle: String
     let body: String
 }
 
+/// The first screen: who Rayl is and, in a few lines, what to expect from it.
 struct NativeOnboardingWelcomeView: View {
     let title: String
-    let subtitle: String
     let description: String
+    let benefits: [NativeOnboardingBenefit]
     let actionTitle: String
     let action: () -> Void
 
     var body: some View {
-        GeometryReader { geometry in
+        NativeOnboardingLayout {
             ScrollView {
-                VStack(spacing: 24) {
-                    Spacer(minLength: 24)
-                    Image(systemName: "qrcode.viewfinder")
-                        .font(.system(size: 72, weight: .light))
-                        .foregroundStyle(.tint)
-                        .frame(width: 152, height: 152)
-                        .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 36))
+                VStack(alignment: .leading, spacing: 12) {
+                    RaylMarkView()
+                        .frame(width: 88, height: 88)
+                        .padding(.top, 28)
+                        .padding(.bottom, 12)
                         .accessibilityHidden(true)
                     Text(title)
                         .font(.largeTitle.bold())
-                        .multilineTextAlignment(.center)
-                    if !subtitle.isEmpty {
-                        Text(subtitle)
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
                     Text(description)
-                        .font(.body)
                         .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Spacer(minLength: 24)
+                        .padding(.bottom, 20)
+                    ForEach(benefits) { benefit in
+                        HStack(alignment: .top, spacing: 16) {
+                            Image(systemName: benefit.symbol)
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(.tint)
+                                .frame(width: 40, height: 40)
+                                .background(Color.accentColor.opacity(0.12), in: Circle())
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(benefit.title)
+                                    .font(.headline)
+                                Text(benefit.body)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                        .accessibilityElement(children: .combine)
+                    }
                 }
-                .padding(24)
-                .frame(maxWidth: 560)
-                .frame(minHeight: geometry.size.height)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+
             NativeOnboardingPrimaryButton(title: actionTitle, action: action)
-                .padding(24)
-                .frame(maxWidth: 608)
-                .frame(maxWidth: .infinity)
-                .background(Color(uiColor: .systemBackground))
         }
     }
 }
 
-struct NativeOnboardingFeaturesView: View {
-    let pages: [NativeOnboardingPageValue]
-    let currentPage: Int32
-    let stepIndex: Int32
-    let stepCount: Int32
-    let actionTitle: String
-    let onPageChanged: (Int32) -> Void
-    let action: () -> Void
+/// Rayl's mark as on the app icon: four rails of light meeting at one point over deep navy. It
+/// keeps the icon's colours in both appearances.
+struct RaylMarkView: View {
+    // Where each rail leaves the tile, as fractions of its size.
+    private static let rails: [[CGPoint]] = [
+        [CGPoint(x: 0, y: 0.585), CGPoint(x: 0, y: 0.76)],
+        [CGPoint(x: 0, y: 0.87), CGPoint(x: 0, y: 1), CGPoint(x: 0.075, y: 1)],
+        [CGPoint(x: 0.245, y: 1), CGPoint(x: 0.44, y: 1)],
+        [CGPoint(x: 0.515, y: 1), CGPoint(x: 0.66, y: 1)],
+    ]
+    private static let origin = UnitPoint(x: 0.672, y: 0.33)
+    private static let near = Color(red: 0.84, green: 0.90, blue: 1)
+    private static let far = Color(red: 0.23, green: 0.49, blue: 0.86)
 
     var body: some View {
-        NativeOnboardingProgressLayout(stepIndex: stepIndex, stepCount: stepCount) {
-            TabView(
-                selection: Binding(
-                    get: { currentPage },
-                    set: onPageChanged
+        GeometryReader { geometry in
+            let size = geometry.size
+            let origin = CGPoint(x: size.width * Self.origin.x, y: size.height * Self.origin.y)
+            ZStack {
+                RadialGradient(
+                    colors: [
+                        Color(red: 0.07, green: 0.16, blue: 0.29),
+                        Color(red: 0.04, green: 0.08, blue: 0.13),
+                    ],
+                    center: Self.origin,
+                    startRadius: 0,
+                    endRadius: size.width * 0.9
                 )
-            ) {
-                ForEach(pages) { page in
-                    VStack(spacing: 18) {
-                        Spacer()
-                        Image(systemName: symbol(for: page.id))
-                            .font(.system(size: 58, weight: .light))
-                            .foregroundStyle(.tint)
-                            .accessibilityHidden(true)
-                        Text(page.title)
-                            .font(.title2.bold())
-                            .multilineTextAlignment(.center)
-                        Text(page.subtitle)
-                            .font(.headline)
-                            .multilineTextAlignment(.center)
-                        Text(page.body)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Spacer()
+                Path { path in
+                    for rail in Self.rails {
+                        path.move(to: origin)
+                        for point in rail {
+                            path.addLine(to: CGPoint(x: size.width * point.x, y: size.height * point.y))
+                        }
+                        path.closeSubpath()
                     }
-                    .padding(.horizontal, 12)
-                    .tag(Int32(page.id))
                 }
+                .fill(LinearGradient(colors: [Self.near, Self.far], startPoint: Self.origin, endPoint: .bottomLeading))
+                RadialGradient(
+                    colors: [Self.near.opacity(0.55), .clear],
+                    center: Self.origin,
+                    startRadius: 0,
+                    endRadius: size.width * 0.16
+                )
             }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            .indexViewStyle(.page(backgroundDisplayMode: .always))
-
-            NativeOnboardingPrimaryButton(title: actionTitle, action: action)
-        }
-    }
-
-    private func symbol(for index: Int) -> String {
-        switch index {
-        case 0: return "viewfinder"
-        case 1: return "bolt.fill"
-        default: return "wallet.bifold"
+            .clipShape(RoundedRectangle(cornerRadius: size.width * 0.23, style: .continuous))
         }
     }
 }
@@ -123,8 +120,6 @@ struct NativeOnboardingAutoPayView: View {
     let confirmationMode: String
     let thresholdIndex: Int32
     let thresholdStepCount: Int32
-    let stepIndex: Int32
-    let stepCount: Int32
     let onConfirmationModeChanged: (String) -> Void
     let onThresholdIndexChanged: (Int32) -> Void
     let action: () -> Void
@@ -140,8 +135,6 @@ struct NativeOnboardingAutoPayView: View {
         confirmationMode: String,
         thresholdIndex: Int32,
         thresholdStepCount: Int32,
-        stepIndex: Int32,
-        stepCount: Int32,
         onConfirmationModeChanged: @escaping (String) -> Void,
         onThresholdIndexChanged: @escaping (Int32) -> Void,
         action: @escaping () -> Void
@@ -156,15 +149,13 @@ struct NativeOnboardingAutoPayView: View {
         self.confirmationMode = confirmationMode
         self.thresholdIndex = thresholdIndex
         self.thresholdStepCount = thresholdStepCount
-        self.stepIndex = stepIndex
-        self.stepCount = stepCount
         self.onConfirmationModeChanged = onConfirmationModeChanged
         self.onThresholdIndexChanged = onThresholdIndexChanged
         self.action = action
     }
 
     var body: some View {
-        NativeOnboardingProgressLayout(stepIndex: stepIndex, stepCount: stepCount) {
+        NativeOnboardingLayout {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(title)
@@ -240,8 +231,6 @@ struct NativeOnboardingAgreementView: View {
     let checkboxTitle: String
     let actionTitle: String
     let hasAgreed: Bool
-    let stepIndex: Int32
-    let stepCount: Int32
     let isWorking: Bool
     let message: String?
     let onAgreementChanged: (Bool) -> Void
@@ -253,8 +242,6 @@ struct NativeOnboardingAgreementView: View {
         checkboxTitle: String,
         actionTitle: String,
         hasAgreed: Bool,
-        stepIndex: Int32,
-        stepCount: Int32,
         isWorking: Bool = false,
         message: String? = nil,
         onAgreementChanged: @escaping (Bool) -> Void,
@@ -265,8 +252,6 @@ struct NativeOnboardingAgreementView: View {
         self.checkboxTitle = checkboxTitle
         self.actionTitle = actionTitle
         self.hasAgreed = hasAgreed
-        self.stepIndex = stepIndex
-        self.stepCount = stepCount
         self.isWorking = isWorking
         self.message = message
         self.onAgreementChanged = onAgreementChanged
@@ -274,26 +259,13 @@ struct NativeOnboardingAgreementView: View {
     }
 
     var body: some View {
-        NativeOnboardingProgressLayout(stepIndex: stepIndex, stepCount: stepCount) {
+        NativeOnboardingLayout {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(title)
                         .font(.largeTitle.bold())
                     Text(description)
                         .foregroundStyle(.secondary)
-                    Toggle(
-                        checkboxTitle,
-                        isOn: Binding(
-                            get: { hasAgreed },
-                            set: onAgreementChanged
-                        )
-                    )
-                    .tint(.accentColor)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding()
-                    .background(
-                        Color(uiColor: .secondarySystemGroupedBackground),
-                        in: RoundedRectangle(cornerRadius: 20))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -304,6 +276,22 @@ struct NativeOnboardingAgreementView: View {
                     .foregroundStyle(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            // Consent sits with the action it unlocks.
+            Toggle(
+                checkboxTitle,
+                isOn: Binding(
+                    get: { hasAgreed },
+                    set: onAgreementChanged
+                )
+            )
+            .font(.subheadline)
+            .tint(.accentColor)
+            .disabled(isWorking)
+            .padding()
+            .background(
+                Color(uiColor: .secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: 16))
 
             if isWorking {
                 ProgressView()
@@ -316,19 +304,12 @@ struct NativeOnboardingAgreementView: View {
     }
 }
 
-struct NativeOnboardingProgressLayout<Content: View>: View {
-    let stepIndex: Int32
-    let stepCount: Int32
+/// The frame of a full-screen onboarding step.
+struct NativeOnboardingLayout<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(spacing: 28) {
-            if stepCount > 0 {
-                ProgressView(
-                    value: Double(stepIndex + 1),
-                    total: Double(stepCount)
-                )
-            }
+        VStack(spacing: 20) {
             content()
         }
         .padding(.horizontal, 24)
@@ -365,74 +346,98 @@ struct NativeCredentialConnectionView<Content: View>: View {
     let actionTitle: String
     let canSubmit: Bool
     let isSubmitting: Bool
-    let instructionsTitle: String
-    let connectionNotice: String
-    let privacyTitle: String
-    let privacyPolicyUrl: String?
-    let termsTitle: String
-    let termsUrl: String?
-    let onInstructions: () -> Void
+    /// Offered, before the form, only where getting the credential needs a guide.
+    var instructionsTitle: String?
+    /// What connecting does beyond storing the credential, when the user must hear about it.
+    var connectionNotice: String?
+    var privacyTitle: String = ""
+    var privacyPolicyUrl: String?
+    var termsTitle: String = ""
+    var termsUrl: String?
+    var onInstructions: (() -> Void)?
     let onSubmit: () -> Void
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text(title)
-                    .font(.largeTitle.bold())
+            VStack(alignment: .leading, spacing: 16) {
                 Text(description)
                     .foregroundStyle(.secondary)
-                Button(instructionsTitle, action: onInstructions)
+                if let instructionsTitle, let onInstructions {
+                    Button(action: onInstructions) {
+                        Label(instructionsTitle, systemImage: "questionmark.circle")
+                    }
                     .disabled(isSubmitting)
-                VStack(alignment: .leading, spacing: 4) {
+                }
+                content()
+                if let connectionNotice {
                     Text(connectionNotice)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    HStack(spacing: 20) {
-                        if let value = privacyPolicyUrl, let url = URL(string: value) {
-                            Link(privacyTitle, destination: url)
-                                .frame(minHeight: 44)
-                        }
-                        if let value = termsUrl, let url = URL(string: value) {
-                            Link(termsTitle, destination: url)
-                                .frame(minHeight: 44)
-                        }
-                    }
-                    .font(.footnote)
                 }
-                content()
             }
-            .padding(24)
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
             .frame(maxWidth: 608, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(uiColor: .systemGroupedBackground))
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            Button {
-                UIApplication.shared.sendAction(
-                    #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
-                )
-                if canSubmit { onSubmit() }
-            } label: {
-                HStack {
-                    if isSubmitting { ProgressView() }
-                    Text(actionTitle)
+            VStack(spacing: 12) {
+                Button {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+                    )
+                    if canSubmit { onSubmit() }
+                } label: {
+                    HStack {
+                        if isSubmitting { ProgressView() }
+                        Text(actionTitle)
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 28)
+                    .padding(.vertical, 4)
                 }
-                .font(.headline)
-                .frame(maxWidth: .infinity, minHeight: 28)
-                .padding(.vertical, 4)
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle(radius: 16))
+                .controlSize(.large)
+                .disabled(!canSubmit)
+                HStack(spacing: 20) {
+                    if let value = privacyPolicyUrl, let url = URL(string: value) {
+                        Link(privacyTitle, destination: url)
+                    }
+                    if let value = termsUrl, let url = URL(string: value) {
+                        Link(termsTitle, destination: url)
+                    }
+                }
+                .font(.footnote)
+                .tint(.secondary)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 16))
-            .controlSize(.large)
-            .disabled(!canSubmit)
-            .padding(24)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
             .frame(maxWidth: 608)
             .frame(maxWidth: .infinity)
             .background(Color(uiColor: .systemGroupedBackground))
         }
+    }
+}
+
+/// Fills a credential from the clipboard; pasting is how most credentials arrive.
+struct NativeCredentialPasteButton: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: "doc.on.clipboard")
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
     }
 }
 
@@ -451,7 +456,7 @@ struct NativeCredentialInput: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: multiline ? .top : .center) {
                 Group {
                     if visible {
@@ -488,11 +493,8 @@ struct NativeCredentialInput: View {
                 Color(uiColor: .secondarySystemGroupedBackground),
                 in: RoundedRectangle(cornerRadius: 16)
             )
-            Button(action: onPaste) {
-                Label(pasteTitle, systemImage: "doc.on.clipboard")
-                    .padding(.vertical, 8)
-            }
-            .disabled(!enabled)
+            NativeCredentialPasteButton(title: pasteTitle, action: onPaste)
+                .disabled(!enabled)
         }
         .onDisappear {
             visible = false

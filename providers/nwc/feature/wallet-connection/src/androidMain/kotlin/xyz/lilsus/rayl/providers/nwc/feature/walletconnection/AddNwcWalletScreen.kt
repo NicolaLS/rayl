@@ -3,6 +3,7 @@ package xyz.lilsus.rayl.providers.nwc.feature.walletconnection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -47,7 +48,6 @@ fun AddNwcWalletScreen(
     cameraAuthorization: CameraAuthorizationState,
     canRequestCameraPermission: Boolean,
     modifier: Modifier = Modifier,
-    onShowInstructions: (() -> Unit)? = null,
     privacyPolicyUrl: String? = null,
     termsUrl: String? = null
 ) {
@@ -83,12 +83,18 @@ fun AddNwcWalletScreen(
         isSubmitting = false,
         onSubmit = submitOrClearFocus,
         onBack = onBack,
-        onShowInstructions = onShowInstructions,
         privacyPolicyUrl = privacyPolicyUrl,
         termsUrl = termsUrl,
         modifier = modifier.testTag(NwcWalletConnectionTestTags.SCREEN),
         actionModifier = Modifier.testTag(NwcWalletConnectionTestTags.CONNECT_BUTTON)
     ) {
+        // Scanning is the quickest way in, and it needs no tap: it comes first.
+        CameraCard(
+            authorization = cameraAuthorization,
+            scannerUnavailable = scannerUnavailable,
+            canRequestPermission = canRequestCameraPermission,
+            onCameraPermissionAction = onCameraPermissionAction
+        )
         CredentialInput(
             value = state.uri,
             onValueChange = onUriChange,
@@ -106,12 +112,6 @@ fun AddNwcWalletScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        CameraCard(
-            authorization = cameraAuthorization,
-            scannerUnavailable = scannerUnavailable,
-            canRequestPermission = canRequestCameraPermission,
-            onCameraPermissionAction = onCameraPermissionAction
-        )
     }
 }
 
@@ -123,7 +123,7 @@ private fun CameraCard(
     onCameraPermissionAction: () -> Unit
 ) {
     Surface(
-        tonalElevation = 4.dp,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.large,
         modifier =
             Modifier
@@ -131,8 +131,8 @@ private fun CameraCard(
                 .testTag(NwcWalletConnectionTestTags.CAMERA_CARD)
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
@@ -143,7 +143,7 @@ private fun CameraCard(
                 },
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(56.dp)
             )
             Text(
                 text = stringResource(
@@ -160,7 +160,7 @@ private fun CameraCard(
                         else -> R.string.add_wallet_scan_permission
                     }
                 ),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )

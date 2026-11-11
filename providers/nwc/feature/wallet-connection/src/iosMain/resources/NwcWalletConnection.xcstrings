@@ -7,19 +7,19 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kopiere eine NWC-URI und kehre hierher zurück oder scanne den QR-Code."
+            "value": "Scanne den Verbindungs-QR-Code aus deiner Wallet oder füge den Link ein."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Copy a NWC URI and come back here, or scan the QR code."
+            "value": "Scan the connection QR code from your wallet, or paste its link."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Copia un URI de NWC y regresa aquí, o escanea el código QR."
+            "value": "Escanea el código QR de conexión de tu billetera o pega su enlace."
           }
         }
       }
@@ -191,19 +191,19 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "NWC-Wallet hinzufügen"
+            "value": "Nostr Wallet Connect"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add NWC Wallet"
+            "value": "Nostr Wallet Connect"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Añadir billetera NWC"
+            "value": "Nostr Wallet Connect"
           }
         }
       }

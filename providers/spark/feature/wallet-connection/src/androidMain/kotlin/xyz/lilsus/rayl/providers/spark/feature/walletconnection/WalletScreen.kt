@@ -3,6 +3,7 @@ package xyz.lilsus.rayl.providers.spark.feature.walletconnection
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,10 +53,10 @@ import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialProblemKind
 import xyz.lilsus.rayl.providers.spark.application.wallet.RecoveryPhraseWords
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.R
-import xyz.lilsus.raylsuite.core.ui.R as CoreUiR
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
 import xyz.lilsus.raylsuite.core.ui.components.CredentialConnectionScreen
 import xyz.lilsus.raylsuite.core.ui.components.CredentialInput
+import xyz.lilsus.raylsuite.core.ui.components.CredentialPasteButton
 import xyz.lilsus.raylsuite.core.ui.platform.rememberCredentialClipboard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,7 +66,6 @@ fun WalletConnectionScreen(
     onBack: (() -> Unit)?,
     dispatch: (WalletAction) -> Unit,
     modifier: Modifier = Modifier,
-    onShowInstructions: (() -> Unit)? = null,
     privacyPolicyUrl: String? = null,
     termsUrl: String? = null
 ) {
@@ -94,13 +94,6 @@ fun WalletConnectionScreen(
             isSubmitting = state.access == WalletAccessState.Connecting,
             onSubmit = { dispatch(WalletAction.Import) },
             onBack = onBack,
-            onShowInstructions = onShowInstructions?.let { show ->
-                {
-                    clipboard.discard()
-                    dispatch(WalletAction.RecoveryPhraseChanged(""))
-                    show()
-                }
-            },
             privacyPolicyUrl = privacyPolicyUrl,
             termsUrl = termsUrl,
             modifier = modifier
@@ -115,11 +108,6 @@ fun WalletConnectionScreen(
                 }
             )
             PassphraseInput(state = state, dispatch = dispatch, onPaste = clipboard::read)
-            Text(
-                text = stringResource(R.string.spark_wallet_storage_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             state.message?.let { message ->
                 Text(
                     text = stringResource(message.resource()),
@@ -196,13 +184,7 @@ private fun RecoveryPhraseInput(
                 }
             }
         }
-        TextButton(
-            onClick = onPaste,
-            enabled = enabled,
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Text(stringResource(CoreUiR.string.credential_paste))
-        }
+        CredentialPasteButton(onClick = onPaste, enabled = enabled)
         if (state.words.indices.any(state::isWordWrong)) {
             Text(
                 text = stringResource(R.string.spark_wallet_words_wrong),
@@ -283,7 +265,11 @@ private fun PassphraseInput(
     var expanded by rememberSaveable { mutableStateOf(false) }
     val enabled = state.access == WalletAccessState.NoWallet
     if (!expanded && state.passphrase.isEmpty()) {
-        TextButton(onClick = { expanded = true }, enabled = enabled) {
+        TextButton(
+            onClick = { expanded = true },
+            enabled = enabled,
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
             Text(stringResource(R.string.spark_wallet_passphrase_toggle))
         }
         return

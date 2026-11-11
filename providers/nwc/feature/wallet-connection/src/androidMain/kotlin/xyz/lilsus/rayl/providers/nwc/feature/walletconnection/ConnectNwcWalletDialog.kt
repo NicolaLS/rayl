@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -202,48 +201,14 @@ private fun DiscoveryDetails(state: ConnectNwcWalletUiState, onAliasChange: (Str
         )
 
         WalletSummary(discovery)
-        CapabilitySection(
-            title = stringResource(R.string.connect_wallet_details_methods),
-            values = discovery.metadata.methods
-        )
-        CapabilitySection(
-            title = stringResource(R.string.connect_wallet_details_encryption),
-            values = discovery.metadata.encryptionSchemes
-        )
-        discovery.metadata.negotiatedEncryption?.let { scheme ->
-            Text(
-                text =
-                    stringResource(
-                        R.string.connect_wallet_details_encryption_active,
-                        formatEncryptionScheme(scheme)
-                    ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
 
 @Composable
 private fun WalletSummary(discovery: NwcWalletDiscovery) {
+    if (discovery.lightningAddress == null && discovery.relayUrl == null) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = stringResource(R.string.connect_wallet_details_pubkey),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        SelectableDetailValue(discovery.walletPublicKey)
-        discovery.relayUrl?.let { relay ->
-            Spacer(Modifier.size(4.dp))
-            Text(
-                text = stringResource(R.string.connect_wallet_details_relay),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            SelectableDetailValue(relay)
-        }
         discovery.lightningAddress?.let { address ->
-            Spacer(Modifier.size(4.dp))
             Text(
                 text = stringResource(R.string.connect_wallet_details_lud16),
                 style = MaterialTheme.typography.labelMedium,
@@ -251,22 +216,17 @@ private fun WalletSummary(discovery: NwcWalletDiscovery) {
             )
             SelectableDetailValue(address)
         }
-    }
-}
-
-@Composable
-private fun CapabilitySection(title: String, values: Set<String>) {
-    if (values.isEmpty()) return
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = title,
-            style =
-                MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.SemiBold
-                ),
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        SelectableDetailValue(values.sorted().joinToString(separator = ", "))
+        discovery.relayUrl?.let { relay ->
+            if (discovery.lightningAddress != null) {
+                Spacer(Modifier.size(4.dp))
+            }
+            Text(
+                text = stringResource(R.string.connect_wallet_details_relay),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            SelectableDetailValue(relay)
+        }
     }
 }
 
@@ -359,10 +319,4 @@ private fun WarningSection(discovery: NwcWalletDiscovery) {
             }
         }
     }
-}
-
-private fun formatEncryptionScheme(value: String): String = when (value.lowercase()) {
-    "nip44_v2" -> "NIP-44 v2"
-    "nip04" -> "NIP-04"
-    else -> value
 }

@@ -1,7 +1,5 @@
 <resources>
-    <string name="onboarding_welcome_get_started">Empezar</string>
-    <string name="onboarding_features_continue">Continuar</string>
-    <string name="onboarding_autopay_title">Configuración de Auto Pay</string>
+    <string name="onboarding_autopay_title">Auto Pay</string>
     <string name="onboarding_autopay_always">Siempre pedir confirmación</string>
     <string name="onboarding_autopay_threshold">Auto-pagar bajo un límite</string>
     <string name="onboarding_autopay_threshold_label">Auto-pagar por debajo de %1$s</string>
@@ -10,5 +8,4 @@
     <string name="onboarding_agreement_title">Antes de comenzar</string>
     <string name="onboarding_agreement_checkbox">Entiendo que el uso de esta app es bajo mi propio riesgo</string>
     <string name="onboarding_agreement_continue">Continuar</string>
-    <string name="onboarding_add_wallet_button">Conectar billetera</string>
 </resources>

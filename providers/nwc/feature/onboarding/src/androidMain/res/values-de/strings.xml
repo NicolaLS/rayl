@@ -1,8 +1,3 @@
 <resources>
     <string name="onboarding_agreement_body">Die Nutzung von %1$s erfolgt auf eigenes Risiko. Diese App verbindet sich mit deiner eigenen Lightning-Wallet – du bist vollständig verantwortlich für die Gelder in deiner Wallet und alle getätigten Zahlungen.\n\nWir empfehlen dringend, Wallets mit kleinem Guthaben zu verbinden oder NWC-Verbindungen mit begrenztem Budget zu nutzen.</string>
-    <string name="onboarding_add_wallet_title">Per NWC verbinden</string>
-    <string name="onboarding_add_wallet_intro">Du erstellst eine Verbindung in deiner Wallet und bringst den Verbindungs-String zurück zu %1$s.</string>
-    <string name="onboarding_add_wallet_step1">Erstelle in deiner Wallet eine neue NWC-Verbindung für %1$s.</string>
-    <string name="onboarding_add_wallet_step2">Setze ein vernünftiges Budget und aktiviere Zahlungsberechtigungen.</string>
-    <string name="onboarding_add_wallet_step3">Scanne den QR-Code oder füge den Verbindungs-String auf dem nächsten Bildschirm ein.</string>
 </resources>

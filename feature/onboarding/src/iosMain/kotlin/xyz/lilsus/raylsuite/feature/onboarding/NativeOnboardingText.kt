@@ -6,8 +6,6 @@ import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 
 data class NativeOnboardingText(
     val back: String,
-    val getStarted: String,
-    val featuresContinue: String,
     val autoPayTitle: String,
     val autoPayAlways: String,
     val autoPayThreshold: String,
@@ -20,12 +18,6 @@ data class NativeOnboardingText(
 
 suspend fun nativeOnboardingText(): NativeOnboardingText = NativeOnboardingText(
     back = nativeBackActionText(),
-    getStarted = nativeString(
-        NativeStringResource(table = "Onboarding", key = "onboarding_welcome_get_started")
-    ),
-    featuresContinue = nativeString(
-        NativeStringResource(table = "Onboarding", key = "onboarding_features_continue")
-    ),
     autoPayTitle = nativeString(
         NativeStringResource(table = "Onboarding", key = "onboarding_autopay_title")
     ),

@@ -1,9 +1,8 @@
 <resources>
     <string name="spark_wallet_brand">%1$s / 01</string>
-    <string name="spark_wallet_import_title">Añadir billetera Spark</string>
-    <string name="spark_wallet_import_body">Importar una frase de recuperación otorga a %1$s autorización para gastar. Conserva tu billetera principal instalada para recuperar y administrar la billetera por completo.</string>
+    <string name="spark_wallet_import_title">Spark</string>
+    <string name="spark_wallet_import_body">Introduce la frase de recuperación de tu billetera Spark. %1$s podrá gastar desde ella.</string>
     <string name="spark_wallet_phrase_label">Frase de recuperación</string>
-    <string name="spark_wallet_storage_note">Protegida con el almacenamiento seguro de credenciales de este dispositivo.</string>
     <string name="spark_wallet_import_action">Conectar</string>
     <string name="spark_wallet_remove_title">¿Quitar esta billetera de %1$s?</string>
     <string name="spark_wallet_remove_body">Esto elimina la frase protegida, la actividad de pagos y los datos locales del SDK.</string>

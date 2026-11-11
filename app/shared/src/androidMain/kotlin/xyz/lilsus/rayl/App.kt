@@ -110,6 +110,7 @@ fun App(
                         passkeys = raylPasskeys,
                         debugTools = debugTools,
                         otherWallets = externalWalletOptions(),
+                        walletIcons = externalWalletIcons,
                         onUseWallet = useWallet,
                         onErased = selection::restartRaylWallet,
                         onConnectionChanged = {}
@@ -164,6 +165,15 @@ private fun externalWalletOptions(): List<RaylWalletOption> = ExternalWallet.ent
         ExternalWallet.Spark -> R.string.spark_title to R.string.spark_body
     }
     RaylWalletOption(wallet.id, stringResource(title), stringResource(description))
+}
+
+/** Each external wallet's own mark, by [ExternalWallet.id], for where Rayl offers them. */
+private val externalWalletIcons: Map<String, Int> = ExternalWallet.entries.associate { wallet ->
+    wallet.id to when (wallet) {
+        ExternalWallet.Blink -> R.drawable.wallet_blink
+        ExternalWallet.Nwc -> R.drawable.wallet_nwc
+        ExternalWallet.Spark -> R.drawable.wallet_spark
+    }
 }
 
 /**

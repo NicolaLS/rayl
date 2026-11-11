@@ -101,9 +101,7 @@ class NwcNativeWalletSettingsController internal constructor(
                 removeTitle = management.removeTitle,
                 removeBusyMessage = management.removeBusyMessage,
                 walletId = connection?.walletPublicKey,
-                walletTitle =
-                    connection?.alias?.takeIf(String::isNotBlank)
-                        ?: connection?.walletPublicKey,
+                walletTitle = connection?.alias?.takeIf(String::isNotBlank),
                 detailsTitle = details.title,
                 walletTypeLabel = details.typeLabel,
                 walletType = details.walletType,

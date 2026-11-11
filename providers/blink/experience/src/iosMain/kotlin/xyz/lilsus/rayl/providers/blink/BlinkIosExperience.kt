@@ -101,7 +101,8 @@ class BlinkIosExperience(
             appName = configuration.appName,
             legalLinks = configuration.legalLinks,
             progress = runtime.onboardingState,
-            canConnectWallet = { runtime.canConnect }
+            canConnectWallet = { runtime.canConnect },
+            onCancelSetup = ::cancelSetup
         )
     }
     private val nativeOnboardingController by nativeOnboardingControllerDelegate

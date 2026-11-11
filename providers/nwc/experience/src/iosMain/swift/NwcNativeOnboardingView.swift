@@ -35,19 +35,16 @@ struct NwcNativeOnboardingView: View {
                 if let snapshot = model.snapshot {
                     screen(snapshot)
                         .toolbar {
-                            if snapshot.settingsFlow || snapshot.step == "instructions" {
+                            if snapshot.settingsFlow {
                                 ToolbarItem(placement: .topBarLeading) {
-                                    Button(
-                                        action: snapshot.settingsFlow
-                                            ? model.controller.finishSettingsWalletFlow
-                                            : model.controller.back
-                                    ) {
-                                        Label(
-                                            snapshot.settingsFlow ? snapshot.cancelTitle : snapshot.backTitle,
-                                            systemImage: snapshot.settingsFlow ? "xmark" : "chevron.left"
-                                        )
+                                    Button(action: model.controller.finishSettingsWalletFlow) {
+                                        Label(snapshot.cancelTitle, systemImage: "xmark")
                                             .labelStyle(.iconOnly)
                                     }
+                                }
+                            } else if snapshot.canCancel {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    Button(snapshot.cancelTitle, action: model.controller.cancelSetup)
                                 }
                             }
                         }
@@ -75,53 +72,13 @@ struct NwcNativeOnboardingView: View {
                 checkboxTitle: snapshot.agreementCheckboxTitle,
                 actionTitle: snapshot.agreementNextTitle,
                 hasAgreed: snapshot.hasAgreed,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
                 onAgreementChanged: model.controller.setAgreement,
                 action: model.controller.continueAgreement
             )
-        case "instructions":
-            instructions(snapshot)
         case "wallet":
             wallet(snapshot)
         default:
             ProgressView()
-        }
-    }
-
-    private func instructions(_ snapshot: NwcNativeOnboardingSnapshot) -> some View {
-        NativeOnboardingProgressLayout(
-            stepIndex: 0,
-            stepCount: 0
-        ) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text(snapshot.instructionsTitle)
-                        .font(.title2.bold())
-                    Text(snapshot.instructionsIntro)
-                        .foregroundStyle(.secondary)
-
-                    ForEach(Array(snapshot.instructionSteps.enumerated()), id: \.offset) {
-                        index,
-                        step in
-                        HStack(alignment: .top, spacing: 12) {
-                            Text(String(index + 1))
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .frame(width: 32, height: 32)
-                                .background(Color.accentColor, in: Circle())
-                            Text(step)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Button(snapshot.connectWalletTitle, action: model.controller.showWalletConnection)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
         }
     }
 
@@ -132,15 +89,14 @@ struct NwcNativeOnboardingView: View {
             actionTitle: snapshot.credentialText.connect,
             canSubmit: snapshot.canSubmitUri,
             isSubmitting: false,
-            instructionsTitle: snapshot.credentialText.instructions,
-            connectionNotice: snapshot.credentialText.connectionNotice,
             privacyTitle: snapshot.credentialText.privacy,
             privacyPolicyUrl: snapshot.privacyPolicyUrl,
             termsTitle: snapshot.credentialText.terms,
             termsUrl: snapshot.termsUrl,
-            onInstructions: model.controller.showWalletInstructions,
             onSubmit: model.controller.submitUri
         ) {
+            // Scanning is the quickest way in, and it needs no tap: it comes first.
+            scannerCard(snapshot)
             NativeCredentialInput(
                 value: Binding(get: { snapshot.uri }, set: model.controller.updateUri),
                 label: snapshot.uriLabel,
@@ -159,7 +115,6 @@ struct NwcNativeOnboardingView: View {
                     .foregroundStyle(.red)
                     .accessibilityAddTraits(.isStaticText)
             }
-            scannerCard(snapshot)
         }
         .onAppear {
             model.controller.setScannerActive(active: scenePhase == .active)
@@ -170,9 +125,9 @@ struct NwcNativeOnboardingView: View {
     }
 
     private func scannerCard(_ snapshot: NwcNativeOnboardingSnapshot) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: snapshot.cameraAuthorization == "authorized" ? "viewfinder" : "camera.fill")
-                .font(.system(size: 48, weight: .light))
+        VStack(spacing: 16) {
+            Image(systemName: snapshot.cameraAuthorization == "authorized" ? "qrcode.viewfinder" : "camera.fill")
+                .font(.system(size: 56, weight: .light))
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)
 
@@ -181,7 +136,6 @@ struct NwcNativeOnboardingView: View {
                     ? snapshot.scanInstruction
                     : cameraMessage(snapshot)
             )
-            .font(.subheadline)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
 
@@ -193,9 +147,12 @@ struct NwcNativeOnboardingView: View {
                     .buttonStyle(.bordered)
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 200)
         .padding(24)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .background(
+            Color(uiColor: .secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 20)
+        )
     }
 
     private func confirmation(_ snapshot: NwcNativeOnboardingSnapshot) -> some View {
@@ -243,17 +200,8 @@ struct NwcNativeOnboardingView: View {
                         .padding()
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
 
-                        detail(snapshot.publicKeyLabel, snapshot.walletPublicKey)
-                        detail(snapshot.relayLabel, snapshot.relay)
                         detail(snapshot.lightningAddressLabel, snapshot.lightningAddress)
-                        detail(snapshot.methodsLabel, snapshot.methods)
-                        detail(snapshot.encryptionLabel, snapshot.encryptionSchemes)
-
-                        if let activeEncryption = snapshot.activeEncryption {
-                            Text(activeEncryption)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
+                        detail(snapshot.relayLabel, snapshot.relay)
                     }
 
                     if let error = snapshot.connectionError {

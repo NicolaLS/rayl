@@ -70,29 +70,6 @@
         }
       }
     },
-    "credential_connection_notice" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Beim Verbinden werden deine Wallet-Zugangsdaten auf diesem Gerät gespeichert."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connecting stores your wallet credentials on this device."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Al conectar, las credenciales de tu billetera se guardan en este dispositivo."
-          }
-        }
-      }
-    },
     "credential_hide" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -112,29 +89,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ocultar credencial"
-          }
-        }
-      }
-    },
-    "credential_instructions" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verbindungsanleitung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connection instructions"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Instrucciones de conexión"
           }
         }
       }

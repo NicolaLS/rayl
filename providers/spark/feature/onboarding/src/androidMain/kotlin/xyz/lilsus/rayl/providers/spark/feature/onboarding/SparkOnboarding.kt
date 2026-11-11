@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -16,15 +15,11 @@ import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletConnection
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletViewModel
 import xyz.lilsus.raylsuite.feature.onboarding.AgreementScreen
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
-import xyz.lilsus.raylsuite.feature.onboarding.WalletInstructionsScreen
 
 @Serializable
 sealed interface SparkOnboardingDestination {
     @Serializable
     data object Agreement : SparkOnboardingDestination
-
-    @Serializable
-    data object WalletInstructions : SparkOnboardingDestination
 
     @Serializable
     data object AddWallet : SparkOnboardingDestination
@@ -40,6 +35,7 @@ fun NavGraphBuilder.sparkOnboarding(
     connectionOnly: Boolean = false,
     privacyPolicyUrl: String? = null,
     termsUrl: String? = null,
+    onCancel: (() -> Unit)? = null,
     onWalletConnected: () -> Unit
 ) {
     composable<SparkOnboardingDestination.Agreement> {
@@ -50,42 +46,11 @@ fun NavGraphBuilder.sparkOnboarding(
                 xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
             ),
             hasAgreed = state.hasAgreed,
-            stepIndex = 0,
-            totalSteps = 0,
             onAgreementChanged = onboardingViewModel::setAgreement,
             onContinue = {
                 if (state.hasAgreed) onWalletConnected()
             },
-            onBack = null
-        )
-    }
-    composable<SparkOnboardingDestination.WalletInstructions> {
-        WalletInstructionsScreen(
-            title = stringResource(R.string.spark_onboarding_add_wallet_title),
-            introduction = stringResource(
-                R.string.spark_onboarding_add_wallet_intro,
-                xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-            ),
-            steps =
-                listOf(
-                    AnnotatedString(stringResource(R.string.spark_onboarding_add_wallet_step1)),
-                    AnnotatedString(
-                        stringResource(
-                            R.string.spark_onboarding_add_wallet_step2,
-                            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-                        )
-                    ),
-                    AnnotatedString(
-                        stringResource(
-                            R.string.spark_onboarding_add_wallet_step3,
-                            xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
-                        )
-                    )
-                ),
-            stepIndex = 0,
-            totalSteps = 0,
-            onConnectWallet = { navController.navigateUp() },
-            onBack = navController::navigateUp
+            onBack = onCancel
         )
     }
     composable<SparkOnboardingDestination.AddWallet> {
@@ -95,6 +60,7 @@ fun NavGraphBuilder.sparkOnboarding(
             connectionOnly = connectionOnly,
             privacyPolicyUrl = privacyPolicyUrl,
             termsUrl = termsUrl,
+            onCancel = onCancel,
             onWalletConnected = onWalletConnected
         )
     }
@@ -124,7 +90,7 @@ fun NavGraphBuilder.sparkOnboarding(
         }
         WalletConnectionScreen(
             state = state,
-            onBack = null,
+            onBack = onCancel,
             dispatch = walletViewModel::dispatch
         )
     }
@@ -137,6 +103,7 @@ private fun OnboardingWalletDestination(
     connectionOnly: Boolean,
     privacyPolicyUrl: String?,
     termsUrl: String?,
+    onCancel: (() -> Unit)?,
     onWalletConnected: () -> Unit
 ) {
     val state by walletViewModel.state.collectAsStateWithLifecycle()
@@ -154,11 +121,8 @@ private fun OnboardingWalletDestination(
     }
     WalletConnectionScreen(
         state = state,
-        onBack = null,
+        onBack = onCancel,
         dispatch = walletViewModel::dispatch,
-        onShowInstructions = {
-            navController.navigate(SparkOnboardingDestination.WalletInstructions)
-        },
         privacyPolicyUrl = privacyPolicyUrl,
         termsUrl = termsUrl
     )

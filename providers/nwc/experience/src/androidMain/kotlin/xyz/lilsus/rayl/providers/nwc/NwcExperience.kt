@@ -1,14 +1,6 @@
 package xyz.lilsus.rayl.providers.nwc
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -16,7 +8,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -108,53 +99,40 @@ private fun NwcExperienceContent(runtime: NwcRuntime, onConnectionChanged: (Bool
             }
         }
 
-    val cancellationInsets = if (connected == null) {
-        Modifier.windowInsetsPadding(
-            WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
-        )
-    } else {
-        Modifier
-    }
     BackHandler(enabled = connected == null) {
         if (runtime.nwcWallet.connection.value == null && !runtime.removalPending.value) {
             runtime.removeWallet()
         }
     }
-    Column(modifier = cancellationInsets) {
-        if (connected == null) {
-            TextButton(
-                onClick = {
-                    if (runtime.nwcWallet.connection.value == null &&
-                        !runtime.removalPending.value
-                    ) {
-                        runtime.removeWallet()
-                    }
-                }
-            ) { Text(stringResource(android.R.string.cancel)) }
-        }
-        NavHost(
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        modifier = Modifier
+    ) {
+        nwcOnboarding(
             navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier
-        ) {
-            nwcOnboarding(
-                navController = navController,
-                nwcWallet = runtime.nwcWallet,
-                onboardingViewModel = runtime.onboardingViewModel,
-                connectionDraft = runtime.connectionDraft,
-                clipboard = clipboard,
-                connectionOnly = connectionOnly,
-                privacyPolicyUrl = runtime.configuration.legalLinks.privacyPolicyUrl,
-                termsUrl = runtime.configuration.legalLinks.termsUrl,
-                onWalletConnected = {
-                    runtime.completeOnboarding()
-                    navController.navigate(NwcDestination.Home) {
-                        popUpTo(navController.graph.id) { inclusive = true }
-                        launchSingleTop = true
-                    }
+            nwcWallet = runtime.nwcWallet,
+            onboardingViewModel = runtime.onboardingViewModel,
+            connectionDraft = runtime.connectionDraft,
+            clipboard = clipboard,
+            connectionOnly = connectionOnly,
+            privacyPolicyUrl = runtime.configuration.legalLinks.privacyPolicyUrl,
+            termsUrl = runtime.configuration.legalLinks.termsUrl,
+            onCancel = {
+                if (runtime.nwcWallet.connection.value == null &&
+                    !runtime.removalPending.value
+                ) {
+                    runtime.removeWallet()
                 }
-            )
-            nwcHome(runtime = runtime)
-        }
+            },
+            onWalletConnected = {
+                runtime.completeOnboarding()
+                navController.navigate(NwcDestination.Home) {
+                    popUpTo(navController.graph.id) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        )
+        nwcHome(runtime = runtime)
     }
 }

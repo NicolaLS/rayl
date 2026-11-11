@@ -3,7 +3,6 @@ appId: ${APP_ID}
 ---
 - tapOn: "Get started"
 - tapOn: "Continue"
-- tapOn: "Continue"
 # Its Continue sets up Rayl's wallet with Breez first; that can take a minute.
 - runFlow: accept-risk.yaml
 - extendedWaitUntil:

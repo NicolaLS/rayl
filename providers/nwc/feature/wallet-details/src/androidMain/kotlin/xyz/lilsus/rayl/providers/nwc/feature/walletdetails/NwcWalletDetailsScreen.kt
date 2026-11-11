@@ -60,15 +60,15 @@ fun NwcWalletDetailsScreen(
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text(
-                text =
-                    connection.alias?.takeIf(String::isNotBlank)
-                        ?: connection.walletPublicKey,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            connection.alias?.takeIf(String::isNotBlank)?.let { alias ->
+                Text(
+                    text = alias,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),

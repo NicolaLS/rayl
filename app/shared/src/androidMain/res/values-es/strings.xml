@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Rayl</string>
     <string name="welcome_title">Bienvenido a Rayl</string>
-    <string name="welcome_body">Pagos Lightning rápidos, listos cuando tú lo estés. Sin configuración.</string>
+    <string name="welcome_body">Pagos Lightning rápidos, listos cuando tú lo estés.</string>
     <string name="get_started">Comenzar</string>
     <string name="blink_title">Blink</string>
     <string name="blink_body">Conecta tu cuenta de Blink con una clave API.</string>
@@ -11,14 +11,11 @@
     <string name="spark_body">Importa tu billetera Spark con su frase de recuperación.</string>
     <string name="wallet_cleanup_failed">Rayl no pudo terminar de borrar la conexión de la cartera anterior. Vuelve a intentarlo para continuar.</string>
     <string name="wallet_cleanup_retry">Reintentar</string>
-    <string name="onboarding_page1_title">Escáner silencioso, resultados rápidos</string>
-    <string name="onboarding_page1_subtitle">Funciona, aunque no veas la cámara.</string>
-    <string name="onboarding_page1_body">Rayl escanea en segundo plano para que el pago sea fluido. Apunta al código, espera un momento y listo.</string>
-    <string name="onboarding_page2_title">Auto Pay, a tu manera</string>
-    <string name="onboarding_page2_subtitle">Paga importes pequeños al instante, sin toques extra.</string>
-    <string name="onboarding_page2_body">Fija un límite con el que te sientas cómodo. Por encima de él, Rayl te preguntará antes de pagar.</string>
-    <string name="onboarding_page3_title">Un saldo para gastar</string>
-    <string name="onboarding_page3_subtitle">Como una tarjeta prepago para Lightning.</string>
-    <string name="onboarding_page3_body">Recarga Rayl desde la billetera donde ahorras y guarda solo lo que piensas gastar. Tus ahorros se quedan donde están.</string>
     <string name="onboarding_autopay_body">Elige cuándo Rayl debe pedir confirmación antes de pagar.</string>
+    <string name="welcome_scan_title">Apunta al código</string>
+    <string name="welcome_scan_body">Rayl escanea sin mostrar la cámara y paga en un momento.</string>
+    <string name="welcome_autopay_title">Auto Pay, a tu manera</string>
+    <string name="welcome_autopay_body">Los importes pequeños se pagan al instante. Por encima de tu límite, Rayl pregunta antes.</string>
+    <string name="welcome_balance_title">Un saldo para gastar</string>
+    <string name="welcome_balance_body">Recarga lo que piensas gastar, como una tarjeta prepago. Tus ahorros se quedan donde están.</string>
 </resources>

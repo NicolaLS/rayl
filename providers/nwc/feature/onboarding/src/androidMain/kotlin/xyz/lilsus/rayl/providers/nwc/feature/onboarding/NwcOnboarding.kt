@@ -36,9 +36,6 @@ sealed interface NwcOnboardingDestination {
     data object Agreement : NwcOnboardingDestination
 
     @Serializable
-    data object WalletInstructions : NwcOnboardingDestination
-
-    @Serializable
     data object AddWallet : NwcOnboardingDestination
 
     @Serializable
@@ -57,6 +54,7 @@ fun NavGraphBuilder.nwcOnboarding(
     connectionOnly: Boolean = false,
     privacyPolicyUrl: String? = null,
     termsUrl: String? = null,
+    onCancel: (() -> Unit)? = null,
     onWalletConnected: () -> Unit
 ) {
     composable<NwcOnboardingDestination.Agreement> {
@@ -67,8 +65,6 @@ fun NavGraphBuilder.nwcOnboarding(
                 xyz.lilsus.raylsuite.core.ui.platform.LocalProductName.current
             ),
             hasAgreed = state.hasAgreed,
-            stepIndex = 0,
-            totalSteps = 0,
             onAgreementChanged = onboardingViewModel::setAgreement,
             onContinue = {
                 if (nwcWallet.connection.value == null) {
@@ -77,15 +73,7 @@ fun NavGraphBuilder.nwcOnboarding(
                     onWalletConnected()
                 }
             },
-            onBack = null
-        )
-    }
-    composable<NwcOnboardingDestination.WalletInstructions> {
-        NwcWalletInstructionsScreen(
-            stepIndex = 0,
-            totalSteps = 0,
-            onConnectWallet = { navController.navigateUp() },
-            onBack = navController::navigateUp
+            onBack = onCancel.takeIf { nwcWallet.connection.value == null }
         )
     }
     composable<NwcOnboardingDestination.AddWallet> {
@@ -95,7 +83,8 @@ fun NavGraphBuilder.nwcOnboarding(
             connectionDraft = connectionDraft,
             clipboard = clipboard,
             privacyPolicyUrl = privacyPolicyUrl,
-            termsUrl = termsUrl
+            termsUrl = termsUrl,
+            onCancel = onCancel
         )
     }
     composable<NwcOnboardingDestination.AddWalletFromSettings> {
@@ -105,7 +94,8 @@ fun NavGraphBuilder.nwcOnboarding(
             connectionDraft = connectionDraft,
             clipboard = clipboard,
             privacyPolicyUrl = privacyPolicyUrl,
-            termsUrl = termsUrl
+            termsUrl = termsUrl,
+            onCancel = null
         )
     }
     dialog<NwcOnboardingDestination.ConfirmWallet> { backStackEntry ->
@@ -147,7 +137,8 @@ private fun AddWalletDestination(
     connectionDraft: NwcConnectionDraft,
     clipboard: CredentialClipboard,
     privacyPolicyUrl: String?,
-    termsUrl: String?
+    termsUrl: String?,
+    onCancel: (() -> Unit)?
 ) {
     val viewModel = remember { AddNwcWalletViewModel() }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -200,14 +191,10 @@ private fun AddWalletDestination(
                     viewModel.reset()
                     clipboard.discard()
                     navController.navigateUp()
+                    Unit
                 }
             } else {
-                null
-            },
-            onShowInstructions = {
-                viewModel.reset()
-                clipboard.discard()
-                navController.navigate(NwcOnboardingDestination.WalletInstructions)
+                onCancel
             },
             privacyPolicyUrl = privacyPolicyUrl,
             termsUrl = termsUrl,

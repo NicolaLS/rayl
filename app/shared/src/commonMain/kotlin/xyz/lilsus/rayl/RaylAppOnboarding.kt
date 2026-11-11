@@ -11,10 +11,10 @@ import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRep
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
 
 /**
- * Rayl's own onboarding, before any wallet: the welcome, what Rayl does, and Auto Pay. Wallets
- * only onboard what they need themselves, such as accepting their terms.
+ * Rayl's own onboarding, before any wallet: the welcome, which says what Rayl does, and Auto Pay.
+ * Wallets only onboard what they need themselves, such as accepting their terms.
  */
-internal enum class AppOnboardingStep { Welcome, Features, AutoPay, Complete }
+internal enum class AppOnboardingStep { Welcome, AutoPay, Complete }
 
 /** Persists completion only; an interrupted onboarding starts over at the welcome. */
 internal class RaylAppOnboarding(private val settings: Settings) {
@@ -39,27 +39,15 @@ internal class RaylAppOnboarding(private val settings: Settings) {
     }
 
     fun back() {
-        when (mutableStep.value) {
-            AppOnboardingStep.Features -> moveTo(AppOnboardingStep.Welcome)
-            AppOnboardingStep.AutoPay -> moveTo(AppOnboardingStep.Features)
-            else -> Unit
-        }
+        if (mutableStep.value == AppOnboardingStep.AutoPay) moveTo(AppOnboardingStep.Welcome)
     }
-}
-
-/** Steps after the welcome show progress dots. */
-internal const val APP_ONBOARDING_PROGRESS_STEPS = 2
-
-internal fun AppOnboardingStep.progressIndex(): Int = when (this) {
-    AppOnboardingStep.AutoPay -> 1
-    else -> 0
 }
 
 internal fun appOnboarded(settings: Settings): Boolean = settings.getBoolean(ONBOARDED_KEY, false)
 
 private const val ONBOARDED_KEY = "rayl.onboarded"
 
-/** Auto Pay and feature-page state for the app onboarding, outside any wallet session. */
+/** Auto Pay state for the app onboarding, outside any wallet session. */
 internal class AppOnboardingSettings(settings: Settings) {
     private val prices = RaylBitcoinPriceProvider()
     val viewModel = OnboardingViewModel(

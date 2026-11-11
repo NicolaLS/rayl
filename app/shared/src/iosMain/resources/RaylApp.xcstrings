@@ -162,213 +162,6 @@
         }
       }
     },
-    "onboarding_page1_body" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rayl scannt im Hintergrund, damit der Bezahlvorgang flüssig bleibt. Richte die Kamera auf den Code, warte kurz, und fertig."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rayl scans in the background so checkout stays smooth. Aim at the code, wait a beat, and you’re good."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rayl escanea en segundo plano para que el pago sea fluido. Apunta al código, espera un momento y listo."
-          }
-        }
-      }
-    },
-    "onboarding_page1_subtitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Er arbeitet – auch wenn du die Kamera nicht siehst."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "It’s working — even if you can’t see the camera."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Funciona, aunque no veas la cámara."
-          }
-        }
-      }
-    },
-    "onboarding_page1_title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leiser Scanner, schnelle Ergebnisse"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quiet scanner, quick results"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escáner silencioso, resultados rápidos"
-          }
-        }
-      }
-    },
-    "onboarding_page2_body" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lege ein Limit fest, mit dem du dich wohlfühlst. Bei allem darüber fragt Rayl vor dem Bezahlen nach."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Set a limit you’re comfortable with. For anything above it, Rayl will ask before paying."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fija un límite con el que te sientas cómodo. Por encima de él, Rayl te preguntará antes de pagar."
-          }
-        }
-      }
-    },
-    "onboarding_page2_subtitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kleine Beträge sofort bezahlen – ohne zusätzliches Tippen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pay small amounts instantly — no extra taps."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paga importes pequeños al instante, sin toques extra."
-          }
-        }
-      }
-    },
-    "onboarding_page2_title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auto Pay nach deinen Regeln"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auto Pay, your rules"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auto Pay, a tu manera"
-          }
-        }
-      }
-    },
-    "onboarding_page3_body" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lade Rayl aus der Wallet auf, in der du sparst, und behalte nur, was du ausgeben willst. Deine Ersparnisse bleiben, wo sie sind."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Top up Rayl from the wallet you save in, and keep only what you plan to spend. Your savings stay where they are."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recarga Rayl desde la billetera donde ahorras y guarda solo lo que piensas gastar. Tus ahorros se quedan donde están."
-          }
-        }
-      }
-    },
-    "onboarding_page3_subtitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wie eine Prepaid-Karte für Lightning."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Like a prepaid card for Lightning."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Como una tarjeta prepago para Lightning."
-          }
-        }
-      }
-    },
-    "onboarding_page3_title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Guthaben zum Ausgeben"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A balance for spending"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Un saldo para gastar"
-          }
-        }
-      }
-    },
     "spark_body" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -461,25 +254,163 @@
         }
       }
     },
+    "welcome_autopay_body" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kleine Beträge werden sofort bezahlt. Über deinem Limit fragt Rayl vorher nach."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Small amounts are paid right away. Above your limit, Rayl asks first."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los importes pequeños se pagan al instante. Por encima de tu límite, Rayl pregunta antes."
+          }
+        }
+      }
+    },
+    "welcome_autopay_title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto Pay nach deinen Regeln"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto Pay, your rules"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto Pay, a tu manera"
+          }
+        }
+      }
+    },
+    "welcome_balance_body" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lade auf, was du ausgeben willst, wie bei einer Prepaid-Karte. Deine Ersparnisse bleiben, wo sie sind."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Top up what you plan to spend, like a prepaid card. Your savings stay where they are."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recarga lo que piensas gastar, como una tarjeta prepago. Tus ahorros se quedan donde están."
+          }
+        }
+      }
+    },
+    "welcome_balance_title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guthaben zum Ausgeben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A balance for spending"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un saldo para gastar"
+          }
+        }
+      }
+    },
     "welcome_body" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Schnelle Lightning-Zahlungen, sofort startklar. Keine Einrichtung nötig."
+            "value" : "Schnelle Lightning-Zahlungen, sofort startklar."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fast Lightning payments, ready when you are. No setup needed."
+            "value" : "Fast Lightning payments, ready when you are."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pagos Lightning rápidos, listos cuando tú lo estés. Sin configuración."
+            "value" : "Pagos Lightning rápidos, listos cuando tú lo estés."
+          }
+        }
+      }
+    },
+    "welcome_scan_body" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rayl scannt, ohne die Kamera anzuzeigen, und bezahlt im Nu."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rayl scans without showing the camera and pays in a moment."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rayl escanea sin mostrar la cámara y paga en un momento."
+          }
+        }
+      }
+    },
+    "welcome_scan_title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf den Code richten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Point at the code"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apunta al código"
           }
         }
       }

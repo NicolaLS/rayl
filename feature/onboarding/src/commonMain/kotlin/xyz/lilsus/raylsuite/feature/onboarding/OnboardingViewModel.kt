@@ -23,7 +23,6 @@ import xyz.lilsus.raylsuite.feature.currencysettings.CurrencyPreferences
 import xyz.lilsus.raylsuite.feature.paymentsettings.PaymentPreferencesRepository
 
 data class OnboardingUiState(
-    val featuresPage: Int = 0,
     val confirmationMode: PaymentConfirmationMode = PaymentConfirmationMode.Above,
     val thresholdSats: Long = PaymentPreferences.DEFAULT_CONFIRMATION_THRESHOLD_SATS,
     val hasAgreed: Boolean = false,
@@ -58,12 +57,6 @@ class OnboardingViewModel(
         }
         scope.launch {
             currencyPreferences.code.collectLatest(::updateSelectedCurrency)
-        }
-    }
-
-    fun setFeaturesPage(page: Int) {
-        mutableUiState.update { state ->
-            state.copy(featuresPage = page.coerceIn(FIRST_FEATURE_PAGE, LAST_FEATURE_PAGE))
         }
     }
 
@@ -132,6 +125,4 @@ private fun thresholdDisplayAmount(
     )
 }
 
-private const val FIRST_FEATURE_PAGE = 0
-private const val LAST_FEATURE_PAGE = 2
 private const val MSATS_PER_SAT = 1_000L

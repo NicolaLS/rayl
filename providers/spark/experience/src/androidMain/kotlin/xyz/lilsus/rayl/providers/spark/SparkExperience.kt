@@ -3,14 +3,9 @@ package xyz.lilsus.rayl.providers.spark
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -138,71 +133,58 @@ fun SparkExperience(
                 )
             } else {
                 val canChooseWallet = runtime.canCancelSetup
-                val cancellationInsets = if (canChooseWallet) {
-                    Modifier.windowInsetsPadding(
-                        WindowInsets.safeDrawing.only(
-                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                        )
-                    )
-                } else {
-                    Modifier
-                }
                 BackHandler(enabled = canChooseWallet) {
                     if (runtime.canCancelSetup) exiting = true
                 }
-                Column(modifier = cancellationInsets) {
-                    if (canChooseWallet) {
-                        TextButton(
-                            onClick = { if (runtime.canCancelSetup) exiting = true }
-                        ) {
-                            Text(stringResource(R.string.spark_choose_another_wallet))
+                val navController = rememberNavController()
+                val startDestination =
+                    remember {
+                        when (walletState.access) {
+                            WalletAccessState.Connected -> if (connectionOnly) {
+                                SparkDestination.Home
+                            } else {
+                                SparkOnboardingDestination.Agreement
+                            }
+
+                            WalletAccessState.NoWallet -> SparkOnboardingDestination.AddWallet
+
+                            else -> SparkOnboardingDestination.WalletRecovery
                         }
                     }
-                    val navController = rememberNavController()
-                    val startDestination =
-                        remember {
-                            when (walletState.access) {
-                                WalletAccessState.Connected -> if (connectionOnly) {
-                                    SparkDestination.Home
-                                } else {
-                                    SparkOnboardingDestination.Agreement
-                                }
-
-                                WalletAccessState.NoWallet -> SparkOnboardingDestination.AddWallet
-
-                                else -> SparkOnboardingDestination.WalletRecovery
-                            }
-                        }
-                    NavHost(
+                NavHost(
+                    navController = navController,
+                    startDestination = startDestination
+                ) {
+                    sparkOnboarding(
                         navController = navController,
-                        startDestination = startDestination
-                    ) {
-                        sparkOnboarding(
-                            navController = navController,
-                            onboardingViewModel = runtime.onboardingViewModel,
-                            walletViewModel = walletViewModel,
-                            connectionOnly = connectionOnly,
-                            privacyPolicyUrl = configuration.legalLinks.privacyPolicyUrl,
-                            termsUrl = configuration.legalLinks.termsUrl,
-                            onWalletConnected = {
-                                runtime.completeOnboarding()
-                                navController.navigate(SparkDestination.Home) {
-                                    popUpTo(navController.graph.id) { inclusive = true }
-                                    launchSingleTop = true
-                                }
+                        onboardingViewModel = runtime.onboardingViewModel,
+                        walletViewModel = walletViewModel,
+                        connectionOnly = connectionOnly,
+                        privacyPolicyUrl = configuration.legalLinks.privacyPolicyUrl,
+                        termsUrl = configuration.legalLinks.termsUrl,
+                        onCancel = if (canChooseWallet) {
+                            { if (runtime.canCancelSetup) exiting = true }
+                        } else {
+                            null
+                        },
+                        onWalletConnected = {
+                            runtime.completeOnboarding()
+                            navController.navigate(SparkDestination.Home) {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                                launchSingleTop = true
                             }
-                        )
-                        sparkHome(
-                            runtime = runtime,
-                            walletViewModel = walletViewModel,
-                            onWalletRemoved = {
-                                navController.navigate(SparkOnboardingDestination.AddWallet) {
-                                    popUpTo(navController.graph.id) { inclusive = true }
-                                    launchSingleTop = true
-                                }
+                        }
+                    )
+                    sparkHome(
+                        runtime = runtime,
+                        walletViewModel = walletViewModel,
+                        onWalletRemoved = {
+                            navController.navigate(SparkOnboardingDestination.AddWallet) {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                                launchSingleTop = true
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
         }

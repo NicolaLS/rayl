@@ -19,6 +19,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +44,7 @@ import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
  * The Compose host of Rayl's built-in wallet on Android. It needs no credentials: mounting it
  * starts the pocket, and its onboarding sets up the passkey that derives the pocket key. [onUseWallet] runs with one of [otherWallets] once the pocket session has
  * closed, so the host can set up that wallet; [onErased] after a debug build erased the pocket.
+ * [walletIcons] are drawables for [otherWallets] by id; a wallet without one shows its initial.
  */
 @Composable
 fun RaylExperience(
@@ -54,7 +56,8 @@ fun RaylExperience(
     otherWallets: List<RaylWalletOption>,
     onUseWallet: (String) -> Unit,
     onErased: () -> Unit,
-    onConnectionChanged: (Boolean) -> Unit
+    onConnectionChanged: (Boolean) -> Unit,
+    walletIcons: Map<String, Int> = emptyMap()
 ) {
     val appSettings = rememberAppSettings(configuration.preferencesName)
     val haptics = rememberHapticFeedbackManager()
@@ -108,7 +111,10 @@ fun RaylExperience(
             }
         }
     }
-    CompositionLocalProvider(LocalProductName provides configuration.appName) {
+    CompositionLocalProvider(
+        LocalProductName provides configuration.appName,
+        LocalRaylWalletIcons provides walletIcons
+    ) {
         RaylSuiteTheme(themePreference = themePreference) {
             when {
                 exit == RaylExit.Failed -> RaylStatusScreen(
@@ -151,6 +157,9 @@ internal fun RaylStatusScreen(message: String?, action: String? = null, onAction
         }
     }
 }
+
+/** The host's drawables for the wallets it offers, by wallet id. */
+internal val LocalRaylWalletIcons = staticCompositionLocalOf<Map<String, Int>> { emptyMap() }
 
 private const val REGTEST_LOG_TAG = "RaylRegtest"
 

@@ -1,8 +1,6 @@
 <resources>
     <string name="action_back">Zurück</string>
     <string name="action_clear_search">Suche löschen</string>
-    <string name="credential_instructions">Verbindungsanleitung</string>
-    <string name="credential_connection_notice">Beim Verbinden werden deine Wallet-Zugangsdaten auf diesem Gerät gespeichert.</string>
     <string name="credential_privacy">Datenschutzerklärung</string>
     <string name="credential_terms">Nutzungsbedingungen</string>
     <string name="credential_show">Zugangsdaten anzeigen</string>

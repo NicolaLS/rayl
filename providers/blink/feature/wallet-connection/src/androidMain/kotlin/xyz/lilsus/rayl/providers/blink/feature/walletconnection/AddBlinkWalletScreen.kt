@@ -36,11 +36,12 @@ fun AddBlinkWalletScreen(
         onShowInstructions = onShowInstructions,
         privacyPolicyUrl = privacyPolicyUrl,
         termsUrl = termsUrl,
+        termsTitle = stringResource(R.string.add_blink_wallet_terms),
         modifier = modifier.testTag(BlinkWalletConnectionTestTags.SCREEN),
         actionModifier = Modifier.testTag(BlinkWalletConnectionTestTags.CONNECT_BUTTON),
         instructionsTitle = stringResource(R.string.add_blink_wallet_instructions),
-        connectionNotice = stringResource(R.string.add_blink_wallet_connection_notice),
-        termsTitle = stringResource(R.string.add_blink_wallet_terms)
+        // Blink also imports contacts, which the user must hear about before connecting.
+        connectionNotice = stringResource(R.string.add_blink_wallet_connection_notice)
     ) {
         CredentialInput(
             value = state.apiKey,

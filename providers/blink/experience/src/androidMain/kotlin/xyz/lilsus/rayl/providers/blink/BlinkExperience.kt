@@ -1,23 +1,12 @@
 package xyz.lilsus.rayl.providers.blink
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -95,45 +84,31 @@ fun BlinkExperience(
             BackHandler(enabled = connected == null) {
                 if (runtime.blinkWallet.connection.value == null) runtime.removeWallet()
             }
-            Column(
-                modifier = if (connected == null) {
-                    Modifier.windowInsetsPadding(
-                        WindowInsets.safeDrawing.only(
-                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                        )
-                    )
-                } else {
-                    Modifier
-                }
-            ) {
-                if (connected == null) {
-                    TextButton(onClick = {
+            if (destination != BlinkOnboardingStep.Complete) {
+                BlinkOnboarding(
+                    step = destination,
+                    blinkWallet = runtime.blinkWallet,
+                    onboardingViewModel = runtime.onboardingViewModel,
+                    privacyPolicyUrl = configuration.legalLinks.privacyPolicyUrl,
+                    termsUrl = configuration.legalLinks.termsUrl,
+                    onCancel = {
                         if (runtime.blinkWallet.connection.value == null) {
                             runtime.removeWallet()
                         }
-                    }) { Text(stringResource(android.R.string.cancel)) }
-                }
-                if (destination != BlinkOnboardingStep.Complete) {
-                    BlinkOnboarding(
-                        step = destination,
-                        blinkWallet = runtime.blinkWallet,
-                        onboardingViewModel = runtime.onboardingViewModel,
-                        privacyPolicyUrl = configuration.legalLinks.privacyPolicyUrl,
-                        termsUrl = configuration.legalLinks.termsUrl,
-                        onStepChanged = runtime.onboardingState::moveTo
+                    },
+                    onStepChanged = runtime.onboardingState::moveTo
+                )
+            } else {
+                NavHost(
+                    navController = navController,
+                    startDestination = BlinkDestination.Home
+                ) {
+                    blinkHome(
+                        runtime = runtime,
+                        onRemoveWallet = {
+                            runtime.removeWallet()
+                        }
                     )
-                } else {
-                    NavHost(
-                        navController = navController,
-                        startDestination = BlinkDestination.Home
-                    ) {
-                        blinkHome(
-                            runtime = runtime,
-                            onRemoveWallet = {
-                                runtime.removeWallet()
-                            }
-                        )
-                    }
                 }
             }
         }

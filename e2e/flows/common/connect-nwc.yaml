@@ -16,7 +16,7 @@ appId: ${APP_ID}
     text: "Connect"
     optional: true
 - extendedWaitUntil:
-    visible: "Active encryption.*"
+    visible: "Wallet alias.*"
     timeout: 30000
 - tapOn:
     text: "Add Wallet"

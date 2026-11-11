@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Rayl</string>
     <string name="welcome_title">Welcome to Rayl</string>
-    <string name="welcome_body">Fast Lightning payments, ready when you are. No setup needed.</string>
+    <string name="welcome_body">Fast Lightning payments, ready when you are.</string>
     <string name="get_started">Get started</string>
     <string name="blink_title">Blink</string>
     <string name="blink_body">Connect your Blink account with an API key.</string>
@@ -11,14 +11,11 @@
     <string name="spark_body">Import your Spark wallet with its recovery phrase.</string>
     <string name="wallet_cleanup_failed">Rayl could not finish clearing the previous wallet connection. Retry to continue.</string>
     <string name="wallet_cleanup_retry">Retry</string>
-    <string name="onboarding_page1_title">Quiet scanner, quick results</string>
-    <string name="onboarding_page1_subtitle">It’s working — even if you can’t see the camera.</string>
-    <string name="onboarding_page1_body">Rayl scans in the background so checkout stays smooth. Aim at the code, wait a beat, and you’re good.</string>
-    <string name="onboarding_page2_title">Auto Pay, your rules</string>
-    <string name="onboarding_page2_subtitle">Pay small amounts instantly — no extra taps.</string>
-    <string name="onboarding_page2_body">Set a limit you’re comfortable with. For anything above it, Rayl will ask before paying.</string>
-    <string name="onboarding_page3_title">A balance for spending</string>
-    <string name="onboarding_page3_subtitle">Like a prepaid card for Lightning.</string>
-    <string name="onboarding_page3_body">Top up Rayl from the wallet you save in, and keep only what you plan to spend. Your savings stay where they are.</string>
     <string name="onboarding_autopay_body">Choose when Rayl should ask for confirmation before paying.</string>
+    <string name="welcome_scan_title">Point at the code</string>
+    <string name="welcome_scan_body">Rayl scans without showing the camera and pays in a moment.</string>
+    <string name="welcome_autopay_title">Auto Pay, your rules</string>
+    <string name="welcome_autopay_body">Small amounts are paid right away. Above your limit, Rayl asks first.</string>
+    <string name="welcome_balance_title">A balance for spending</string>
+    <string name="welcome_balance_body">Top up what you plan to spend, like a prepaid card. Your savings stay where they are.</string>
 </resources>

@@ -54,8 +54,6 @@ internal fun RaylOnboarding(runtime: RaylRuntime, otherWallets: List<RaylWalletO
         RaylOnboardingStep.Agreement -> AgreementScreen(
             body = stringResource(R.string.rayl_onboarding_agreement_body),
             hasAgreed = hasAgreed,
-            stepIndex = 0,
-            totalSteps = 0,
             onAgreementChanged = state::setAgreement,
             onContinue = state::accept,
             onBack = null,
@@ -122,17 +120,12 @@ private fun RaylOnboardingPage(
     onBack: (() -> Unit)?,
     content: @Composable () -> Unit
 ) {
-    OnboardingScaffold(
-        stepIndex = 0,
-        totalSteps = 0,
-        showBackButton = onBack != null,
-        onBack = onBack ?: {}
-    ) {
+    OnboardingScaffold(onBack = onBack) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(AppSettingsRowDefaults.RowSpacing)
         ) {
-            Text(text = title, style = MaterialTheme.typography.headlineSmall)
+            Text(text = title, style = MaterialTheme.typography.headlineMedium)
             Text(
                 text = body,
                 style = MaterialTheme.typography.bodyLarge,

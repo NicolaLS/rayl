@@ -46,3 +46,11 @@ exporting.
 
 Platform references: [Apple app icons](https://developer.apple.com/design/human-interface-guidelines/app-icons)
 and [Android adaptive icons](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive).
+
+## Other wallets' icons
+
+"Use another wallet" shows each external wallet's own mark, 176 px PNGs trimmed from the
+publishers' assets: Blink's launcher icon (`blinkbitcoin/blink-mobile`), the NWC logo
+(docs.nwc.dev), and Spark's site icon (docs.spark.money). They live in
+`../shared/src/androidMain/res/drawable-xxxhdpi/wallet_<id>.png` and
+`../iosApp/iosApp/Assets.xcassets/wallet_<id>.imageset`; a wallet without one shows its initial.

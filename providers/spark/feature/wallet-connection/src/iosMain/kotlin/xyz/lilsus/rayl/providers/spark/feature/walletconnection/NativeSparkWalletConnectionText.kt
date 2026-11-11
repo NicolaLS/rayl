@@ -13,7 +13,6 @@ data class NativeSparkWalletConnectionText(
     /** Labels for [RecoveryPhraseWords.OFFERED_COUNTS], e.g. "12 words". */
     val wordCountOptions: List<String>,
     val wordsWrong: String,
-    val storageNote: String,
     val passphraseToggle: String,
     val passphraseLabel: String,
     val passphraseHint: String,
@@ -100,9 +99,6 @@ suspend fun nativeSparkWalletConnectionText(appName: String): NativeSparkWalletC
                 table = "SparkWalletConnection",
                 key = "spark_wallet_passphrase_note"
             )
-        ),
-        storageNote = nativeString(
-            NativeStringResource(table = "SparkWalletConnection", key = "spark_wallet_storage_note")
         ),
         importAction = nativeString(
             NativeStringResource(

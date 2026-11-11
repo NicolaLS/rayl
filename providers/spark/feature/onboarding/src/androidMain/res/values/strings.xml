@@ -1,8 +1,3 @@
 <resources>
     <string name="spark_onboarding_agreement_body">Using %1$s is at your own risk. This app can spend from the Spark wallet derived from your recovery phrase. You are fully responsible for the phrase, funds, and payments made.\n\nWe strongly recommend using a wallet with a small spending balance.</string>
-    <string name="spark_onboarding_add_wallet_title">Import your Spark wallet</string>
-    <string name="spark_onboarding_add_wallet_intro">Have the recovery phrase for the wallet you want %1$s to use ready.</string>
-    <string name="spark_onboarding_add_wallet_step1">Open the wallet or backup where your recovery phrase is stored.</string>
-    <string name="spark_onboarding_add_wallet_step2">Enter its 12 or 24 words in %1$s, in order.</string>
-    <string name="spark_onboarding_add_wallet_step3">%1$s opens that Spark wallet and protects the phrase with this device’s secure storage.</string>
 </resources>

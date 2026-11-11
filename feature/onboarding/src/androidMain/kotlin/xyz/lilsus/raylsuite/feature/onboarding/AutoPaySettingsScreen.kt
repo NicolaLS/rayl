@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +28,7 @@ import xyz.lilsus.raylsuite.core.model.DisplayAmount
 import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.model.PaymentConfirmationMode
 import xyz.lilsus.raylsuite.core.model.PaymentPreferences
+import xyz.lilsus.raylsuite.core.ui.components.AppPrimaryButton
 import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
 import xyz.lilsus.raylsuite.feature.onboarding.R
 
@@ -38,8 +38,6 @@ fun AutoPaySettingsScreen(
     confirmationMode: PaymentConfirmationMode,
     thresholdSats: Long,
     currencyEquivalent: String?,
-    stepIndex: Int,
-    totalSteps: Int,
     onConfirmationModeChanged: (PaymentConfirmationMode) -> Unit,
     onThresholdChanged: (Long) -> Unit,
     onContinue: () -> Unit,
@@ -48,11 +46,7 @@ fun AutoPaySettingsScreen(
 ) {
     val formatter = rememberAmountFormatter()
 
-    OnboardingScaffold(
-        stepIndex = stepIndex,
-        totalSteps = totalSteps,
-        onBack = onBack
-    ) {
+    OnboardingScaffold(onBack = onBack) {
         Column(
             modifier =
                 modifier
@@ -62,7 +56,7 @@ fun AutoPaySettingsScreen(
         ) {
             Text(
                 text = stringResource(R.string.onboarding_autopay_title),
-                style = MaterialTheme.typography.headlineSmall
+                style = MaterialTheme.typography.headlineMedium
             )
 
             Text(
@@ -139,14 +133,11 @@ fun AutoPaySettingsScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
+            AppPrimaryButton(
+                text = stringResource(R.string.onboarding_autopay_continue),
                 onClick = onContinue,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag(OnboardingTestTags.AUTO_PAY_CONTINUE)
-            ) {
-                Text(stringResource(R.string.onboarding_autopay_continue))
-            }
+                modifier = Modifier.testTag(OnboardingTestTags.AUTO_PAY_CONTINUE)
+            )
         }
     }
 }

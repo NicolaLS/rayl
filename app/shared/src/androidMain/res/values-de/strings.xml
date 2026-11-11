@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Rayl</string>
     <string name="welcome_title">Willkommen bei Rayl</string>
-    <string name="welcome_body">Schnelle Lightning-Zahlungen, sofort startklar. Keine Einrichtung nötig.</string>
+    <string name="welcome_body">Schnelle Lightning-Zahlungen, sofort startklar.</string>
     <string name="get_started">Loslegen</string>
     <string name="blink_title">Blink</string>
     <string name="blink_body">Verbinde dein Blink-Konto mit einem API-Schlüssel.</string>
@@ -11,14 +11,11 @@
     <string name="spark_body">Importiere deine Spark-Wallet mit ihrer Wiederherstellungsphrase.</string>
     <string name="wallet_cleanup_failed">Rayl konnte die vorherige Wallet-Verbindung nicht vollständig entfernen. Versuche es erneut, um fortzufahren.</string>
     <string name="wallet_cleanup_retry">Erneut versuchen</string>
-    <string name="onboarding_page1_title">Leiser Scanner, schnelle Ergebnisse</string>
-    <string name="onboarding_page1_subtitle">Er arbeitet – auch wenn du die Kamera nicht siehst.</string>
-    <string name="onboarding_page1_body">Rayl scannt im Hintergrund, damit der Bezahlvorgang flüssig bleibt. Richte die Kamera auf den Code, warte kurz, und fertig.</string>
-    <string name="onboarding_page2_title">Auto Pay nach deinen Regeln</string>
-    <string name="onboarding_page2_subtitle">Kleine Beträge sofort bezahlen – ohne zusätzliches Tippen.</string>
-    <string name="onboarding_page2_body">Lege ein Limit fest, mit dem du dich wohlfühlst. Bei allem darüber fragt Rayl vor dem Bezahlen nach.</string>
-    <string name="onboarding_page3_title">Guthaben zum Ausgeben</string>
-    <string name="onboarding_page3_subtitle">Wie eine Prepaid-Karte für Lightning.</string>
-    <string name="onboarding_page3_body">Lade Rayl aus der Wallet auf, in der du sparst, und behalte nur, was du ausgeben willst. Deine Ersparnisse bleiben, wo sie sind.</string>
     <string name="onboarding_autopay_body">Wähle, wann Rayl vor dem Bezahlen um Bestätigung bitten soll.</string>
+    <string name="welcome_scan_title">Auf den Code richten</string>
+    <string name="welcome_scan_body">Rayl scannt, ohne die Kamera anzuzeigen, und bezahlt im Nu.</string>
+    <string name="welcome_autopay_title">Auto Pay nach deinen Regeln</string>
+    <string name="welcome_autopay_body">Kleine Beträge werden sofort bezahlt. Über deinem Limit fragt Rayl vorher nach.</string>
+    <string name="welcome_balance_title">Guthaben zum Ausgeben</string>
+    <string name="welcome_balance_body">Lade auf, was du ausgeben willst, wie bei einer Prepaid-Karte. Deine Ersparnisse bleiben, wo sie sind.</string>
 </resources>

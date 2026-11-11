@@ -129,8 +129,6 @@ private struct RaylOnboardingView: View {
                     checkboxTitle: snapshot.agreementCheckboxTitle,
                     actionTitle: snapshot.agreementNextTitle,
                     hasAgreed: snapshot.hasAgreed,
-                    stepIndex: 0,
-                    stepCount: 0,
                     isWorking: snapshot.isWorking,
                     message: snapshot.message,
                     onAgreementChanged: model.controller.setAgreement,
@@ -226,17 +224,26 @@ private struct RaylWalletChoiceList: View {
 
     var body: some View {
         List {
+            // First what choosing does, then the choices.
             Section {
                 ForEach(wallets, id: \.id) { wallet in
-                    RaylOnboardingRow(title: wallet.title, subtitle: wallet.subtitle) {
+                    RaylOnboardingRow(
+                        title: wallet.title,
+                        subtitle: wallet.subtitle,
+                        badge: .wallet(id: wallet.id)
+                    ) {
                         onUseWallet(wallet.id)
                     }
                     .disabled(isDisabled)
                     .accessibilityIdentifier("rayl_use_wallet_\(wallet.id)")
                 }
-            } footer: {
+            } header: {
                 if let info {
                     Text(info)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .textCase(nil)
+                        .padding(.bottom, 8)
                 }
             }
         }
@@ -244,13 +251,41 @@ private struct RaylWalletChoiceList: View {
 }
 
 private struct RaylOnboardingRow: View {
+    private var hasBadge: Bool {
+        if case .none = badge { return false }
+        return true
+    }
+
     let title: String
     let subtitle: String?
+    var badge: Badge = .none
     let action: () -> Void
+
+    enum Badge {
+        case none
+        /// The app's `wallet_<id>` image for the wallet, or else the title's initial.
+        case wallet(id: String)
+    }
 
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: 14) {
+                if case .wallet(let id) = badge {
+                    if let icon = UIImage(named: "wallet_\(id)") {
+                        Image(uiImage: icon)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 44, height: 44)
+                            .accessibilityHidden(true)
+                    } else {
+                        Text(String(title.prefix(1)))
+                            .font(.headline)
+                            .foregroundStyle(.tint)
+                            .frame(width: 44, height: 44)
+                            .background(Color.accentColor.opacity(0.12), in: Circle())
+                            .accessibilityHidden(true)
+                    }
+                }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .foregroundStyle(.primary)
@@ -265,6 +300,7 @@ private struct RaylOnboardingRow: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
+            .padding(.vertical, hasBadge ? 8 : 0)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

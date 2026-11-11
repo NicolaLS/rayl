@@ -34,12 +34,9 @@ struct SparkNativeOnboardingView: View {
                 if let snapshot = model.snapshot {
                     screen(snapshot)
                         .toolbar {
-                            if snapshot.canGoBack {
+                            if snapshot.canCancel {
                                 ToolbarItem(placement: .topBarLeading) {
-                                    Button(action: model.controller.back) {
-                                        Label(snapshot.backTitle, systemImage: "chevron.left")
-                                            .labelStyle(.iconOnly)
-                                    }
+                                    Button(snapshot.cancelTitle, action: model.controller.cancelSetup)
                                 }
                             }
                         }
@@ -73,53 +70,13 @@ struct SparkNativeOnboardingView: View {
                 checkboxTitle: snapshot.agreementCheckboxTitle,
                 actionTitle: snapshot.agreementNextTitle,
                 hasAgreed: snapshot.hasAgreed,
-                stepIndex: snapshot.stepIndex,
-                stepCount: snapshot.stepCount,
                 onAgreementChanged: model.controller.setAgreement,
                 action: model.controller.continueAgreement
             )
-        case "instructions":
-            instructions(snapshot)
         case "wallet":
             wallet(snapshot)
         default:
             ProgressView()
-        }
-    }
-
-    private func instructions(_ snapshot: SparkNativeOnboardingSnapshot) -> some View {
-        NativeOnboardingProgressLayout(
-            stepIndex: 0,
-            stepCount: 0
-        ) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text(snapshot.instructionsTitle)
-                        .font(.title2.bold())
-                    Text(snapshot.instructionsIntro)
-                        .foregroundStyle(.secondary)
-
-                    ForEach(Array(snapshot.instructionSteps.enumerated()), id: \.offset) {
-                        index,
-                        step in
-                        HStack(alignment: .top, spacing: 12) {
-                            Text(String(index + 1))
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .frame(width: 32, height: 32)
-                                .background(Color.accentColor, in: Circle())
-                            Text(step)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Button(snapshot.connectWalletTitle, action: model.controller.showWalletConnection)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
         }
     }
 
@@ -132,13 +89,10 @@ struct SparkNativeOnboardingView: View {
                 actionTitle: snapshot.importTitle,
                 canSubmit: snapshot.canImport,
                 isSubmitting: snapshot.walletKind == "connecting",
-                instructionsTitle: snapshot.credentialText.instructions,
-                connectionNotice: snapshot.credentialText.connectionNotice,
                 privacyTitle: snapshot.credentialText.privacy,
                 privacyPolicyUrl: snapshot.privacyPolicyUrl,
                 termsTitle: snapshot.credentialText.terms,
                 termsUrl: snapshot.termsUrl,
-                onInstructions: model.controller.showWalletInstructions,
                 onSubmit: model.controller.importWallet
             ) {
                 RecoveryPhraseGrid(
@@ -147,9 +101,6 @@ struct SparkNativeOnboardingView: View {
                     enabled: snapshot.walletKind == "import"
                 )
                 passphrase(snapshot)
-                Text(snapshot.storageNote)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
                 if let error = snapshot.walletError {
                     Text(error)
                         .font(.footnote)
@@ -287,13 +238,11 @@ private struct RecoveryPhraseGrid: View {
                     field(index)
                 }
             }
-            HStack {
-                Spacer()
-                Button(action: controller.pasteRecoveryPhrase) {
-                    Label(snapshot.credentialText.paste, systemImage: "doc.on.clipboard")
-                }
-                .disabled(!enabled)
-            }
+            NativeCredentialPasteButton(
+                title: snapshot.credentialText.paste,
+                action: controller.pasteRecoveryPhrase
+            )
+            .disabled(!enabled)
             if snapshot.wrongWords.contains(where: { $0.boolValue }) {
                 Text(snapshot.wordsWrong)
                     .font(.footnote)

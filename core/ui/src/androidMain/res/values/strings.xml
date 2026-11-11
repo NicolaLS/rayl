@@ -1,8 +1,6 @@
 <resources>
     <string name="action_back">Back</string>
     <string name="action_clear_search">Clear search</string>
-    <string name="credential_instructions">Connection instructions</string>
-    <string name="credential_connection_notice">Connecting stores your wallet credentials on this device.</string>
     <string name="credential_privacy">Privacy Policy</string>
     <string name="credential_terms">Terms of Use</string>
     <string name="credential_show">Show credential</string>

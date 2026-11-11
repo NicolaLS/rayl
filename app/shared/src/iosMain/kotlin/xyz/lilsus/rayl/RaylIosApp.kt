@@ -131,15 +131,7 @@ object RaylIosApp {
                     keys.associateWith { nativeString(NativeStringResource("RaylApp", it)) } +
                         listOf("session_close_failed", "session_close_retry").associateWith {
                             nativeString(NativeStringResource("SparkExperience", "spark_$it"))
-                        } +
-                        (
-                            "cancel_setup" to nativeString(
-                                NativeStringResource(
-                                    "WalletManagement",
-                                    "settings_manage_wallet_cancel"
-                                )
-                            )
-                            )
+                        }
                 // SwiftUI may render this snapshot after removal has cleared the live selection.
                 // Keep its experience with it; rendering must never resolve a different session.
                 val raylExperience = if (ready &&
@@ -334,7 +326,8 @@ object RaylIosApp {
             host = checkNotNull(sparkHostFactory) {
                 "Configure the environment before observing Rayl"
             }(selection.startMode),
-            configuration = RAYL_SPARK
+            configuration = RAYL_SPARK,
+            onCancelSetup = ::cancelSetup
         ).also { experience ->
             spark = experience
             cancellations =
