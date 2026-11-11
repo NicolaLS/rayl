@@ -25,6 +25,7 @@ private enum HubRoute: Hashable {
 private enum HubGeometry {
     static let gap: CGFloat = 12
     static let gutter: CGFloat = 16
+    static let corner: CGFloat = 28
 
     static func span(_ unit: CGFloat, _ count: Int32) -> CGFloat {
         unit * CGFloat(count) + gap * CGFloat(max(count - 1, 0))
@@ -53,6 +54,7 @@ struct NativePaymentHubView: View {
                 .presentationDragIndicator(.visible)
                 .interactiveDismissDisabled(model.snapshot?.busy == true)
         }
+        .onDisappear { model.controller.setArranging(value: false) }
     }
 
     private var editorPresented: Binding<Bool> {
@@ -64,6 +66,26 @@ struct NativePaymentHubView: View {
 
     private func canvas(_ state: NativePaymentHubSnapshot) -> some View {
         VStack(spacing: 0) {
+            if !state.canvas.tiles.isEmpty {
+                HStack(spacing: 12) {
+                    if state.canvas.arranging {
+                        Text(state.text.editHub).font(.headline).accessibilityAddTraits(.isHeader)
+                    }
+                    Spacer()
+                    Button { model.controller.openGallery() } label: {
+                        Image(systemName: "plus").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel(state.text.addWidget)
+                    .buttonStyle(.plain)
+                    Button(state.canvas.arranging ? state.text.done : state.text.edit) {
+                        model.controller.setArranging(value: !state.canvas.arranging)
+                    }
+                    .font(.body.weight(.semibold))
+                    .frame(minHeight: 44)
+                }
+                .padding(.horizontal, HubGeometry.gutter)
+                .disabled(state.busy)
+            }
             if let error = state.error, state.screen == "hub" {
                 Text(error)
                     .font(.footnote)
@@ -75,7 +97,7 @@ struct NativePaymentHubView: View {
 
             GeometryReader { viewport in
                 let columns = viewport.size.width >= 700 ? 4 : 2
-                let width = viewport.size.width - HubGeometry.gutter * 2
+                let width = min(viewport.size.width, 1100) - HubGeometry.gutter * 2
                 let unit = (width - HubGeometry.gap * CGFloat(columns - 1)) / CGFloat(columns)
                 ScrollView {
                     Group {
@@ -91,6 +113,8 @@ struct NativePaymentHubView: View {
                         }
                     }
                     .padding(.horizontal, HubGeometry.gutter)
+                    .frame(maxWidth: 1100)
+                    .frame(maxWidth: .infinity)
                     .disabled(state.busy)
                 }
                 .onAppear { model.controller.setCanvasColumns(value: Int32(columns)) }
@@ -108,7 +132,7 @@ struct NativePaymentHubView: View {
             ForEach(Array(state.canvas.tiles.enumerated()), id: \.element.id) { index, tile in
                 WidgetContent(
                     tile: tile,
-                    interactive: true,
+                    interactive: !state.canvas.arranging,
                     pay: { model.controller.pay(actionId: $0) }
                 )
                 .frame(
@@ -117,12 +141,39 @@ struct NativePaymentHubView: View {
                 )
                 .overlay {
                     if hoveredId == tile.id {
-                        RoundedRectangle(cornerRadius: 24)
+                        RoundedRectangle(cornerRadius: HubGeometry.corner)
                             .strokeBorder(Color.accentColor, lineWidth: 3)
                     }
                 }
-                .animation(.snappy(duration: 0.22), value: tile.row)
-                .animation(.snappy(duration: 0.22), value: tile.column)
+                .overlay(alignment: .topLeading) {
+                    if state.canvas.arranging {
+                        Button { model.controller.removeWidget(id: tile.id) } label: {
+                            Image(systemName: "minus")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.primary)
+                                .frame(width: 28, height: 28)
+                                .background(.regularMaterial, in: Circle())
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.plain)
+                        .offset(x: -10, y: -10)
+                        .accessibilityLabel(state.text.remove + ", " + tile.title)
+                    }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if state.canvas.arranging {
+                        Menu { widgetActions(tile, index: index, state: state) } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.primary)
+                                .frame(width: 28, height: 28)
+                                .background(.regularMaterial, in: Circle())
+                                .frame(width: 44, height: 44)
+                        }
+                        .offset(x: 10, y: -10)
+                        .accessibilityLabel(state.text.widgetOptions + ", " + tile.title)
+                    }
+                }
                 .contextMenu { widgetActions(tile, index: index, state: state) }
                 .accessibilityAction(named: Text(state.text.editWidget)) {
                     model.controller.editWidget(id: tile.id)
@@ -195,14 +246,14 @@ struct NativePaymentHubView: View {
             .frame(width: unit, height: unit)
             .background(
                 Color(uiColor: .secondarySystemGroupedBackground).opacity(0.5),
-                in: RoundedRectangle(cornerRadius: 24)
+                in: RoundedRectangle(cornerRadius: HubGeometry.corner)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 24)
+                RoundedRectangle(cornerRadius: HubGeometry.corner)
                     .strokeBorder(
                         Color.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
             }
-            .contentShape(RoundedRectangle(cornerRadius: 24))
+            .contentShape(RoundedRectangle(cornerRadius: HubGeometry.corner))
         }
         .buttonStyle(.plain)
     }
@@ -232,6 +283,11 @@ struct NativePaymentHubView: View {
     {
         Button(state.text.editWidget, systemImage: "slider.horizontal.3") {
             model.controller.editWidget(id: tile.id)
+        }
+        if !state.canvas.arranging {
+            Button(state.text.editHub, systemImage: "square.grid.2x2") {
+                model.controller.setArranging(value: true)
+            }
         }
         if tile.sizes.count > 1 {
             Menu(state.text.chooseLayout) {
@@ -351,30 +407,8 @@ private struct HubEditorSheet: View {
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
                     .padding(.top, 8)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 16)], spacing: 24) {
-                    ForEach(state.gallery, id: \.id) { definition in
-                        Button {
-                            model.controller.selectDefinition(id: definition.id)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                GalleryIllustration(kind: definition.kind, symbol: definition.symbol)
-                                    .frame(height: 126)
-                                    .frame(maxWidth: .infinity)
-                                    .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22))
-                                Text(definition.title)
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                                Text(definition.detail)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(3)
-                                    .multilineTextAlignment(.leading)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                gallerySection(state, title: state.text.sectionPeople, kinds: ["contacts", "shortcut"])
+                gallerySection(state, title: state.text.sectionCollections, kinds: ["favorites", "recents"])
             }
             .padding(20)
             .frame(maxWidth: 700)
@@ -386,6 +420,37 @@ private struct HubEditorSheet: View {
         .toolbar { dismissButton(state.text.cancel) }
     }
 
+    private func gallerySection(_ state: NativePaymentHubSnapshot, title: String, kinds: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title).font(.title3.bold()).accessibilityAddTraits(.isHeader)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14, alignment: .top), count: 2), spacing: 24) {
+                ForEach(state.gallery.filter { kinds.contains($0.kind) }, id: \.id) { definition in
+                    Button {
+                        model.controller.selectDefinition(id: definition.id)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 7) {
+                            if let preview = definition.variants.first?.preview {
+                                WidgetContent(tile: preview, interactive: false, pay: { _ in }, compactPreview: true)
+                                    .aspectRatio(1.05, contentMode: .fit)
+                                    .allowsHitTesting(false)
+                                    .accessibilityHidden(true)
+                            }
+                            Text(definition.title).font(.headline).foregroundStyle(.primary)
+                            Text(definition.detail)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
     @ToolbarContentBuilder
     private func dismissButton(_ label: String) -> some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
@@ -393,30 +458,6 @@ private struct HubEditorSheet: View {
                 .accessibilityLabel(label)
                 .disabled(model.snapshot?.busy == true)
         }
-    }
-}
-
-private struct GalleryIllustration: View {
-    let kind: String
-    let symbol: String
-
-    var body: some View {
-        Group {
-            if kind == "contacts" {
-                HStack(spacing: -10) {
-                    HubAvatar(initials: "", size: 54, seed: 0)
-                    HubAvatar(initials: "", size: 64, seed: 1)
-                    HubAvatar(initials: "", size: 54, seed: 2)
-                }
-            } else {
-                Image(systemName: symbol)
-                    .font(.system(size: 42, weight: .medium))
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 82, height: 82)
-                    .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 24))
-            }
-        }
-        .accessibilityHidden(true)
     }
 }
 
@@ -492,6 +533,7 @@ private struct VariantGallery: View {
             }
         }
         // The bar says what to do here; the body already names what is being configured.
+        .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle(state.text.chooseLayout)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -856,85 +898,148 @@ private struct WidgetContent: View {
     let tile: NativeHubTile
     let interactive: Bool
     let pay: (String) -> Void
+    var compactPreview = false
+    @ScaledMetric(relativeTo: .subheadline) private var nameBudget: CGFloat = 38
 
     var body: some View {
-        GeometryReader { proxy in
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 5) {
-                    if tile.kind == "shortcut" { Image(systemName: "bolt.fill") }
-                    Text(tile.title).lineLimit(1)
+        Group {
+            if tile.people.isEmpty {
+                empty
+            } else if tile.kind == "shortcut", let person = tile.people.first {
+                shortcut(person)
+            } else if tile.columns == 1, let person = tile.people.first {
+                single(person)
+            } else {
+                group
+            }
+        }
+        .background {
+            if tile.kind == "shortcut" {
+                LinearGradient(colors: [Color(red: 0.16, green: 0.16, blue: 0.30), Color(red: 0.06, green: 0.08, blue: 0.13)], startPoint: .top, endPoint: .bottom)
+            } else {
+                Color(uiColor: .secondarySystemGroupedBackground)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: HubGeometry.corner, style: .continuous))
+    }
+
+    private var empty: some View {
+        VStack(spacing: 12) {
+            Image(systemName: tile.kind == "favorites" ? "star" : tile.kind == "recents" ? "clock" : "person")
+                .font(.title2).accessibilityHidden(true)
+            Text(tile.title).font(.subheadline.weight(.semibold))
+            Text(tile.emptyText).font(.footnote).multilineTextAlignment(.center)
+        }
+        .foregroundStyle(tile.kind == "shortcut" ? Color.white.opacity(0.8) : Color.secondary)
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func shortcut(_ person: NativeHubPerson) -> some View {
+        HubTileAction(interactive: interactive, action: { pay(person.actionId) }) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 7) {
+                    HubAvatar(initials: person.contactInitials, size: 26)
+                    Text(person.contactTitle)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .lineLimit(1)
                     Spacer(minLength: 0)
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .frame(width: 26, height: 26)
+                        .background(.white.opacity(0.14), in: Circle())
+                        .accessibilityHidden(true)
                 }
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                if tile.people.isEmpty {
-                    Text(tile.emptyText)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                Spacer(minLength: 0)
+                Text(person.amount ?? "")
+                    .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.45)
+                Text(tile.title)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .lineLimit(2)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .foregroundStyle(.white)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .allowsHitTesting(interactive)
+        .accessibilityLabel([person.contactTitle, person.amount, tile.title].compactMap { $0 }.joined(separator: ", "))
+    }
+
+    private func single(_ person: NativeHubPerson) -> some View {
+        GeometryReader { proxy in
+            HubTileAction(interactive: interactive, action: { pay(person.actionId) }) {
+                VStack(spacing: 10) {
+                    HubAvatar(initials: person.initials, size: max(24, min((proxy.size.width - 32) * 0.66, proxy.size.height - 42 - nameBudget, 112)))
+                    Text(person.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
                         .multilineTextAlignment(.center)
-                } else {
-                    people(size: proxy.size)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .allowsHitTesting(interactive)
+            .accessibilityLabel(person.title)
+        }
+    }
+
+    private var group: some View {
+        GeometryReader { proxy in
+            let columns = compactPreview ? 2 : (tile.rows >= 2 ? 3 : 4)
+            let rows = compactPreview || tile.rows >= 2 ? 2 : 1
+            let header = tile.kind != "contacts" || tile.customTitle != nil
+            let cellWidth = (proxy.size.width - 28 - CGFloat(columns - 1) * 6) / CGFloat(columns)
+            let cellHeight = (proxy.size.height - 28 - (header ? 28 : 0)) / CGFloat(rows)
+            let amountBudget: CGFloat = tile.people.contains { $0.amount != nil } ? 20 : 0
+            let avatar = max(20, min(cellWidth - 4, cellHeight - nameBudget - amountBudget, 88))
+            VStack(spacing: 8) {
+                if header {
+                    HStack(spacing: 6) {
+                        if tile.kind != "contacts" {
+                            Image(systemName: tile.kind == "favorites" ? "star.fill" : "clock")
+                                .accessibilityHidden(true)
+                        }
+                        Text(tile.title).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: columns), spacing: 0) {
+                    ForEach(Array(tile.people.prefix(columns * rows).enumerated()), id: \.element.id) { index, person in
+                        personButton(person, avatarSize: avatar, seed: index)
+                            .frame(height: cellHeight)
+                    }
                 }
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24))
         }
         .accessibilityElement(children: .contain)
     }
 
-    @ViewBuilder
-    private func people(size: CGSize) -> some View {
-        let columns = tile.columns == 1 ? 1 : (tile.rows >= 2 ? 3 : 4)
-        // A contact and a shortcut often sit side by side, so the portrait always budgets for an
-        // amount line. Sizing it from the content gave neighbouring tiles different circles.
-        let singleHeightAllowance: CGFloat = 108
-        let avatarSize = min(
-            tile.columns == 1 ? 66 : (tile.rows >= 2 ? 72 : 50),
-            (size.width - 40) / CGFloat(columns) - 10,
-            tile.columns == 1 ? size.height - singleHeightAllowance : size.height
-        )
-        if tile.columns == 1 {
-            if let person = tile.people.first {
-                personButton(person, avatarSize: max(32, avatarSize))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        } else {
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: columns),
-                spacing: tile.rows >= 2 ? 20 : 8
-            ) {
-                ForEach(Array(tile.people.enumerated()), id: \.element.id) { index, person in
-                    personButton(person, avatarSize: max(28, avatarSize), seed: index)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        }
-    }
-
-    /// A single face always budgets the line so neighbouring tiles line up. A multi-contact tile
-    /// only needs its own cells to agree, so one with no amounts at all keeps the space.
-    private var reservesAmount: Bool {
-        tile.columns == 1 || tile.people.contains { $0.amount != nil }
-    }
-
     private func personButton(_ person: NativeHubPerson, avatarSize: CGFloat, seed: Int = 0) -> some View {
-        Button {
+        HubTileAction(interactive: interactive, action: {
             if !person.actionId.isEmpty { pay(person.actionId) }
-        } label: {
+        }) {
             VStack(spacing: 6) {
                 HubAvatar(initials: person.initials, size: avatarSize, seed: seed)
                 Text(person.title)
-                    .font(tile.columns == 1 ? .subheadline.weight(.semibold) : .caption.weight(.medium))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                // The line is kept even without an amount so that portraits and names sit at the
-                // same height across neighbouring tiles.
-                if reservesAmount {
+                if tile.people.contains(where: { $0.amount != nil }) {
                     Text(person.amount ?? " ")
-                        .font(tile.columns == 1 ? .subheadline.weight(.semibold) : .caption2)
+                        .font(.caption2)
                         .foregroundStyle(Color.accentColor)
                         .monospacedDigit()
                         .lineLimit(1)
@@ -943,12 +1048,27 @@ private struct WidgetContent: View {
                         .accessibilityHidden(person.amount == nil)
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .allowsHitTesting(interactive)
         .accessibilityLabel(person.title + (person.amount.map { ", " + $0 } ?? ""))
+    }
+}
+
+/// Previews are pictures, so their enclosing gallery button owns all interaction.
+private struct HubTileAction<Content: View>: View {
+    let interactive: Bool
+    let action: () -> Void
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        if interactive {
+            Button(action: action, label: content).buttonStyle(.plain)
+        } else {
+            content()
+        }
     }
 }
 
@@ -958,8 +1078,8 @@ private struct HubAvatar: View {
     var seed: Int = 0
 
     private var color: Color {
-        let colors: [Color] = [.blue, .purple, .pink, .teal, .indigo, .orange]
-        let value = initials.unicodeScalars.reduce(seed) { $0 + Int($1.value) }
+        let colors: [Color] = [Color(red: 0.27, green: 0.74, blue: 0.80), Color(red: 0.49, green: 0.40, blue: 0.93), Color(red: 0.34, green: 0.53, blue: 0.87), Color(red: 0.87, green: 0.49, blue: 0.62)]
+        let value = initials.isEmpty ? seed : initials.unicodeScalars.reduce(0) { $0 + Int($1.value) }
         return colors[value % colors.count]
     }
 
@@ -969,7 +1089,7 @@ private struct HubAvatar: View {
             if initials.isEmpty {
                 Image(systemName: "person.fill").font(.system(size: size * 0.45, weight: .medium))
             } else {
-                Text(initials).font(.system(size: size * 0.36, weight: .semibold, design: .rounded))
+                Text(initials).font(.system(size: size * 0.36, weight: .medium, design: .rounded))
             }
         }
         .foregroundStyle(.white)

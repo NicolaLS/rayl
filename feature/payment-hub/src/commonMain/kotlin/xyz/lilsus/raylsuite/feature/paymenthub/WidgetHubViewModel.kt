@@ -377,12 +377,16 @@ class WidgetHubViewModel(
                                 contact.title
                             },
                             contact.address.full,
-                            (target.amountRule as? DirectTargetAmountRule.Preset)?.amount
+                            (target.amountRule as? DirectTargetAmountRule.Preset)?.amount,
+                            contact.title
                         )
                     }
                 }
             )
         }
-        mutableState.update { it.copy(widgets = tiles) }
+        // An empty canvas has no Done button, so removing the last widget ends arranging.
+        mutableState.update {
+            it.copy(widgets = tiles, arranging = it.arranging && tiles.isNotEmpty())
+        }
     }
 }

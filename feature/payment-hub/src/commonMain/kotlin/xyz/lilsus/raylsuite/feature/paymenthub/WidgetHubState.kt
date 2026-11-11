@@ -30,7 +30,9 @@ data class HubWidgetPerson(
     val contactId: String,
     val title: String,
     val address: String,
-    val amount: StoredAmount? = null
+    val amount: StoredAmount? = null,
+    /** Who is paid. [title] is the shortcut's own name when it has one. */
+    val contactTitle: String = title
 )
 
 data class HubWidgetTile(

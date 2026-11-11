@@ -1,6 +1,30 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "hub_edit_hub": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Hub bearbeiten" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Edit Hub" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Editar Hub" } }
+      }
+    },
+    "hub_widget_section_people": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Personen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "People" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Personas" } }
+      }
+    },
+    "hub_widget_section_collections": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Sammlungen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Collections" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Colecciones" } }
+      }
+    },
     "hub_action_move_down": {
       "extractionState": "stale",
       "localizations": {

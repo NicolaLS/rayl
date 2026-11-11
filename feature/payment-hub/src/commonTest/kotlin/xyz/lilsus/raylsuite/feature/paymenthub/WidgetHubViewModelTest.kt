@@ -72,4 +72,50 @@ class WidgetHubViewModelTest {
         assertEquals(1250L, vm.state.value.widgets.single().people.single().amount?.minor)
         vm.clear()
     }
+
+    @Test
+    fun namedShortcutStillSaysWhoIsPaid() = runTest {
+        val repo = DefaultPaymentHubRepository(MapSettings())
+        val host = PaymentHubController(repo, this)
+        val vm = WidgetHubViewModel(repo, host, { "USD" }, dispatcher = StandardTestDispatcher(testScheduler))
+        val alice = repo.saveContact(assertNotNull(LightningAddress.parse("alice@example.com")), "Alice")
+        advanceUntilIdle()
+        vm.selectDefinition("local.shortcut")
+        vm.configureSelected()
+        vm.toggleContact(alice.id)
+        vm.updateTitle("Coffee")
+        vm.updateAmount("3")
+        vm.saveWidget()
+        advanceUntilIdle()
+        val person = vm.state.value.widgets.single().people.single()
+        assertEquals("Coffee", person.title)
+        assertEquals("Alice", person.contactTitle)
+        vm.clear()
+    }
+
+    @Test
+    fun removingTheLastWidgetEndsArranging() = runTest {
+        // The emptied canvas has no Done button, so arranging would otherwise be stuck on.
+        val repo = DefaultPaymentHubRepository(MapSettings())
+        val host = PaymentHubController(repo, this)
+        val vm = WidgetHubViewModel(repo, host, { "USD" }, dispatcher = StandardTestDispatcher(testScheduler))
+        val alice = repo.saveContact(assertNotNull(LightningAddress.parse("alice@example.com")), "Alice")
+        advanceUntilIdle()
+        repeat(2) {
+            vm.selectDefinition("local.contacts")
+            vm.configureSelected()
+            vm.toggleContact(alice.id)
+            vm.saveWidget()
+            advanceUntilIdle()
+        }
+        vm.setArranging(true)
+        vm.removeWidget(vm.state.value.widgets.first().id)
+        advanceUntilIdle()
+        assertEquals(true, vm.state.value.arranging)
+        vm.removeWidget(vm.state.value.widgets.single().id)
+        advanceUntilIdle()
+        assertEquals(emptyList(), vm.state.value.widgets)
+        assertEquals(false, vm.state.value.arranging)
+        vm.clear()
+    }
 }

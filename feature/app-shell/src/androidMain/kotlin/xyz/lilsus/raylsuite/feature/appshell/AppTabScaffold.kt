@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -31,6 +32,13 @@ fun AppTabScaffold(
     val tabContentState = rememberSaveableStateHolder()
     Scaffold(
         modifier = modifier.testTag(AppShellTestTags.SCAFFOLD),
+        // This scaffold owns the status bar area, so it has to match the Hub's grouped background
+        // there; otherwise a lighter strip sits above the Hub.
+        containerColor = if (selectedTab == AppTab.Hub) {
+            MaterialTheme.colorScheme.surfaceContainer
+        } else {
+            MaterialTheme.colorScheme.background
+        },
         bottomBar = {
             NavigationBar {
                 AppTab.entries.forEach { tab ->

@@ -233,7 +233,6 @@ class NativePaymentHubController(
             kind = kind.name.lowercase(),
             title = title ?: localized(kind.titleKey()),
             detail = description ?: localized(kind.descriptionKey()),
-            symbol = kind.symbol(),
             variants = variants.map { variant ->
                 NativeHubVariant(
                     id = variant.id,
@@ -246,6 +245,7 @@ class NativePaymentHubController(
                         id = "preview:$id:${variant.id}",
                         kind = kind.name.lowercase(),
                         title = title ?: localized(kind.titleKey()),
+                        customTitle = title,
                         variantId = variant.id,
                         column = 0,
                         row = 0,
@@ -260,9 +260,15 @@ class NativePaymentHubController(
                                     contact?.title
                                         ?: localized("hub_widget_contact_placeholder"),
                                 initials = contact?.title?.initials().orEmpty(),
+                                contactTitle =
+                                    contact?.title
+                                        ?: localized("hub_widget_contact_placeholder"),
+                                contactInitials = contact?.title?.initials().orEmpty(),
                                 address = "",
                                 amount = if (kind == HubWidgetKind.Shortcut) {
-                                    localized("hub_widget_shortcut_amount")
+                                    currentAmountFormatter().format(
+                                        DisplayAmount(500, CurrencyCatalog.infoFor("USD").currency)
+                                    )
                                 } else {
                                     null
                                 }
@@ -282,6 +288,7 @@ class NativePaymentHubController(
             title = title?.takeIf { it.isNotBlank() }
                 ?: definitions.firstOrNull { it.id == definitionId }?.title
                 ?: localized(kind.titleKey()),
+            customTitle = title?.takeIf { it.isNotBlank() },
             variantId = variant.id,
             column = 0,
             row = 0,
@@ -293,6 +300,8 @@ class NativePaymentHubController(
                     actionId = person.actionId,
                     title = person.title,
                     initials = person.title.initials(),
+                    contactTitle = person.contactTitle,
+                    contactInitials = person.contactTitle.initials(),
                     address = person.address,
                     amount = person.amount?.let { amount ->
                         currentAmountFormatter().format(
@@ -343,7 +352,6 @@ data class NativeHubDefinition(
     val kind: String,
     val title: String,
     val detail: String,
-    val symbol: String,
     val variants: List<NativeHubVariant>
 )
 
@@ -361,6 +369,7 @@ data class NativeHubTile(
     val id: String,
     val kind: String,
     val title: String,
+    val customTitle: String?,
     val variantId: String,
     val column: Int,
     val row: Int,
@@ -378,6 +387,9 @@ data class NativeHubPerson(
     val actionId: String,
     val title: String,
     val initials: String,
+    /** Who is paid. [title] is the shortcut's own name when it has one. */
+    val contactTitle: String,
+    val contactInitials: String,
     val address: String,
     val amount: String?
 )
@@ -413,6 +425,9 @@ data class NativeHubEditor(
 data class NativePaymentHubCopy(
     val galleryTitle: String,
     val galleryBody: String,
+    val sectionPeople: String,
+    val sectionCollections: String,
+    val editHub: String,
     val addWidget: String,
     val editWidget: String,
     val widgetOptions: String,
@@ -449,6 +464,9 @@ data class NativePaymentHubCopy(
 private fun loadCopy() = NativePaymentHubCopy(
     galleryTitle = localized("hub_widget_gallery_title"),
     galleryBody = localized("hub_widget_gallery_body"),
+    sectionPeople = localized("hub_widget_section_people"),
+    sectionCollections = localized("hub_widget_section_collections"),
+    editHub = localized("hub_edit_hub"),
     addWidget = localized("hub_widget_add"),
     editWidget = localized("hub_widget_edit"),
     widgetOptions = localized("hub_widget_options"),
@@ -490,13 +508,6 @@ private fun String.initials(): String = trim().split(Regex("\\s+"))
 private fun HubWidgetKind.titleKey(): String = "hub_widget_${name.lowercase()}"
 
 private fun HubWidgetKind.descriptionKey(): String = "hub_widget_${name.lowercase()}_body"
-
-private fun HubWidgetKind.symbol(): String = when (this) {
-    HubWidgetKind.Contacts -> "person.crop.circle"
-    HubWidgetKind.Shortcut -> "bolt.fill"
-    HubWidgetKind.Favorites -> "star.fill"
-    HubWidgetKind.Recents -> "clock.fill"
-}
 
 private fun HubWidgetVariant.titleKey(): String = when (id) {
     "single" -> "hub_widget_single"

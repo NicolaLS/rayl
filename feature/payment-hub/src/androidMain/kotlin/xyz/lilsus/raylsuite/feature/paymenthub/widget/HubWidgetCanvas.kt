@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -31,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +58,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -77,14 +81,52 @@ internal fun HubWidgetCanvas(
     viewModel: WidgetHubViewModel,
     modifier: Modifier = Modifier
 ) {
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.setArranging(false) }
+    }
     Column(modifier = modifier) {
+        if (state.widgets.isNotEmpty()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            ) {
+                if (state.arranging) {
+                    Text(
+                        stringResource(R.string.hub_edit_hub),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = viewModel::openGallery, enabled = !state.busy) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.hub_widget_add)
+                    )
+                }
+                TextButton(
+                    onClick = { viewModel.setArranging(!state.arranging) },
+                    enabled = !state.busy
+                ) {
+                    Text(
+                        stringResource(
+                            if (state.arranging) {
+                                R.string.hub_canvas_done
+                            } else {
+                                R.string.hub_canvas_edit
+                            }
+                        )
+                    )
+                }
+            }
+        }
         state.error?.let { error ->
             Text(
                 error.label(state.selectedVariant?.capacity ?: 1),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics {
-                    liveRegion = LiveRegionMode.Assertive
+                    liveRegion = LiveRegionMode.Polite
                 }
             )
         }
@@ -157,9 +199,6 @@ private fun WidgetGrid(
     var dragStart by remember { mutableStateOf(Offset.Zero) }
     var dropId by remember { mutableStateOf<String?>(null) }
     var dragScrollStart by remember { mutableStateOf(0) }
-    DisposableEffect(viewModel) {
-        onDispose { viewModel.setArranging(false) }
-    }
     val gap = 12.dp
     BoxWithConstraints(modifier) {
         val unit = (maxWidth - gap * (columns - 1)) / columns
@@ -242,18 +281,18 @@ private fun WidgetGrid(
                             draggingId = null
                             dragOffset = Offset.Zero
                             dropId = null
-                            viewModel.setArranging(false)
                         },
                         onCancel = {
                             draggingId = null
                             dragOffset = Offset.Zero
                             dropId = null
-                            viewModel.setArranging(false)
                         }
                     )
                     WidgetCanvasTile(
                         tile = tile,
-                        interactive = !state.busy && draggingId == null,
+                        interactive = !state.busy && !state.arranging && draggingId == null,
+                        arranging = state.arranging,
+                        enabled = !state.busy && draggingId == null,
                         variants = state.gallery.firstOrNull { it.id == tile.definitionId }
                             ?.variants.orEmpty(),
                         canMoveUp = index > 0,
@@ -300,7 +339,7 @@ private fun AddWidgetTile(enabled: Boolean, onClick: () -> Unit, modifier: Modif
     Surface(
         onClick = onClick,
         enabled = enabled,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = HubTileShape,
         color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f),
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.drawWithContent {
@@ -347,6 +386,8 @@ private fun AddWidgetTile(enabled: Boolean, onClick: () -> Unit, modifier: Modif
 private fun WidgetCanvasTile(
     tile: HubWidgetTile,
     interactive: Boolean,
+    arranging: Boolean,
+    enabled: Boolean,
     variants: List<HubWidgetVariant>,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
@@ -358,6 +399,7 @@ private fun WidgetCanvasTile(
     var choosingLayout by remember { mutableStateOf(false) }
     val edit = stringResource(R.string.hub_widget_edit)
     val remove = stringResource(R.string.hub_configure_delete)
+    val title = tile.title?.takeIf(String::isNotBlank) ?: tile.kind.label()
     val moveUp = stringResource(R.string.hub_action_move_up)
     val moveDown = stringResource(R.string.hub_action_move_down)
     Box(
@@ -397,7 +439,7 @@ private fun WidgetCanvasTile(
                 Modifier.border(
                     2.dp,
                     MaterialTheme.colorScheme.primary,
-                    MaterialTheme.shapes.extraLarge
+                    HubTileShape
                 )
             } else {
                 Modifier
@@ -408,25 +450,48 @@ private fun WidgetCanvasTile(
             tile,
             onPay = viewModel::pay,
             modifier = Modifier.fillMaxSize(),
-            interactive = interactive,
-            // Clears the glyph of the 48dp target, not the whole target, so titles keep their room.
-            headerTrailingPadding = 20.dp
+            interactive = interactive
         )
-        Box(modifier = Modifier.align(Alignment.TopEnd)) {
+        if (arranging) {
             IconButton(
-                onClick = {
-                    choosingLayout = false
-                    expanded = true
-                },
-                enabled = interactive,
-                modifier = Modifier.size(48.dp)
+                onClick = { viewModel.removeWidget(tile.id) },
+                enabled = enabled,
+                modifier = Modifier.align(Alignment.TopStart).offset(x = (-8).dp, y = (-8).dp)
             ) {
                 Icon(
-                    Icons.Filled.MoreHoriz,
-                    contentDescription = stringResource(R.string.hub_widget_options),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    Icons.Filled.Remove,
+                    contentDescription = "$remove, $title",
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.background(
+                        MaterialTheme.colorScheme.errorContainer,
+                        CircleShape
+                    )
+                        .padding(4.dp).size(20.dp)
                 )
+            }
+        }
+        Box(modifier = Modifier.align(Alignment.TopEnd)) {
+            if (arranging) {
+                IconButton(
+                    onClick = {
+                        choosingLayout = false
+                        expanded = true
+                    },
+                    enabled = enabled,
+                    modifier = Modifier.offset(x = 8.dp, y = (-8).dp).size(48.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.MoreHoriz,
+                        contentDescription =
+                            stringResource(R.string.hub_widget_options) + ", $title",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.background(
+                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                            CircleShape
+                        )
+                            .padding(4.dp).size(20.dp)
+                    )
+                }
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 if (choosingLayout) {
