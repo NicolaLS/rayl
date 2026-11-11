@@ -186,7 +186,12 @@ data class ConnectNwcWalletUiState(
     val alias: String = "",
     val isSaving: Boolean = false,
     val error: NwcConnectionError? = null
-)
+) {
+    /** The connection URI carries the wallet secret. */
+    override fun toString(): String =
+        "ConnectNwcWalletUiState(uri=<redacted>, isDiscoveryLoading=$isDiscoveryLoading, " +
+            "discovery=$discovery, alias=$alias, isSaving=$isSaving, error=$error)"
+}
 
 sealed interface ConnectNwcWalletEvent {
     data class Success(val connection: NwcWalletConnection) : ConnectNwcWalletEvent
