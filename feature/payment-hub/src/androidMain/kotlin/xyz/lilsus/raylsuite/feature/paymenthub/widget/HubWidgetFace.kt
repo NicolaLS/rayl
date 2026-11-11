@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -158,8 +159,8 @@ private fun EmptyFace(tile: HubWidgetTile) {
 }
 
 /**
- * One person, laid out like a shortcut: the portrait where the header is, the name where the
- * figure is, and the address as its caption.
+ * One person, framed like a shortcut: the name as the tile's title, the portrait where the figure
+ * is, and the address on the bottom line.
  */
 @Composable
 private fun SingleContactFace(tile: HubWidgetTile, onPay: (String) -> Unit, interactive: Boolean) {
@@ -169,22 +170,23 @@ private fun SingleContactFace(tile: HubWidgetTile, onPay: (String) -> Unit, inte
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize().payAction(person, interactive, onPay).padding(14.dp)
     ) {
-        ContactAvatar(person?.title, size = 44.dp)
-        Spacer(Modifier.weight(1f))
+        Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.height(26.dp)) {
+            Text(
+                tile.title?.takeIf(String::isNotBlank) ?: name,
+                style = MaterialTheme.typography.labelLarge,
+                color = Quiet,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        BoxWithConstraints(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.weight(1f).fillMaxWidth()
+        ) {
+            ContactAvatar(person?.title, size = minOf(maxWidth, maxHeight).coerceIn(24.dp, 72.dp))
+        }
         Text(
-            name,
-            color = Color.White,
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                lineHeight = 26.sp
-            ),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            tile.title?.takeIf { it.isNotBlank() && it != name }
-                ?: person?.address?.takeIf { it.isNotBlank() && it != name }
-                ?: tile.kind.label(),
+            person?.address?.takeIf { it.isNotBlank() && it != name } ?: tile.kind.label(),
             style = MaterialTheme.typography.bodyMedium,
             color = Quiet,
             maxLines = 1,
@@ -216,9 +218,8 @@ private fun ShortcutFace(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            ContactAvatar(person?.contactTitle, size = 26.dp)
             Text(
-                person?.contactTitle ?: stringResource(R.string.hub_widget_contact_placeholder),
+                tile.title?.takeIf(String::isNotBlank) ?: tile.kind.label(),
                 style = MaterialTheme.typography.labelLarge,
                 color = Color.White.copy(alpha = 0.8f),
                 maxLines = 1,
@@ -234,7 +235,6 @@ private fun ShortcutFace(
                 Icon(Icons.Filled.Bolt, null, tint = Color.White, modifier = Modifier.size(17.dp))
             }
         }
-        Spacer(Modifier.weight(1f))
         Text(
             amount,
             color = Color.White,
@@ -247,13 +247,16 @@ private fun ShortcutFace(
             maxLines = 1,
             modifier = Modifier.fillMaxWidth()
         )
+        Spacer(Modifier.weight(1f))
+        // Where the money goes, on the line where a contact shows its address.
         Text(
-            tile.title?.takeIf { it.isNotBlank() && it != person?.contactTitle }
-                ?: tile.kind.label(),
+            person?.address?.takeIf(String::isNotBlank)
+                ?: person?.contactTitle
+                ?: stringResource(R.string.hub_widget_contact_placeholder),
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.8f),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            maxLines = 1,
+            overflow = TextOverflow.MiddleEllipsis
         )
     }
 }

@@ -1089,7 +1089,7 @@ private struct WidgetContent: View {
     }
 
     /// Rate, sats and ppq.ai share the shortcut's frame, so tiles side by side line up: what the
-    /// figure is about on top, then the figure and one caption line on the same baselines.
+    /// figure is about on top, the figure right below it, and one caption on the bottom line.
     private func figure(_ info: NativeHubInfo) -> some View {
         HubTileAction(interactive: interactive && info.action != "none", action: { open(tile) }) {
             VStack(alignment: .leading, spacing: 8) {
@@ -1102,20 +1102,19 @@ private struct WidgetContent: View {
                     Spacer(minLength: 0)
                     figureAction(info)
                 }
-                if info.chart.count >= 2 {
-                    // The day's prices fill the room between the two, edge to edge.
-                    HubSparkline(points: info.chart.map { CGFloat($0.floatValue) })
-                        .padding(.horizontal, -14)
-                        .padding(.top, 4)
-                        .frame(maxHeight: .infinity)
-                } else {
-                    Spacer(minLength: 0)
-                }
                 Text(info.value ?? "—")
                     .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.45)
                     .opacity(info.value == nil ? 0.4 : 1)
+                if info.chart.count >= 2 {
+                    // The day's prices fill the room between the two, edge to edge.
+                    HubSparkline(points: info.chart.map { CGFloat($0.floatValue) })
+                        .padding(.horizontal, -14)
+                        .frame(maxHeight: .infinity)
+                } else {
+                    Spacer(minLength: 0)
+                }
                 Text(info.caption)
                     .font(.subheadline)
                     .foregroundStyle(captionColor(info.captionTone))
@@ -1190,8 +1189,7 @@ private struct WidgetContent: View {
         HubTileAction(interactive: interactive, action: { pay(person.actionId) }) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 7) {
-                    HubAvatar(initials: person.contactInitials, size: 26)
-                    Text(person.contactTitle)
+                    Text(tile.title)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.8))
                         .lineLimit(1)
@@ -1202,15 +1200,17 @@ private struct WidgetContent: View {
                         .background(.white.opacity(0.14), in: Circle())
                         .accessibilityHidden(true)
                 }
-                Spacer(minLength: 0)
                 Text(person.amount ?? "")
                     .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.45)
-                Text(tile.title)
+                Spacer(minLength: 0)
+                // Where the money goes, on the line where a contact shows its address.
+                Text(person.address.isEmpty ? person.contactTitle : person.address)
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.8))
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -1222,19 +1222,21 @@ private struct WidgetContent: View {
         .accessibilityLabel([person.contactTitle, person.amount, tile.title].compactMap { $0 }.joined(separator: ", "))
     }
 
-    /// One person, laid out like a shortcut: the portrait where the header is, the name where the
-    /// figure is, and the address as its caption.
+    /// One person, framed like a shortcut: the name as the tile's title, the portrait where the
+    /// figure is, and the address on the bottom line.
     private func single(_ person: NativeHubPerson) -> some View {
-        let caption = tile.customTitle.flatMap { $0 == person.title ? nil : $0 }
-            ?? (person.address.isEmpty || person.address == person.title ? tile.title : person.address)
+        let caption = person.address.isEmpty || person.address == person.title ? tile.title : person.address
         return HubTileAction(interactive: interactive, action: { pay(person.actionId) }) {
             VStack(alignment: .leading, spacing: 8) {
-                HubAvatar(initials: person.initials, size: 44)
-                Spacer(minLength: 0)
-                Text(person.title)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.7)
+                Text(tile.customTitle ?? person.title)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .lineLimit(1)
+                    .frame(height: 26)
+                GeometryReader { proxy in
+                    HubAvatar(initials: person.initials, size: max(24, min(proxy.size.width, proxy.size.height, 72)))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
                 Text(caption)
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.8))

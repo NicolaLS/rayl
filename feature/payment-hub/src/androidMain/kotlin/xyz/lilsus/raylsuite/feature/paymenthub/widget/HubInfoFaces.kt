@@ -80,8 +80,8 @@ private class FigureContent(
 
 /**
  * Faces of the widgets that show live information instead of people to pay. They share the
- * shortcut's frame, so tiles side by side line up: what the figure is about on top, then the
- * figure and one caption line on the same baselines.
+ * shortcut's frame, so tiles side by side line up: what the figure is about on top, the figure
+ * right below it, and one caption on the bottom line.
  */
 @Composable
 internal fun HubInfoFace(
@@ -206,11 +206,24 @@ private fun FigureFace(
                 FigureAction(action, content.actionIcon, wide = tile.variant.columns > 1)
             }
         }
+        // The same figure and caption styles as a shortcut's amount and address.
+        Text(
+            content.value ?: "—",
+            color = Color.White.copy(alpha = if (content.value == null) 0.4f else 1f),
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontFeatureSettings = "tnum",
+                letterSpacing = (-1).sp
+            ),
+            autoSize = TextAutoSize.StepBased(minFontSize = 16.sp, maxFontSize = 36.sp),
+            maxLines = 1,
+            modifier = Modifier.fillMaxWidth()
+        )
         if (content.chart.size >= 2) {
             // The day's prices fill the room between the two, edge to edge.
             HubSparkline(
                 content.chart,
-                Modifier.weight(1f).fillMaxWidth().padding(top = 4.dp)
+                Modifier.weight(1f).fillMaxWidth()
                     .layout { measurable, constraints ->
                         val bleed = 14.dp.roundToPx()
                         val placeable = measurable.measure(
@@ -227,19 +240,6 @@ private fun FigureFace(
         } else {
             Spacer(Modifier.weight(1f))
         }
-        // The same figure and caption styles as a shortcut's amount and name.
-        Text(
-            content.value ?: "—",
-            color = Color.White.copy(alpha = if (content.value == null) 0.4f else 1f),
-            style = MaterialTheme.typography.headlineLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontFeatureSettings = "tnum",
-                letterSpacing = (-1).sp
-            ),
-            autoSize = TextAutoSize.StepBased(minFontSize = 16.sp, maxFontSize = 36.sp),
-            maxLines = 1,
-            modifier = Modifier.fillMaxWidth()
-        )
         Text(
             content.caption,
             style = MaterialTheme.typography.bodyMedium,
