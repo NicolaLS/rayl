@@ -33,6 +33,15 @@ private enum HubPalette {
     static let bitcoin = Color(red: 0.97, green: 0.58, blue: 0.10)
     static let up = Color(red: 0.37, green: 0.88, blue: 0.55)
     static let down = Color(red: 1.0, green: 0.54, blue: 0.50)
+    static let ember = Color(red: 1.0, green: 0.36, blue: 0.20)
+
+    static func glow(_ kind: String) -> Color? {
+        switch kind {
+        case "sats": return bitcoin
+        case "ppq": return ember
+        default: return nil
+        }
+    }
 }
 
 private enum HubGeometry {
@@ -1009,11 +1018,7 @@ private struct WidgetContent: View {
     var body: some View {
         Group {
             if let info = tile.info {
-                if tile.kind == "rate" {
-                    rate(info)
-                } else {
-                    figure(info)
-                }
+                figure(info)
             } else if tile.people.isEmpty {
                 empty
             } else if tile.kind == "shortcut", let person = tile.people.first {
@@ -1025,9 +1030,21 @@ private struct WidgetContent: View {
             }
         }
         .background {
-            // The dark face is for the one figure a widget is about: an amount or a price.
-            if tile.kind == "shortcut" || tile.kind == "rate" {
-                LinearGradient(colors: [Color(red: 0.16, green: 0.16, blue: 0.30), Color(red: 0.06, green: 0.08, blue: 0.13)], startPoint: .top, endPoint: .bottom)
+            // People are on light tiles. The dark face is for the one figure a widget is about: an
+            // amount, a price, a balance.
+            if tile.kind == "shortcut" || tile.info != nil {
+                ZStack {
+                    LinearGradient(colors: [Color(red: 0.16, green: 0.16, blue: 0.30), Color(red: 0.06, green: 0.08, blue: 0.13)], startPoint: .top, endPoint: .bottom)
+                    if let glow = HubPalette.glow(tile.kind) {
+                        // A trace of the widget's own colour, so a row of them is not one slab.
+                        RadialGradient(
+                            colors: [glow.opacity(0.26), glow.opacity(0)],
+                            center: .topTrailing,
+                            startRadius: 0,
+                            endRadius: 190
+                        )
+                    }
+                }
             } else {
                 Color(uiColor: .secondarySystemGroupedBackground)
             }
@@ -1047,118 +1064,102 @@ private struct WidgetContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func rate(_ info: NativeHubInfo) -> some View {
-        let large = tile.rows >= 2
-        return GeometryReader { proxy in
-            ZStack(alignment: .bottom) {
-                if info.chart.count >= 2 {
-                    HubSparkline(points: info.chart.map { CGFloat($0.floatValue) })
-                        .frame(height: proxy.size.height * (large ? 0.52 : 0.38))
-                }
-                VStack(alignment: .leading, spacing: large ? 16 : 8) {
-                    HStack(spacing: 7) {
-                        Image(systemName: "bitcoinsign")
-                            .font(.system(size: 14, weight: .bold))
-                            .frame(width: 26, height: 26)
-                            .background(
-                                HubPalette.bitcoin,
-                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        Text(info.headline)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.8))
-                            .lineLimit(1)
-                        Spacer(minLength: 0)
-                        if let change = info.change {
-                            Text(change)
-                                .font(.footnote.weight(.semibold).monospacedDigit())
-                                .foregroundStyle(info.rising ? HubPalette.up : HubPalette.down)
-                                .lineLimit(1)
-                        }
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(info.value ?? "—")
-                            .font(
-                                .system(size: large ? 44 : 30, weight: .bold, design: .rounded)
-                                    .monospacedDigit()
-                            )
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.45)
-                            .opacity(info.value == nil ? 0.5 : 1)
-                        if !info.caption.isEmpty {
-                            Text(info.caption)
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.7))
-                                .lineLimit(1)
-                        }
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .foregroundStyle(.white)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(info.accessibilityLabel)
-    }
-
-    /// Sats and ppq.ai share the shortcut's frame: who it is about, then the one figure.
+    /// Rate, sats and ppq.ai share the shortcut's frame, so tiles side by side line up: what the
+    /// figure is about on top, then the figure and one caption line on the same baselines.
     private func figure(_ info: NativeHubInfo) -> some View {
         HubTileAction(interactive: interactive && info.action != "none", action: { open(tile) }) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 7) {
-                    if tile.kind == "ppq" {
-                        Image("hub_ppq")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 26, height: 26)
-                    } else {
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(HubPalette.bitcoin)
-                            .frame(width: 26, height: 26)
-                            .background(HubPalette.bitcoin.opacity(0.16), in: Circle())
-                    }
+                    figureBadge
                     Text(info.headline)
                         .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.8))
                         .lineLimit(1)
                     Spacer(minLength: 0)
-                    if info.action == "topup" {
-                        Image(systemName: "plus")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(Color.accentColor)
-                            .frame(width: 26, height: 26)
-                            .background(Color.accentColor.opacity(0.14), in: Circle())
-                    } else if tile.kind == "sats" {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
+                    figureAction(info)
                 }
-                Spacer(minLength: 0)
+                if info.chart.count >= 2 {
+                    // The day's prices fill the room between the two, edge to edge.
+                    HubSparkline(points: info.chart.map { CGFloat($0.floatValue) })
+                        .padding(.horizontal, -14)
+                        .padding(.top, 4)
+                        .frame(maxHeight: .infinity)
+                } else {
+                    Spacer(minLength: 0)
+                }
                 Text(info.value ?? "—")
                     .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.45)
                     .opacity(info.value == nil ? 0.4 : 1)
                 Text(info.caption)
                     .font(.subheadline)
-                    .foregroundStyle(
-                        info.captionTone == "accent"
-                            ? Color.accentColor : info.captionTone == "error" ? Color.red : Color.secondary
-                    )
+                    .foregroundStyle(captionColor(info.captionTone))
                     .lineLimit(1)
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .foregroundStyle(.white)
             .contentShape(Rectangle())
         }
         .allowsHitTesting(interactive)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(info.accessibilityLabel)
         .accessibilityAddTraits(info.action == "none" ? [] : .isButton)
+    }
+
+    /// A portrait-sized mark where a shortcut shows who is paid.
+    @ViewBuilder
+    private var figureBadge: some View {
+        switch tile.kind {
+        case "ppq":
+            Image("hub_ppq")
+                .resizable()
+                .scaledToFit()
+                .padding(4)
+                .frame(width: 26, height: 26)
+                .background(.white, in: Circle())
+        case "sats":
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 13, weight: .bold))
+                .frame(width: 26, height: 26)
+                .background(HubPalette.bitcoin, in: Circle())
+        default:
+            Image(systemName: "bitcoinsign")
+                .font(.system(size: 14, weight: .bold))
+                .frame(width: 26, height: 26)
+                .background(HubPalette.bitcoin, in: Circle())
+        }
+    }
+
+    /// What a tap does, in the corner where a shortcut shows its bolt. A wide tile names it.
+    @ViewBuilder
+    private func figureAction(_ info: NativeHubInfo) -> some View {
+        let symbol = info.action == "convert" ? "arrow.up.arrow.down" : "plus"
+        if info.action == "none" {
+            EmptyView()
+        } else if tile.columns > 1, !info.actionTitle.isEmpty {
+            Label(info.actionTitle, systemImage: symbol)
+                .font(.footnote.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(.white.opacity(0.14), in: Capsule())
+        } else {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .bold))
+                .frame(width: 26, height: 26)
+                .background(.white.opacity(0.14), in: Circle())
+        }
+    }
+
+    private func captionColor(_ tone: String) -> Color {
+        switch tone {
+        case "up": return HubPalette.up
+        case "down": return HubPalette.down
+        case "accent": return .white
+        default: return .white.opacity(0.8)
+        }
     }
 
     private func shortcut(_ person: NativeHubPerson) -> some View {
@@ -1220,13 +1221,16 @@ private struct WidgetContent: View {
 
     private var group: some View {
         GeometryReader { proxy in
-            let columns = compactPreview ? 2 : (tile.rows >= 2 ? 3 : 4)
-            let rows = compactPreview || tile.rows >= 2 ? 2 : 1
+            // A card grows its portraits to fill itself: a few people get a few large cells
+            // rather than one small row in an empty tile.
+            let few = tile.rows >= 2 && !compactPreview
+            let columns = compactPreview ? 2 : few ? (tile.people.count <= 4 ? min(max(tile.people.count, 1), 2) : 3) : 4
+            let rows = compactPreview ? 2 : few ? (tile.people.count <= 2 ? 1 : 2) : 1
             let header = tile.kind != "contacts" || tile.customTitle != nil
             let cellWidth = (proxy.size.width - 28 - CGFloat(columns - 1) * 6) / CGFloat(columns)
             let cellHeight = (proxy.size.height - 28 - (header ? 28 : 0)) / CGFloat(rows)
             let amountBudget: CGFloat = tile.people.contains { $0.amount != nil } ? 20 : 0
-            let avatar = max(20, min(cellWidth - 4, cellHeight - nameBudget - amountBudget, 88))
+            let avatar = max(20, min(cellWidth - 4, cellHeight - nameBudget - amountBudget, few ? 120 : 88))
             VStack(spacing: 8) {
                 if header {
                     HStack(spacing: 6) {
@@ -1283,7 +1287,7 @@ private struct WidgetContent: View {
     }
 }
 
-/// The day's prices as one soft line that runs off both edges of the tile.
+/// The day's prices as one soft line that runs off both edges of the tile, fading out below.
 private struct HubSparkline: View {
     let points: [CGFloat]
 
@@ -1294,7 +1298,7 @@ private struct HubSparkline: View {
                 area(under: line, in: proxy.size)
                     .fill(
                         LinearGradient(
-                            colors: [.white.opacity(0.16), .white.opacity(0.02)],
+                            colors: [.white.opacity(0.14), .white.opacity(0)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -1309,9 +1313,9 @@ private struct HubSparkline: View {
     }
 
     private func line(in size: CGSize) -> Path {
-        // Room for the stroke above, and for the tile's rounded corners below.
+        // Room for the stroke above and below.
         let top: CGFloat = 2
-        let drop = size.height - top - 12
+        let drop = size.height - top - 2
         let step = size.width / CGFloat(max(points.count - 1, 1))
         func at(_ index: Int) -> CGPoint {
             CGPoint(x: step * CGFloat(index), y: top + (1 - points[index]) * drop)

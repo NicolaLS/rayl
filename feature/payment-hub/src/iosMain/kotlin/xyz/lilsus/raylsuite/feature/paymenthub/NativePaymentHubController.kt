@@ -26,6 +26,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.live.changeLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.live.convertFiat
 import xyz.lilsus.raylsuite.feature.paymenthub.live.convertSats
 import xyz.lilsus.raylsuite.feature.paymenthub.live.forFace
+import xyz.lilsus.raylsuite.feature.paymenthub.live.priceLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.live.satsLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.HubPpqService
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.createHubPpqService
@@ -350,10 +351,11 @@ class NativePaymentHubController(
                 caption = caption,
                 captionTone = when {
                     !account.connected -> "accent"
-                    account.problem == HubPpqProblem.InvalidKey -> "error"
+                    account.problem == HubPpqProblem.InvalidKey -> "down"
                     else -> "plain"
                 },
                 action = if (needsKey) "setup" else "topup",
+                actionTitle = localized(if (needsKey) "hub_ppq_add_key" else "hub_ppq_top_up"),
                 accessibilityLabel = listOfNotNull(name, value, caption).joinToString()
             )
         }
@@ -374,6 +376,7 @@ class NativePaymentHubController(
                 caption = caption,
                 currencyCode = code,
                 action = if (rate == null) "none" else "convert",
+                actionTitle = localized("hub_converter_title"),
                 converterNote = rate?.let {
                     "1 BTC = " + currentAmountFormatter().format(it.priceAmount())
                 }.orEmpty(),
@@ -382,14 +385,18 @@ class NativePaymentHubController(
                 accessibilityLabel = listOfNotNull(name, "1 $code", value, caption).joinToString()
             )
         }
-        val price = rate?.let { currentAmountFormatter().format(it.priceAmount()) }
+        val price = rate?.priceLabel(currentAmountFormatter())
         val change = rate?.changeLabel()
         return NativeHubInfo(
             headline = "BTC",
             value = price,
-            caption = unavailable ?: if (variant.rows >= 2) "$code · $day" else "",
-            change = change,
-            rising = (rate?.changePercent ?: 0.0) >= 0,
+            // The day's move once the chart is known; until then just what the price is in.
+            caption = unavailable ?: change?.let { "$it · $day" } ?: code,
+            captionTone = when {
+                unavailable != null || change == null -> "plain"
+                (rate.changePercent ?: 0.0) >= 0 -> "up"
+                else -> "down"
+            },
             chart = rate?.chart().orEmpty(),
             currencyCode = code,
             accessibilityLabel = listOfNotNull(name, price, change?.let { "$it $day" }, unavailable)
@@ -587,15 +594,15 @@ data class NativeHubInfo(
     /** The figure itself; null while it is not known. */
     val value: String?,
     val caption: String,
-    /** `plain`, `accent` or `error`. */
+    /** `plain`, `accent`, `up` or `down`. */
     val captionTone: String = "plain",
-    val change: String? = null,
-    val rising: Boolean = true,
     /** The day's prices scaled to 0..1, oldest first; empty without a chart. */
     val chart: List<Float> = emptyList(),
     val currencyCode: String = "",
     /** What a tap does: `none`, `convert`, `topup` or `setup`. */
     val action: String = "none",
+    /** Names [action] on a wide widget, which has room to say it. */
+    val actionTitle: String = "",
     val converterNote: String = "",
     val converterPlaceholder: String = "",
     /** The currency has no minor unit, so its converter field takes no decimals. */

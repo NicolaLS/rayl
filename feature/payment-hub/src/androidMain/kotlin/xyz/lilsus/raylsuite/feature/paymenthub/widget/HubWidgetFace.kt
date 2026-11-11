@@ -28,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -66,13 +68,30 @@ internal fun HubWidgetFace(
     onOpen: (HubWidgetTile) -> Unit = {}
 ) {
     val shortcut = tile.kind == HubWidgetKind.Shortcut
+    val glow = when (tile.kind) {
+        HubWidgetKind.Sats -> BitcoinOrange
+        HubWidgetKind.Ppq -> PpqEmber
+        else -> null
+    }
     Box(
         modifier.clip(HubTileShape).then(
-            // The dark face is for the one figure a widget is about: an amount or a price.
-            if (shortcut || tile.kind == HubWidgetKind.Rate) {
+            // People are on light tiles. The dark face is for the one figure a widget is about:
+            // an amount, a price, a balance.
+            if (shortcut || tile.kind.showsInformation) {
                 Modifier.background(
                     Brush.verticalGradient(listOf(Color(0xFF29294D), Color(0xFF101520)))
-                )
+                ).drawBehind {
+                    // A trace of the widget's own colour, so a row of them is not one slab.
+                    if (glow != null) {
+                        drawRect(
+                            Brush.radialGradient(
+                                listOf(glow.copy(alpha = 0.26f), glow.copy(alpha = 0f)),
+                                center = Offset(size.width, 0f),
+                                radius = 190.dp.toPx()
+                            )
+                        )
+                    }
+                }
             } else {
                 Modifier.background(MaterialTheme.colorScheme.surfaceContainerLowest)
             }
@@ -260,12 +279,20 @@ private fun ContactCollectionFace(
                 )
             }
         }
+        // A card grows its portraits to fill itself: a few people get a few large cells rather
+        // than one small row in an empty tile.
+        val card = tile.variant.rows >= 2 && !compactPreview
+        val count = if (preview) tile.variant.capacity else tile.people.size
         val columns = when {
             compactPreview -> 2
-            tile.variant.rows >= 2 -> 3
+            card -> if (count <= 4) count.coerceIn(1, 2) else 3
             else -> 4
         }
-        val rows = if (compactPreview || tile.variant.rows >= 2) 2 else 1
+        val rows = when {
+            compactPreview -> 2
+            card -> if (count <= 2) 1 else 2
+            else -> 1
+        }
         val reserveAmount = tile.people.any { it.amount != null }
         repeat(rows) { row ->
             Row(
@@ -282,7 +309,8 @@ private fun ContactCollectionFace(
                             interactive,
                             reserveAmount,
                             index,
-                            Modifier.weight(1f).fillMaxSize()
+                            Modifier.weight(1f).fillMaxSize(),
+                            maxAvatar = if (card) 120.dp else 88.dp
                         )
                     } else {
                         Spacer(Modifier.weight(1f))
@@ -300,14 +328,18 @@ private fun ContactCell(
     interactive: Boolean,
     reserveAmount: Boolean,
     seed: Int,
-    modifier: Modifier
+    modifier: Modifier,
+    maxAvatar: Dp = 88.dp
 ) {
     BoxWithConstraints(
         modifier = modifier.clip(MaterialTheme.shapes.medium).payAction(person, interactive, onPay),
         contentAlignment = Alignment.Center
     ) {
         val textHeight = (if (reserveAmount) 44.dp else 26.dp) * LocalDensity.current.fontScale
-        val avatar = minOf(maxWidth - 4.dp, maxHeight - textHeight - 8.dp).coerceIn(20.dp, 88.dp)
+        val avatar = minOf(
+            maxWidth - 4.dp,
+            maxHeight - textHeight - 8.dp
+        ).coerceIn(20.dp, maxAvatar)
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(5.dp)
