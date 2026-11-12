@@ -83,6 +83,32 @@ class RaylPocketTest {
     }
 
     @Test
+    fun onlyAKeyGeneratedWithoutAPasskeyShowsItsPhrase() = runTest {
+        // A passkey-derived phrase is never shown or exported: its passkey is the backup.
+        val derived = pocket(FakeKeyStore(PocketKey("derived")), FakeConnector())
+        val generated = pocket(
+            FakeKeyStore(PocketKey("generated", withoutPasskey = true)),
+            FakeConnector()
+        )
+
+        assertNull(derived.recoveryPhrase())
+        assertEquals("generated", generated.recoveryPhrase())
+    }
+
+    @Test
+    fun aStoredKeyRemembersWhetherAPasskeyDerivedIt() {
+        // Keys stored by 1.1 are the bare phrase, and all of them came from a passkey.
+        val legacy = PocketKey.fromStored("abandon ability able")
+        assertEquals("abandon ability able", legacy.phrase)
+        assertFalse(legacy.withoutPasskey)
+        assertEquals("abandon ability able", legacy.stored())
+
+        val generated = PocketKey.fromStored(PocketKey("abandon ability", true).stored())
+        assertEquals("abandon ability", generated.phrase)
+        assertTrue(generated.withoutPasskey)
+    }
+
+    @Test
     fun doesNotConnectWithAKeyThatWasNotStored() = runTest {
         val keys = FakeKeyStore(acceptAdds = false)
         val connector = FakeConnector()

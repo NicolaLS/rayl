@@ -79,7 +79,7 @@ class RaylIosExperience(
         )
     }
     private val onboardingController = lazy {
-        RaylNativeOnboardingController(runtime, otherWallets)
+        RaylNativeOnboardingController(runtime)
     }
     private val walletSettingsController = lazy {
         RaylNativeWalletSettingsController(runtime, otherWallets)

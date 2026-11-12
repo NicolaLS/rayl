@@ -27,7 +27,7 @@ import xyz.lilsus.raylsuite.core.telemetry.TracePoint
 enum class PocketStatus {
     Starting,
 
-    /** No key is stored yet: [PocketSetup] must derive one from a passkey. */
+    /** No key is stored yet: [PocketSetup] must set one up. */
     NeedsKey,
     Ready,
     Failed,
@@ -35,6 +35,7 @@ enum class PocketStatus {
     /**
      * A key is stored but cannot be read. It is never replaced silently: retrying may still read
      * it, and only the user's explicit choice erases it so the passkey sets the pocket up again.
+     * A key generated without a passkey has no other copy, so the user is never offered that.
      */
     KeyUnreadable,
     Closed
@@ -44,8 +45,9 @@ enum class PocketStatus {
 data class PocketReceipt(val invoice: String, val amountSats: Long)
 
 /**
- * The Rayl pocket: an app-owned Spark wallet whose key a passkey derives once ([install]) and this
- * device keeps. Closing it only ends the session; the key and funds survive until [erase].
+ * The Rayl pocket: an app-owned Spark wallet whose key is set up once ([install]), derived from a
+ * passkey where one can, and kept by this device. Closing it only ends the session; the key and
+ * funds survive until [erase].
  * See SPEC-wallet-lifecycle.
  */
 class RaylPocket internal constructor(
@@ -110,7 +112,14 @@ class RaylPocket internal constructor(
     suspend fun hasKey(): Boolean = keys.load() !is PocketKeyLoad.Absent
 
     /**
-     * Stores the passkey-derived [key] and connects with it. Returns false without connecting when
+     * The phrase of a key generated without a passkey, which has no other backup. `null` for a
+     * passkey-derived key: its passkey is the backup, and that phrase is never shown.
+     */
+    suspend fun recoveryPhrase(): String? =
+        (keys.load() as? PocketKeyLoad.Present)?.key?.takeIf { it.withoutPasskey }?.phrase
+
+    /**
+     * Stores the [key] from setup and connects with it. Returns false without connecting when
      * it could not be stored, including when a key already exists: that one is never replaced.
      */
     internal suspend fun install(key: PocketKey): Boolean {

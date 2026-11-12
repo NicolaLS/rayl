@@ -81,6 +81,8 @@ you use:
 - **Your passkey:** The passkey itself is stored by your password manager (for
   example Google Password Manager or iCloud Keychain), which may sync it across
   your devices under its own terms. Rayl receives only the key derived from it.
+  If you set Rayl's wallet up without a passkey, Rayl creates the key on the
+  device and stores it the same way; it is not sent anywhere or backed up.
 - **External wallet credentials:** Your Blink API key, NWC connection URI, or
   Spark recovery phrase (and passphrase, if you set one) is stored in encrypted
   app storage on Android or the Keychain on iOS. For a Spark wallet, the Breez
@@ -201,7 +203,9 @@ route them, and on-chain transactions are public and permanent.
   iOS, deleting the app deletes the wallet data, while the key copy stays in
   the device's Keychain until the device is erased. In both cases the funds
   stay in the wallet, and your passkey opens it again. If you delete the
-  passkey as well, nobody can open the wallet or recover its funds.
+  passkey as well, nobody can open the wallet or recover its funds. A wallet
+  set up without a passkey can only be opened again with its recovery phrase,
+  shown in Rayl's Settings, once its key copy is deleted.
 - **Contacts and widgets:** Delete them in the Hub. Removing the last PPQ.AI
   widget deletes the stored API key from the device; it does not revoke the
   key at ppq.ai.

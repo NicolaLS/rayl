@@ -25,8 +25,12 @@
     <string name="rayl_accounts_title">Elige una cuenta</string>
     <string name="rayl_accounts_body">Tu passkey ya tiene cuentas, quizá de otras apps. Paga con una de ellas o crea una nueva solo para Rayl.</string>
     <string name="rayl_accounts_new">Nueva cuenta de Rayl</string>
-    <string name="rayl_connect_wallet">Conecta tu billetera</string>
-    <string name="rayl_passkey_without_prf">Ese gestor de contraseñas no se puede usar con Rayl. Continúa y elige otro, como las contraseñas integradas de tu teléfono.</string>
+    <string name="rayl_passkey_without_prf">Ese gestor de contraseñas no se puede usar con Rayl. Continúa para elegir otro, como las contraseñas integradas de tu teléfono, o continúa sin passkey.</string>
     <string name="rayl_key_unreadable">Este dispositivo no puede leer la clave de su billetera. Tu passkey puede configurarla de nuevo.</string>
     <string name="rayl_set_up_again">Configurar de nuevo</string>
+    <string name="rayl_continue_without_passkey">Continuar sin passkey</string>
+    <string name="rayl_onboarding_agreement_body_without_passkey">Usar Rayl es bajo tu propio riesgo. Tu saldo de Rayl se guarda solo en este teléfono. Eres totalmente responsable de los fondos y de los pagos realizados.\n\nGuarda solo importes pequeños que pienses gastar.</string>
+    <string name="rayl_recovery_phrase">Frase de recuperación</string>
+    <string name="rayl_recovery_phrase_body">Estas palabras abren tu saldo de Rayl en cualquier billetera Spark. Mantenlas en privado.</string>
+    <string name="rayl_copy">Copiar</string>
 </resources>

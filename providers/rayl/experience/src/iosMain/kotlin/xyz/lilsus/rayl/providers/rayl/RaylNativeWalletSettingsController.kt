@@ -16,7 +16,10 @@ data class RaylNativeWalletSettingsSnapshot(
     val balance: String,
     /** The pocket could not connect; tapping the balance row retries. */
     val pocketFailed: Boolean,
-    /** The device cannot read its key; tapping the balance row sets the wallet up again. */
+    /**
+     * The device cannot read its passkey-derived key; tapping the balance row sets the wallet up
+     * again.
+     */
     val keyUnreadable: Boolean,
     val setUpAgainTitle: String,
     val addFundsTitle: String,
@@ -40,6 +43,11 @@ data class RaylNativeWalletSettingsSnapshot(
     /** External wallets the host offers; choosing one closes Rayl's wallet. */
     val otherWallets: List<RaylWalletOption>,
     val cancelTitle: String,
+    /** A wallet set up without a passkey: Settings shows its recovery phrase. */
+    val hasRecoveryPhrase: Boolean,
+    val recoveryPhraseTitle: String,
+    val recoveryPhraseBody: String,
+    val copyTitle: String,
     val canErase: Boolean,
     val eraseTitle: String,
     val eraseBody: String,
@@ -61,9 +69,12 @@ class RaylNativeWalletSettingsController internal constructor(
                 runtime.pocket.status,
                 runtime.funding.state,
                 runtime.paymentCoordinator.isSubmitting,
-                runtime.languageRepository.preference
-            ) { balance, status, funding, isSubmitting, _ ->
-                snapshot(balance, status, funding, isSubmitting)
+                combine(
+                    runtime.hasRecoveryPhrase,
+                    runtime.languageRepository.preference
+                ) { hasRecoveryPhrase, _ -> hasRecoveryPhrase }
+            ) { balance, status, funding, isSubmitting, hasRecoveryPhrase ->
+                snapshot(balance, status, funding, isSubmitting, hasRecoveryPhrase)
             }.collect(onChange)
         }
         return { job.cancel() }
@@ -77,6 +88,11 @@ class RaylNativeWalletSettingsController internal constructor(
     fun retryPocket() = runtime.retryPocket()
 
     fun setUpAgain() = runtime.setUpAgain()
+
+    /** Reads the words of a wallet set up without a passkey; `null` if it has none. */
+    fun recoveryPhrase(onResult: (String?) -> Unit) {
+        scope.launch { onResult(runtime.recoveryPhrase()) }
+    }
 
     fun useWallet(id: String) {
         runtime.useWallet(id)
@@ -92,11 +108,16 @@ class RaylNativeWalletSettingsController internal constructor(
         balance: Long?,
         status: PocketStatus,
         funding: FundingState,
-        isSubmitting: Boolean
+        isSubmitting: Boolean,
+        hasRecoveryPhrase: Boolean
     ) = RaylNativeWalletSettingsSnapshot(
         balanceTitle = text("rayl_balance"),
         balance = when {
-            status == PocketStatus.KeyUnreadable -> text("rayl_key_unreadable")
+            // Only a passkey can set an unreadable key up again; without one, reading is retried.
+            status == PocketStatus.KeyUnreadable && !hasRecoveryPhrase ->
+                text("rayl_key_unreadable")
+
+            status == PocketStatus.KeyUnreadable -> text("rayl_balance_unavailable")
 
             status == PocketStatus.Failed -> text("rayl_balance_unavailable")
 
@@ -106,7 +127,7 @@ class RaylNativeWalletSettingsController internal constructor(
             else -> text("rayl_balance_updating")
         },
         pocketFailed = status == PocketStatus.Failed || status == PocketStatus.KeyUnreadable,
-        keyUnreadable = status == PocketStatus.KeyUnreadable,
+        keyUnreadable = status == PocketStatus.KeyUnreadable && !hasRecoveryPhrase,
         setUpAgainTitle = text("rayl_set_up_again"),
         addFundsTitle = text("rayl_add_funds"),
         addFundsBody = text("rayl_add_funds_body"),
@@ -134,6 +155,10 @@ class RaylNativeWalletSettingsController internal constructor(
         useAnotherWalletInfo = text("rayl_use_another_wallet_info"),
         otherWallets = otherWallets(),
         cancelTitle = text("rayl_cancel"),
+        hasRecoveryPhrase = hasRecoveryPhrase,
+        recoveryPhraseTitle = text("rayl_recovery_phrase"),
+        recoveryPhraseBody = text("rayl_recovery_phrase_body"),
+        copyTitle = text("rayl_copy"),
         canErase = runtime.canErase,
         eraseTitle = text("rayl_erase_pocket"),
         eraseBody = text("rayl_erase_pocket_body"),

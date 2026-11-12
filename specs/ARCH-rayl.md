@@ -7,7 +7,8 @@ live in `providers/`; only the Rayl provider, Rayl's built-in wallet, needs no
 credentials.
 
 Rayl pays with its built-in wallet, the Rayl provider's pocket, by default: after
-the welcome it mounts and asks only for its terms and a passkey. Its Settings offer every external provider
+the welcome it mounts and asks only for its terms and, where the device and
+password manager support it, a passkey. Its Settings offer every external provider
 under "Use another wallet", with no release availability gates, and an external
 wallet's Settings offer "Back to Rayl".
 [RaylSelection](../app/shared/src/commonMain/kotlin/xyz/lilsus/rayl/RaylSelection.kt)

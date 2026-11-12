@@ -1,11 +1,14 @@
 package xyz.lilsus.rayl.providers.rayl.integration.pocket
 
+import fr.acinq.bitcoin.MnemonicCode
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -181,6 +184,42 @@ class PocketSetupTest {
         val accounts = FakeAccounts(availabilityFailure = PasskeyAccountsException.Other("config"))
 
         assertFalse(setup(FakeKeyStore(), accounts).isAvailable())
+    }
+
+    @Test
+    fun withoutAPasskeyTheKeyIsGeneratedOnThisDevice() = runTest {
+        val keys = FakeKeyStore()
+        val accounts = FakeAccounts()
+        val setup = setup(keys, accounts)
+
+        assertEquals(PocketSetupResult.Done, setup.createWithoutPasskey())
+
+        val key = (keys.load() as PocketKeyLoad.Present).key
+        assertTrue(key.withoutPasskey)
+        // A standard twelve-word phrase, so any Spark wallet can import it.
+        assertEquals(12, key.phrase.split(" ").size)
+        MnemonicCode.validate(key.phrase)
+        assertTrue(setup.hasKeyWithoutPasskey())
+        // No passkey prompt, and nothing published to the passkey's relays.
+        assertTrue(accounts.connected.isEmpty() && accounts.registrations.isEmpty())
+        assertTrue(accounts.published.isEmpty())
+    }
+
+    @Test
+    fun everyKeyGeneratedWithoutAPasskeyIsDifferent() = runTest {
+        val first = FakeKeyStore().also { setup(it, FakeAccounts()).createWithoutPasskey() }
+        val second = FakeKeyStore().also { setup(it, FakeAccounts()).createWithoutPasskey() }
+
+        assertNotEquals(first.storedPhrase(), second.storedPhrase())
+    }
+
+    @Test
+    fun aPasskeyDerivedKeyHasNoRecoveryPhrase() = runTest {
+        val setup = setup(FakeKeyStore(), FakeAccounts())
+
+        setup.start()
+
+        assertFalse(setup.hasKeyWithoutPasskey())
     }
 
     private fun TestScope.setup(keys: FakeKeyStore, accounts: FakeAccounts): PocketSetup = PasskeyPocketSetup(

@@ -25,8 +25,12 @@
     <string name="rayl_accounts_title">Wähle ein Konto</string>
     <string name="rayl_accounts_body">Dein Passkey hat bereits Konten, vielleicht aus anderen Apps. Zahle mit einem davon oder starte ein neues nur für Rayl.</string>
     <string name="rayl_accounts_new">Neues Rayl-Konto</string>
-    <string name="rayl_connect_wallet">Verbinde deine Wallet</string>
-    <string name="rayl_passkey_without_prf">Dieser Passwortmanager kann für Rayl nicht verwendet werden. Fahre fort und wähle einen anderen, zum Beispiel die integrierten Passwörter deines Telefons.</string>
+    <string name="rayl_passkey_without_prf">Dieser Passwortmanager kann für Rayl nicht verwendet werden. Fahre fort, um einen anderen zu wählen, zum Beispiel die integrierten Passwörter deines Telefons, oder fahre ohne Passkey fort.</string>
     <string name="rayl_key_unreadable">Dieses Gerät kann seinen Wallet-Schlüssel nicht lesen. Dein Passkey kann ihn wieder einrichten.</string>
     <string name="rayl_set_up_again">Neu einrichten</string>
+    <string name="rayl_continue_without_passkey">Ohne Passkey fortfahren</string>
+    <string name="rayl_onboarding_agreement_body_without_passkey">Die Nutzung von Rayl erfolgt auf eigenes Risiko. Dein Rayl-Guthaben wird nur auf diesem Telefon aufbewahrt. Du bist für das Guthaben und alle Zahlungen voll verantwortlich.\n\nBehalte nur kleine Beträge, die du ausgeben willst.</string>
+    <string name="rayl_recovery_phrase">Wiederherstellungsphrase</string>
+    <string name="rayl_recovery_phrase_body">Diese Wörter öffnen dein Rayl-Guthaben in jeder Spark-Wallet. Halte sie geheim.</string>
+    <string name="rayl_copy">Kopieren</string>
 </resources>

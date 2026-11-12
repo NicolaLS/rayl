@@ -8,7 +8,7 @@ Rayl's platform hosts, provider runtimes, and platform credential stores jointly
 
 Rayl pays with its built-in wallet, the Rayl pocket, unless the user connects an
 external wallet (Blink, NWC, or Spark) from its Settings. After the welcome,
-Rayl's wallet is in use once its terms are accepted and a passkey is set up.
+Rayl's wallet is in use once its terms are accepted and its key is set up.
 App preferences, the user's shared Hub, and the pocket are independent of
 external connections.
 
@@ -49,17 +49,26 @@ wallets.
 ## The Rayl pocket
 
 The pocket holds funds in an app-owned wallet rather than a connection to an
-external wallet. Rayl never generates its key: Breez passkey login derives it
-from a passkey during Rayl's wallet onboarding, so the passkey is the pocket's
-only backup and the key is never entered, shown, or exported. Without passkey
-support, Rayl's wallet is not available and onboarding offers the external
-wallets instead.
+external wallet. Breez passkey login derives its key from a passkey during
+Rayl's wallet onboarding, so the passkey is the pocket's only backup and that
+key is never entered, shown, or exported.
+
+Only where no passkey can derive a key does Rayl generate one on the device:
+when the device has no passkey support, or by the user's choice after their
+password manager could not derive a key. Onboarding never offers this before a
+passkey attempt has failed that way. The device then holds the only copy of the
+key. Rayl neither backs it up nor asks the user to; Settings shows its recovery
+phrase, which the external Spark wallet or any other Spark wallet can import.
+The key is never entered into the pocket, and a stored key keeps its origin
+for as long as it exists.
 
 The device keeps a copy of the derived key so launches and payments never
 prompt. The copy is stored before the pocket first connects, and a key that
 exists but cannot be read is never replaced silently. Using another wallet stops
 the pocket session without erasing the key copy or pocket data; startup cleanup
 does not erase them either, and going back to Rayl restores the same pocket.
-Only an explicit user action erases the copy, after which the passkey sets the
-pocket up again: a debug-build action, or, in any build, setting Rayl's wallet
-up again when its copy exists but cannot be read.
+Only an explicit user action erases the copy, after which the pocket is set up
+again: a debug-build action, or, in any build, setting Rayl's wallet up again
+from its passkey when its copy exists but cannot be read. A key generated
+without a passkey has no other copy, so users are never offered to erase it,
+readable or not.

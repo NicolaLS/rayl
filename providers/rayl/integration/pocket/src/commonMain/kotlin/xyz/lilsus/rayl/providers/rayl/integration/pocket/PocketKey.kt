@@ -1,12 +1,30 @@
 package xyz.lilsus.rayl.providers.rayl.integration.pocket
 
 /**
- * The pocket's BIP-39 phrase. Rayl never generates it: a passkey derives it during setup (see
- * [PocketSetup]), and this device keeps a copy so launches and payments never prompt. The passkey
- * stays the backup, so the phrase is never shown or exported.
+ * The pocket's BIP-39 phrase, of which this device keeps a copy so launches and payments never
+ * prompt. A passkey derives it during setup (see [PocketSetup]) and stays its backup, so that
+ * phrase is never shown or exported. Only where no passkey can derive a key does Rayl generate
+ * one ([withoutPasskey]); this device then holds the only copy, which the user can read.
  */
-class PocketKey internal constructor(internal val phrase: String) {
+class PocketKey internal constructor(
+    internal val phrase: String,
+    internal val withoutPasskey: Boolean = false
+) {
+    /** The stored form. A passkey-derived key is the bare phrase, as it always was. */
+    internal fun stored(): String = if (withoutPasskey) WITHOUT_PASSKEY_PREFIX + phrase else phrase
+
     override fun toString(): String = "PocketKey(<redacted>)"
+
+    internal companion object {
+        // A phrase is lowercase words and spaces, so it never starts with this.
+        private const val WITHOUT_PASSKEY_PREFIX = "without-passkey:"
+
+        fun fromStored(stored: String): PocketKey = if (stored.startsWith(WITHOUT_PASSKEY_PREFIX)) {
+            PocketKey(stored.removePrefix(WITHOUT_PASSKEY_PREFIX), withoutPasskey = true)
+        } else {
+            PocketKey(stored)
+        }
+    }
 }
 
 internal sealed interface PocketKeyLoad {

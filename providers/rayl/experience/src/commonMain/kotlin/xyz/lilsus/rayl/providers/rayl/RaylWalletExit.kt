@@ -28,6 +28,8 @@ internal class RaylWalletExit(
     /** A debug build: offers erasing the pocket's key copy, whichever network it uses. */
     val canErase: Boolean,
     private val keyUnreadable: () -> Boolean,
+    /** The key was generated on this device, so no passkey could set the same wallet up again. */
+    private val withoutPasskey: () -> Boolean,
     /** True while leaving must wait, e.g. a payment is being submitted. */
     private val isBusy: () -> Boolean,
     private val stopSession: () -> Unit,
@@ -56,10 +58,11 @@ internal class RaylWalletExit(
 
     /**
      * When this device can no longer read its key copy, deletes it and sets the wallet up again:
-     * the same passkey and account derive the same wallet.
+     * the same passkey and account derive the same wallet. Never for a key generated without a
+     * passkey, whose only copy that would delete.
      */
     fun setUpAgain() {
-        if (keyUnreadable()) leave(RaylExitTarget.Erased)
+        if (keyUnreadable() && !withoutPasskey()) leave(RaylExitTarget.Erased)
     }
 
     fun retry() {

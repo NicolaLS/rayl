@@ -233,9 +233,12 @@ struct NativeOnboardingAgreementView: View {
     let hasAgreed: Bool
     let isWorking: Bool
     let message: String?
+    let secondaryActionTitle: String?
     let onAgreementChanged: (Bool) -> Void
     let action: () -> Void
+    let secondaryAction: () -> Void
 
+    /// `secondaryActionTitle` adds a second way to continue under the primary one.
     init(
         title: String,
         body: String,
@@ -244,8 +247,10 @@ struct NativeOnboardingAgreementView: View {
         hasAgreed: Bool,
         isWorking: Bool = false,
         message: String? = nil,
+        secondaryActionTitle: String? = nil,
         onAgreementChanged: @escaping (Bool) -> Void,
-        action: @escaping () -> Void
+        action: @escaping () -> Void,
+        secondaryAction: @escaping () -> Void = {}
     ) {
         self.title = title
         description = body
@@ -254,8 +259,10 @@ struct NativeOnboardingAgreementView: View {
         self.hasAgreed = hasAgreed
         self.isWorking = isWorking
         self.message = message
+        self.secondaryActionTitle = secondaryActionTitle
         self.onAgreementChanged = onAgreementChanged
         self.action = action
+        self.secondaryAction = secondaryAction
     }
 
     var body: some View {
@@ -299,6 +306,11 @@ struct NativeOnboardingAgreementView: View {
             } else {
                 NativeOnboardingPrimaryButton(title: actionTitle, action: action)
                     .disabled(!hasAgreed)
+                if let secondaryActionTitle {
+                    Button(secondaryActionTitle, action: secondaryAction)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .disabled(!hasAgreed)
+                }
             }
         }
     }

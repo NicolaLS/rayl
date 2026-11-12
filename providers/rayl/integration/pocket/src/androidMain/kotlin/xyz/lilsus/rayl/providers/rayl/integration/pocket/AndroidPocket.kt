@@ -141,7 +141,8 @@ internal actual fun secureRandomBytes(size: Int): ByteArray =
 
 /**
  * Encrypts the phrase with a non-exportable Android Keystore key, outside Auto Backup, so this
- * copy is lost on uninstall or a new phone; the passkey derives it again.
+ * copy is lost on uninstall or a new phone; the passkey derives it again. A key generated without
+ * a passkey is lost with it, unless the user kept its recovery phrase.
  */
 internal class AndroidPocketKeyStore(
     context: Context,
@@ -166,7 +167,7 @@ internal class AndroidPocketKeyStore(
                 updateAAD(associatedData)
             }
             val phrase = cipher.doFinal(bytes, IV_SIZE, bytes.size - IV_SIZE).decodeToString()
-            PocketKeyLoad.Present(PocketKey(phrase))
+            PocketKeyLoad.Present(PocketKey.fromStored(phrase))
         } catch (_: Exception) {
             PocketKeyLoad.Unavailable
         }
@@ -179,7 +180,7 @@ internal class AndroidPocketKeyStore(
                 init(Cipher.ENCRYPT_MODE, existingKey() ?: generateKey())
                 updateAAD(associatedData)
             }
-            val bytes = cipher.iv + cipher.doFinal(key.phrase.encodeToByteArray())
+            val bytes = cipher.iv + cipher.doFinal(key.stored().encodeToByteArray())
             check(cipher.iv.size == IV_SIZE)
             check(directory.isDirectory || directory.mkdirs())
             val temporary = File(directory, "key.v1.tmp")

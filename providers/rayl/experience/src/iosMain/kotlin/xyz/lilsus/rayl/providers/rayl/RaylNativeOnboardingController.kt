@@ -9,8 +9,8 @@ import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingText
 
 /**
- * Rayl's wallet onboarding for SwiftUI. [stage] is `checking`, `unavailable`, `agreement`, or
- * `accounts`; [message] is a failure to show, and [isWorking] is set while the passkey is in use.
+ * Rayl's wallet onboarding for SwiftUI. [stage] is `checking`, `agreement`, or `accounts`;
+ * [message] is a failure to show, and [isWorking] is set while the key is being set up.
  */
 data class RaylNativeOnboardingSnapshot(
     val stage: String,
@@ -21,19 +21,16 @@ data class RaylNativeOnboardingSnapshot(
     val hasAgreed: Boolean,
     val isWorking: Boolean,
     val message: String?,
+    /** Present once the user may set the wallet up without a passkey. */
+    val withoutPasskeyTitle: String?,
     val accountsTitle: String,
     val accountsBody: String,
     val accounts: List<String>,
-    val newAccountTitle: String?,
-    val connectWalletTitle: String,
-    val otherWallets: List<RaylWalletOption>
+    val newAccountTitle: String?
 )
 
-/** Rayl's wallet terms and passkey on iOS; Kotlin keeps the state, SwiftUI renders it. */
-class RaylNativeOnboardingController internal constructor(
-    private val runtime: RaylRuntime,
-    private val otherWallets: () -> List<RaylWalletOption>
-) {
+/** Rayl's wallet terms and key setup on iOS; Kotlin keeps the state, SwiftUI renders it. */
+class RaylNativeOnboardingController internal constructor(private val runtime: RaylRuntime) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val state = runtime.onboardingState
 
@@ -43,19 +40,25 @@ class RaylNativeOnboardingController internal constructor(
                 state.step,
                 state.hasAgreed,
                 state.activity,
+                combine(state.withoutPasskey, state.offersWithoutPasskey, ::Pair),
                 runtime.languageRepository.preference
-            ) { step, agreed, activity, _ ->
+            ) { step, agreed, activity, (withoutPasskey, offersWithoutPasskey), _ ->
                 val common = nativeOnboardingText()
                 val accounts = step as? RaylOnboardingStep.Accounts
                 RaylNativeOnboardingSnapshot(
                     stage = when (step) {
                         RaylOnboardingStep.Checking, RaylOnboardingStep.Complete -> "checking"
-                        RaylOnboardingStep.Unavailable -> "unavailable"
                         RaylOnboardingStep.Agreement -> "agreement"
                         is RaylOnboardingStep.Accounts -> "accounts"
                     },
                     agreementTitle = common.agreementTitle,
-                    agreementBody = text("rayl_onboarding_agreement_body"),
+                    agreementBody = text(
+                        if (withoutPasskey) {
+                            "rayl_onboarding_agreement_body_without_passkey"
+                        } else {
+                            "rayl_onboarding_agreement_body"
+                        }
+                    ),
                     agreementCheckboxTitle = common.agreementCheckbox,
                     agreementNextTitle = common.agreementContinue,
                     hasAgreed = agreed,
@@ -65,6 +68,11 @@ class RaylNativeOnboardingController internal constructor(
                         RaylSetupActivity.PasskeyWithoutPrf -> text("rayl_passkey_without_prf")
                         RaylSetupActivity.Idle, RaylSetupActivity.Working -> null
                     },
+                    withoutPasskeyTitle = if (offersWithoutPasskey) {
+                        text("rayl_continue_without_passkey")
+                    } else {
+                        null
+                    },
                     accountsTitle = text("rayl_accounts_title"),
                     accountsBody = text("rayl_accounts_body"),
                     accounts = accounts?.accounts.orEmpty(),
@@ -72,9 +80,7 @@ class RaylNativeOnboardingController internal constructor(
                         text("rayl_accounts_new")
                     } else {
                         null
-                    },
-                    connectWalletTitle = text("rayl_connect_wallet"),
-                    otherWallets = otherWallets()
+                    }
                 )
             }.collect(onChange)
         }
@@ -85,15 +91,13 @@ class RaylNativeOnboardingController internal constructor(
 
     fun accept() = state.accept()
 
+    fun continueWithoutPasskey() = state.continueWithoutPasskey()
+
     fun choose(account: String) = state.choose(account)
 
     fun createAccount() = state.createAccount()
 
     fun back() = state.back()
-
-    fun useWallet(id: String) {
-        runtime.useWallet(id)
-    }
 
     fun clear() {
         scope.coroutineContext[Job]?.cancel()

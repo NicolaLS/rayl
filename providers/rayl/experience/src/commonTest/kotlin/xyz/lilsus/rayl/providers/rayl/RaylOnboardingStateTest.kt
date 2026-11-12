@@ -52,11 +52,70 @@ class RaylOnboardingStateTest {
     }
 
     @Test
-    fun withoutPasskeysTheUserIsSentToAnotherWallet() = runTest {
-        val state = state(setup = FakeSetup(available = false))
+    fun aDeviceWithoutPasskeysSetsTheWalletUpWithoutOne() = runTest {
+        val setup = FakeSetup(available = false)
+        val settings = MapSettings()
+        val state = state(settings, setup)
+        advanceUntilIdle()
+        assertEquals(RaylOnboardingStep.Agreement, state.step.value)
+        assertEquals(true, state.withoutPasskey.value)
+
+        state.setAgreement(true)
+        state.accept()
         advanceUntilIdle()
 
-        assertEquals(RaylOnboardingStep.Unavailable, state.step.value)
+        assertEquals(RaylOnboardingStep.Complete, state.step.value)
+        assertEquals(0, setup.starts)
+        assertEquals(1, setup.createdWithoutPasskey)
+        // Settings shows the recovery phrase on later launches too.
+        assertEquals(true, state(settings).withoutPasskey.value)
+    }
+
+    @Test
+    fun aDeviceWithPasskeysNeverSkipsThePasskeyUnasked() = runTest {
+        val setup = FakeSetup(started = PocketSetupResult.Cancelled)
+        val state = agreed(setup)
+
+        // Not offered before a password manager failed: this must do nothing.
+        state.continueWithoutPasskey()
+        advanceUntilIdle()
+
+        assertEquals(0, setup.createdWithoutPasskey)
+        assertEquals(false, state.withoutPasskey.value)
+    }
+
+    @Test
+    fun afterAPasswordManagerWithoutPrfTheUserMaySkipThePasskey() = runTest {
+        val setup = FakeSetup(started = PocketSetupResult.PasskeyWithoutPrf)
+        val settings = MapSettings()
+        val state = agreed(setup, settings)
+        assertEquals(true, state.offersWithoutPasskey.value)
+        assertEquals(false, state.withoutPasskey.value)
+
+        // Trying another password manager stays possible, and a dismissed prompt keeps the offer.
+        setup.started = PocketSetupResult.Cancelled
+        state.accept()
+        advanceUntilIdle()
+        assertEquals(2, setup.starts)
+        assertEquals(true, state.offersWithoutPasskey.value)
+
+        state.continueWithoutPasskey()
+        advanceUntilIdle()
+
+        assertEquals(RaylOnboardingStep.Complete, state.step.value)
+        assertEquals(1, setup.createdWithoutPasskey)
+        assertEquals(true, state(settings).withoutPasskey.value)
+    }
+
+    @Test
+    fun aStoredKeyWithoutAPasskeyKeepsItsRecoveryPhraseAfterAReinstall() = runTest {
+        // The iOS Keychain keeps the key across a reinstall, the preferences are gone.
+        val setup = FakeSetup(hasKey = true, hasKeyWithoutPasskey = true)
+        val state = agreed(setup)
+
+        assertEquals(RaylOnboardingStep.Complete, state.step.value)
+        assertEquals(true, state.withoutPasskey.value)
+        assertEquals(0, setup.createdWithoutPasskey)
     }
 
     @Test
@@ -133,12 +192,14 @@ class RaylOnboardingStateTest {
     @Test
     fun resetRunsTheSetupAgain() = runTest {
         val settings = MapSettings()
-        agreed(FakeSetup(), settings).reset()
+        agreed(FakeSetup(available = false), settings).reset()
 
         val next = state(settings)
         advanceUntilIdle()
 
         assertEquals(RaylOnboardingStep.Agreement, next.step.value)
+        // The erased wallet's origin says nothing about the next one.
+        assertEquals(false, next.withoutPasskey.value)
     }
 
     private fun TestScope.state(settings: MapSettings = MapSettings(), setup: FakeSetup = FakeSetup()) =
@@ -155,16 +216,20 @@ class RaylOnboardingStateTest {
 private class FakeSetup(
     private val available: Boolean = true,
     private val hasKey: Boolean = false,
+    private val hasKeyWithoutPasskey: Boolean = false,
     var started: PocketSetupResult = PocketSetupResult.Done
 ) : PocketSetup {
     var chosenResult: PocketSetupResult = PocketSetupResult.Done
     var starts = 0
     var creates = 0
+    var createdWithoutPasskey = 0
     val chosen = mutableListOf<String>()
 
     override suspend fun isAvailable() = available
 
     override suspend fun hasKey() = hasKey
+
+    override suspend fun hasKeyWithoutPasskey() = hasKeyWithoutPasskey
 
     override suspend fun start(): PocketSetupResult {
         starts++
@@ -178,6 +243,11 @@ private class FakeSetup(
 
     override suspend fun createAccount(): PocketSetupResult {
         creates++
+        return PocketSetupResult.Done
+    }
+
+    override suspend fun createWithoutPasskey(): PocketSetupResult {
+        createdWithoutPasskey++
         return PocketSetupResult.Done
     }
 

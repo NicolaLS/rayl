@@ -42,7 +42,8 @@ import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
 
 /**
  * The Compose host of Rayl's built-in wallet on Android. It needs no credentials: mounting it
- * starts the pocket, and its onboarding sets up the passkey that derives the pocket key. [onUseWallet] runs with one of [otherWallets] once the pocket session has
+ * starts the pocket, and its onboarding sets up the pocket key, from a passkey where one can
+ * derive it. [onUseWallet] runs with one of [otherWallets] once the pocket session has
  * closed, so the host can set up that wallet; [onErased] after a debug build erased the pocket.
  * [walletIcons] are drawables for [otherWallets] by id; a wallet without one shows its initial.
  */
@@ -125,10 +126,7 @@ fun RaylExperience(
 
                 exit != RaylExit.None -> RaylStatusScreen(message = null)
 
-                onboardingStep != RaylOnboardingStep.Complete -> RaylOnboarding(
-                    runtime,
-                    otherWallets
-                )
+                onboardingStep != RaylOnboardingStep.Complete -> RaylOnboarding(runtime)
 
                 // The pocket connects in the background: the camera must not wait for it.
                 else -> RaylTabs(runtime, otherWallets)

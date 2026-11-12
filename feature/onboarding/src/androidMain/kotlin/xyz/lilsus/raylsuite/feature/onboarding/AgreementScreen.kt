@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,7 +36,10 @@ fun AgreementScreen(
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
     isWorking: Boolean = false,
-    message: String? = null
+    message: String? = null,
+    /** A second way to continue, shown under the primary one. */
+    secondaryAction: String? = null,
+    onSecondaryAction: () -> Unit = {}
 ) {
     OnboardingScaffold(onBack = onBack) {
         Column(
@@ -97,6 +101,15 @@ fun AgreementScreen(
                 isWorking = isWorking,
                 modifier = Modifier.testTag(OnboardingTestTags.AGREEMENT_CONTINUE)
             )
+            secondaryAction?.let {
+                TextButton(
+                    onClick = onSecondaryAction,
+                    enabled = hasAgreed && !isWorking,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(OnboardingTestTags.AGREEMENT_SECONDARY)
+                ) { Text(it) }
+            }
         }
     }
 }

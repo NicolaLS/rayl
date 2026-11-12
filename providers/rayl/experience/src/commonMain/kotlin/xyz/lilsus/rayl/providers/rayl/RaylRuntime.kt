@@ -36,7 +36,7 @@ import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
 /**
  * Objects of Rayl's built-in wallet experience, held outside composition so both the Compose host
  * and the native iOS shell share one instance. The pocket starts as soon as it mounts; only its
- * first use needs a passkey, set up through [createSetup] during onboarding.
+ * first use needs its key, set up through [createSetup] during onboarding.
  */
 internal class RaylRuntime(
     appSettings: Settings,
@@ -88,6 +88,7 @@ internal class RaylRuntime(
         scope = scope,
         canErase = debugTools,
         keyUnreadable = { pocket.status.value == PocketStatus.KeyUnreadable },
+        withoutPasskey = { onboardingState.withoutPasskey.value },
         isBusy = { closed || paymentCoordinator.isSubmitting.value },
         stopSession = {
             paymentCoordinator.resetSession()
@@ -121,6 +122,12 @@ internal class RaylRuntime(
             }
         }
     }
+
+    /** Whether Settings shows the recovery phrase: only a wallet without a passkey has one. */
+    val hasRecoveryPhrase: StateFlow<Boolean> = onboardingState.withoutPasskey
+
+    /** The recovery phrase of a wallet set up without a passkey, else `null`. */
+    suspend fun recoveryPhrase(): String? = pocket.recoveryPhrase()
 
     fun retryPocket() {
         if (exit.value == RaylExit.None) pocket.start()

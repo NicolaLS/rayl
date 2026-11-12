@@ -142,7 +142,8 @@ internal actual fun secureRandomBytes(size: Int): ByteArray {
 
 /**
  * A device-only Keychain item: it survives reinstalling but never restores to another device,
- * where the passkey derives the key again.
+ * where the passkey derives the key again. A key generated without a passkey has no such way
+ * back, unless the user kept its recovery phrase.
  */
 private class IosPocketKeyStore(private val network: String) : PocketKeyStore {
     override suspend fun load(): PocketKeyLoad = withKeychainDictionary(
@@ -157,7 +158,7 @@ private class IosPocketKeyStore(private val network: String) : PocketKeyStore {
                     if (phrase == null) {
                         PocketKeyLoad.Unavailable
                     } else {
-                        PocketKeyLoad.Present(PocketKey(phrase))
+                        PocketKeyLoad.Present(PocketKey.fromStored(phrase))
                     }
                 }
 
@@ -169,7 +170,7 @@ private class IosPocketKeyStore(private val network: String) : PocketKeyStore {
     }
 
     override suspend fun add(key: PocketKey): Boolean {
-        val data = NSString.create(string = key.phrase).dataUsingEncoding(NSUTF8StringEncoding)
+        val data = NSString.create(string = key.stored()).dataUsingEncoding(NSUTF8StringEncoding)
             ?: return false
         val attributes = baseQuery() + mapOf(
             kSecAttrAccessible to kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,

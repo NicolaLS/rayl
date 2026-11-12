@@ -1,6 +1,6 @@
 # Rayl Terms of Use
 
-Last updated: November 3, 2026
+Last updated: November 12, 2026
 
 These terms govern your use of **Rayl** for Android and iOS, maintained by
 **Bitcoin Coast** ("we" or "the maintainer"). For questions, contact
@@ -41,6 +41,13 @@ set it up. Its key is derived from a passkey stored in your password manager.
   it while the wallet holds funds.
 - Anyone who can use your passkey, including through other apps that use Breez
   passkey login, can open the wallet and spend its funds.
+- **Without a passkey, the wallet exists only on your device.** If your device
+  or password manager cannot derive the key from a passkey, Rayl can create
+  the key on the device instead. Rayl does not back this key up. Deleting the
+  app, clearing its data, changing phones, or losing the device loses the
+  funds for good, unless you have kept the recovery phrase that Rayl's
+  Settings show for such a wallet. Anyone who has that phrase can spend the
+  funds.
 - Spark is new technology run by independent operators who take part in every
   transfer. It may have defects, and its operators or Breez may be unavailable.
 - Keep only amounts you are prepared to lose and plan to spend.

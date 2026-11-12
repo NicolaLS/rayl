@@ -2,6 +2,7 @@ package xyz.lilsus.rayl.providers.rayl
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.os.PersistableBundle
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -40,6 +42,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -168,11 +171,14 @@ private fun RaylSettingsTab(runtime: RaylRuntime, otherWallets: List<RaylWalletO
 private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> Unit) {
     val balance by runtime.pocket.balanceSats.collectAsStateWithLifecycle()
     val status by runtime.pocket.status.collectAsStateWithLifecycle()
-    val unreadable = status == PocketStatus.KeyUnreadable
-    val failed = status == PocketStatus.Failed || unreadable
+    val hasRecoveryPhrase by runtime.hasRecoveryPhrase.collectAsStateWithLifecycle()
+    // Only a passkey can set an unreadable key up again; without one, reading is retried.
+    val unreadable = status == PocketStatus.KeyUnreadable && !hasRecoveryPhrase
+    val failed = status == PocketStatus.Failed || status == PocketStatus.KeyUnreadable
     val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
     val formatter = rememberAmountFormatter()
     var confirmsErase by rememberSaveable { mutableStateOf(false) }
+    var showsRecoveryPhrase by rememberSaveable { mutableStateOf(false) }
     RaylFundingSheet(runtime.funding)
 
     Column(verticalArrangement = Arrangement.spacedBy(AppSettingsRowDefaults.RowSpacing)) {
@@ -222,6 +228,14 @@ private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> 
                 modifier = Modifier.size(AppSettingsRowDefaults.ChevronSize)
             )
         }
+        if (hasRecoveryPhrase) {
+            AppSettingsRow(
+                title = stringResource(R.string.rayl_recovery_phrase),
+                icon = Icons.Filled.Key,
+                testTag = "rayl_recovery_phrase",
+                onClick = { showsRecoveryPhrase = true }
+            )
+        }
         if (runtime.canErase) {
             AppSettingsRow(
                 title = stringResource(R.string.rayl_erase_pocket),
@@ -233,6 +247,10 @@ private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> 
                 onClick = { if (!isSubmitting) confirmsErase = true }
             )
         }
+    }
+
+    if (showsRecoveryPhrase) {
+        RaylRecoveryPhraseDialog(runtime, onDismiss = { showsRecoveryPhrase = false })
     }
 
     if (confirmsErase) {
@@ -258,6 +276,47 @@ private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> 
             }
         )
     }
+}
+
+/** The words of a wallet set up without a passkey, read from the key store only while shown. */
+@Composable
+private fun RaylRecoveryPhraseDialog(runtime: RaylRuntime, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val phrase by produceState<String?>(initialValue = null, runtime) {
+        value = runtime.recoveryPhrase()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rayl_recovery_phrase)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(stringResource(R.string.rayl_recovery_phrase_body))
+                Text(
+                    text = phrase.orEmpty(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.testTag("rayl_recovery_phrase_words")
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.rayl_done)) }
+        },
+        dismissButton = {
+            TextButton(
+                enabled = phrase != null,
+                onClick = {
+                    val clip = ClipData.newPlainText("Recovery phrase", phrase).apply {
+                        // Keeps the words out of the clipboard preview (Android 13+).
+                        description.extras = PersistableBundle().apply {
+                            putBoolean("android.content.extra.IS_SENSITIVE", true)
+                        }
+                    }
+                    context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(clip)
+                }
+            ) { Text(stringResource(R.string.rayl_copy)) }
+        }
+    )
 }
 
 /** The entry point to external wallets; choosing one closes Rayl's wallet and starts its setup. */

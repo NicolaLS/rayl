@@ -45,6 +45,16 @@ class AndroidPocketKeyStoreTest {
     }
 
     @Test
+    fun aKeyGeneratedWithoutAPasskeyIsReadBackAsOne() = runTest {
+        // Its phrase is the only backup, shown in Settings: a restart must not hide it.
+        assertTrue(store().add(PocketKey(PHRASE, withoutPasskey = true)))
+
+        val loaded = assertIs<PocketKeyLoad.Present>(store().load())
+        assertEquals(PHRASE, loaded.key.phrase)
+        assertTrue(loaded.key.withoutPasskey)
+    }
+
+    @Test
     fun anExistingKeyIsNeverReplaced() = runTest {
         store().add(PocketKey(PHRASE))
 

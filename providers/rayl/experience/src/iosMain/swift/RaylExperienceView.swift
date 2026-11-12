@@ -111,7 +111,7 @@ private final class RaylOnboardingModel: ObservableObject {
     deinit { cancel?() }
 }
 
-/// Rayl's wallet terms and passkey, on the shared onboarding views the external wallets use too.
+/// Rayl's wallet terms and key setup, on the shared onboarding views the external wallets use too.
 private struct RaylOnboardingView: View {
     @StateObject private var model: RaylOnboardingModel
 
@@ -131,13 +131,13 @@ private struct RaylOnboardingView: View {
                     hasAgreed: snapshot.hasAgreed,
                     isWorking: snapshot.isWorking,
                     message: snapshot.message,
+                    secondaryActionTitle: snapshot.withoutPasskeyTitle,
                     onAgreementChanged: model.controller.setAgreement,
-                    action: model.controller.accept
+                    action: model.controller.accept,
+                    secondaryAction: model.controller.continueWithoutPasskey
                 )
             case "accounts":
                 RaylAccountsView(snapshot: snapshot, controller: model.controller)
-            case "unavailable":
-                RaylConnectWalletView(snapshot: snapshot, controller: model.controller)
             default:
                 ProgressView()
             }
@@ -196,21 +196,6 @@ private struct RaylAccountsView: View {
                     .disabled(snapshot.isWorking)
                 }
             }
-        }
-    }
-}
-
-/// Without passkeys Rayl's wallet cannot exist: connecting a wallet is simply the next step.
-private struct RaylConnectWalletView: View {
-    let snapshot: RaylNativeOnboardingSnapshot
-    let controller: RaylNativeOnboardingController
-
-    var body: some View {
-        NavigationStack {
-            RaylWalletChoiceList(wallets: snapshot.otherWallets, info: nil, isDisabled: false) {
-                controller.useWallet(id: $0)
-            }
-            .navigationTitle(snapshot.connectWalletTitle)
         }
     }
 }
@@ -389,6 +374,14 @@ private struct RaylWalletSettingsActions: View {
                 )
             }
             .disabled(snapshot.isSubmitting)
+            if snapshot.hasRecoveryPhrase {
+                NavigationLink {
+                    RaylRecoveryPhraseView(model: model)
+                } label: {
+                    Label(snapshot.recoveryPhraseTitle, systemImage: "key")
+                }
+                .accessibilityIdentifier("rayl_recovery_phrase")
+            }
             if snapshot.canErase {
                 Button(role: .destructive) {
                     confirmsErase = true
@@ -448,6 +441,40 @@ private struct RaylWalletSettingsActions: View {
             Text(body)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// The words of a wallet set up without a passkey, read from the Keychain only while shown.
+private struct RaylRecoveryPhraseView: View {
+    @ObservedObject var model: RaylWalletSettingsModel
+    @State private var phrase: String?
+
+    var body: some View {
+        if let snapshot = model.snapshot {
+            List {
+                Section {
+                    Text(phrase ?? "")
+                        .font(.body.monospaced())
+                        .privacySensitive()
+                        .accessibilityIdentifier("rayl_recovery_phrase_words")
+                    Button(snapshot.copyTitle) {
+                        // Local only, so the words never reach other devices through Handoff.
+                        UIPasteboard.general.setItems(
+                            [[UIPasteboard.typeAutomatic: phrase ?? ""]],
+                            options: [.localOnly: true]
+                        )
+                    }
+                    .disabled(phrase == nil)
+                } footer: {
+                    Text(snapshot.recoveryPhraseBody)
+                }
+            }
+            .navigationTitle(snapshot.recoveryPhraseTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                model.controller.recoveryPhrase { phrase = $0 }
+            }
         }
     }
 }

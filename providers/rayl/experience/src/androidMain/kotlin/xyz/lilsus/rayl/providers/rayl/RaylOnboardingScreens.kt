@@ -26,13 +26,15 @@ import xyz.lilsus.raylsuite.core.ui.components.AppSettingsRowDefaults
 import xyz.lilsus.raylsuite.feature.onboarding.AgreementScreen
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingScaffold
 
-/** Rayl's wallet terms and passkey, on the shared onboarding screens the external wallets use. */
+/** Rayl's wallet terms and key setup, on the shared onboarding screens the external wallets use. */
 @Composable
-internal fun RaylOnboarding(runtime: RaylRuntime, otherWallets: List<RaylWalletOption>) {
+internal fun RaylOnboarding(runtime: RaylRuntime) {
     val state = runtime.onboardingState
     val step by state.step.collectAsStateWithLifecycle()
     val hasAgreed by state.hasAgreed.collectAsStateWithLifecycle()
     val activity by state.activity.collectAsStateWithLifecycle()
+    val withoutPasskey by state.withoutPasskey.collectAsStateWithLifecycle()
+    val offersWithoutPasskey by state.offersWithoutPasskey.collectAsStateWithLifecycle()
     val working = activity == RaylSetupActivity.Working
     val message = when (activity) {
         RaylSetupActivity.Failed -> stringResource(R.string.rayl_passkey_failed)
@@ -42,23 +44,23 @@ internal fun RaylOnboarding(runtime: RaylRuntime, otherWallets: List<RaylWalletO
     when (val current = step) {
         RaylOnboardingStep.Checking, RaylOnboardingStep.Complete -> RaylStatusScreen(message = null)
 
-        // Without passkeys Rayl's wallet cannot exist: connecting a wallet is simply the next step.
-        RaylOnboardingStep.Unavailable -> RaylWalletChoiceScreen(
-            title = stringResource(R.string.rayl_connect_wallet),
-            info = null,
-            otherWallets = otherWallets,
-            onUseWallet = { runtime.useWallet(it) },
-            onBack = null
-        )
-
         RaylOnboardingStep.Agreement -> AgreementScreen(
-            body = stringResource(R.string.rayl_onboarding_agreement_body),
+            body = stringResource(
+                if (withoutPasskey) {
+                    R.string.rayl_onboarding_agreement_body_without_passkey
+                } else {
+                    R.string.rayl_onboarding_agreement_body
+                }
+            ),
             hasAgreed = hasAgreed,
             onAgreementChanged = state::setAgreement,
             onContinue = state::accept,
             onBack = null,
             isWorking = working,
-            message = message
+            message = message,
+            secondaryAction = stringResource(R.string.rayl_continue_without_passkey)
+                .takeIf { offersWithoutPasskey },
+            onSecondaryAction = state::continueWithoutPasskey
         )
 
         is RaylOnboardingStep.Accounts -> RaylAccounts(

@@ -35,7 +35,8 @@ it whenever no external wallet is configured, and its Settings offer the externa
 wallets the host supplies. It also runs on `feature/payment-flow`. Its
 [`integration/pocket`](../rayl/integration/pocket) owns an app-owned Spark wallet
 through the Breez SDK: it derives the pocket key from a passkey with Breez
-passkey login, keeps a copy in device-only platform storage, quotes and pays
+passkey login, or generates it where no passkey can, keeps a copy in
+device-only platform storage, quotes and pays
 invoices, and creates funding invoices. It shares no code with the Spark provider, and its key outlives the
 provider session as defined by
 [SPEC-wallet-lifecycle](../../specs/SPEC-wallet-lifecycle.md).

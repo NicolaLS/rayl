@@ -48,6 +48,19 @@ class RaylWalletExitTest {
     }
 
     @Test
+    fun aKeyGeneratedWithoutAPasskeyIsNeverErasedToSetUpAgain() = runTest {
+        // No passkey could derive that wallet again: erasing its unreadable key would lose the
+        // funds for good, while a later read may still succeed.
+        val pocket = FakePocket(keyUnreadable = true, withoutPasskey = true)
+        val exit = exit(pocket)
+
+        exit.setUpAgain()
+
+        assertEquals(RaylExit.None, exit.state.value)
+        assertEquals(emptyList(), pocket.calls)
+    }
+
+    @Test
     fun theWalletCannotBeLeftWhileAPaymentIsBeingSubmitted() = runTest {
         // Leaving resets the payment session; mid-payment that would lose its outcome (PR-04).
         val pocket = FakePocket(keyUnreadable = true)
@@ -98,6 +111,7 @@ class RaylWalletExitTest {
         scope = backgroundScope,
         canErase = canErase,
         keyUnreadable = { pocket.keyUnreadable },
+        withoutPasskey = { pocket.withoutPasskey },
         isBusy = { busy },
         stopSession = { pocket.calls += "stop session" },
         closePocket = {
@@ -113,6 +127,7 @@ class RaylWalletExitTest {
 
 private class FakePocket(
     val keyUnreadable: Boolean = false,
+    val withoutPasskey: Boolean = false,
     var eraseSucceeds: Boolean = true,
     val closing: CompletableDeferred<Unit>? = null
 ) {

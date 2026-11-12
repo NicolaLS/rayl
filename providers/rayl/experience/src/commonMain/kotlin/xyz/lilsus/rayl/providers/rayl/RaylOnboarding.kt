@@ -12,16 +12,14 @@ import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketSetupResult
 
 /**
  * What Rayl's wallet needs before its first use: accepting its terms and a passkey that derives
- * its key. Rayl's app onboarding covers everything that is not specific to a wallet.
+ * its key, or a key generated on this device where no passkey can derive one. Rayl's app
+ * onboarding covers everything that is not specific to a wallet.
  */
 internal sealed interface RaylOnboardingStep {
     /** Checking whether this device can use passkeys. */
     data object Checking : RaylOnboardingStep
 
-    /** No passkeys on this device, so the user pays with another wallet instead. */
-    data object Unavailable : RaylOnboardingStep
-
-    /** The terms; continuing opens or creates the passkey. */
+    /** The terms; continuing opens or creates the passkey, or the key where there are no passkeys. */
     data object Agreement : RaylOnboardingStep
 
     /** The passkey already holds [accounts]; the user picks one, or Rayl's own if [canCreate]. */
@@ -35,7 +33,10 @@ internal enum class RaylSetupActivity {
     Working,
     Failed,
 
-    /** The chosen password manager cannot hold Rayl's passkey; continuing lets the user pick another. */
+    /**
+     * The chosen password manager cannot hold Rayl's passkey; continuing lets the user pick
+     * another, and [RaylOnboardingState.continueWithoutPasskey] skips the passkey.
+     */
     PasskeyWithoutPrf
 }
 
@@ -64,22 +65,37 @@ internal class RaylOnboardingState(
     private val mutableActivity = MutableStateFlow(RaylSetupActivity.Idle)
     val activity: StateFlow<RaylSetupActivity> = mutableActivity.asStateFlow()
 
+    private val mutableWithoutPasskey =
+        MutableStateFlow(settings.getBoolean(KEY_WITHOUT_PASSKEY, false))
+
+    /**
+     * Whether the wallet's key is generated on this device instead of derived from a passkey:
+     * during setup because the device has no passkeys, afterwards because it was set up that way.
+     * Such a wallet has a recovery phrase and no passkey to set it up again.
+     */
+    val withoutPasskey: StateFlow<Boolean> = mutableWithoutPasskey.asStateFlow()
+
+    private val mutableOffersWithoutPasskey = MutableStateFlow(false)
+
+    /** Set once a password manager could not hold Rayl's passkey: the user may skip the passkey. */
+    val offersWithoutPasskey: StateFlow<Boolean> = mutableOffersWithoutPasskey.asStateFlow()
+
     init {
         if (mutableStep.value == RaylOnboardingStep.Checking) {
             scope.launch {
-                mutableStep.value = try {
+                try {
                     hasKey = setup.value.hasKey()
-                    if (hasKey || setup.value.isAvailable()) {
-                        RaylOnboardingStep.Agreement
+                    mutableWithoutPasskey.value = if (hasKey) {
+                        setup.value.hasKeyWithoutPasskey()
                     } else {
-                        RaylOnboardingStep.Unavailable
+                        !setup.value.isAvailable()
                     }
                 } catch (error: CancellationException) {
                     throw error
                 } catch (_: Exception) {
                     // Continuing reports the failure and can retry.
-                    RaylOnboardingStep.Agreement
                 }
+                mutableStep.value = RaylOnboardingStep.Agreement
             }
         }
     }
@@ -90,11 +106,18 @@ internal class RaylOnboardingState(
 
     fun accept() {
         if (!mutableHasAgreed.value || mutableStep.value != RaylOnboardingStep.Agreement) return
-        if (hasKey) {
-            complete()
-        } else {
-            perform { setup.value.start() }
+        when {
+            hasKey -> complete()
+            mutableWithoutPasskey.value -> perform { setup.value.createWithoutPasskey() }
+            else -> perform { setup.value.start() }
         }
+    }
+
+    /** Sets the wallet up without a passkey, once [offersWithoutPasskey]. */
+    fun continueWithoutPasskey() {
+        if (!mutableHasAgreed.value || mutableStep.value != RaylOnboardingStep.Agreement) return
+        if (!mutableOffersWithoutPasskey.value) return
+        perform(withoutPasskey = true) { setup.value.createWithoutPasskey() }
     }
 
     fun choose(account: String) {
@@ -124,13 +147,14 @@ internal class RaylOnboardingState(
     /** After the pocket was erased, its setup runs again on the next mount. */
     fun reset() {
         settings.remove(KEY_COMPLETE)
+        settings.remove(KEY_WITHOUT_PASSKEY)
     }
 
     fun close() {
         if (setup.isInitialized()) setup.value.close()
     }
 
-    private fun perform(action: suspend () -> PocketSetupResult) {
+    private fun perform(withoutPasskey: Boolean = false, action: suspend () -> PocketSetupResult) {
         if (isWorking()) return
         mutableActivity.value = RaylSetupActivity.Working
         scope.launch {
@@ -147,16 +171,20 @@ internal class RaylOnboardingState(
                 else -> RaylSetupActivity.Idle
             }
             when (result) {
-                PocketSetupResult.Done -> complete()
+                PocketSetupResult.Done -> {
+                    if (withoutPasskey) mutableWithoutPasskey.value = true
+                    complete()
+                }
 
                 is PocketSetupResult.ChooseAccount ->
                     mutableStep.value =
                         RaylOnboardingStep.Accounts(result.accounts, result.canCreate)
 
                 // Back to the terms, whose Continue lets the user pick another passkey.
-                PocketSetupResult.PasskeyWithoutPrf ->
-                    mutableStep.value =
-                        RaylOnboardingStep.Agreement
+                PocketSetupResult.PasskeyWithoutPrf -> {
+                    mutableOffersWithoutPasskey.value = true
+                    mutableStep.value = RaylOnboardingStep.Agreement
+                }
 
                 // A dismissed prompt is the user's decision: wait for another tap.
                 PocketSetupResult.Cancelled, is PocketSetupResult.Failed -> Unit
@@ -167,11 +195,13 @@ internal class RaylOnboardingState(
     private fun isWorking() = mutableActivity.value == RaylSetupActivity.Working
 
     private fun complete() {
+        settings.putBoolean(KEY_WITHOUT_PASSKEY, mutableWithoutPasskey.value)
         settings.putBoolean(KEY_COMPLETE, true)
         mutableStep.value = RaylOnboardingStep.Complete
     }
 
     private companion object {
         const val KEY_COMPLETE = "rayl.pocket.onboarding.complete"
+        const val KEY_WITHOUT_PASSKEY = "rayl.pocket.onboarding.without_passkey"
     }
 }
