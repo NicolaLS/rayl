@@ -10,6 +10,12 @@ interface PaymentHubRepository {
     suspend fun deleteContact(id: String)
     suspend fun saveWidget(draft: HubWidgetDraft, id: String? = null): HubWidget?
     suspend fun deleteWidget(id: String)
+
+    /**
+     * Gives widget [id] another of its layouts and keeps everything else, including people beyond
+     * what the new layout shows. Returns null when the widget or the layout isn't there.
+     */
+    suspend fun resizeWidget(id: String, variant: HubWidgetVariant): HubWidget?
     suspend fun moveWidget(id: String, index: Int)
 
     /** Puts the widgets in the order of [ids]; any it doesn't name follow in their own order. */

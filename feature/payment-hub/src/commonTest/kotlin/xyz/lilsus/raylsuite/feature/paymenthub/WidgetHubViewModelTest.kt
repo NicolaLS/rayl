@@ -209,6 +209,40 @@ class WidgetHubViewModelTest {
     }
 
     @Test
+    fun aSmallerLayoutFromTheHubKeepsEveryoneAndALargerOneShowsThemAgain() = runTest {
+        // Regression test for MOB-142: a smaller layout chosen from the widget menu removed the
+        // people it couldn't show, for good.
+        val repo = DefaultPaymentHubRepository(MapSettings())
+        val vm = WidgetHubViewModel(
+            repo,
+            PaymentHubController(repo, this),
+            { "USD" },
+            dispatcher = StandardTestDispatcher(testScheduler)
+        )
+        val people = (1..6).map {
+            repo.saveContact(assertNotNull(LightningAddress.parse("person$it@example.com")), "Person $it").id
+        }
+        repo.saveWidget(HubWidgetDraft("local.contacts", HubWidgetKind.Contacts, LocalHubWidgets.Card, contactIds = people))
+        advanceUntilIdle()
+        val id = repo.hub.value.widgets.single().id
+        fun shown() = vm.state.value.widgets.single().people.map { it.contactId }
+
+        vm.resizeWidget(id, LocalHubWidgets.Single.id)
+        advanceUntilIdle()
+        assertEquals(people.take(1), shown())
+        // Its settings show who it shows.
+        vm.editWidget(id)
+        assertEquals(people.take(1), vm.state.value.editor?.contactIds)
+        vm.close()
+
+        vm.resizeWidget(id, LocalHubWidgets.Card.id)
+        advanceUntilIdle()
+        assertEquals(people, shown())
+        assertNull(vm.state.value.editor)
+        vm.clear()
+    }
+
+    @Test
     fun shortcutRequiresOneContactAndPositivePresetThenSaves() = runTest {
         val repo = DefaultPaymentHubRepository(MapSettings())
         val host = PaymentHubController(repo, this)

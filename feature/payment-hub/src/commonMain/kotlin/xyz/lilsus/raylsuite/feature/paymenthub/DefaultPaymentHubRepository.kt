@@ -126,6 +126,19 @@ class DefaultPaymentHubRepository(
         mutate { it.copy(widgets = it.widgets.filterNot { widget -> widget.id == id }) }
     }
 
+    override suspend fun resizeWidget(id: String, variant: HubWidgetVariant): HubWidget? {
+        var result: HubWidget? = null
+        mutate { current ->
+            val widget = current.widget(id) ?: return@mutate current
+            val local = LocalHubWidgets.definitions.firstOrNull { it.id == widget.definitionId }
+            if (local == null || variant !in local.variants) return@mutate current
+            val resized = widget.copy(variant = variant)
+            result = resized
+            current.copy(widgets = current.widgets.map { if (it.id == id) resized else it })
+        }
+        return result
+    }
+
     override suspend fun moveWidget(id: String, index: Int) {
         mutate { current ->
             val from = current.widgets.indexOfFirst { it.id == id }
@@ -159,7 +172,9 @@ class DefaultPaymentHubRepository(
                     address
                 )
             val updated = current.withContact(saved).withContactAction(saved.id)
-            if (updated.widgets.any { saved.id in it.contactIds }) return@mutate updated
+            // Someone a smaller layout keeps out of sight isn't on the Hub yet.
+            val shown = updated.widgets.any { saved.id in it.contactIds.take(it.variant.capacity) }
+            if (shown) return@mutate updated
             updated.copy(
                 widgets = updated.widgets + HubWidget(
                     id = "widget:${idGenerator()}",

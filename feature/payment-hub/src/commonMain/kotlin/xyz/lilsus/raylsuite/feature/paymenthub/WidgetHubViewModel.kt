@@ -373,15 +373,19 @@ class WidgetHubViewModel(
 
     /**
      * Gives a placed widget another layout right away, from the Hub, keeping what it was set up
-     * with. A smaller layout keeps only as many people as it holds.
+     * with. A smaller layout shows only as many people as it holds, and a larger one brings the
+     * others back, as Home Screen widgets keep their setup.
      */
     fun resizeWidget(id: String, variantId: String) {
         if (mutableState.value.busy) return
-        if (repository.hub.value.widget(id)?.variant?.id == variantId) return
-        val editor = editorFor(id) ?: return
-        mutableState.update { it.copy(editor = editor, error = null) }
-        selectVariant(variantId)
-        saveWidget(setUp = false)
+        val widget = repository.hub.value.widget(id) ?: return
+        if (widget.variant.id == variantId) return
+        val variant = mutableState.value.gallery.firstOrNull { it.id == widget.definitionId }
+            ?.variants?.firstOrNull { it.id == variantId }
+            ?: return fail(HubWidgetError.Unavailable)
+        mutate {
+            if (repository.resizeWidget(id, variant) == null) fail(HubWidgetError.SaveFailed)
+        }
     }
 
     /** The editor for a placed widget, filled with what it is set up with. */
@@ -402,7 +406,9 @@ class WidgetHubViewModel(
             widget.kind,
             variant.id,
             widget.id,
-            contactIds = target?.let { listOf(it.contactId) } ?: widget.contactIds,
+            // The settings show the people the widget shows; saving them keeps only those.
+            contactIds = (target?.let { listOf(it.contactId) } ?: widget.contactIds)
+                .take(variant.capacity),
             title = widget.title.orEmpty(),
             amountInput = amount?.minor?.formatMinorAmount(
                 CurrencyCatalog.infoFor(amount.normalizedCurrencyCode).fractionDigits
@@ -943,7 +949,9 @@ class WidgetHubViewModel(
         } ?: hub.widgets
         val tiles = widgets.map { widget ->
             val targets = when (widget.kind) {
-                HubWidgetKind.Contacts -> widget.contactIds.mapNotNull(hub::contactTarget)
+                // A widget made smaller from the Hub keeps everyone, and shows who fits.
+                HubWidgetKind.Contacts ->
+                    widget.contactIds.take(widget.variant.capacity).mapNotNull(hub::contactTarget)
 
                 HubWidgetKind.Shortcut -> listOfNotNull(widget.targetId?.let(hub::target))
 
