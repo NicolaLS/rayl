@@ -348,11 +348,11 @@ private fun WidgetGrid(
     // The widget whose menu is open; it stays lifted above the others until the menu closes.
     var menuId by remember { mutableStateOf<String?>(null) }
     var draggingId by remember { mutableStateOf<String?>(null) }
-    // Where the finger is in the grid, where on the widget it took hold, and how far it has moved
-    // since the menu opened.
+    // Where the finger is in the grid, where on the widget it took hold, and where it was when
+    // the long press took.
     var pointer by remember { mutableStateOf(Offset.Zero) }
     var grab by remember { mutableStateOf(Offset.Zero) }
-    var travel by remember { mutableStateOf(0f) }
+    var pressedAt by remember { mutableStateOf(Offset.Zero) }
     val haptics = LocalHapticFeedback.current
     val baseConfiguration = LocalViewConfiguration.current
     val touchSlop = baseConfiguration.touchSlop
@@ -501,16 +501,17 @@ private fun WidgetGrid(
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                         grab = at
                                         pointer = (originOf(tile.id) ?: Offset.Zero) + at
-                                        travel = 0f
+                                        pressedAt = pointer
                                         if (state.arranging) pickUp(tile.id) else menuId = tile.id
                                     },
                                     onDrag = { delta ->
                                         pointer += delta
-                                        travel += delta.getDistance()
                                         // Moving on from the menu picks the widget up and starts
-                                        // arranging, the way the home screen does.
+                                        // arranging, the way the home screen does. Only how far
+                                        // the finger is from where it pressed counts, so the
+                                        // tremor of a resting finger never adds up to a move.
                                         if (draggingId == null && menuId == tile.id &&
-                                            travel > touchSlop
+                                            (pointer - pressedAt).getDistance() > touchSlop
                                         ) {
                                             pickUp(tile.id)
                                         }
@@ -896,5 +897,8 @@ private fun Modifier.tileGestures(
 /** How far below the status bar the canvas fades out. */
 private val FADE = 24.dp
 
-/** How long a press takes to pick a widget up while arranging. */
-private const val QUICK_PICK_UP_MS = 200L
+/**
+ * How long a press takes to pick a widget up while arranging: sooner than a long press, but
+ * longer than a slow tap, which opens the widget's settings.
+ */
+private const val QUICK_PICK_UP_MS = 300L
