@@ -14,11 +14,8 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +43,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.GridView
@@ -60,12 +56,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -92,21 +86,18 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
-import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -436,125 +427,123 @@ private fun WidgetGrid(
                 delay(16L)
             }
         }
-        run {
-            Box(Modifier.fillMaxWidth().height(unit * rows + gap * (rows - 1).coerceAtLeast(0))) {
-                placements.forEachIndexed { index, placement ->
-                    val tile = placement.value
-                    key(tile.id) {
-                        val dragging = draggingId == tile.id
-                        val slot = IntOffset(
-                            (stridePx * placement.column).roundToInt(),
-                            (stridePx * placement.row).roundToInt()
-                        )
-                        // A dragged widget follows the finger; every other one glides to its place.
-                        // The finger is followed outside composition, so a move only moves the
-                        // widget instead of composing the whole grid again.
-                        val position = remember { Animatable(slot, IntOffset.VectorConverter) }
-                        LaunchedEffect(dragging) {
-                            if (dragging) {
-                                snapshotFlow { (pointer - grab).round() }
-                                    .collect { position.snapTo(it) }
-                            }
+        Box(Modifier.fillMaxWidth().height(unit * rows + gap * (rows - 1).coerceAtLeast(0))) {
+            placements.forEachIndexed { index, placement ->
+                val tile = placement.value
+                key(tile.id) {
+                    val dragging = draggingId == tile.id
+                    val slot = IntOffset(
+                        (stridePx * placement.column).roundToInt(),
+                        (stridePx * placement.row).roundToInt()
+                    )
+                    // A dragged widget follows the finger; every other one glides to its place.
+                    // The finger is followed outside composition, so a move only moves the
+                    // widget instead of composing the whole grid again.
+                    val position = remember { Animatable(slot, IntOffset.VectorConverter) }
+                    LaunchedEffect(dragging) {
+                        if (dragging) {
+                            snapshotFlow { (pointer - grab).round() }
+                                .collect { position.snapTo(it) }
                         }
-                        LaunchedEffect(slot, dragging) {
-                            if (!dragging) {
-                                position.animateTo(
-                                    slot,
-                                    spring(stiffness = Spring.StiffnessMediumLow)
-                                )
-                            }
-                        }
-                        WidgetCanvasTile(
-                            tile = tile,
-                            state = state,
-                            onOpen = onOpen,
-                            menuOpen = menuId == tile.id,
-                            dragging = dragging,
-                            variants = state.gallery.firstOrNull { it.id == tile.definitionId }
-                                ?.variants.orEmpty(),
-                            canMoveUp = index > 0,
-                            canMoveDown = index < placements.lastIndex,
-                            viewModel = viewModel,
-                            onCloseMenu = { if (menuId == tile.id) menuId = null },
-                            modifier = Modifier
-                                .offset { position.value }
-                                .width(unit * placement.columns + gap * (placement.columns - 1))
-                                .height(unit * placement.rows + gap * (placement.rows - 1))
-                                .zIndex(
-                                    when {
-                                        dragging -> 2f
-                                        menuId == tile.id -> 1f
-                                        else -> 0f
-                                    }
-                                )
-                                .tileGestures(
-                                    enabled =
-                                        !state.busy &&
-                                            draggingId.let { it == null || it == tile.id },
-                                    // While arranging, a widget is picked up sooner than a long
-                                    // press opens its menu.
-                                    holdMillis = if (state.arranging) {
-                                        QUICK_PICK_UP_MS
-                                    } else {
-                                        baseConfiguration.longPressTimeoutMillis
-                                    },
-                                    onTap = if (state.arranging) {
-                                        { viewModel.editWidget(tile.id) }
-                                    } else {
-                                        null
-                                    },
-                                    onLongPress = { at ->
-                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        grab = at
-                                        pointer = (originOf(tile.id) ?: Offset.Zero) + at
-                                        pressedAt = pointer
-                                        if (state.arranging) pickUp(tile.id) else menuId = tile.id
-                                    },
-                                    onDrag = { delta ->
-                                        pointer += delta
-                                        // Moving on from the menu picks the widget up and starts
-                                        // arranging, the way the home screen does. Only how far
-                                        // the finger is from where it pressed counts, so the
-                                        // tremor of a resting finger never adds up to a move.
-                                        if (draggingId == null && menuId == tile.id &&
-                                            (pointer - pressedAt).getDistance() > touchSlop
-                                        ) {
-                                            pickUp(tile.id)
-                                        }
-                                        if (draggingId == tile.id) followPointer()
-                                    },
-                                    onRelease = {
-                                        if (draggingId == tile.id) {
-                                            draggingId = null
-                                            viewModel.finishMove()
-                                        }
-                                    },
-                                    onCancel = {
-                                        if (draggingId == tile.id) {
-                                            draggingId = null
-                                            viewModel.cancelMove()
-                                        }
-                                    }
-                                )
-                        )
                     }
-                }
-                // Arranging is about the widgets already placed, so adding one waits.
-                AnimatedVisibility(
-                    visible = !state.arranging,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.offset(
-                        x = (unit + gap) * addColumn,
-                        y = (unit + gap) * addRow
+                    LaunchedEffect(slot, dragging) {
+                        if (!dragging) {
+                            position.animateTo(
+                                slot,
+                                spring(stiffness = Spring.StiffnessMediumLow)
+                            )
+                        }
+                    }
+                    WidgetCanvasTile(
+                        tile = tile,
+                        state = state,
+                        onOpen = onOpen,
+                        menuOpen = menuId == tile.id,
+                        dragging = dragging,
+                        variants = state.gallery.firstOrNull { it.id == tile.definitionId }
+                            ?.variants.orEmpty(),
+                        canMoveUp = index > 0,
+                        canMoveDown = index < placements.lastIndex,
+                        viewModel = viewModel,
+                        onCloseMenu = { if (menuId == tile.id) menuId = null },
+                        modifier = Modifier
+                            .offset { position.value }
+                            .width(unit * placement.columns + gap * (placement.columns - 1))
+                            .height(unit * placement.rows + gap * (placement.rows - 1))
+                            .zIndex(
+                                when {
+                                    dragging -> 2f
+                                    menuId == tile.id -> 1f
+                                    else -> 0f
+                                }
+                            )
+                            .tileGestures(
+                                enabled =
+                                    !state.busy &&
+                                        draggingId.let { it == null || it == tile.id },
+                                // While arranging, a widget is picked up sooner than a long
+                                // press opens its menu.
+                                holdMillis = if (state.arranging) {
+                                    QUICK_PICK_UP_MS
+                                } else {
+                                    baseConfiguration.longPressTimeoutMillis
+                                },
+                                onTap = if (state.arranging) {
+                                    { viewModel.editWidget(tile.id) }
+                                } else {
+                                    null
+                                },
+                                onLongPress = { at ->
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    grab = at
+                                    pointer = (originOf(tile.id) ?: Offset.Zero) + at
+                                    pressedAt = pointer
+                                    if (state.arranging) pickUp(tile.id) else menuId = tile.id
+                                },
+                                onDrag = { delta ->
+                                    pointer += delta
+                                    // Moving on from the menu picks the widget up and starts
+                                    // arranging, the way the home screen does. Only how far
+                                    // the finger is from where it pressed counts, so the
+                                    // tremor of a resting finger never adds up to a move.
+                                    if (draggingId == null && menuId == tile.id &&
+                                        (pointer - pressedAt).getDistance() > touchSlop
+                                    ) {
+                                        pickUp(tile.id)
+                                    }
+                                    if (draggingId == tile.id) followPointer()
+                                },
+                                onRelease = {
+                                    if (draggingId == tile.id) {
+                                        draggingId = null
+                                        viewModel.finishMove()
+                                    }
+                                },
+                                onCancel = {
+                                    if (draggingId == tile.id) {
+                                        draggingId = null
+                                        viewModel.cancelMove()
+                                    }
+                                }
+                            )
                     )
-                ) {
-                    AddWidgetTile(
-                        enabled = !state.busy,
-                        onClick = viewModel::openGallery,
-                        modifier = Modifier.size(unit)
-                    )
                 }
+            }
+            // Arranging is about the widgets already placed, so adding one waits.
+            AnimatedVisibility(
+                visible = !state.arranging,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.offset(
+                    x = (unit + gap) * addColumn,
+                    y = (unit + gap) * addRow
+                )
+            ) {
+                AddWidgetTile(
+                    enabled = !state.busy,
+                    onClick = viewModel::openGallery,
+                    modifier = Modifier.size(unit)
+                )
             }
         }
     }
