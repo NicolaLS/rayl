@@ -11,14 +11,11 @@
     <string name="rayl_invoice_failed">Rechnung konnte nicht erstellt werden. Versuche es erneut.</string>
     <string name="rayl_done">Fertig</string>
     <string name="rayl_cancel">Abbrechen</string>
-    <string name="rayl_use_another_wallet">Andere Wallet verwenden</string>
-    <string name="rayl_use_another_wallet_body">Mit einer Wallet bezahlen, die du schon hast.</string>
     <string name="rayl_erase_pocket">Rayl-Pocket löschen</string>
     <string name="rayl_erase_pocket_body">Nur in Debug-Builds. Löscht den Rayl-Schlüssel und die Wallet-Daten dieses Geräts. Dein Passkey richtet sie wieder ein.</string>
     <string name="rayl_erase">Löschen</string>
     <string name="rayl_leave_failed">Rayl konnte die Sitzung nicht beenden. Versuche es erneut, um fortzufahren.</string>
     <string name="rayl_balance_unavailable">Nicht verbunden. Tippe, um es erneut zu versuchen.</string>
-    <string name="rayl_use_another_wallet_info">Bezahle mit einer Wallet, die du schon hast. Dein Rayl-Guthaben bleibt auf diesem Gerät, und du kannst jederzeit zurückkehren.</string>
     <string name="rayl_balance">Guthaben</string>
     <string name="rayl_onboarding_agreement_body">Die Nutzung von Rayl erfolgt auf eigenes Risiko. Dein Rayl-Guthaben ist durch einen Passkey geschützt, den Rayl beim Fortfahren erstellt oder öffnet: Wenn du diesen Passkey löschst, ist das Guthaben verloren. Du bist für das Guthaben und alle Zahlungen voll verantwortlich.\n\nBehalte nur kleine Beträge, die du ausgeben willst.</string>
     <string name="rayl_passkey_failed">Dein Passkey konnte nicht geöffnet werden. Versuche es erneut.</string>
@@ -30,7 +27,9 @@
     <string name="rayl_set_up_again">Neu einrichten</string>
     <string name="rayl_continue_without_passkey">Ohne Passkey fortfahren</string>
     <string name="rayl_onboarding_agreement_body_without_passkey">Die Nutzung von Rayl erfolgt auf eigenes Risiko. Dein Rayl-Guthaben wird nur auf diesem Telefon aufbewahrt. Du bist für das Guthaben und alle Zahlungen voll verantwortlich.\n\nBehalte nur kleine Beträge, die du ausgeben willst.</string>
-    <string name="rayl_recovery_phrase">Wiederherstellungsphrase</string>
-    <string name="rayl_recovery_phrase_body">Diese Wörter öffnen dein Rayl-Guthaben in jeder Spark-Wallet. Halte sie geheim.</string>
-    <string name="rayl_copy">Kopieren</string>
+    <string name="rayl_start_new_pocket">Neue Pocket anlegen</string>
+    <string name="rayl_start_new_pocket_body">Dieses Telefon kann den Schlüssel deiner Pocket nicht lesen. Eine neue Pocket beginnt leer.</string>
+    <string name="rayl_start_new_pocket_confirm">Neue Pocket anlegen?</string>
+    <string name="rayl_start_new_pocket_confirm_body">Deine jetzige Pocket lässt sich nur noch mit ihrer Wiederherstellungsphrase öffnen, in jeder Spark-Wallet.</string>
+    <string name="rayl_start">Anlegen</string>
 </resources>

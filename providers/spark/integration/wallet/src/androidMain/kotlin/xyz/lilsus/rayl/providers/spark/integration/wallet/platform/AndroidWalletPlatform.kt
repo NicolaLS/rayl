@@ -30,18 +30,23 @@ import xyz.lilsus.rayl.providers.spark.application.wallet.clearWalletStorage
 import xyz.lilsus.rayl.providers.spark.integration.wallet.spark.BreezSparkSdkConnector
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
 
+/**
+ * [storageName] keeps one wallet's credential and SDK data apart from other wallets'; `null` is
+ * the storage Rayl 1.1 used for its single Spark wallet.
+ */
 fun createAndroidWalletAccess(
     context: Context,
     bootstrapConfig: AppBootstrapConfig,
-    startMode: WalletStartMode
+    startMode: WalletStartMode,
+    storageName: String? = null
 ): WalletAccess {
     val appContext = context.applicationContext
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val payments = SparkPayments()
     val walletAccess = DefaultWalletAccess(
         bootstrapConfig = bootstrapConfig,
-        vault = AndroidCredentialVault(appContext),
-        directories = AndroidWalletDirectories(appContext),
+        vault = AndroidCredentialVault(appContext, storageName),
+        directories = AndroidWalletDirectories(appContext, storageName),
         connector = BreezSparkSdkConnector,
         payments = payments,
         paymentLifecycle = payments,
@@ -51,17 +56,18 @@ fun createAndroidWalletAccess(
     return walletAccess
 }
 
-private class AndroidWalletDirectories(context: Context) : WalletDirectories {
+private class AndroidWalletDirectories(context: Context, storageName: String?) : WalletDirectories {
     private val filesDirectory = context.filesDir
-    private val resetMarker = File(context.noBackupFilesDir, "wallet-reset-pending")
+    private val sdkName = "breez-spark".named(storageName)
+    private val resetMarker =
+        File(context.noBackupFilesDir, "wallet-reset-pending".named(storageName))
 
     override val sdkDirectory: String
-        get() = File(filesDirectory, "breez-spark").also {
+        get() = File(filesDirectory, sdkName).also {
             check(it.isDirectory || it.mkdirs()) { "Could not create wallet directory" }
         }.absolutePath
 
-    override fun sdkStorageIsEmpty(): Boolean =
-        File(filesDirectory, "breez-spark").list().isNullOrEmpty()
+    override fun sdkStorageIsEmpty(): Boolean = File(filesDirectory, sdkName).list().isNullOrEmpty()
 
     override fun beginReset(): Boolean = runCatching {
         resetMarker.parentFile?.mkdirs()
@@ -70,7 +76,7 @@ private class AndroidWalletDirectories(context: Context) : WalletDirectories {
 
     override fun resetPending(): Boolean = resetMarker.isFile
 
-    override fun deleteWalletData(): Boolean = File(filesDirectory, "breez-spark").let {
+    override fun deleteWalletData(): Boolean = File(filesDirectory, sdkName).let {
         !it.exists() ||
             it.deleteRecursively()
     }
@@ -78,11 +84,15 @@ private class AndroidWalletDirectories(context: Context) : WalletDirectories {
     override fun finishReset(): Boolean = !resetMarker.exists() || resetMarker.delete()
 }
 
-internal class AndroidCredentialVault(private val context: Context) : CredentialVault {
-    private val payloadDirectory = File(context.noBackupFilesDir, "wallet-credential")
+internal class AndroidCredentialVault(private val context: Context, storageName: String? = null) :
+    CredentialVault {
+    private val payloadDirectory =
+        File(context.noBackupFilesDir, "wallet-credential".named(storageName))
     private val payloadFile = File(payloadDirectory, "v1.bin")
     private val associatedData =
-        "${context.packageName}:spark-wallet-credential-v1".encodeToByteArray()
+        "${context.packageName}:${"spark-wallet-credential-v1".named(storageName)}"
+            .encodeToByteArray()
+    private val keyAlias = KEY_ALIAS.named(storageName)
 
     override suspend fun load(): CredentialLoadResult {
         if (!payloadFile.isFile) return CredentialLoadResult.Absent
@@ -137,10 +147,10 @@ internal class AndroidCredentialVault(private val context: Context) : Credential
     }
 
     override suspend fun delete(): CredentialDeleteResult = try {
-        val existed = payloadFile.exists() || keyStore().containsAlias(KEY_ALIAS)
+        val existed = payloadFile.exists() || keyStore().containsAlias(keyAlias)
         payloadDirectory.deleteRecursively()
-        keyStore().deleteEntry(KEY_ALIAS)
-        if (payloadFile.exists() || keyStore().containsAlias(KEY_ALIAS)) {
+        keyStore().deleteEntry(keyAlias)
+        if (payloadFile.exists() || keyStore().containsAlias(keyAlias)) {
             CredentialDeleteResult.FAILED
         } else if (existed) {
             CredentialDeleteResult.DELETED
@@ -152,11 +162,11 @@ internal class AndroidCredentialVault(private val context: Context) : Credential
     }
 
     private fun getOrCreateKey(): SecretKey {
-        (keyStore().getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        (keyStore().getKey(keyAlias, null) as? SecretKey)?.let { return it }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEY_STORE).run {
             init(
                 KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
+                    keyAlias,
                     KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                 ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                     .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
@@ -179,7 +189,12 @@ internal class AndroidCredentialVault(private val context: Context) : Credential
     }
 }
 
-suspend fun clearAndroidWalletStorage(context: Context): Boolean = clearWalletStorage(
-    AndroidCredentialVault(context.applicationContext),
-    AndroidWalletDirectories(context.applicationContext)
-)
+suspend fun clearAndroidWalletStorage(context: Context, storageName: String? = null): Boolean =
+    clearWalletStorage(
+        AndroidCredentialVault(context.applicationContext, storageName),
+        AndroidWalletDirectories(context.applicationContext, storageName)
+    )
+
+/** Rayl 1.1's name for the single wallet, else the name of one wallet's own storage. */
+private fun String.named(storageName: String?): String =
+    if (storageName == null) this else "$this.$storageName"

@@ -4,9 +4,24 @@
     <string name="settings_manage_wallet_title">Wallet</string>
     <string name="settings_manage_wallet_placeholder">Noch keine Wallet verbunden. Jetzt hinzufügen, um Zahlungen zu senden.</string>
     <string name="settings_manage_wallet_add">Wallet hinzufügen</string>
-    <string name="settings_manage_wallet_remove">Zurück zu Rayl</string>
+    <string name="settings_manage_wallet_remove">Karte entfernen</string>
     <string name="settings_manage_wallet_cancel">Abbrechen</string>
     <string name="wallet_removal_payment_active">Warte, bis die aktuelle Zahlung abgeschlossen ist.</string>
-    <string name="wallet_removal_failed">Diese Wallet konnte nicht vollständig getrennt werden. Versuche es erneut, um zu Rayl zurückzukehren.</string>
+    <string name="wallet_removal_failed">Diese Karte konnte nicht vollständig entfernt werden. Versuche es erneut.</string>
     <string name="wallet_removal_retry">Erneut versuchen</string>
+    <string name="wallet_cards_pocket">Rayl</string>
+    <string name="wallet_cards_add">Karte hinzufügen</string>
+    <string name="wallet_cards_add_body">Bezahle mit einer Wallet, die du schon hast. Rayl darf damit nur bezahlen; das Guthaben bleibt in dieser Wallet.</string>
+    <string name="wallet_cards_remove">Karte entfernen</string>
+    <string name="wallet_cards_rename">Karte umbenennen</string>
+    <string name="wallet_cards_save">Sichern</string>
+    <string name="wallet_cards_recovery_phrase">Wiederherstellungsphrase</string>
+    <string name="wallet_cards_recovery_phrase_body">Diese Wörter öffnen deine Pocket in jeder Spark-Wallet. Halte sie geheim.</string>
+    <string name="wallet_cards_copy">Kopieren</string>
+    <string name="wallet_cards_done">Fertig</string>
+    <string name="wallet_cards_wallets">Wallets</string>
+    <string name="wallet_cards_active">Aktiv</string>
+    <string name="wallet_cards_balance">Guthaben</string>
+    <string name="wallet_cards_add_funds">Guthaben aufladen</string>
+    <string name="wallet_cards_details">Details</string>
 </resources>

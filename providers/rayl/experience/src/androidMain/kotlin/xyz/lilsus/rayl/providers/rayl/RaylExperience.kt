@@ -19,7 +19,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,23 +28,26 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.lang.ref.WeakReference
 import kotlin.random.Random
+import kotlinx.coroutines.flow.filterNotNull
 import xyz.lilsus.rayl.providers.rayl.experience.R
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketStatus
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.createAndroidPocketSetup
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.createAndroidRaylPocket
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.readAndroidPocketRecoveryPhrase
 import xyz.lilsus.raylsuite.core.model.ThemePreference
 import xyz.lilsus.raylsuite.core.settings.rememberAppSettings
 import xyz.lilsus.raylsuite.core.ui.platform.LocalProductName
 import xyz.lilsus.raylsuite.core.ui.platform.rememberHapticFeedbackManager
 import xyz.lilsus.raylsuite.core.ui.platform.rememberRetainedInstance
 import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardChange
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
 
 /**
  * The Compose host of Rayl's built-in wallet on Android. It needs no credentials: mounting it
  * starts the pocket, and its onboarding sets up the pocket key, from a passkey where one can
- * derive it. [onUseWallet] runs with one of [otherWallets] once the pocket session has
- * closed, so the host can set up that wallet; [onErased] after a debug build erased the pocket.
- * [walletIcons] are drawables for [otherWallets] by id; a wallet without one shows its initial.
+ * derive it. A change of [cards] is applied once the pocket session has closed, so the host can
+ * mount that wallet; [onErased] runs after a debug build erased the pocket.
  */
 @Composable
 fun RaylExperience(
@@ -54,11 +56,9 @@ fun RaylExperience(
     breezApiKey: String?,
     passkeys: RaylPasskeys,
     debugTools: Boolean,
-    otherWallets: List<RaylWalletOption>,
-    onUseWallet: (String) -> Unit,
+    cards: WalletCardsHost,
     onErased: () -> Unit,
-    onConnectionChanged: (Boolean) -> Unit,
-    walletIcons: Map<String, Int> = emptyMap()
+    onConnectionChanged: (Boolean) -> Unit
 ) {
     val appSettings = rememberAppSettings(configuration.preferencesName)
     val haptics = rememberHapticFeedbackManager()
@@ -102,19 +102,25 @@ fun RaylExperience(
     val status by runtime.pocket.status.collectAsStateWithLifecycle()
     val exit by runtime.exit.collectAsStateWithLifecycle()
     val onboardingStep by runtime.onboardingState.step.collectAsStateWithLifecycle()
+    LaunchedEffect(runtime) {
+        // A Spark card with the pocket's wallet is then turned back.
+        runtime.pocket.identity.filterNotNull().collect { cards.identified("spark:$it") }
+    }
     LaunchedEffect(runtime, status, exit) {
         onConnectionChanged(status == PocketStatus.Ready && exit == RaylExit.None)
         if (exit == RaylExit.Done) {
             when (val target = runtime.exitTarget) {
-                is RaylExitTarget.Wallet -> onUseWallet(target.id)
+                is RaylExitTarget.Wallet ->
+                    WalletCardChange.decode(target.id)?.let(cards::apply)
+
                 RaylExitTarget.Erased -> onErased()
+
                 null -> Unit
             }
         }
     }
     CompositionLocalProvider(
-        LocalProductName provides configuration.appName,
-        LocalRaylWalletIcons provides walletIcons
+        LocalProductName provides configuration.appName
     ) {
         RaylSuiteTheme(themePreference = themePreference) {
             when {
@@ -129,7 +135,7 @@ fun RaylExperience(
                 onboardingStep != RaylOnboardingStep.Complete -> RaylOnboarding(runtime)
 
                 // The pocket connects in the background: the camera must not wait for it.
-                else -> RaylTabs(runtime, otherWallets)
+                else -> RaylTabs(runtime, cards)
             }
         }
     }
@@ -156,10 +162,11 @@ internal fun RaylStatusScreen(message: String?, action: String? = null, onAction
     }
 }
 
-/** The host's drawables for the wallets it offers, by wallet id. */
-internal val LocalRaylWalletIcons = staticCompositionLocalOf<Map<String, Int>> { emptyMap() }
-
 private const val REGTEST_LOG_TAG = "RaylRegtest"
+
+/** The pocket's recovery phrase while any wallet pays; see `WalletCardsHost.recoveryPhrase`. */
+suspend fun raylRecoveryPhrase(context: Context, environment: RaylEnvironment): String? =
+    readAndroidPocketRecoveryPhrase(context, environment.pocketConfig(breezApiKey = null))
 
 /** Call from `Application.onCreate` when Rayl's wallet is in use. */
 fun startRaylPocketEarly(context: Context, environment: RaylEnvironment, breezApiKey: String?) {

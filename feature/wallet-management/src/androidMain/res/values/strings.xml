@@ -4,9 +4,24 @@
     <string name="settings_manage_wallet_title">Wallet</string>
     <string name="settings_manage_wallet_placeholder">No wallet connected yet. Add one to start paying.</string>
     <string name="settings_manage_wallet_add">Add Wallet</string>
-    <string name="settings_manage_wallet_remove">Back to Rayl</string>
+    <string name="settings_manage_wallet_remove">Remove card</string>
     <string name="settings_manage_wallet_cancel">Cancel</string>
     <string name="wallet_removal_payment_active">Wait for the current payment to finish.</string>
-    <string name="wallet_removal_failed">This wallet could not be completely disconnected. Try again to go back to Rayl.</string>
+    <string name="wallet_removal_failed">This card couldn\'t be completely removed. Try again.</string>
     <string name="wallet_removal_retry">Try again</string>
+    <string name="wallet_cards_pocket">Rayl</string>
+    <string name="wallet_cards_add">Add a card</string>
+    <string name="wallet_cards_add_body">Pay with a wallet you already have. Rayl only gets access to pay; the funds stay in that wallet.</string>
+    <string name="wallet_cards_remove">Remove card</string>
+    <string name="wallet_cards_rename">Rename card</string>
+    <string name="wallet_cards_save">Save</string>
+    <string name="wallet_cards_recovery_phrase">Recovery phrase</string>
+    <string name="wallet_cards_recovery_phrase_body">These words open your pocket in any Spark wallet. Keep them private.</string>
+    <string name="wallet_cards_copy">Copy</string>
+    <string name="wallet_cards_done">Done</string>
+    <string name="wallet_cards_wallets">Wallets</string>
+    <string name="wallet_cards_active">Active</string>
+    <string name="wallet_cards_balance">Balance</string>
+    <string name="wallet_cards_add_funds">Add funds</string>
+    <string name="wallet_cards_details">Details</string>
 </resources>

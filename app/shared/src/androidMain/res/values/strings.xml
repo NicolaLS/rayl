@@ -18,4 +18,6 @@
     <string name="welcome_autopay_body">Small amounts are paid right away. Above your limit, Rayl asks first.</string>
     <string name="welcome_balance_title">A balance for spending</string>
     <string name="welcome_balance_body">Top up what you plan to spend, like a prepaid card. Your savings stay where they are.</string>
+    <string name="card_already_added">This wallet is already added as %1$s. Rayl pays with it.</string>
+    <string name="card_already_pocket">This wallet is your pocket. Rayl pays with it.</string>
 </resources>

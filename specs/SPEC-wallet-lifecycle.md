@@ -1,50 +1,58 @@
-# SPEC-wallet-lifecycle: Rayl's wallet and one external connection
+# SPEC-wallet-lifecycle: The pocket and the cards
 
 ## Record justification
 
-Rayl's platform hosts, provider runtimes, and platform credential stores jointly implement connection ownership and erasure; none alone can ensure that no external wallet connection is retained after the user goes back to Rayl's wallet.
+Rayl's platform hosts, provider runtimes, and platform credential stores jointly implement card ownership and erasure; none alone can ensure that a removed or abandoned card leaves no credentials behind while every other card keeps its own.
 
-## Rayl's wallet and external wallets
+## The pocket and the cards
 
-Rayl pays with its built-in wallet, the Rayl pocket, unless the user connects an
-external wallet (Blink, NWC, or Spark) from its Settings. After the welcome,
-Rayl's wallet is in use once its terms are accepted and its key is set up.
-App preferences, the user's shared Hub, and the pocket are independent of
-external connections.
+Every user has exactly one Rayl pocket, Rayl's built-in wallet, shown to users
+simply as "Rayl", and any number
+of cards: external wallets (Blink, NWC, or Spark) the user added in Settings,
+including several of one provider. The pocket is always present and can never
+be removed; cards are added and removed freely. Exactly one wallet pays at a
+time, and only it has a session. After the welcome, the pocket pays once its
+terms are accepted and its key is set up. App preferences and the user's shared
+Hub are the same whichever wallet pays.
 
-## External connections
+The pocket is defined by ownership, not technology: Rayl sets its key up and
+the user never enters it. A card is credentials the user brought. A Spark card
+is never the pocket, even when both are Spark wallets, and nothing in Rayl
+treats a card differently because of where its credentials came from.
 
-While Rayl's wallet is in use, no external provider session is active and no
-external provider retains credentials or connection-specific local data.
+## Cards
 
-Choosing an external wallet closes Rayl's wallet session and starts temporary
-setup. It must not retrieve an earlier wallet's credentials or reconnect an
-earlier session. Only successful connection setup makes that wallet eligible for
-restoration on later app launches. At most one external provider may own a
-configured connection.
+Each card keeps its credentials and connection data in storage of its own; no
+card reads or erases another card's, and a card's name never decides its
+storage. Rayl 1.1's single external wallet carries over as a card on the
+storage 1.1 wrote.
 
-An ordinary relaunch restores the configured external wallet. A temporary
-connection or credential-access failure preserves that ownership and offers
-recovery; it does not silently go back to Rayl's wallet or erase the connection.
+Changing the paying wallet first closes the session of the wallet that pays,
+then mounts the chosen one. Adding a card starts fresh setup, which must not
+retrieve earlier credentials or reconnect an earlier session. Only successful
+setup makes it a card; it then pays. A card being added whose wallet is
+already the pocket or another card, as far as the wallets identify themselves
+(Spark and the pocket by identity key, NWC by wallet key), is turned back: its
+storage is erased, the existing wallet pays, and the user is told so once. An ordinary relaunch restores the wallet
+that paid. A temporary connection or credential-access failure keeps the card
+and offers recovery; it never silently switches wallets or erases the card.
 
 ## Erasure and interruption
 
-Going back to Rayl stops the external session and erases its credentials and
-connection data before Rayl's wallet mounts. Cancelling setup also releases its
-session and erases any partial connection data. A cleanup failure blocks
-switching and offers retry; erasure resumes after restart.
+Removing a card erases its credentials and connection data and never asks for
+confirmation: the funds stay in that wallet. Removing the paying card also stops
+its session, and the pocket pays. Cancelling setup releases its session, erases
+its partial data, and returns to the wallet that paid before. A cleanup failure
+blocks changing wallets and offers retry; erasure resumes after restart.
 
-Startup clears unowned external provider data before mounting any wallet.
-Interrupted, uncommitted setup and a fresh installation therefore start with
-Rayl's wallet and without a saved connection, including Keychain items that
-survive uninstall. An Android configuration change retains the current
-in-process setup.
+Startup erases storage no card owns before mounting any wallet. Interrupted,
+uncommitted setup therefore never becomes a card, and a fresh installation
+starts with the pocket and no cards, including Keychain items that survive
+uninstall. An Android configuration change retains the current in-process setup.
 
-Connecting the same wallet after going back to Rayl requires supplying its
-credentials again. Importing the same Spark recovery phrase still identifies the
-same remote wallet; local erasure does not create a new wallet or move funds.
-An external Spark wallet is never the Rayl pocket, even when both are Spark
-wallets.
+Adding a removed wallet again requires its credentials again. Importing the
+same Spark recovery phrase still identifies the same remote wallet; local
+erasure does not create a new wallet or move funds.
 
 ## The Rayl pocket
 
@@ -58,17 +66,18 @@ when the device has no passkey support, or by the user's choice after their
 password manager could not derive a key. Onboarding never offers this before a
 passkey attempt has failed that way. The device then holds the only copy of the
 key. Rayl neither backs it up nor asks the user to; Settings shows its recovery
-phrase, which the external Spark wallet or any other Spark wallet can import.
-The key is never entered into the pocket, and a stored key keeps its origin
-for as long as it exists.
+phrase, which a Spark card or any other Spark wallet can import. Onboarding
+only ever creates or opens the pocket: the key is never entered into the
+pocket, and a stored key keeps its origin for as long as it exists.
 
 The device keeps a copy of the derived key so launches and payments never
 prompt. The copy is stored before the pocket first connects, and a key that
-exists but cannot be read is never replaced silently. Using another wallet stops
+exists but cannot be read is never replaced silently. Paying with a card stops
 the pocket session without erasing the key copy or pocket data; startup cleanup
-does not erase them either, and going back to Rayl restores the same pocket.
-Only an explicit user action erases the copy, after which the pocket is set up
-again: a debug-build action, or, in any build, setting Rayl's wallet up again
-from its passkey when its copy exists but cannot be read. A key generated
-without a passkey has no other copy, so users are never offered to erase it,
-readable or not.
+does not erase them either, and paying with the pocket again restores the same
+pocket. Only an explicit user action erases the copy, after which the pocket is
+set up again: a debug-build action, or, in any build, setting Rayl's wallet up
+again from its passkey when its copy exists but cannot be read. A key generated
+without a passkey has no other copy, so users are offered to erase it only when
+this device can no longer read it, after a confirmation, to start a new pocket;
+the old pocket then opens only with its recovery phrase.

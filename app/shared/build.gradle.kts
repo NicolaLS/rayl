@@ -16,6 +16,7 @@ kotlin {
             export(project(":feature:payment-hub"))
             export(project(":feature:payment-ui"))
             export(project(":feature:settings"))
+            export(project(":feature:wallet-management"))
         }
     }
     sourceSets {
@@ -50,9 +51,11 @@ kotlin {
             implementation(project(":integration:exchange-rate"))
             implementation(libs.multiplatform.settings)
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.serialization.json)
             api(project(":feature:payment-hub"))
             api(project(":feature:payment-ui"))
             api(project(":feature:settings"))
+            api(project(":feature:wallet-management"))
             implementation(libs.compose.runtime)
         }
     }

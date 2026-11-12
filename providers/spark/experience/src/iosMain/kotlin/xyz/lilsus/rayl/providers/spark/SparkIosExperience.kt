@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 import xyz.lilsus.raylsuite.core.settings.createAppSettings
@@ -23,6 +24,9 @@ import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
 import xyz.lilsus.raylsuite.feature.paymentui.localizedMessage
 import xyz.lilsus.raylsuite.feature.settings.NativeSettingsController
 import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
+import xyz.lilsus.raylsuite.feature.walletmanagement.NativeWalletCardsController
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardChange
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
 
 /**
  * The Kotlin side of Spark's native iOS shell. Swift owns the `TabView`; this owns the app scope
@@ -31,9 +35,22 @@ import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
 class SparkIosExperience(
     host: SparkAppHost,
     private val configuration: SparkExperienceConfiguration,
+    private val cards: WalletCardsHost,
+    /** Closes this experience's session, then applies the change to [cards]. */
+    private val onLeave: (WalletCardChange) -> Unit,
     private val onCancelSetup: () -> Unit = {}
 ) {
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val nativeCardsControllerDelegate = lazy {
+        NativeWalletCardsController(
+            host = cards,
+            busy = runtime.paymentCoordinator.isSubmitting,
+            languageChanges = runtime.languageRepository.preference,
+            onChange = onLeave,
+            onRemovePaying = { nativeWalletSettingsController.removeWallet() }
+        )
+    }
     private var closed = false
 
     private val runtime =
@@ -43,6 +60,11 @@ class SparkIosExperience(
             appSettings = createAppSettings(),
             haptics = createHapticFeedbackManager()
         )
+
+    init {
+        // Back from adding a card reopens Settings, where it was started.
+        if (cards.reopensAddCard()) runtime.tabState.select(AppTab.Settings)
+    }
 
     private val nativeSettingsControllerDelegate = lazy {
         NativeSettingsController(
@@ -110,6 +132,9 @@ class SparkIosExperience(
 
     fun observeConnected(onChange: (Boolean) -> Unit): () -> Unit {
         val job = observerScope.launch {
+            launch {
+                runtime.walletIdentity.filterNotNull().collect { cards.identified("spark:$it") }
+            }
             runtime.walletAccess.state.collect { onChange(isConnected()) }
         }
         return { job.cancel() }
@@ -144,6 +169,9 @@ class SparkIosExperience(
         if (closed) return
         closed = true
         observerScope.cancel()
+        if (nativeCardsControllerDelegate.isInitialized()) {
+            nativeCardsControllerDelegate.value.clear()
+        }
         if (nativeSettingsControllerDelegate.isInitialized()) nativeSettingsController.clear()
         if (nativeScanControllerDelegate.isInitialized()) nativeScanController.clear()
         if (nativeRecentControllerDelegate.isInitialized()) nativeRecentController.clear()
@@ -212,6 +240,9 @@ class SparkIosExperience(
     }
 
     fun settingsController(): NativeSettingsController = nativeSettingsController
+
+    /** The shared "Pay with" screens at the top of Settings. */
+    fun cardsController(): NativeWalletCardsController = nativeCardsControllerDelegate.value
 
     fun scanController(): NativePaymentScanController = nativeScanController
 

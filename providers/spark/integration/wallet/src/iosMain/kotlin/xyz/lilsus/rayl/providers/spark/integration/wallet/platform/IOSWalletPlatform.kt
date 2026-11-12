@@ -59,12 +59,17 @@ import xyz.lilsus.rayl.providers.spark.integration.wallet.spark.BreezSparkSdkCon
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
 import xyz.lilsus.raylsuite.core.settings.withKeychainDictionary
 
+/**
+ * [storageName] keeps one wallet's credential and SDK data apart from other wallets'; `null` is
+ * the storage Rayl 1.1 used for its single Spark wallet.
+ */
 fun createIOSWalletAccess(
     bootstrapConfig: AppBootstrapConfig,
-    startMode: WalletStartMode
+    startMode: WalletStartMode,
+    storageName: String? = null
 ): WalletAccess {
-    val directories = IOSWalletDirectories()
-    val vault = IOSCredentialVault()
+    val directories = IOSWalletDirectories(storageName)
+    val vault = IOSCredentialVault(sparkCredentialService(storageName))
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val payments = SparkPayments()
     val walletAccess = DefaultWalletAccess(
@@ -80,7 +85,7 @@ fun createIOSWalletAccess(
     return walletAccess
 }
 
-private class IOSWalletDirectories : WalletDirectories {
+private class IOSWalletDirectories(storageName: String?) : WalletDirectories {
     private val fileManager = NSFileManager.defaultManager
     private val baseDirectory = (
         NSSearchPathForDirectoriesInDomains(
@@ -88,7 +93,7 @@ private class IOSWalletDirectories : WalletDirectories {
             NSUserDomainMask,
             true
         ).first() as String
-        ) + "/spark-wallet"
+        ) + "/spark-wallet" + (storageName?.let { ".$it" } ?: "")
     private val resetMarker = "$baseDirectory/reset-pending"
 
     override val sdkDirectory: String
@@ -123,9 +128,7 @@ private class IOSWalletDirectories : WalletDirectories {
         !fileManager.fileExistsAtPath(path) || fileManager.removeItemAtPath(path, null)
 }
 
-private class IOSCredentialVault(
-    private val service: String = "xyz.lilsus.rayl.providers.spark.wallet"
-) : CredentialVault {
+private class IOSCredentialVault(private val service: String) : CredentialVault {
     override suspend fun load(): CredentialLoadResult = withKeychainDictionary(loadMap()) { query ->
         memScoped {
             val result = alloc<CPointerVarOf<CFTypeRef>>()
@@ -197,5 +200,14 @@ private class IOSCredentialVault(
     )
 }
 
-suspend fun clearIOSWalletStorage(): Boolean =
-    clearWalletStorage(IOSCredentialVault(), IOSWalletDirectories())
+suspend fun clearIOSWalletStorage(storageName: String? = null): Boolean = clearWalletStorage(
+    IOSCredentialVault(sparkCredentialService(storageName)),
+    IOSWalletDirectories(storageName)
+)
+
+/** The Keychain service of one wallet's recovery phrase; `null` is Rayl 1.1's single wallet. */
+fun sparkCredentialService(storageName: String?): String =
+    SPARK_CREDENTIAL_SERVICE + (storageName?.let { ".$it" } ?: "")
+
+/** The Keychain service prefix of every Spark wallet's recovery phrase. */
+const val SPARK_CREDENTIAL_SERVICE = "xyz.lilsus.rayl.providers.spark.wallet"

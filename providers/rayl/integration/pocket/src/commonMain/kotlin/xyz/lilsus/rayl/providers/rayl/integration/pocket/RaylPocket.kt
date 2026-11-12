@@ -70,6 +70,11 @@ class RaylPocket internal constructor(
     private val mutableBalance = MutableStateFlow<Long?>(null)
     val balanceSats: StateFlow<Long?> = mutableBalance.asStateFlow()
 
+    private val mutableIdentity = MutableStateFlow<String?>(null)
+
+    /** The wallet's identity public key once connected; see [PocketWallet.identityPubkey]. */
+    val identity: StateFlow<String?> = mutableIdentity.asStateFlow()
+
     private val mutableReceived = MutableSharedFlow<PocketReceipt>(extraBufferCapacity = 16)
 
     /** Payments to invoices created by [createInvoice]. */
@@ -115,8 +120,7 @@ class RaylPocket internal constructor(
      * The phrase of a key generated without a passkey, which has no other backup. `null` for a
      * passkey-derived key: its passkey is the backup, and that phrase is never shown.
      */
-    suspend fun recoveryPhrase(): String? =
-        (keys.load() as? PocketKeyLoad.Present)?.key?.takeIf { it.withoutPasskey }?.phrase
+    suspend fun recoveryPhrase(): String? = keys.recoveryPhrase()
 
     /**
      * Stores the [key] from setup and connects with it. Returns false without connecting when
@@ -200,6 +204,16 @@ class RaylPocket internal constructor(
             RaylTrace.mark(TracePoint.WalletReady)
             mutableStatus.value = PocketStatus.Ready
             scope.launch { refreshBalance(connected) }
+            scope.launch {
+                mutableIdentity.value = try {
+                    connected.identityPubkey()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    // Only telling an already added wallet apart needs it.
+                    null
+                }
+            }
         }
     }
 

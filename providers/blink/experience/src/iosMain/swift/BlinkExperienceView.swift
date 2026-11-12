@@ -37,9 +37,18 @@ private func makeBlinkShellAdapter(_ experience: BlinkIosExperience) -> NativeSh
         AnyView(
             NativeSettingsView(
                 controller: experience.settingsController(),
-                trailingContent: AnyView(
-                    BlinkWalletSettingsActionsView(
-                        controller: experience.blinkSettingsController()
+                // Back from adding a card returns to Wallets with Add a card open.
+                openedOnAppear: experience.cardsController().reopensAddCard()
+                    ? AnyView(NativeWalletCardsAddAgain(controller: experience.cardsController()))
+                    : nil,
+                leadingContent: AnyView(
+                    NativeWalletCardsEntry(
+                        controller: experience.cardsController(),
+                        payingContent: AnyView(
+                            BlinkWalletSettingsActionsView(
+                                controller: experience.blinkSettingsController()
+                            )
+                        )
                     )
                 )
             )
@@ -156,15 +165,6 @@ private struct BlinkWalletSettingsActionsView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-
-                    Divider()
-
-                    NativeWalletRemovalAction(
-                        title: snapshot.removeTitle,
-                        busyMessage: snapshot.removeBusyMessage,
-                        canRemove: snapshot.canRemove,
-                        onRemove: model.controller.removeWallet
-                    )
                 }
                 .sheet(isPresented: $showsFundingWallets) {
                     fundingWalletPicker(snapshot)

@@ -29,8 +29,8 @@ The full [release regression checklist](release-regression.md) (App Live) and th
 | S5 | Pay a Lightning address, typed with a capital first letter (`Alice@…`), with a fiat amount | Resolves; the sats quoted match the fiat amount; paid (MN-2) |
 | S6 | Pay an invoice at or above the threshold | Confirmation shown before paying |
 | S7 | Kill the app, reopen it, scan S3's invoice again | Success marked "already paid"; nothing paid (MN-4) |
-| S8 | **One external wallet** (rotate between Blink, NWC and Spark per release): connect it in Settings → Use another wallet, pay 21 sats, rescan the invoice | Connected; paid; rescan doesn't pay again |
-| S9 | Settings → Back to Rayl | Rayl's wallet with the same balance, no passkey prompt; the external wallet's credentials are gone (connecting again asks for them) |
+| S8 | **Cards** (rotate between Blink, NWC and Spark per release): add one in Settings → Wallets → Add a card, pay 21 sats, rescan the invoice; add a second card of the same provider with other credentials, switch between the two and Rayl (Settings → the wallet at the top → tap a wallet), pay from each | Each card pays from its own wallet; rescan doesn't pay again; the list names them "Blink", "Blink 2"; Settings → Details shows the active card's own settings (Blink funding wallet, NWC details) |
+| S9 | Settings → Details → Remove card | Rayl pays with the same balance, no passkey prompt; the card's credentials are gone (adding it again asks for them); other cards are unchanged |
 | S10 | Switch the language to German or Spanish; open the payment screen and Settings | Translated, amounts formatted for the language |
 | S11 | Open Terms and Privacy Policy from Settings | Both open the current documents |
 

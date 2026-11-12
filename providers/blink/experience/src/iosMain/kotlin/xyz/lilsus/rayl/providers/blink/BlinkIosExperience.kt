@@ -27,6 +27,8 @@ import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
 import xyz.lilsus.raylsuite.feature.paymentui.localizedMessage
 import xyz.lilsus.raylsuite.feature.settings.NativeSettingsController
 import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
+import xyz.lilsus.raylsuite.feature.walletmanagement.NativeWalletCardsController
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
 
 /**
  * The Kotlin side of Blink's native iOS shell. Swift owns the `TabView`; this owns the app scope
@@ -34,9 +36,20 @@ import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
  */
 class BlinkIosExperience(
     private val configuration: BlinkExperienceConfiguration,
-    private val startMode: WalletStartMode
+    private val startMode: WalletStartMode,
+    private val cards: WalletCardsHost
 ) {
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val nativeCardsControllerDelegate = lazy {
+        NativeWalletCardsController(
+            host = cards,
+            busy = runtime.paymentCoordinator.isSubmitting,
+            languageChanges = runtime.languageRepository.preference,
+            onChange = cards::apply,
+            onRemovePaying = { blinkNativeSettingsController.removeWallet() }
+        )
+    }
 
     private val runtime: BlinkRuntime by lazy {
         BlinkRuntime(
@@ -47,6 +60,11 @@ class BlinkIosExperience(
             startMode = startMode,
             haptics = createHapticFeedbackManager()
         )
+    }
+
+    init {
+        // Back from adding a card reopens Settings, where it was started.
+        if (cards.reopensAddCard()) runtime.tabState.select(AppTab.Settings)
     }
 
     private val nativeSettingsControllerDelegate = lazy {
@@ -165,6 +183,9 @@ class BlinkIosExperience(
         if (blinkNativeSettingsControllerDelegate.isInitialized()) {
             blinkNativeSettingsController.clear()
         }
+        if (nativeCardsControllerDelegate.isInitialized()) {
+            nativeCardsControllerDelegate.value.clear()
+        }
         observerScope.coroutineContext[Job]?.cancel()
         runtime.clear()
     }
@@ -205,6 +226,9 @@ class BlinkIosExperience(
     }
 
     fun settingsController(): NativeSettingsController = nativeSettingsController
+
+    /** The shared "Pay with" screens at the top of Settings. */
+    fun cardsController(): NativeWalletCardsController = nativeCardsControllerDelegate.value
 
     fun blinkSettingsController(): BlinkNativeSettingsController = blinkNativeSettingsController
 

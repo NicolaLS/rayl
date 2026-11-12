@@ -38,6 +38,9 @@ class BreezSparkPaymentClient(
 ) : SparkPaymentClient {
     @Volatile private var awaitingInitialSync = freshStorage
 
+    override suspend fun identityPubkey(): String =
+        sdk.getInfo(GetInfoRequest(ensureSynced = false)).identityPubkey
+
     override suspend fun quote(invoice: String, amountSats: Long?): SparkQuoteResult = try {
         awaitInitialSync()
         val response = sdk.prepareSendPayment(

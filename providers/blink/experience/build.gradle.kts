@@ -19,7 +19,7 @@ kotlin {
             implementation(project(":providers:blink:ui"))
             implementation(project(":core:network"))
             implementation(project(":core:settings"))
-            implementation(project(":feature:wallet-management"))
+            api(project(":feature:wallet-management"))
             implementation(project(":core:ui"))
             implementation(project(":feature:currency-settings"))
             implementation(project(":feature:language-settings"))

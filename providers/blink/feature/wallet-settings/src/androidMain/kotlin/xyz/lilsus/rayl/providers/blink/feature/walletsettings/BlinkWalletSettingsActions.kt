@@ -33,7 +33,6 @@ import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWalletCurrency
 import xyz.lilsus.rayl.providers.blink.ui.blinkErrorMessageFor
 import xyz.lilsus.raylsuite.core.ui.components.AppSettingsRow
 import xyz.lilsus.raylsuite.core.ui.components.AppSettingsRowDefaults
-import xyz.lilsus.raylsuite.feature.walletmanagement.WalletRemovalAction
 
 /** Android renderer for Blink's wallet settings actions. */
 @Composable
@@ -41,9 +40,7 @@ fun BlinkWalletSettingsActions(
     state: BlinkWalletSettingsUiState,
     onLoadFundingWallets: () -> Unit,
     onSelectFundingWallet: (String) -> Unit,
-    onRemoveWallet: () -> Unit,
-    modifier: Modifier = Modifier,
-    canRemove: Boolean = true
+    modifier: Modifier = Modifier
 ) {
     var showFundingWallets by remember { mutableStateOf(false) }
 
@@ -70,11 +67,6 @@ fun BlinkWalletSettingsActions(
                 modifier = Modifier.size(AppSettingsRowDefaults.ChevronSize)
             )
         }
-        WalletRemovalAction(
-            onRemoveWallet = onRemoveWallet,
-            canRemove = canRemove,
-            testTag = BlinkWalletSettingsTestTags.REMOVE_BUTTON
-        )
     }
 
     if (showFundingWallets) {
@@ -167,7 +159,6 @@ private fun BlinkWalletCurrency.fundingWalletTitle(): String = stringResource(
 
 object BlinkWalletSettingsTestTags {
     const val FUNDING_WALLET_BUTTON = "settings_blink_funding_wallet"
-    const val REMOVE_BUTTON = "settings_blink_connection_remove"
 
     fun walletOption(currency: BlinkWalletCurrency): String =
         "settings_blink_funding_wallet_${currency.name.lowercase()}"

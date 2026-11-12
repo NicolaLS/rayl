@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 internal enum class RaylExit { None, Working, Failed, Done }
 
 internal sealed interface RaylExitTarget {
-    /** The user chose an external wallet offered by the host. */
+    /** The user chose another wallet: [id] is an encoded `WalletCardChange`. */
     data class Wallet(val id: String) : RaylExitTarget
 
     /** The wallet's key copy was erased; the host mounts a new one. */
@@ -45,8 +45,8 @@ internal class RaylWalletExit(
     val state: StateFlow<RaylExit> = mutableState.asStateFlow()
 
     /**
-     * Closes Rayl's wallet so the host can set up the external wallet [walletId]. Its key and funds
-     * stay on this device, and the host returns here when the external wallet is removed.
+     * Closes the pocket so the host can mount the wallet [walletId] asks for. Its key and funds
+     * stay on this device, and paying with the pocket again restores it.
      * Returns false while a payment is being submitted.
      */
     fun useWallet(walletId: String): Boolean = leave(RaylExitTarget.Wallet(walletId))
@@ -63,6 +63,14 @@ internal class RaylWalletExit(
      */
     fun setUpAgain() {
         if (keyUnreadable() && !withoutPasskey()) leave(RaylExitTarget.Erased)
+    }
+
+    /**
+     * When this device can no longer read a key generated without a passkey, deletes it so a new
+     * pocket is set up. The old one opens again only with its recovery phrase.
+     */
+    fun startNewPocket() {
+        if (keyUnreadable() && withoutPasskey()) leave(RaylExitTarget.Erased)
     }
 
     fun retry() {

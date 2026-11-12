@@ -10,14 +10,17 @@ fun createAndroidAppHost(
     context: Context,
     environment: SparkEnvironment,
     startMode: WalletStartMode,
-    breezApiKey: String? = null
+    breezApiKey: String? = null,
+    /** See [SparkExperienceConfiguration.storageName]. */
+    storageName: String? = null
 ): SparkAppHost {
     val bootstrapConfig = AppBootstrapConfig(environment.toAppEnvironment(), breezApiKey)
     return SparkAppHost(
         bootstrapConfig = bootstrapConfig,
         startMode = startMode,
-        walletAccess = createAndroidWalletAccess(context, bootstrapConfig, startMode)
+        walletAccess = createAndroidWalletAccess(context, bootstrapConfig, startMode, storageName)
     )
 }
 
-suspend fun clearSavedSparkWallet(context: Context): Boolean = clearAndroidWalletStorage(context)
+suspend fun clearSavedSparkWallet(context: Context, storageName: String? = null): Boolean =
+    clearAndroidWalletStorage(context, storageName)

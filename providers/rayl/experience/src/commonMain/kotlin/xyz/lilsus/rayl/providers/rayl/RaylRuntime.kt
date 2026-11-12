@@ -126,9 +126,6 @@ internal class RaylRuntime(
     /** Whether Settings shows the recovery phrase: only a wallet without a passkey has one. */
     val hasRecoveryPhrase: StateFlow<Boolean> = onboardingState.withoutPasskey
 
-    /** The recovery phrase of a wallet set up without a passkey, else `null`. */
-    suspend fun recoveryPhrase(): String? = pocket.recoveryPhrase()
-
     fun retryPocket() {
         if (exit.value == RaylExit.None) pocket.start()
     }
@@ -141,6 +138,9 @@ internal class RaylRuntime(
 
     /** See [RaylWalletExit.setUpAgain] and SPEC-wallet-lifecycle. */
     fun setUpAgain() = walletExit.setUpAgain()
+
+    /** See [RaylWalletExit.startNewPocket]. */
+    fun startNewPocket() = walletExit.startNewPocket()
 
     fun retryLeave() = walletExit.retry()
 

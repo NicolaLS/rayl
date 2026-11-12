@@ -18,4 +18,6 @@
     <string name="welcome_autopay_body">Los importes pequeños se pagan al instante. Por encima de tu límite, Rayl pregunta antes.</string>
     <string name="welcome_balance_title">Un saldo para gastar</string>
     <string name="welcome_balance_body">Recarga lo que piensas gastar, como una tarjeta prepago. Tus ahorros se quedan donde están.</string>
+    <string name="card_already_added">Esta billetera ya está añadida como %1$s. Rayl paga con ella.</string>
+    <string name="card_already_pocket">Esta billetera es tu pocket. Rayl paga con ella.</string>
 </resources>

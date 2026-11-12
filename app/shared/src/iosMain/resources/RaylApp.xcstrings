@@ -70,6 +70,52 @@
         }
       }
     },
+    "card_already_added" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Wallet ist schon als %1$@ hinzugefügt. Rayl bezahlt mit ihr."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This wallet is already added as %1$@. Rayl pays with it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta billetera ya está añadida como %1$@. Rayl paga con ella."
+          }
+        }
+      }
+    },
+    "card_already_pocket" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Wallet ist deine Pocket. Rayl bezahlt mit ihr."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This wallet is your pocket. Rayl pays with it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta billetera es tu pocket. Rayl paga con ella."
+          }
+        }
+      }
+    },
     "get_started" : {
       "extractionState" : "stale",
       "localizations" : {

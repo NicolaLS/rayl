@@ -38,7 +38,7 @@ kotlin {
             implementation(libs.compose.material.icons.extended)
             implementation(libs.compose.material3)
             implementation(project(":providers:nwc:feature:wallet-details"))
-            implementation(project(":feature:wallet-management"))
+            api(project(":feature:wallet-management"))
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.navigation.compose)
             implementation(libs.navigation.event.compose)
@@ -47,7 +47,7 @@ kotlin {
         }
         iosMain.dependencies {
             implementation(project(":core:camera"))
-            implementation(project(":feature:wallet-management"))
+            api(project(":feature:wallet-management"))
             implementation(project(":providers:nwc:feature:wallet-details"))
             implementation(project(":providers:nwc:feature:wallet-connection"))
         }

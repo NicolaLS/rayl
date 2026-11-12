@@ -21,10 +21,29 @@ class StoredDataFrom11Test {
             "Spark" to ExternalWallet.Spark
         ).forEach { (stored, wallet) ->
             val settings = MapSettings("rayl.onboarded" to true, "rayl.wallet" to stored)
+            assertFalse(usesRaylWallet(settings), "before carrying over, rayl.wallet=$stored")
 
-            assertEquals(wallet, RaylSelection(settings).external.value, "rayl.wallet=$stored")
+            val card = RaylCards(settings).paying.value
+
+            // It carries over as the card that pays, on 1.1's storage.
+            assertEquals(RaylCard.legacy(wallet), card, "rayl.wallet=$stored")
+            assertEquals(listOf(card), RaylCards(settings).cards.value)
             assertFalse(usesRaylWallet(settings))
         }
+    }
+
+    @Test
+    fun the11WalletKeepsItsCredentialsThroughCleanup() = kotlinx.coroutines.test.runTest {
+        val settings = MapSettings("rayl.onboarded" to true, "rayl.wallet" to "Nwc")
+        val erased = mutableListOf<RaylCard>()
+
+        RaylCards(settings).prepare({
+            erased += it
+            true
+        })
+
+        assertFalse(RaylCard.legacy(ExternalWallet.Nwc) in erased)
+        assertEquals(RAYL_NWC, RaylCard.legacy(ExternalWallet.Nwc).nwcConfiguration())
     }
 
     @Test

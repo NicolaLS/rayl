@@ -62,6 +62,25 @@ struct ContentView: View {
                     }
                 }
                 .id(snapshot.wallet)
+                .overlay(alignment: .top) {
+                    // Not a question: Rayl already pays with that wallet.
+                    if let notice = snapshot.notice {
+                        Text(notice)
+                            .font(.subheadline)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(.regularMaterial, in: Capsule())
+                            .padding(.horizontal, 24)
+                            .padding(.top, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .task(id: notice) {
+                                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                                RaylIosApp.shared.dismissNotice()
+                            }
+                            .accessibilityIdentifier("card_notice")
+                    }
+                }
+                .animation(.default, value: snapshot.notice)
                 .preferredColorScheme(colorScheme(snapshot.colorScheme))
             } else {
                 ProgressView()

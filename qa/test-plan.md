@@ -20,8 +20,9 @@ Related artifacts:
 like a debit card or Apple Pay: you open it, scan, and it pays. There are two ways to pay:
 - **Rayl's built-in wallet (the "pocket").** An app-owned Spark wallet through the Breez
   SDK, whose key is derived from a passkey. This is the default.
-- **One connected external wallet:** Blink (API key), NWC (connection URI), or Spark
-  (recovery phrase). It is connected from Settings → Use another wallet.
+- **Cards:** any number of external wallets the user adds in Settings → Wallets: Blink
+  (API key), NWC (connection URI), or Spark (recovery phrase), several of one provider
+  included. Exactly one wallet pays at a time.
 
 All four share `feature/payment-flow`, which handles input admission, LNURL, confirmation
 or Auto Pay, session history and Hub reporting. Each provider owns funding and
@@ -81,7 +82,7 @@ Example: the intended Auto Pay boundary (O-01).
 | Shared payment flow: admission, amount entry, confirmation or Auto Pay, outcome, session history | `feature/payment-flow`, `feature/payment-ui`, `feature/payment-currency`, `feature/payment-settings` |
 | Rayl pocket: passkey onboarding, key storage, connect/sync, quote/pay/outcome, add funds, balance | `providers/rayl/**` |
 | External wallets: setup, restore, payment, removal | `providers/blink/**`, `providers/nwc/**`, `providers/spark/**` |
-| Wallet selection and lifecycle | `app/shared` (`RaylSelection`), provider storage cleanup, `core/settings` |
+| Cards and wallet lifecycle | `app/shared` (`RaylCards`), `feature/wallet-management`, provider storage cleanup, `core/settings` |
 | Hub: contacts, presets, payment hand-off | `feature/payment-hub` |
 | Settings: confirmation mode and threshold, currency, language, theme, haptics | `feature/*-settings` |
 | Fiat prices | `backend/rayl`, `core/rayl-api`, `integration/exchange-rate` |
@@ -138,7 +139,7 @@ What exists, measured before this plan:
   [1.1 test log](releases/1.1/test-log.md). That is roughly 5.9k test LOC against
   roughly 38k Kotlin and 6.5k Swift LOC.
 - **Well covered:** input parsers, the LNURL resolver and client, Spark wallet lifecycle and
-  removal, pocket setup and pocket state, Blink payment mapping, `RaylSelection`, Hub
+  removal, pocket setup and pocket state, Blink payment mapping, `RaylCards`, Hub
   repository and view model, backend price aggregation.
 - **Largest gaps, by risk:**
   - **The core payment flow has no tests.** `PaymentFlowCoordinator`,

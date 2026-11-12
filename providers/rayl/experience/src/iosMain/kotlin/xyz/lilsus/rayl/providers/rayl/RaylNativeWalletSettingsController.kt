@@ -37,17 +37,17 @@ data class RaylNativeWalletSettingsSnapshot(
     /** `idle`, `creating`, `awaiting` (present [invoice]), `received`, or `failed`. */
     val fundingStage: String,
     val invoice: String?,
-    val useAnotherWalletTitle: String,
-    val useAnotherWalletBody: String,
-    val useAnotherWalletInfo: String,
-    /** External wallets the host offers; choosing one closes Rayl's wallet. */
-    val otherWallets: List<RaylWalletOption>,
     val cancelTitle: String,
-    /** A wallet set up without a passkey: Settings shows its recovery phrase. */
-    val hasRecoveryPhrase: Boolean,
-    val recoveryPhraseTitle: String,
-    val recoveryPhraseBody: String,
-    val copyTitle: String,
+    /**
+     * This device can't read a key generated without a passkey: only starting a new pocket is a
+     * way out, after a confirmation.
+     */
+    val pocketLost: Boolean,
+    val startNewPocketTitle: String,
+    val startNewPocketBody: String,
+    val startNewPocketConfirmTitle: String,
+    val startNewPocketConfirmBody: String,
+    val startTitle: String,
     val canErase: Boolean,
     val eraseTitle: String,
     val eraseBody: String,
@@ -55,11 +55,8 @@ data class RaylNativeWalletSettingsSnapshot(
     val isSubmitting: Boolean
 )
 
-/** Rayl's settings rows on iOS: the balance, adding funds, and using another wallet. */
-class RaylNativeWalletSettingsController internal constructor(
-    private val runtime: RaylRuntime,
-    private val otherWallets: () -> List<RaylWalletOption>
-) {
+/** The pocket's own rows on its card's page on iOS: the balance, adding funds, recovery. */
+class RaylNativeWalletSettingsController internal constructor(private val runtime: RaylRuntime) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     fun observe(onChange: (RaylNativeWalletSettingsSnapshot) -> Unit): () -> Unit {
@@ -89,14 +86,7 @@ class RaylNativeWalletSettingsController internal constructor(
 
     fun setUpAgain() = runtime.setUpAgain()
 
-    /** Reads the words of a wallet set up without a passkey; `null` if it has none. */
-    fun recoveryPhrase(onResult: (String?) -> Unit) {
-        scope.launch { onResult(runtime.recoveryPhrase()) }
-    }
-
-    fun useWallet(id: String) {
-        runtime.useWallet(id)
-    }
+    fun startNewPocket() = runtime.startNewPocket()
 
     fun erasePocket() = runtime.erase()
 
@@ -150,15 +140,13 @@ class RaylNativeWalletSettingsController internal constructor(
             FundingState.Failed -> "failed"
         },
         invoice = (funding as? FundingState.Awaiting)?.invoice,
-        useAnotherWalletTitle = text("rayl_use_another_wallet"),
-        useAnotherWalletBody = text("rayl_use_another_wallet_body"),
-        useAnotherWalletInfo = text("rayl_use_another_wallet_info"),
-        otherWallets = otherWallets(),
         cancelTitle = text("rayl_cancel"),
-        hasRecoveryPhrase = hasRecoveryPhrase,
-        recoveryPhraseTitle = text("rayl_recovery_phrase"),
-        recoveryPhraseBody = text("rayl_recovery_phrase_body"),
-        copyTitle = text("rayl_copy"),
+        pocketLost = status == PocketStatus.KeyUnreadable && hasRecoveryPhrase,
+        startNewPocketTitle = text("rayl_start_new_pocket"),
+        startNewPocketBody = text("rayl_start_new_pocket_body"),
+        startNewPocketConfirmTitle = text("rayl_start_new_pocket_confirm"),
+        startNewPocketConfirmBody = text("rayl_start_new_pocket_confirm_body"),
+        startTitle = text("rayl_start"),
         canErase = runtime.canErase,
         eraseTitle = text("rayl_erase_pocket"),
         eraseBody = text("rayl_erase_pocket_body"),

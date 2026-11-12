@@ -49,6 +49,7 @@ fun SettingsFlow(
     legalLinks: SettingsLegalLinks,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
+    overviewTopContent: (@Composable () -> Unit)? = null,
     overviewBottomContent: (@Composable () -> Unit)? = null,
     leadingEntries: List<SettingsEntry> = emptyList(),
     trailingEntries: List<SettingsEntry> = emptyList()
@@ -97,6 +98,7 @@ fun SettingsFlow(
                 onLanguage = { destination = SettingsDestination.Language },
                 onTheme = { destination = SettingsDestination.Theme },
                 modifier = modifier,
+                overviewTopContent = overviewTopContent,
                 overviewBottomContent = overviewBottomContent,
                 leadingEntries = leadingEntries,
                 trailingEntries = trailingEntries
@@ -180,6 +182,7 @@ private fun SettingsOverview(
     onLanguage: () -> Unit,
     onTheme: () -> Unit,
     modifier: Modifier,
+    overviewTopContent: (@Composable () -> Unit)?,
     overviewBottomContent: (@Composable () -> Unit)?,
     leadingEntries: List<SettingsEntry>,
     trailingEntries: List<SettingsEntry>
@@ -203,6 +206,7 @@ private fun SettingsOverview(
         currencySubtitle = currencyCode,
         languageSubtitle = languageSubtitle(languagePreference),
         themeSubtitle = themeSubtitle(themePreference),
+        overviewTopContent = overviewTopContent,
         overviewBottomContent = overviewBottomContent,
         leadingEntries = leadingEntries,
         trailingEntries = trailingEntries,

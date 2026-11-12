@@ -46,6 +46,9 @@ internal class SparkRuntime(
     val onboardingCompleted = onboardingState.completed
 
     val walletAccess = host.walletAccess
+
+    /** The connected wallet's identity public key, once known. */
+    val walletIdentity = walletAccess.payments.identity
     val walletViewModel = WalletViewModel(walletAccess)
     val removed = walletAccess.removed
     val canCancelSetup: Boolean

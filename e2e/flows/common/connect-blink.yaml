@@ -1,5 +1,5 @@
-# Connects a new user of the local Blink stack (tools/blink-stack) in Settings → Use another
-# wallet. FUNDED_SATS: its starting balance. Leaves its API key in output.blinkApiKey.
+# Connects a new user of the local Blink stack (tools/blink-stack) in Settings → Wallets → Add a
+# card. FUNDED_SATS: its starting balance. Leaves its API key in output.blinkApiKey.
 appId: ${APP_ID}
 ---
 - runScript:
@@ -8,7 +8,9 @@ appId: ${APP_ID}
       ACTION: user
       FUNDED_SATS: ${FUNDED_SATS}
 - tapOn: "Settings"
-- tapOn: "Use another wallet"
+- tapOn:
+    id: "settings_wallets"
+- tapOn: "Add a card"
 - tapOn: "Blink"
 - tapOn: "API Key"
 - inputText: ${output.blinkApiKey}

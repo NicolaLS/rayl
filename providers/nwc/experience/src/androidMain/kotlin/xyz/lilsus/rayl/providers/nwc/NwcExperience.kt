@@ -23,6 +23,7 @@ import xyz.lilsus.raylsuite.core.ui.platform.rememberCredentialClipboard
 import xyz.lilsus.raylsuite.core.ui.platform.rememberHapticFeedbackManager
 import xyz.lilsus.raylsuite.core.ui.platform.rememberRetainedInstance
 import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
 import xyz.lilsus.raylsuite.feature.walletmanagement.WalletRemovalFailure
 
 /** The Compose host used on Android. iOS drives the same content from a native shell. */
@@ -30,6 +31,7 @@ import xyz.lilsus.raylsuite.feature.walletmanagement.WalletRemovalFailure
 fun NwcExperience(
     configuration: NwcExperienceConfiguration,
     startMode: WalletStartMode,
+    cards: WalletCardsHost,
     onRemoved: () -> Unit,
     onConnectionChanged: (Boolean) -> Unit
 ) {
@@ -70,19 +72,24 @@ fun NwcExperience(
                     onRetry = runtime::removeWallet
                 )
             } else {
-                NwcExperienceContent(
-                    runtime,
-                    onConnectionChanged
-                )
+                NwcExperienceContent(runtime, cards, onConnectionChanged)
             }
         }
     }
 }
 
 @Composable
-private fun NwcExperienceContent(runtime: NwcRuntime, onConnectionChanged: (Boolean) -> Unit) {
+private fun NwcExperienceContent(
+    runtime: NwcRuntime,
+    cards: WalletCardsHost,
+    onConnectionChanged: (Boolean) -> Unit
+) {
     val connected by runtime.nwcWallet.connection.collectAsStateWithLifecycle()
-    LaunchedEffect(runtime, connected) { onConnectionChanged(connected != null) }
+    LaunchedEffect(runtime, connected) {
+        // Reported first, so a card that is already added is turned back right away.
+        connected?.let { cards.identified("nwc:${it.walletPublicKey}") }
+        onConnectionChanged(connected != null)
+    }
     val clipboard = rememberCredentialClipboard()
     val connectionOnly = remember(runtime) { runtime.onboardingState.completed.value }
     val navController = rememberNavController()
@@ -133,6 +140,6 @@ private fun NwcExperienceContent(runtime: NwcRuntime, onConnectionChanged: (Bool
                 }
             }
         )
-        nwcHome(runtime = runtime)
+        nwcHome(runtime = runtime, cards = cards)
     }
 }

@@ -102,6 +102,9 @@ private class BreezPocketWallet private constructor(
     override suspend fun balanceSats(): Long =
         sdk.getInfo(GetInfoRequest(ensureSynced = false)).balanceSats.toLong()
 
+    override suspend fun identityPubkey(): String =
+        sdk.getInfo(GetInfoRequest(ensureSynced = false)).identityPubkey
+
     override suspend fun quote(invoice: String, amountSats: Long?): PocketQuoteResult = try {
         RaylTrace.debug("quote start")
         awaitInitialSync()

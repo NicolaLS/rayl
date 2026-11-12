@@ -78,6 +78,8 @@ fun SettingsScreen(
     currencySubtitle: String? = null,
     languageSubtitle: String? = null,
     themeSubtitle: String? = null,
+    /** Shown above every entry, in the same place whatever it contains. */
+    overviewTopContent: (@Composable () -> Unit)? = null,
     overviewBottomContent: (@Composable () -> Unit)? = null,
     leadingEntries: List<SettingsEntry> = emptyList(),
     trailingEntries: List<SettingsEntry> = emptyList(),
@@ -183,6 +185,11 @@ fun SettingsScreen(
             contentPadding = AppSettingsRowDefaults.ScreenPadding,
             verticalArrangement = Arrangement.spacedBy(AppSettingsRowDefaults.RowSpacing)
         ) {
+            overviewTopContent?.let { content ->
+                item(key = "slot:overview-top-content") {
+                    content()
+                }
+            }
             items(entries, key = { entry -> "entry:${entry.id}" }) { entry ->
                 SettingsListItem(entry)
             }

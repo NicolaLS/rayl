@@ -1,6 +1,10 @@
 package xyz.lilsus.rayl.providers.spark.application.payment
 
 import kotlin.concurrent.Volatile
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Paying from the connected Spark wallet. Only BOLT11 invoices are paid: LNURL and Lightning
@@ -13,6 +17,9 @@ interface SparkPaymentClient {
     suspend fun quote(invoice: String, amountSats: Long?): SparkQuoteResult
 
     suspend fun pay(quote: SparkQuote): SparkPayOutcome
+
+    /** The wallet's identity public key, the same in every app that opens this wallet. */
+    suspend fun identityPubkey(): String? = null
 }
 
 /** A funded, fee-quoted payment that has not been submitted. */
@@ -62,12 +69,26 @@ interface PaymentSessionLifecycle {
 class SparkPayments : PaymentSessionLifecycle {
     @Volatile private var client: SparkPaymentClient? = null
 
+    private val mutableIdentity = MutableStateFlow<String?>(null)
+
+    /** The connected wallet's identity public key, once known; see [SparkPaymentClient]. */
+    val identity: StateFlow<String?> = mutableIdentity.asStateFlow()
+
     override suspend fun attach(client: SparkPaymentClient) {
         this.client = client
+        mutableIdentity.value = try {
+            client.identityPubkey()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            // Only telling an already added wallet apart needs it.
+            null
+        }
     }
 
     override suspend fun detach() {
         client = null
+        mutableIdentity.value = null
     }
 
     suspend fun quote(invoice: String, amountSats: Long?): SparkQuoteResult {

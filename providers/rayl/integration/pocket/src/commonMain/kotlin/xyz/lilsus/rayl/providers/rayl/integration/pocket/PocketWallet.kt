@@ -16,6 +16,9 @@ internal interface PocketWallet {
     suspend fun createInvoice(amountSats: Long?, description: String): String
 
     suspend fun disconnect()
+
+    /** The wallet's identity public key, the same in every app that opens this wallet. */
+    suspend fun identityPubkey(): String
 }
 
 internal fun interface PocketConnector {

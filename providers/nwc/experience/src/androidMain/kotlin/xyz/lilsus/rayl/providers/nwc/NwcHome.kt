@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -41,20 +42,21 @@ import xyz.lilsus.raylsuite.feature.paymentflow.rememberPaymentMessages
 import xyz.lilsus.raylsuite.feature.paymenthub.PaymentHubTab
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentScanFlow
 import xyz.lilsus.raylsuite.feature.settings.SettingsFlow
-import xyz.lilsus.raylsuite.feature.walletmanagement.WalletRemovalAction
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsSettings
 
-internal fun NavGraphBuilder.nwcHome(runtime: NwcRuntime) {
+internal fun NavGraphBuilder.nwcHome(runtime: NwcRuntime, cards: WalletCardsHost) {
     composable<NwcDestination.Home> {
-        NwcTabs(
-            runtime = runtime
-        )
+        NwcTabs(runtime = runtime, cards = cards)
     }
 }
 
 /** The Android tab shell. iOS renders [NwcTabContent] inside a native `TabView` instead. */
 @Composable
-private fun NwcTabs(runtime: NwcRuntime) {
+private fun NwcTabs(runtime: NwcRuntime, cards: WalletCardsHost) {
     val tabState = runtime.tabState
+    // Back from adding a card reopens Settings, where it was started.
+    remember(runtime) { if (cards.reopensAddCard()) tabState.select(AppTab.Settings) }
     val selectedTab by tabState.selectedTab.collectAsStateWithLifecycle()
 
     AppTabScaffold(
@@ -63,16 +65,13 @@ private fun NwcTabs(runtime: NwcRuntime) {
             if (!runtime.paymentCoordinator.isSubmitting.value) tabState.select(tab)
         }
     ) { tab ->
-        NwcTabContent(
-            runtime = runtime,
-            tab = tab
-        )
+        NwcTabContent(runtime = runtime, tab = tab, cards = cards)
     }
 }
 
 /** One tab's content, with no tab bar of its own. */
 @Composable
-internal fun NwcTabContent(runtime: NwcRuntime, tab: AppTab) {
+internal fun NwcTabContent(runtime: NwcRuntime, tab: AppTab, cards: WalletCardsHost) {
     val coordinator = runtime.paymentCoordinator
     val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
     val tabState = runtime.tabState
@@ -106,14 +105,12 @@ internal fun NwcTabContent(runtime: NwcRuntime, tab: AppTab) {
             )
 
         AppTab.Settings ->
-            NwcSettingsTab(
-                runtime = runtime
-            )
+            NwcSettingsTab(runtime = runtime, cards = cards)
     }
 }
 
 @Composable
-private fun NwcSettingsTab(runtime: NwcRuntime) {
+private fun NwcSettingsTab(runtime: NwcRuntime, cards: WalletCardsHost) {
     var destination by rememberSaveable { mutableStateOf(NwcSettingsDestination.Root) }
     val connection by runtime.nwcWallet.connection.collectAsStateWithLifecycle()
     val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
@@ -132,8 +129,35 @@ private fun NwcSettingsTab(runtime: NwcRuntime) {
         if (walletFlowRequested) destination = NwcSettingsDestination.WalletFlow
     }
 
+    val details: @Composable () -> Unit = {
+        connection?.let { current ->
+            AppSettingsRow(
+                title = stringResource(NwcDetailsR.string.settings_wallet_details_title),
+                subtitle = formatWalletSubtitle(current),
+                subtitleMaxLines = 2,
+                icon = Icons.Filled.AccountBalanceWallet,
+                onClick = { destination = NwcSettingsDestination.WalletDetails }
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(AppSettingsRowDefaults.ChevronSize)
+                )
+            }
+        }
+    }
     when (destination) {
-        NwcSettingsDestination.Root ->
+        // NWC keeps no session that must close: the host unmounts it right away.
+        NwcSettingsDestination.Root -> WalletCardsSettings(
+            host = cards,
+            busy = isSubmitting,
+            onChange = { if (!runtime.paymentCoordinator.isSubmitting.value) cards.apply(it) },
+            onRemovePaying = {
+                if (!runtime.paymentCoordinator.isSubmitting.value) runtime.removeWallet()
+            },
+            payingContent = details
+        ) { walletBlock ->
             SettingsFlow(
                 themePreferences = runtime.themePreferences,
                 languageRepository = runtime.languageRepository,
@@ -142,36 +166,9 @@ private fun NwcSettingsTab(runtime: NwcRuntime) {
                 paymentPreferences = runtime.paymentPreferences,
                 legalLinks = runtime.configuration.legalLinks,
                 modifier = Modifier,
-                overviewBottomContent = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(
-                            AppSettingsRowDefaults.RowSpacing
-                        )
-                    ) {
-                        connection?.let { current ->
-                            AppSettingsRow(
-                                title = stringResource(
-                                    NwcDetailsR.string.settings_wallet_details_title
-                                ),
-                                subtitle = formatWalletSubtitle(current),
-                                icon = Icons.Filled.AccountBalanceWallet,
-                                onClick = { destination = NwcSettingsDestination.WalletDetails }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(AppSettingsRowDefaults.ChevronSize)
-                                )
-                            }
-                        }
-                        WalletRemovalAction(
-                            onRemoveWallet = runtime::removeWallet,
-                            canRemove = !isSubmitting
-                        )
-                    }
-                }
+                overviewTopContent = walletBlock
             )
+        }
 
         NwcSettingsDestination.WalletDetails -> {
             val current = connection

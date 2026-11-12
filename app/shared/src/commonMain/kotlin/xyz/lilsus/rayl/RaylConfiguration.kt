@@ -45,3 +45,45 @@ internal fun SparkEnvironment.toRaylEnvironment(): RaylEnvironment = when (this)
     SparkEnvironment.DEBUG -> RaylEnvironment.DEBUG
     SparkEnvironment.PRODUCTION -> RaylEnvironment.PRODUCTION
 }
+
+/** Each Blink card's own storage; the legacy card keeps 1.1's names. */
+internal fun RaylCard.blinkConfiguration(): BlinkExperienceConfiguration {
+    check(wallet == ExternalWallet.Blink)
+    val suffix = storageSuffix ?: return RAYL_BLINK
+    return RAYL_BLINK.copy(
+        walletPreferencesName = "${RAYL_BLINK.walletPreferencesName}.$suffix",
+        credentialsName = "${RAYL_BLINK.credentialsName}.$suffix"
+    )
+}
+
+/** Each NWC card's own storage; the legacy card keeps 1.1's names. */
+internal fun RaylCard.nwcConfiguration(): NwcExperienceConfiguration {
+    check(wallet == ExternalWallet.Nwc)
+    val suffix = storageSuffix ?: return RAYL_NWC
+    return RAYL_NWC.copy(
+        walletPreferencesName = "${RAYL_NWC.walletPreferencesName}.$suffix",
+        credentialsName = "${RAYL_NWC.credentialsName}.$suffix"
+    )
+}
+
+/** Each Spark card's own storage; the legacy card keeps 1.1's locations. */
+internal fun RaylCard.sparkConfiguration(): SparkExperienceConfiguration {
+    check(wallet == ExternalWallet.Spark)
+    return RAYL_SPARK.copy(storageName = storageSuffix)
+}
+
+/** Keychain services of [cards], which survive an uninstall; see [RaylCards.prepare]. */
+internal fun credentialStores(cards: List<RaylCard>): Set<String> = cards.mapNotNull { card ->
+    when (card.wallet) {
+        ExternalWallet.Blink -> card.blinkConfiguration().credentialsName
+
+        ExternalWallet.Nwc -> card.nwcConfiguration().credentialsName
+
+        // Spark names its Keychain services itself; see the iOS cleanup.
+        ExternalWallet.Spark -> null
+    }
+}.toSet()
+
+/** Prefixes of the Blink and NWC cards' Keychain services, legacy ones included. */
+internal val CREDENTIAL_STORE_PREFIXES =
+    listOf(RAYL_BLINK.credentialsName, RAYL_NWC.credentialsName)

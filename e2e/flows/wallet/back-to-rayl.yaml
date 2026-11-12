@@ -1,5 +1,6 @@
-# Smoke S9: Settings → Back to Rayl returns to Rayl's wallet, also after a restart, and the
-# external wallet's credentials are gone: connecting it again asks for them.
+# Smoke S9: removing the active card (Settings → Details → Remove card) pays with
+# Rayl again, also after a restart, and the card's credentials are gone: adding it again
+# asks for them.
 appId: ${APP_ID}
 tags:
   - wallet
@@ -8,17 +9,23 @@ tags:
 - runFlow: ../common/onboard.yaml
 - runFlow: ../common/connect-nwc.yaml
 - tapOn: "Settings"
-- assertVisible: "Wallet Details"
-- tapOn: "Back to Rayl"
+- assertVisible: "NWC"
+- tapOn:
+    id: "settings_wallet_details"
+- tapOn: "Remove card"
 - extendedWaitUntil:
     visible: "Point the camera.*"
     timeout: 30000
 - stopApp
 - launchApp
 - tapOn: "Settings"
+# Rayl pays again, at the top of Settings, and the removed card is gone.
+- assertVisible: "Rayl"
 - assertVisible: "Balance"
-- assertNotVisible: "Wallet Details"
-- tapOn: "Use another wallet"
+- tapOn:
+    id: "settings_wallets"
+- assertNotVisible: "NWC"
+- tapOn: "Add a card"
 - tapOn: "Nostr Wallet Connect"
 # Nothing saved to connect with (a saved URI would be masked, so don't look for its text):
 # Connect leads nowhere. (iOS disables the button; Android ignores the tap.)

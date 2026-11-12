@@ -18,4 +18,6 @@
     <string name="welcome_autopay_body">Kleine Beträge werden sofort bezahlt. Über deinem Limit fragt Rayl vorher nach.</string>
     <string name="welcome_balance_title">Guthaben zum Ausgeben</string>
     <string name="welcome_balance_body">Lade auf, was du ausgeben willst, wie bei einer Prepaid-Karte. Deine Ersparnisse bleiben, wo sie sind.</string>
+    <string name="card_already_added">Diese Wallet ist schon als %1$s hinzugefügt. Rayl bezahlt mit ihr.</string>
+    <string name="card_already_pocket">Diese Wallet ist deine Pocket. Rayl bezahlt mit ihr.</string>
 </resources>

@@ -21,6 +21,7 @@ import xyz.lilsus.raylsuite.core.ui.platform.LocalProductName
 import xyz.lilsus.raylsuite.core.ui.platform.rememberHapticFeedbackManager
 import xyz.lilsus.raylsuite.core.ui.platform.rememberRetainedInstance
 import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
 import xyz.lilsus.raylsuite.feature.walletmanagement.WalletRemovalFailure
 
 /** Blink's Android Compose host. iOS has a native SwiftUI composition root. */
@@ -28,6 +29,7 @@ import xyz.lilsus.raylsuite.feature.walletmanagement.WalletRemovalFailure
 fun BlinkExperience(
     configuration: BlinkExperienceConfiguration,
     startMode: WalletStartMode,
+    cards: WalletCardsHost,
     onRemoved: () -> Unit,
     onConnectionChanged: (Boolean) -> Unit
 ) {
@@ -105,6 +107,7 @@ fun BlinkExperience(
                 ) {
                     blinkHome(
                         runtime = runtime,
+                        cards = cards,
                         onRemoveWallet = {
                             runtime.removeWallet()
                         }

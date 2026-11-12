@@ -8,14 +8,18 @@ credentials.
 
 Rayl pays with its built-in wallet, the Rayl provider's pocket, by default: after
 the welcome it mounts and asks only for its terms and, where the device and
-password manager support it, a passkey. Its Settings offer every external provider
-under "Use another wallet", with no release availability gates, and an external
-wallet's Settings offer "Back to Rayl".
-[RaylSelection](../app/shared/src/commonMain/kotlin/xyz/lilsus/rayl/RaylSelection.kt)
-keeps external setup transient and remembers only a connected external wallet;
-it does not combine wallets into one payment engine. Before mounting any wallet,
-the platform host clears unowned external provider storage. Going back to Rayl
-also requires cleanup, as defined by [SPEC-wallet-lifecycle](SPEC-wallet-lifecycle.md).
+password manager support it, a passkey. Besides the pocket, the user adds cards:
+any number of external wallets, several of one provider included, with no
+release availability gates. Every wallet's Settings start with the shared wallet
+block from `feature/wallet-management`, the same for every wallet: the active
+wallet, which opens Wallets to pick another or add a card; its balance with Add
+funds (only the pocket has them so far); and Details, the active wallet's page with
+its own settings and Remove card. Wallets lists the pocket like any card, first.
+[RaylCards](../app/shared/src/commonMain/kotlin/xyz/lilsus/rayl/RaylCards.kt)
+owns the cards, which one pays, and per-card storage names; it keeps setup
+transient and mounts exactly one wallet at a time, without combining wallets into
+one payment engine. Before mounting any wallet, the platform host erases storage
+no card owns, as defined by [SPEC-wallet-lifecycle](SPEC-wallet-lifecycle.md).
 
 ## Shared boundaries
 

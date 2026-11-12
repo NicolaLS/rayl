@@ -1,4 +1,4 @@
-# Connects the local NWC stack's payer node (tools/nwc-stack) in Settings → Use another wallet.
+# Connects the local NWC stack's payer node (tools/nwc-stack) in Settings → Wallets → Add a card.
 appId: ${APP_ID}
 ---
 - runScript:
@@ -6,7 +6,9 @@ appId: ${APP_ID}
     env:
       ACTION: connect-uri
 - tapOn: "Settings"
-- tapOn: "Use another wallet"
+- tapOn:
+    id: "settings_wallets"
+- tapOn: "Add a card"
 - tapOn: "Nostr Wallet Connect"
 - tapOn: "Wallet Connect URI"
 - inputText: ${output.nwcUri}

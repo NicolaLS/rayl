@@ -37,6 +37,10 @@ internal sealed interface PocketKeyLoad {
     data object Unavailable : PocketKeyLoad
 }
 
+/** The phrase of a key generated without a passkey; a passkey-derived one is never shown. */
+internal suspend fun PocketKeyStore.recoveryPhrase(): String? =
+    (load() as? PocketKeyLoad.Present)?.key?.takeIf { it.withoutPasskey }?.phrase
+
 internal interface PocketKeyStore {
     suspend fun load(): PocketKeyLoad
 

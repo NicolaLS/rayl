@@ -9,7 +9,11 @@ presentation.
 The [provider experience requirement](../../specs/REQ-provider-experience.md)
 requires consistent UI and UX across all providers. Shared platform shells own
 primary navigation; neutral credential forms, Scan/session-history presentation,
-and wallet-removal actions own common interactions. Provider composition supplies credentials,
+and the wallet block and Wallets screens of `feature/wallet-management` own common
+interactions. Every experience receives the host's `WalletCardsHost` and shows the
+block in a fixed place at the top of its Settings: the active wallet and its
+balance row, the same for every wallet, with the wallet's own settings on its page; before applying a change of the paying wallet, the
+experience closes its own session. Provider composition supplies credentials,
 capability-specific controls, and execution callbacks.
 
 ## Composition and execution
@@ -24,15 +28,14 @@ wallets; [NWC](../nwc/integration/nwc) wraps the Nostr Wallet Connect client fro
 [`nostr/nwc-kmp`](../../nostr/nwc-kmp);
 [Spark](../spark/integration/wallet) wraps the Breez SDK for an imported recovery
 phrase. Their integrations own connection credentials.
-Providers receive an explicit fresh-setup or restore mode. Fresh setup never
-loads prior credentials. Platform storage cleanup is available independently of
+Providers receive an explicit fresh-setup or restore mode and the storage names
+of one card. Fresh setup never loads prior credentials. Platform storage cleanup is available independently of
 runtime creation, so Rayl can enforce
 [SPEC-wallet-lifecycle](../../specs/SPEC-wallet-lifecycle.md) before mounting an
 experience.
 
 The Rayl provider is Rayl's built-in wallet rather than a connection: hosts mount
-it whenever no external wallet is configured, and its Settings offer the external
-wallets the host supplies. It also runs on `feature/payment-flow`. Its
+it whenever no card pays. It also runs on `feature/payment-flow`. Its
 [`integration/pocket`](../rayl/integration/pocket) owns an app-owned Spark wallet
 through the Breez SDK: it derives the pocket key from a passkey with Breez
 passkey login, or generates it where no passkey can, keeps a copy in

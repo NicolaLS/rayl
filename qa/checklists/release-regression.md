@@ -34,8 +34,8 @@ manager supports PRF; check once whether App Live devices can complete a passkey
 | R1 | New passkey | Wallet set up; relaunch opens without a passkey prompt |
 | R2 | Existing passkey with accounts | Accounts offered, including Rayl's own; choosing one opens it |
 | R3 | Password manager without PRF | Asked to use another password manager; nothing set up |
-| R4 | No passkey support | Onboarding offers the external wallets |
-| R5 | Use another wallet, then go back to Rayl | Same wallet, same balance, no passkey prompt (P5, P7) |
+| R4 | No passkey support | The terms say the balance is kept on this phone only; continuing creates the pocket without a passkey; Settings show its recovery phrase |
+| R5 | Pay with a card, then with Rayl again | Same pocket, same balance, no passkey prompt (P5, P7); the top of Settings always shows the active wallet and a balance row, everything below it stays the same |
 | R6 | Receive: add funds | The sheet shows the invoice QR and Copy invoice, and Open in wallet only when a wallet app is installed (Android asks which app every time); a payment to it is shown with the amount |
 
 ## P. Paying (each wallet in use: Rayl, Blink, NWC, Spark)
@@ -59,9 +59,11 @@ manager supports PRF; check once whether App Live devices can complete a passkey
 
 | ID | Check | Expected |
 |---|---|---|
-| E1 | Connect Blink, NWC, Spark (phrase word by word, paste) | Connected; relaunch restores it |
-| E2 | Cancel each setup | Back to Rayl's wallet; nothing saved |
-| E3 | Remove, then connect the same wallet again | Credentials must be entered again |
+| E1 | Add a Blink, NWC and Spark card (phrase word by word, paste) | Connected; relaunch restores the card that paid |
+| E2 | Cancel each setup | Back to the wallet that paid before; nothing saved |
+| E3 | Remove a card (paying and not paying), then add the same wallet again | Credentials must be entered again; the other cards still connect |
+| E5 | Add a Spark card with a wallet that is already a card, and one with the phrase of a pocket set up without a passkey | Not added; a notice names the wallet that already pays; nothing of the new card stays |
+| E6 | Rename a card, relaunch | The new name stays; the card still connects |
 | E4 | Rotate the screen during setup (Android) | Setup keeps its state (L11) |
 | E5 | Spark: remove, re-import the same phrase | Same balance (L13) |
 

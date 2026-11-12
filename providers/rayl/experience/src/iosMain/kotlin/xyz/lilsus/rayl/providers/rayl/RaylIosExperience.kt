@@ -6,11 +6,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketStatus
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPasskeyAuthenticator
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.createIosPocketSetup
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.createIosRaylPocket
+import xyz.lilsus.rayl.providers.rayl.integration.pocket.readIosPocketRecoveryPhrase
 import xyz.lilsus.raylsuite.core.settings.createAppSettings
 import xyz.lilsus.raylsuite.core.ui.platform.createHapticFeedbackManager
 import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
@@ -29,14 +31,17 @@ import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
 import xyz.lilsus.raylsuite.feature.paymentui.localizedMessage
 import xyz.lilsus.raylsuite.feature.settings.NativeSettingsController
 import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
+import xyz.lilsus.raylsuite.feature.walletmanagement.NativeWalletCardsController
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardChange
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
 
 /** Shown in place of the tabs while the pocket is not usable. */
 data class RaylProblemSnapshot(val message: String, val retryTitle: String)
 
 /**
  * The Kotlin side of the native iOS shell of Rayl's built-in wallet. Swift owns the `TabView`; this
- * owns the app scope so every tab's view controller shares one runtime. [otherWallets] lists the
- * external wallets offered under "Use another wallet", in the current language.
+ * owns the app scope so every tab's view controller shares one runtime. Choosing another wallet in
+ * [cards] first closes the pocket session; [observeUseWallet] then reports the change.
  */
 class RaylIosExperience(
     configuration: RaylExperienceConfiguration,
@@ -45,7 +50,7 @@ class RaylIosExperience(
     /** The device's passkeys, or `null` for the stand-in passkey of automated builds. */
     passkeys: RaylPasskeyAuthenticator?,
     debugTools: Boolean,
-    private val otherWallets: () -> List<RaylWalletOption>
+    private val cards: WalletCardsHost
 ) {
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val runtime = RaylRuntime(
@@ -56,6 +61,11 @@ class RaylIosExperience(
         createSetup = { createIosPocketSetup(environment.pocketConfig(breezApiKey), it, passkeys) },
         haptics = createHapticFeedbackManager()
     )
+
+    init {
+        // Back from adding a card reopens Settings, where it was started.
+        if (cards.reopensAddCard()) runtime.tabState.select(AppTab.Settings)
+    }
 
     private val settingsController = lazy {
         NativeSettingsController(
@@ -81,8 +91,25 @@ class RaylIosExperience(
     private val onboardingController = lazy {
         RaylNativeOnboardingController(runtime)
     }
+    init {
+        // A Spark card with the pocket's wallet is then turned back.
+        observerScope.launch {
+            runtime.pocket.identity.filterNotNull().collect { cards.identified("spark:$it") }
+        }
+    }
+
     private val walletSettingsController = lazy {
-        RaylNativeWalletSettingsController(runtime, otherWallets)
+        RaylNativeWalletSettingsController(runtime)
+    }
+    private val cardsController = lazy {
+        NativeWalletCardsController(
+            host = cards,
+            busy = runtime.paymentCoordinator.isSubmitting,
+            languageChanges = runtime.languageRepository.preference,
+            onChange = { runtime.useWallet(it.encode()) },
+            // The pocket is never removed.
+            onRemovePaying = {}
+        )
     }
 
     /**
@@ -94,7 +121,7 @@ class RaylIosExperience(
     fun observeStage(onChange: (String) -> Unit): () -> Unit =
         observe(combine(runtime.exit, runtime.onboardingState.step, ::stageOf)) { onChange(it) }
 
-    /** Shown when closing the pocket for "Use another wallet" failed. */
+    /** Shown when closing the pocket for another wallet failed. */
     fun observeProblem(onChange: (RaylProblemSnapshot) -> Unit): () -> Unit =
         observe(runtime.languageRepository.preference) {
             onChange(RaylProblemSnapshot(text("rayl_leave_failed"), text("rayl_retry")))
@@ -108,11 +135,16 @@ class RaylIosExperience(
         combine(runtime.pocket.status, runtime.exit, ::connected)
     ) { onChange(it) }
 
-    /** The external wallet to set up, once the pocket session has closed for it. */
-    fun observeUseWallet(onChange: (String) -> Unit): () -> Unit = observe(runtime.exit) {
+    /** Reports the change of [cards] the user chose, once the pocket session has closed. */
+    fun observeUseWallet(onChange: (WalletCardChange) -> Unit): () -> Unit = observe(runtime.exit) {
         val target = runtime.exitTarget
-        if (it == RaylExit.Done && target is RaylExitTarget.Wallet) onChange(target.id)
+        if (it == RaylExit.Done && target is RaylExitTarget.Wallet) {
+            WalletCardChange.decode(target.id)?.let(onChange)
+        }
     }
+
+    /** The shared "Pay with" screens at the top of Settings. */
+    fun cardsController(): NativeWalletCardsController = cardsController.value
 
     /** Called once a debug build erased the pocket, so the host mounts a new one. */
     fun observeErased(onErased: () -> Unit): () -> Unit = observe(runtime.exit) {
@@ -155,6 +187,7 @@ class RaylIosExperience(
         if (recentController.isInitialized()) recentController.value.clear()
         if (hubController.isInitialized()) hubController.value.clear()
         if (walletSettingsController.isInitialized()) walletSettingsController.value.clear()
+        if (cardsController.isInitialized()) cardsController.value.clear()
         if (onboardingController.isInitialized()) onboardingController.value.clear()
         observerScope.coroutineContext[Job]?.cancel()
         runtime.clear()
@@ -243,6 +276,10 @@ private fun connected(status: PocketStatus, exit: RaylExit): Boolean =
     status == PocketStatus.Ready && exit == RaylExit.None
 
 internal fun text(key: String): String = nativeString(NativeStringResource("RaylExperience", key))
+
+/** The pocket's recovery phrase while any wallet pays; see `WalletCardsHost.recoveryPhrase`. */
+suspend fun raylRecoveryPhrase(environment: RaylEnvironment): String? =
+    readIosPocketRecoveryPhrase(environment.pocketConfig(breezApiKey = null))
 
 /** Call at app launch when Rayl's wallet is in use. */
 fun startRaylPocketEarly(environment: RaylEnvironment, breezApiKey: String?) {

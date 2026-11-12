@@ -25,16 +25,23 @@ struct NativeSettingsView: View {
     @StateObject private var model: NativeSettingsViewModel
     private let leadingContent: AnyView?
     private let trailingContent: AnyView?
+    private let openedOnAppear: AnyView?
     @State private var confirmUsageDataOff = false
+    @State private var opens = false
+    @State private var opened = false
 
+    /// `openedOnAppear` is pushed once when Settings first appears, e.g. to return the user to
+    /// the screen they left.
     init(
         controller: NativeSettingsController,
+        openedOnAppear: AnyView? = nil,
         leadingContent: AnyView? = nil,
         trailingContent: AnyView? = nil
     ) {
         _model = StateObject(wrappedValue: NativeSettingsViewModel(controller: controller))
         self.leadingContent = leadingContent
         self.trailingContent = trailingContent
+        self.openedOnAppear = openedOnAppear
     }
 
     var body: some View {
@@ -199,6 +206,15 @@ struct NativeSettingsView: View {
             }
             .navigationTitle(snapshot.text.settingsTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $opens) {
+                openedOnAppear
+            }
+            .onAppear {
+                if openedOnAppear != nil && !opened {
+                    opened = true
+                    opens = true
+                }
+            }
         }
     }
 

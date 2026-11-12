@@ -4,9 +4,24 @@
     <string name="settings_manage_wallet_title">Billetera</string>
     <string name="settings_manage_wallet_placeholder">Aún no hay una billetera conectada. Añade una para comenzar a pagar.</string>
     <string name="settings_manage_wallet_add">Añadir billetera</string>
-    <string name="settings_manage_wallet_remove">Volver a Rayl</string>
+    <string name="settings_manage_wallet_remove">Eliminar tarjeta</string>
     <string name="settings_manage_wallet_cancel">Cancelar</string>
     <string name="wallet_removal_payment_active">Espera a que termine el pago actual.</string>
-    <string name="wallet_removal_failed">Esta billetera no se pudo desconectar por completo. Vuelve a intentarlo para volver a Rayl.</string>
+    <string name="wallet_removal_failed">Esta tarjeta no se pudo eliminar por completo. Inténtalo de nuevo.</string>
     <string name="wallet_removal_retry">Intentar de nuevo</string>
+    <string name="wallet_cards_pocket">Rayl</string>
+    <string name="wallet_cards_add">Añadir tarjeta</string>
+    <string name="wallet_cards_add_body">Paga con una billetera que ya tienes. Rayl solo puede pagar con ella; los fondos se quedan en esa billetera.</string>
+    <string name="wallet_cards_remove">Eliminar tarjeta</string>
+    <string name="wallet_cards_rename">Renombrar tarjeta</string>
+    <string name="wallet_cards_save">Guardar</string>
+    <string name="wallet_cards_recovery_phrase">Frase de recuperación</string>
+    <string name="wallet_cards_recovery_phrase_body">Estas palabras abren tu pocket en cualquier billetera Spark. Mantenlas en privado.</string>
+    <string name="wallet_cards_copy">Copiar</string>
+    <string name="wallet_cards_done">Listo</string>
+    <string name="wallet_cards_wallets">Billeteras</string>
+    <string name="wallet_cards_active">Activa</string>
+    <string name="wallet_cards_balance">Saldo</string>
+    <string name="wallet_cards_add_funds">Añadir fondos</string>
+    <string name="wallet_cards_details">Detalles</string>
 </resources>

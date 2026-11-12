@@ -11,9 +11,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.blink.BlinkIosExperience
 import xyz.lilsus.rayl.providers.nwc.NwcIosExperience
+import xyz.lilsus.rayl.providers.rayl.RaylEnvironment
 import xyz.lilsus.rayl.providers.rayl.RaylIosExperience
-import xyz.lilsus.rayl.providers.rayl.RaylWalletOption
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.RaylPasskeyAuthenticator
+import xyz.lilsus.rayl.providers.rayl.raylRecoveryPhrase
 import xyz.lilsus.rayl.providers.rayl.startRaylPocketEarly
 import xyz.lilsus.rayl.providers.spark.SparkAppHost
 import xyz.lilsus.rayl.providers.spark.SparkEnvironment
@@ -26,8 +27,9 @@ import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
 import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 import xyz.lilsus.raylsuite.feature.languagesettings.createLanguageRepository
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardProvider
 
-/** What the iOS root view renders; `wallet` is `rayl` for Rayl's own wallet. */
+/** What the iOS root view renders; `wallet` is `rayl` for the pocket, else the card's provider. */
 class RaylSnapshot(
     val wallet: String?,
     val raylExperience: RaylIosExperience?,
@@ -43,7 +45,9 @@ class RaylSnapshot(
     val closingSpark: Boolean,
     val sparkCloseFailed: Boolean,
     val colorScheme: String,
-    val text: Map<String, String>
+    val text: Map<String, String>,
+    /** Shown once and briefly, e.g. that an added card was already there; then dismiss it. */
+    val notice: String?
 )
 
 private data class RaylExperienceState(
@@ -57,7 +61,18 @@ private data class RaylExperienceState(
 object RaylIosApp {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val appSettings = createAppSettings()
-    private val selection = RaylSelection(appSettings)
+    private val registry = RaylCards(appSettings)
+    private val cards = RaylWalletCardsHost(
+        registry = registry,
+        scope = scope,
+        provider = ::cardProvider,
+        clearCard = ::clearSavedCard,
+        pocketRecoveryPhrase = { pocketEnvironment?.let { raylRecoveryPhrase(it) } },
+        beforeChange = ::unmount
+    )
+
+    /** The pocket's network, known once [configureSpark] ran. */
+    private var pocketEnvironment: RaylEnvironment? = null
     private val appOnboarding = RaylAppOnboarding(appSettings)
     private val onboardingController by lazy {
         RaylAppOnboardingController(appOnboarding, appSettings, language.preference)
@@ -68,12 +83,23 @@ object RaylIosApp {
     private var blink: BlinkIosExperience? = null
     private var nwc: NwcIosExperience? = null
     private var spark: SparkIosExperience? = null
-    private var sparkHostFactory: ((WalletStartMode) -> SparkAppHost)? = null
+
+    /** The paying card (`null`: the pocket) and session the mounted experience belongs to. */
+    private var mounted: Pair<RaylCard?, Long>? = null
+
+    /** What to do once the Spark session closed: cancel its setup, or apply a card change. */
+    private var afterSparkClose: (() -> Unit)? = null
+    private var sparkHostFactory: ((WalletStartMode, String?) -> SparkAppHost)? = null
     private var raylFactory: (() -> RaylIosExperience)? = null
     private var cancellations = emptyList<() -> Unit>()
 
     init {
-        retryWalletCleanup()
+        // Removing or cancelling a card asks for cleanup before the next wallet mounts.
+        scope.launch {
+            registry.preparation.collect {
+                if (it == WalletPreparation.Cleaning) prepare()
+            }
+        }
     }
 
     /**
@@ -87,7 +113,10 @@ object RaylIosApp {
         debugTools: Boolean
     ) {
         check(spark == null && rayl == null) { "Configure Spark before mounting its experience" }
-        sparkHostFactory = { mode -> createIOSAppHost(environment, mode, breezApiKey) }
+        pocketEnvironment = environment.toRaylEnvironment()
+        sparkHostFactory = { mode, storage ->
+            createIOSAppHost(environment, mode, breezApiKey, storage)
+        }
         raylFactory = {
             RaylIosExperience(
                 RAYL_POCKET,
@@ -95,7 +124,7 @@ object RaylIosApp {
                 breezApiKey,
                 passkeys,
                 debugTools,
-                ::externalWalletOptions
+                cards
             )
         }
         if (usesRaylWallet(appSettings)) {
@@ -107,20 +136,20 @@ object RaylIosApp {
         val job = scope.launch {
             combine(
                 combine(
-                    selection.external,
-                    selection.session,
-                    selection.preparation
-                ) { external, _, preparation -> external to preparation },
+                    registry.paying,
+                    registry.session,
+                    registry.preparation
+                ) { paying, session, preparation -> Triple(paying, session, preparation) },
                 appOnboarding.step.map { it == AppOnboardingStep.Complete },
                 experienceState,
-                language.preference
+                combine(language.preference, registry.notice) { _, notice -> notice }
             ) {
-                    selectionState,
+                    registryState,
                     welcome,
                     experience,
-                    _
+                    notice
                 ->
-                val (external, preparation) = selectionState
+                val (paying, session, preparation) = registryState
                 val ready = preparation == WalletPreparation.Ready
                 val keys =
                     listOf(
@@ -132,35 +161,39 @@ object RaylIosApp {
                         listOf("session_close_failed", "session_close_retry").associateWith {
                             nativeString(NativeStringResource("SparkExperience", "spark_$it"))
                         }
+                // Another card, or a new session of the same one, never reuses an experience.
+                if (ready && mounted != (paying to session)) {
+                    unmount()
+                    mounted = paying to session
+                }
                 // SwiftUI may render this snapshot after removal has cleared the live selection.
                 // Keep its experience with it; rendering must never resolve a different session.
-                val raylExperience = if (ready &&
-                    external == null &&
-                    welcome
-                ) {
-                    raylExperience()
-                } else {
-                    null
-                }
-                val blinkExperience = if (ready &&
-                    external == ExternalWallet.Blink
-                ) {
-                    blinkExperience()
-                } else {
-                    null
-                }
-                val nwcExperience = if (ready && external == ExternalWallet.Nwc) {
-                    nwcExperience()
-                } else {
-                    null
-                }
-                val sparkExperience = if (ready &&
-                    external == ExternalWallet.Spark
-                ) {
-                    sparkExperience()
-                } else {
-                    null
-                }
+                val raylExperience =
+                    if (ready && paying == null && welcome) raylExperience() else null
+                val blinkExperience =
+                    if (ready &&
+                        paying?.wallet == ExternalWallet.Blink
+                    ) {
+                        blinkExperience(paying)
+                    } else {
+                        null
+                    }
+                val nwcExperience =
+                    if (ready &&
+                        paying?.wallet == ExternalWallet.Nwc
+                    ) {
+                        nwcExperience(paying)
+                    } else {
+                        null
+                    }
+                val sparkExperience =
+                    if (ready &&
+                        paying?.wallet == ExternalWallet.Spark
+                    ) {
+                        sparkExperience(paying)
+                    } else {
+                        null
+                    }
                 val mountedWallet = when {
                     raylExperience != null -> "rayl"
                     blinkExperience != null -> "blink"
@@ -192,7 +225,8 @@ object RaylIosApp {
                     } else {
                         experience.colorScheme
                     },
-                    text
+                    text,
+                    notice?.let(::noticeText)
                 )
             }.collect(onChange)
         }
@@ -201,76 +235,65 @@ object RaylIosApp {
 
     fun onboardingController(): RaylAppOnboardingController = onboardingController
 
-    /** Starts setup of an external wallet once Rayl's wallet has closed its session for it. */
-    private fun useWallet(id: String) {
-        val wallet = ExternalWallet.fromId(id)
-        if (wallet == null ||
-            selection.external.value != null ||
-            selection.preparation.value != WalletPreparation.Ready
-        ) {
-            return
+    fun dismissNotice() = registry.dismissNotice()
+
+    private fun noticeText(notice: RaylCardNotice): String = when (notice) {
+        is RaylCardNotice.AlreadyAdded -> {
+            val existing = notice.cardId?.let { id ->
+                registry.cards.value.firstOrNull { it.id == id }
+            }
+            if (existing == null) {
+                nativeString(NativeStringResource("RaylApp", "card_already_pocket"))
+            } else {
+                nativeString(NativeStringResource("RaylApp", "card_already_added"), existing.name)
+            }
         }
-        unmount()
-        selection.choose(wallet)
     }
 
-    private fun externalWalletOptions(): List<RaylWalletOption> =
-        ExternalWallet.entries.map { wallet ->
-            RaylWalletOption(
-                id = wallet.id,
-                title = nativeString(NativeStringResource("RaylApp", "${wallet.id}_title")),
-                subtitle = nativeString(NativeStringResource("RaylApp", "${wallet.id}_body"))
-            )
-        }
+    private fun cardProvider(wallet: ExternalWallet): WalletCardProvider = WalletCardProvider(
+        id = wallet.id,
+        title = nativeString(NativeStringResource("RaylApp", "${wallet.id}_title")),
+        subtitle = nativeString(NativeStringResource("RaylApp", "${wallet.id}_body"))
+    )
 
-    private fun raylExperience(): RaylIosExperience? {
-        if (selection.external.value != null ||
-            appOnboarding.step.value != AppOnboardingStep.Complete
-        ) {
-            return null
-        }
-        return rayl ?: checkNotNull(raylFactory) {
-            "Configure the environment before observing Rayl"
-        }().also { experience ->
-            rayl = experience
-            cancellations =
-                listOf(
-                    experience.observeConnected { connected ->
-                        if (rayl === experience) {
-                            experienceState.update { it.copy(connected = connected) }
-                        }
-                    },
-                    experience.observeTheme { colorScheme ->
-                        if (rayl === experience) {
-                            experienceState.update { it.copy(colorScheme = colorScheme) }
-                        }
-                    },
-                    // The pocket closes but is not erased; see SPEC-wallet-lifecycle.
-                    experience.observeUseWallet { id ->
-                        scope.launch { if (rayl === experience) useWallet(id) }
-                    },
-                    experience.observeErased {
-                        scope.launch {
-                            if (rayl === experience) {
-                                unmount()
-                                selection.restartRaylWallet()
-                            }
-                        }
+    private fun raylExperience(): RaylIosExperience = rayl ?: checkNotNull(raylFactory) {
+        "Configure the environment before observing Rayl"
+    }().also { experience ->
+        rayl = experience
+        cancellations =
+            listOf(
+                experience.observeConnected { connected ->
+                    if (rayl === experience) {
+                        experienceState.update { it.copy(connected = connected) }
                     }
-                )
-        }
+                },
+                experience.observeTheme { colorScheme ->
+                    if (rayl === experience) {
+                        experienceState.update { it.copy(colorScheme = colorScheme) }
+                    }
+                },
+                // The pocket closes but is not erased; see SPEC-wallet-lifecycle.
+                experience.observeUseWallet { change ->
+                    scope.launch { if (rayl === experience) cards.apply(change) }
+                },
+                experience.observeErased {
+                    scope.launch { if (rayl === experience) registry.restartPocket() }
+                }
+            )
     }
 
-    private fun blinkExperience(): BlinkIosExperience? {
-        // combine can still deliver a prior selection while the latest state propagates.
-        if (selection.external.value != ExternalWallet.Blink) return null
-        return blink ?: BlinkIosExperience(RAYL_BLINK, selection.startMode).also { experience ->
+    private fun blinkExperience(card: RaylCard): BlinkIosExperience = blink
+        ?: BlinkIosExperience(
+            card.blinkConfiguration(),
+            registry.startMode,
+            cards
+        ).also { experience ->
             blink = experience
             cancellations =
                 listOf(
                     experience.observeConnected { connected ->
                         if (blink === experience) {
-                            if (connected) selection.connected(ExternalWallet.Blink)
+                            if (connected) registry.connected(card)
                             experienceState.update { it.copy(connected = connected) }
                         }
                     },
@@ -285,21 +308,19 @@ object RaylIosApp {
                         }
                     },
                     experience.observeRemoved {
-                        if (it) scope.launch { if (blink === experience) backToRayl() }
+                        if (it) scope.launch { if (blink === experience) registry.removed(card) }
                     }
                 )
         }
-    }
 
-    private fun nwcExperience(): NwcIosExperience? {
-        if (selection.external.value != ExternalWallet.Nwc) return null
-        return nwc ?: NwcIosExperience(RAYL_NWC, selection.startMode).also { experience ->
+    private fun nwcExperience(card: RaylCard): NwcIosExperience = nwc
+        ?: NwcIosExperience(card.nwcConfiguration(), registry.startMode, cards).also { experience ->
             nwc = experience
             cancellations =
                 listOf(
                     experience.observeConnected { connected ->
                         if (nwc === experience) {
-                            if (connected) selection.connected(ExternalWallet.Nwc)
+                            if (connected) registry.connected(card)
                             experienceState.update { it.copy(connected = connected) }
                         }
                     },
@@ -314,63 +335,62 @@ object RaylIosApp {
                         }
                     },
                     experience.observeRemoved {
-                        if (it) scope.launch { if (nwc === experience) backToRayl() }
+                        if (it) scope.launch { if (nwc === experience) registry.removed(card) }
                     }
                 )
         }
-    }
 
-    private fun sparkExperience(): SparkIosExperience? {
-        if (selection.external.value != ExternalWallet.Spark) return null
-        return spark ?: SparkIosExperience(
-            host = checkNotNull(sparkHostFactory) {
-                "Configure the environment before observing Rayl"
-            }(selection.startMode),
-            configuration = RAYL_SPARK,
-            onCancelSetup = ::cancelSetup
-        ).also { experience ->
-            spark = experience
-            cancellations =
-                listOf(
-                    experience.observeConnected { connected ->
-                        if (spark === experience) {
-                            if (connected) selection.connected(ExternalWallet.Spark)
-                            experienceState.update { it.copy(connected = connected) }
-                        }
-                    },
-                    experience.observeCanCancelSetup { canCancel ->
-                        if (spark === experience) {
-                            experienceState.update { it.copy(canCancelSetup = canCancel) }
-                        }
-                    },
-                    experience.observeTheme { colorScheme ->
-                        if (spark === experience) {
-                            experienceState.update { it.copy(colorScheme = colorScheme) }
-                        }
-                    },
-                    experience.observeRemoved {
-                        if (it) scope.launch { if (spark === experience) backToRayl() }
+    private fun sparkExperience(card: RaylCard): SparkIosExperience = spark ?: SparkIosExperience(
+        host = checkNotNull(sparkHostFactory) {
+            "Configure the environment before observing Rayl"
+        }(registry.startMode, card.sparkConfiguration().storageName),
+        configuration = card.sparkConfiguration(),
+        cards = cards,
+        // Spark releases its SDK session before another wallet mounts.
+        onLeave = { change -> spark?.let { closeSpark(it) { cards.apply(change) } } },
+        onCancelSetup = ::cancelSetup
+    ).also { experience ->
+        spark = experience
+        cancellations =
+            listOf(
+                experience.observeConnected { connected ->
+                    if (spark === experience) {
+                        if (connected) registry.connected(card)
+                        experienceState.update { it.copy(connected = connected) }
                     }
-                )
-        }
+                },
+                experience.observeCanCancelSetup { canCancel ->
+                    if (spark === experience) {
+                        experienceState.update { it.copy(canCancelSetup = canCancel) }
+                    }
+                },
+                experience.observeTheme { colorScheme ->
+                    if (spark === experience) {
+                        experienceState.update { it.copy(colorScheme = colorScheme) }
+                    }
+                },
+                experience.observeRemoved {
+                    if (it) scope.launch { if (spark === experience) registry.removed(card) }
+                }
+            )
     }
 
-    /** Cancels external wallet setup and goes back to Rayl's wallet. */
+    /** Cancels adding a card and goes back to the wallet that paid before. */
     fun cancelSetup() {
-        val canCancel = when (selection.external.value) {
+        val canCancel = when (registry.paying.value?.wallet) {
             ExternalWallet.Blink -> blink?.canCancelSetup() == true
 
             ExternalWallet.Nwc -> nwc?.canCancelSetup() == true
 
             ExternalWallet.Spark -> spark?.canCancelSetup() == true
 
-            // Rayl's wallet has no setup to cancel.
+            // The pocket has no setup to cancel.
             null -> false
         }
         if (!canCancel) return
         val sparkExperience = spark
         if (sparkExperience != null) {
-            closeSparkSetup(sparkExperience)
+            closeSpark(sparkExperience) { registry.cancelSetup() }
         } else {
             blink?.cancelSetup()
             nwc?.cancelSetup()
@@ -378,22 +398,31 @@ object RaylIosApp {
     }
 
     fun retryWalletCleanup() {
-        scope.launch { selection.prepare(::clearSavedWallet) }
+        scope.launch { prepare() }
+    }
+
+    private suspend fun prepare() {
+        registry.prepare(::clearSavedCard, ::purgeUnownedCredentials)
     }
 
     fun retrySparkClose() {
-        if (experienceState.value.sparkCloseFailed) spark?.let(::closeSparkSetup)
+        val then = afterSparkClose ?: return
+        if (experienceState.value.sparkCloseFailed) spark?.let { closeSpark(it, then) }
     }
 
-    private fun closeSparkSetup(experience: SparkIosExperience) {
+    private fun closeSpark(experience: SparkIosExperience, then: () -> Unit) {
         if (experienceState.value.closingSpark) return
+        afterSparkClose = then
         experienceState.update {
             it.copy(canCancelSetup = false, closingSpark = true, sparkCloseFailed = false)
         }
         scope.launch {
             try {
                 experience.close()
-                if (spark === experience) backToRayl()
+                if (spark === experience) {
+                    afterSparkClose = null
+                    then()
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -418,6 +447,8 @@ object RaylIosApp {
         blink = null
         nwc = null
         spark = null
+        mounted = null
+        afterSparkClose = null
         experienceState.update {
             it.copy(
                 connected = false,
@@ -426,12 +457,5 @@ object RaylIosApp {
                 sparkCloseFailed = false
             )
         }
-    }
-
-    /** After the external wallet was removed or its setup cancelled. */
-    private fun backToRayl() {
-        unmount()
-        selection.clear()
-        retryWalletCleanup()
     }
 }

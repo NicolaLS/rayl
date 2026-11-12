@@ -43,9 +43,18 @@ private func makeSparkShellAdapter(_ experience: SparkIosExperience) -> NativeSh
             AnyView(
                 NativeSettingsView(
                     controller: experience.settingsController(),
-                    trailingContent: AnyView(
-                        SparkWalletSettingsActions(
-                            controller: experience.walletSettingsController()
+                    // Back from adding a card returns to Wallets with Add a card open.
+                    openedOnAppear: experience.cardsController().reopensAddCard()
+                        ? AnyView(NativeWalletCardsAddAgain(controller: experience.cardsController()))
+                        : nil,
+                    leadingContent: AnyView(
+                        NativeWalletCardsEntry(
+                            controller: experience.cardsController(),
+                            payingContent: AnyView(
+                                SparkWalletSettingsActions(
+                                    controller: experience.walletSettingsController()
+                                )
+                            )
                         )
                     )
                 )
@@ -99,12 +108,6 @@ private struct SparkWalletSettingsActions: View {
         Group {
             if let snapshot = model.snapshot {
                 VStack(alignment: .leading, spacing: 12) {
-                    NativeWalletRemovalAction(
-                        title: snapshot.removeTitle,
-                        busyMessage: snapshot.removeBusyMessage,
-                        canRemove: !snapshot.isWorking,
-                        onRemove: model.controller.removeWallet
-                    )
                     if let message = snapshot.errorMessage {
                         Text(message).foregroundStyle(.red)
                     }

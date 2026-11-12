@@ -61,6 +61,25 @@ class RaylWalletExitTest {
     }
 
     @Test
+    fun aNewPocketIsStartedOnlyForAnUnreadableKeyWithoutAPasskey() = runTest {
+        // Its only copy goes: never for a readable key, nor for one a passkey can derive again.
+        listOf(
+            FakePocket(keyUnreadable = false, withoutPasskey = true),
+            FakePocket(keyUnreadable = true, withoutPasskey = false)
+        ).forEach { pocket ->
+            exit(pocket).startNewPocket()
+            assertEquals(emptyList(), pocket.calls)
+        }
+
+        val lost = FakePocket(keyUnreadable = true, withoutPasskey = true)
+        val exit = exit(lost)
+        exit.startNewPocket()
+
+        assertEquals(listOf("stop session", "erase"), lost.calls)
+        assertEquals(RaylExitTarget.Erased, exit.target)
+    }
+
+    @Test
     fun theWalletCannotBeLeftWhileAPaymentIsBeingSubmitted() = runTest {
         // Leaving resets the payment session; mid-payment that would lose its outcome (PR-04).
         val pocket = FakePocket(keyUnreadable = true)

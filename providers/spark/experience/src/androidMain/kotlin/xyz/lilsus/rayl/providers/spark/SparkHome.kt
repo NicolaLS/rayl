@@ -3,6 +3,7 @@ package xyz.lilsus.rayl.providers.spark
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
@@ -19,17 +20,23 @@ import xyz.lilsus.raylsuite.feature.paymentflow.rememberPaymentMessages
 import xyz.lilsus.raylsuite.feature.paymenthub.PaymentHubTab
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentScanFlow
 import xyz.lilsus.raylsuite.feature.settings.SettingsFlow
-import xyz.lilsus.raylsuite.feature.walletmanagement.WalletRemovalAction
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardChange
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsSettings
 
 internal fun NavGraphBuilder.sparkHome(
     runtime: SparkRuntime,
     walletViewModel: WalletViewModel,
+    cards: WalletCardsHost,
+    onLeave: (WalletCardChange) -> Unit,
     onWalletRemoved: () -> Unit
 ) {
     composable<SparkDestination.Home> {
         SparkTabs(
             runtime = runtime,
             walletViewModel = walletViewModel,
+            cards = cards,
+            onLeave = onLeave,
             onWalletRemoved = onWalletRemoved
         )
     }
@@ -40,9 +47,13 @@ internal fun NavGraphBuilder.sparkHome(
 private fun SparkTabs(
     runtime: SparkRuntime,
     walletViewModel: WalletViewModel,
+    cards: WalletCardsHost,
+    onLeave: (WalletCardChange) -> Unit,
     onWalletRemoved: () -> Unit
 ) {
     val tabState = runtime.tabState
+    // Back from adding a card reopens Settings, where it was started.
+    remember(runtime) { if (cards.reopensAddCard()) tabState.select(AppTab.Settings) }
     val selectedTab by tabState.selectedTab.collectAsStateWithLifecycle()
 
     AppTabScaffold(
@@ -55,6 +66,8 @@ private fun SparkTabs(
             runtime = runtime,
             walletViewModel = walletViewModel,
             tab = tab,
+            cards = cards,
+            onLeave = onLeave,
             onWalletRemoved = onWalletRemoved
         )
     }
@@ -66,6 +79,8 @@ internal fun SparkTabContent(
     runtime: SparkRuntime,
     walletViewModel: WalletViewModel,
     tab: AppTab,
+    cards: WalletCardsHost,
+    onLeave: (WalletCardChange) -> Unit,
     onWalletRemoved: () -> Unit
 ) {
     val coordinator = runtime.paymentCoordinator
@@ -104,6 +119,8 @@ internal fun SparkTabContent(
             SparkSettingsTab(
                 runtime = runtime,
                 walletViewModel = walletViewModel,
+                cards = cards,
+                onLeave = onLeave,
                 onWalletRemoved = onWalletRemoved
             )
     }
@@ -113,6 +130,8 @@ internal fun SparkTabContent(
 private fun SparkSettingsTab(
     runtime: SparkRuntime,
     walletViewModel: WalletViewModel,
+    cards: WalletCardsHost,
+    onLeave: (WalletCardChange) -> Unit,
     onWalletRemoved: () -> Unit
 ) {
     val walletState by walletViewModel.state.collectAsStateWithLifecycle()
@@ -122,23 +141,25 @@ private fun SparkSettingsTab(
         if (walletState.access == WalletAccessState.NoWallet) onWalletRemoved()
     }
 
-    SettingsFlow(
-        themePreferences = runtime.themePreferences,
-        languageRepository = runtime.languageRepository,
-        bitcoinPriceProvider = runtime.bitcoinPriceProvider,
-        currencyPreferences = runtime.currencyPreferences,
-        paymentPreferences = runtime.paymentPreferences,
-        legalLinks = runtime.configuration.legalLinks,
-        modifier = Modifier,
-        overviewBottomContent = {
-            WalletRemovalAction(
-                canRemove = !isSubmitting && walletState.access == WalletAccessState.Connected,
-                onRemoveWallet = {
-                    if (!runtime.paymentCoordinator.isSubmitting.value) {
-                        walletViewModel.dispatch(WalletAction.ConfirmRemoval)
-                    }
-                }
-            )
+    WalletCardsSettings(
+        host = cards,
+        busy = isSubmitting || walletState.access != WalletAccessState.Connected,
+        onChange = { if (!runtime.paymentCoordinator.isSubmitting.value) onLeave(it) },
+        onRemovePaying = {
+            if (!runtime.paymentCoordinator.isSubmitting.value) {
+                walletViewModel.dispatch(WalletAction.ConfirmRemoval)
+            }
         }
-    )
+    ) { walletBlock ->
+        SettingsFlow(
+            themePreferences = runtime.themePreferences,
+            languageRepository = runtime.languageRepository,
+            bitcoinPriceProvider = runtime.bitcoinPriceProvider,
+            currencyPreferences = runtime.currencyPreferences,
+            paymentPreferences = runtime.paymentPreferences,
+            legalLinks = runtime.configuration.legalLinks,
+            modifier = Modifier,
+            overviewTopContent = walletBlock
+        )
+    }
 }

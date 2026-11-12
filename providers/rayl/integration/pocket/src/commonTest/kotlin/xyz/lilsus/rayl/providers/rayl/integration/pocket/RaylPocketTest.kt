@@ -256,4 +256,6 @@ internal class FakeWallet : PocketWallet {
     override suspend fun disconnect() {
         disconnected = true
     }
+
+    override suspend fun identityPubkey(): String = "pocket-identity"
 }

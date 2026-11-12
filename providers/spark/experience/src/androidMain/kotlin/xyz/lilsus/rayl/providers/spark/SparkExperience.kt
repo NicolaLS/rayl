@@ -29,6 +29,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.filterNotNull
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 import xyz.lilsus.rayl.providers.spark.experience.R
 import xyz.lilsus.rayl.providers.spark.feature.onboarding.SparkOnboardingDestination
@@ -41,6 +42,8 @@ import xyz.lilsus.raylsuite.core.ui.platform.LocalProductName
 import xyz.lilsus.raylsuite.core.ui.platform.rememberHapticFeedbackManager
 import xyz.lilsus.raylsuite.core.ui.platform.rememberRetainedInstance
 import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardChange
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
 
 @Composable
 fun SparkExperience(
@@ -48,6 +51,7 @@ fun SparkExperience(
     environment: SparkEnvironment,
     startMode: WalletStartMode,
     breezApiKey: String? = null,
+    cards: WalletCardsHost,
     onRemoved: () -> Unit,
     onChooseWallet: () -> Unit,
     onConnectionChanged: (Boolean) -> Unit
@@ -61,7 +65,13 @@ fun SparkExperience(
             key = runtimeKey,
             factory = {
                 SparkRuntime(
-                    host = createAndroidAppHost(context, environment, startMode, breezApiKey),
+                    host = createAndroidAppHost(
+                        context,
+                        environment,
+                        startMode,
+                        breezApiKey,
+                        configuration.storageName
+                    ),
                     configuration = configuration,
                     appSettings = appSettings,
                     haptics = haptics
@@ -80,8 +90,13 @@ fun SparkExperience(
     var navigationReady by remember { mutableStateOf(!walletState.access.isInitialising()) }
 
     var exiting by rememberSaveable { mutableStateOf(false) }
+    // Where to go once the session closed; none cancels setup through [onChooseWallet].
+    var exitChange by rememberSaveable { mutableStateOf<String?>(null) }
     var exitAttempt by remember { mutableStateOf(0) }
     val closeFailed by runtime.closeFailed.collectAsStateWithLifecycle()
+    LaunchedEffect(runtime) {
+        runtime.walletIdentity.filterNotNull().collect { cards.identified("spark:$it") }
+    }
     LaunchedEffect(runtime) {
         runtime.removed.collect { removed ->
             if (removed) onRemoved()
@@ -91,7 +106,8 @@ fun SparkExperience(
         if (!exiting) return@LaunchedEffect
         try {
             runtime.close()
-            onChooseWallet()
+            val change = exitChange?.let(WalletCardChange::decode)
+            if (change == null) onChooseWallet() else cards.apply(change)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
@@ -178,6 +194,11 @@ fun SparkExperience(
                     sparkHome(
                         runtime = runtime,
                         walletViewModel = walletViewModel,
+                        cards = cards,
+                        onLeave = { change ->
+                            exitChange = change.encode()
+                            exiting = true
+                        },
                         onWalletRemoved = {
                             navController.navigate(SparkOnboardingDestination.AddWallet) {
                                 popUpTo(navController.graph.id) { inclusive = true }

@@ -2,6 +2,7 @@ package xyz.lilsus.rayl
 
 import android.app.Application
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -22,12 +24,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.blink.BlinkExperience
 import xyz.lilsus.rayl.providers.nwc.NwcExperience
 import xyz.lilsus.rayl.providers.rayl.RaylExperience
 import xyz.lilsus.rayl.providers.rayl.RaylPasskeys
-import xyz.lilsus.rayl.providers.rayl.RaylWalletOption
+import xyz.lilsus.rayl.providers.rayl.raylRecoveryPhrase
 import xyz.lilsus.rayl.providers.rayl.startRaylPocketEarly
 import xyz.lilsus.rayl.providers.spark.SparkEnvironment
 import xyz.lilsus.rayl.providers.spark.SparkExperience
@@ -40,6 +45,8 @@ import xyz.lilsus.raylsuite.core.telemetry.installTelemetry
 import xyz.lilsus.raylsuite.core.ui.platform.rememberRetainedInstance
 import xyz.lilsus.raylsuite.core.ui.theme.RaylSuiteTheme
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
+import xyz.lilsus.raylsuite.feature.walletmanagement.LocalWalletCardIcons
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardProvider
 
 @Composable
 fun App(
@@ -50,18 +57,46 @@ fun App(
     breezApiKey: String? = null
 ) {
     val settings = rememberAppSettings(RAYL_PREFERENCES)
-    val selection = rememberRetainedInstance(
-        key = "rayl-selection",
-        factory = { RaylSelection(settings) },
+    val context = LocalContext.current.applicationContext
+    val registry = rememberRetainedInstance(
+        key = "rayl-cards",
+        factory = { RaylCards(settings) },
         onDispose = {}
     )
-    val external by selection.external.collectAsStateWithLifecycle()
-    val session by selection.session.collectAsStateWithLifecycle()
-    val preparation by selection.preparation.collectAsStateWithLifecycle()
-    val context = LocalContext.current.applicationContext
+    val cardsHost = rememberRetainedInstance(
+        key = "rayl-cards-host",
+        factory = {
+            RaylWalletCardsHost(
+                registry = registry,
+                scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+                provider = { wallet -> wallet.cardProvider(context) },
+                clearCard = { clearSavedCard(context, it) },
+                pocketRecoveryPhrase = {
+                    raylRecoveryPhrase(context, sparkEnvironment.toRaylEnvironment())
+                }
+            )
+        },
+        onDispose = {}
+    )
+    val paying by registry.paying.collectAsStateWithLifecycle()
+    val notice by registry.notice.collectAsStateWithLifecycle()
+    LaunchedEffect(notice) {
+        val shown = notice as? RaylCardNotice.AlreadyAdded ?: return@LaunchedEffect
+        val existing = shown.cardId?.let { id -> registry.cards.value.firstOrNull { it.id == id } }
+        val message = if (existing == null) {
+            context.getString(R.string.card_already_pocket)
+        } else {
+            context.getString(R.string.card_already_added, existing.name)
+        }
+        // Not a question: Rayl already pays with that wallet.
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        registry.dismissNotice()
+    }
+    val session by registry.session.collectAsStateWithLifecycle()
+    val preparation by registry.preparation.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    LaunchedEffect(selection, external) {
-        selection.prepare { clearSavedWallet(context, it) }
+    LaunchedEffect(registry, paying) {
+        registry.prepare({ clearSavedCard(context, it) })
     }
     val appOnboarding = rememberRetainedInstance(
         key = "rayl-app-onboarding-state",
@@ -69,15 +104,10 @@ fun App(
         onDispose = {}
     )
     val appOnboardingStep by appOnboarding.step.collectAsStateWithLifecycle()
-    val theme = remember(external, session) { DefaultThemePreferences(settings) }
+    val theme = remember(paying, session) { DefaultThemePreferences(settings) }
     val preference by theme.preference.collectAsStateWithLifecycle(
         initialValue = ThemePreference.System
     )
-    val backToRayl = { selection.clear() }
-    val useWallet = { id: String ->
-        val wallet = ExternalWallet.fromId(id)
-        if (wallet != null && selection.external.value == null) selection.choose(wallet)
-    }
     RaylSuiteTheme(themePreference = preference) {
         if (preparation != WalletPreparation.Ready) {
             Column(
@@ -88,7 +118,7 @@ fun App(
                 if (preparation == WalletPreparation.Failed) {
                     Text(stringResource(R.string.wallet_cleanup_failed))
                     TextButton(onClick = {
-                        scope.launch { selection.prepare { clearSavedWallet(context, it) } }
+                        scope.launch { registry.prepare({ clearSavedCard(context, it) }) }
                     }) {
                         Text(stringResource(R.string.wallet_cleanup_retry))
                     }
@@ -98,83 +128,94 @@ fun App(
             }
             return@RaylSuiteTheme
         }
-        key(external, session) {
-            when (external) {
-                null -> if (appOnboardingStep != AppOnboardingStep.Complete) {
-                    AppOnboarding(appOnboarding, settings)
-                } else {
-                    RaylExperience(
-                        configuration = RAYL_POCKET,
-                        environment = sparkEnvironment.toRaylEnvironment(),
-                        breezApiKey = breezApiKey,
-                        passkeys = raylPasskeys,
-                        debugTools = debugTools,
-                        otherWallets = externalWalletOptions(),
-                        walletIcons = externalWalletIcons,
-                        onUseWallet = useWallet,
-                        onErased = selection::restartRaylWallet,
-                        onConnectionChanged = {}
+        CompositionLocalProvider(LocalWalletCardIcons provides walletCardIcons) {
+            key(paying, session) {
+                when (val card = paying) {
+                    null -> if (appOnboardingStep != AppOnboardingStep.Complete) {
+                        AppOnboarding(appOnboarding, settings)
+                    } else {
+                        RaylExperience(
+                            configuration = RAYL_POCKET,
+                            environment = sparkEnvironment.toRaylEnvironment(),
+                            breezApiKey = breezApiKey,
+                            passkeys = raylPasskeys,
+                            debugTools = debugTools,
+                            cards = cardsHost,
+                            onErased = registry::restartPocket,
+                            onConnectionChanged = {}
+                        )
+                    }
+
+                    else -> CardExperience(
+                        card = card,
+                        registry = registry,
+                        cardsHost = cardsHost,
+                        sparkEnvironment = sparkEnvironment,
+                        breezApiKey = breezApiKey
                     )
                 }
-
-                ExternalWallet.Blink -> BlinkExperience(
-                    configuration = RAYL_BLINK,
-                    startMode = selection.startMode,
-                    onRemoved = backToRayl,
-                    onConnectionChanged = {
-                        if (it && selection.external.value == ExternalWallet.Blink) {
-                            selection.connected(ExternalWallet.Blink)
-                        }
-                    }
-                )
-
-                ExternalWallet.Nwc -> NwcExperience(
-                    configuration = RAYL_NWC,
-                    startMode = selection.startMode,
-                    onRemoved = backToRayl,
-                    onConnectionChanged = {
-                        if (it && selection.external.value == ExternalWallet.Nwc) {
-                            selection.connected(ExternalWallet.Nwc)
-                        }
-                    }
-                )
-
-                ExternalWallet.Spark -> SparkExperience(
-                    configuration = RAYL_SPARK,
-                    startMode = selection.startMode,
-                    environment = sparkEnvironment,
-                    breezApiKey = breezApiKey,
-                    onRemoved = backToRayl,
-                    onChooseWallet = backToRayl,
-                    onConnectionChanged = {
-                        if (it && selection.external.value == ExternalWallet.Spark) {
-                            selection.connected(ExternalWallet.Spark)
-                        }
-                    }
-                )
             }
         }
     }
 }
 
+/** The provider experience of the paying [card]. */
 @Composable
-private fun externalWalletOptions(): List<RaylWalletOption> = ExternalWallet.entries.map { wallet ->
-    val (title, description) = when (wallet) {
+private fun CardExperience(
+    card: RaylCard,
+    registry: RaylCards,
+    cardsHost: RaylWalletCardsHost,
+    sparkEnvironment: SparkEnvironment,
+    breezApiKey: String?
+) {
+    val onConnectionChanged = { connected: Boolean ->
+        if (connected) registry.connected(card)
+    }
+    when (card.wallet) {
+        ExternalWallet.Blink -> BlinkExperience(
+            configuration = card.blinkConfiguration(),
+            startMode = registry.startMode,
+            cards = cardsHost,
+            onRemoved = { registry.removed(card) },
+            onConnectionChanged = onConnectionChanged
+        )
+
+        ExternalWallet.Nwc -> NwcExperience(
+            configuration = card.nwcConfiguration(),
+            startMode = registry.startMode,
+            cards = cardsHost,
+            onRemoved = { registry.removed(card) },
+            onConnectionChanged = onConnectionChanged
+        )
+
+        ExternalWallet.Spark -> SparkExperience(
+            configuration = card.sparkConfiguration(),
+            startMode = registry.startMode,
+            environment = sparkEnvironment,
+            breezApiKey = breezApiKey,
+            cards = cardsHost,
+            onRemoved = { registry.removed(card) },
+            onChooseWallet = registry::cancelSetup,
+            onConnectionChanged = onConnectionChanged
+        )
+    }
+}
+
+private fun ExternalWallet.cardProvider(context: Context): WalletCardProvider {
+    val (title, description) = when (this) {
         ExternalWallet.Blink -> R.string.blink_title to R.string.blink_body
         ExternalWallet.Nwc -> R.string.nwc_title to R.string.nwc_body
         ExternalWallet.Spark -> R.string.spark_title to R.string.spark_body
     }
-    RaylWalletOption(wallet.id, stringResource(title), stringResource(description))
+    return WalletCardProvider(id, context.getString(title), context.getString(description))
 }
 
-/** Each external wallet's own mark, by [ExternalWallet.id], for where Rayl offers them. */
-private val externalWalletIcons: Map<String, Int> = ExternalWallet.entries.associate { wallet ->
-    wallet.id to when (wallet) {
-        ExternalWallet.Blink -> R.drawable.wallet_blink
-        ExternalWallet.Nwc -> R.drawable.wallet_nwc
-        ExternalWallet.Spark -> R.drawable.wallet_spark
-    }
-}
+/** Each provider's own mark, by [ExternalWallet.id], where the shared screens show cards. */
+private val walletCardIcons: Map<String, Int> = mapOf(
+    ExternalWallet.Blink.id to R.drawable.wallet_blink,
+    ExternalWallet.Nwc.id to R.drawable.wallet_nwc,
+    ExternalWallet.Spark.id to R.drawable.wallet_spark
+)
 
 /**
  * Starts Rayl's anonymous usage data for this process; call it first in `Application.onCreate`.

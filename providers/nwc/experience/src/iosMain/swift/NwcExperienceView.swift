@@ -35,10 +35,19 @@ private func makeNwcShellAdapter(_ experience: NwcIosExperience) -> NativeShellA
         AnyView(
             NativeSettingsView(
                 controller: experience.settingsController(),
-                trailingContent: AnyView(
-                    NwcWalletSettingsActions(
-                        controller: experience.walletSettingsController(),
-                        onboardingController: experience.onboardingController()
+                // Back from adding a card returns to Wallets with Add a card open.
+                openedOnAppear: experience.cardsController().reopensAddCard()
+                    ? AnyView(NativeWalletCardsAddAgain(controller: experience.cardsController()))
+                    : nil,
+                leadingContent: AnyView(
+                    NativeWalletCardsEntry(
+                        controller: experience.cardsController(),
+                        payingContent: AnyView(
+                            NwcWalletSettingsActions(
+                                controller: experience.walletSettingsController(),
+                                onboardingController: experience.onboardingController()
+                            )
+                        )
                     )
                 )
             )
@@ -131,23 +140,22 @@ private struct NwcWalletSettingsActions: View {
     var body: some View {
         Group {
             if let snapshot = model.snapshot {
+                // The connection's details, right on the card's page.
                 VStack(alignment: .leading, spacing: 12) {
-                    NavigationLink {
-                        NwcWalletDetailsView(snapshot: snapshot)
-                    } label: {
-                        Label(snapshot.detailsTitle, systemImage: "wallet.pass")
+                    if let title = snapshot.walletTitle {
+                        Text(title)
+                            .font(.headline)
+                            .textSelection(.enabled)
                     }
-                    Divider()
-                    NativeWalletRemovalAction(
-                        title: snapshot.removeTitle,
-                        busyMessage: snapshot.removeBusyMessage,
-                        canRemove: !snapshot.isWorking,
-                        onRemove: model.controller.removeWallet
-                    )
+                    NwcWalletDetail(label: snapshot.walletTypeLabel, value: snapshot.walletType)
+                    if let connectionId = snapshot.walletId {
+                        NwcWalletDetail(label: snapshot.connectionIdLabel, value: connectionId)
+                    }
                     if let message = snapshot.removalErrorMessage {
                         Text(message).foregroundStyle(.red)
                     }
                 }
+                .accessibilityIdentifier("nwc_wallet_details")
             } else {
                 ProgressView()
             }
@@ -169,31 +177,11 @@ private struct NwcWalletSettingsActions: View {
     }
 }
 
-private struct NwcWalletDetailsView: View {
-    let snapshot: NwcNativeWalletSettingsSnapshot
+private struct NwcWalletDetail: View {
+    let label: String
+    let value: String
 
     var body: some View {
-        List {
-            if let title = snapshot.walletTitle {
-                Section {
-                    Text(title)
-                        .font(.headline)
-                        .textSelection(.enabled)
-                }
-            }
-
-            Section {
-                detail(snapshot.walletTypeLabel, snapshot.walletType)
-                if let connectionId = snapshot.walletId {
-                    detail(snapshot.connectionIdLabel, connectionId)
-                }
-            }
-        }
-        .navigationTitle(snapshot.detailsTitle)
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func detail(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption.weight(.semibold))

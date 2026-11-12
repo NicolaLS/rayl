@@ -25,7 +25,11 @@ private func seedWalletLifecycleFixture() {
     let configured = fixture == "corrupt-configured"
     guard configured || fixture == "orphan" else { return }
     defaults.set(true, forKey: "rayl.welcome")
+    for key in ["rayl.cards", "rayl.cards.paying", "rayl.cards.setup"] {
+        defaults.removeObject(forKey: key)
+    }
     if configured {
+        // Rayl 1.1's key: the Spark wallet then carries over as the paying card.
         defaults.set("Spark", forKey: "rayl.wallet")
     } else {
         defaults.removeObject(forKey: "rayl.wallet")

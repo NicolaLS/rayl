@@ -40,8 +40,23 @@ private func makeRaylShellAdapter(_ experience: RaylIosExperience) -> NativeShel
             AnyView(
                 NativeSettingsView(
                     controller: experience.settingsController(),
-                    trailingContent: AnyView(
-                        RaylWalletSettingsActions(controller: experience.walletSettingsController())
+                    // Back from adding a card returns to Wallets with Add a card open.
+                    openedOnAppear: experience.cardsController().reopensAddCard()
+                        ? AnyView(NativeWalletCardsAddAgain(controller: experience.cardsController()))
+                        : nil,
+                    leadingContent: AnyView(
+                        NativeWalletCardsEntry(
+                            controller: experience.cardsController(),
+                            balance: AnyView(
+                                RaylWalletSettingsActions(
+                                    controller: experience.walletSettingsController(),
+                                    balanceOnly: true
+                                )
+                            ),
+                            payingContent: AnyView(
+                                RaylWalletSettingsActions(controller: experience.walletSettingsController())
+                            )
+                        )
                     )
                 )
             )
@@ -200,41 +215,6 @@ private struct RaylAccountsView: View {
     }
 }
 
-/// The external wallets the host offers; choosing one closes Rayl's wallet and starts its setup.
-private struct RaylWalletChoiceList: View {
-    let wallets: [RaylWalletOption]
-    let info: String?
-    let isDisabled: Bool
-    let onUseWallet: (String) -> Void
-
-    var body: some View {
-        List {
-            // First what choosing does, then the choices.
-            Section {
-                ForEach(wallets, id: \.id) { wallet in
-                    RaylOnboardingRow(
-                        title: wallet.title,
-                        subtitle: wallet.subtitle,
-                        badge: .wallet(id: wallet.id)
-                    ) {
-                        onUseWallet(wallet.id)
-                    }
-                    .disabled(isDisabled)
-                    .accessibilityIdentifier("rayl_use_wallet_\(wallet.id)")
-                }
-            } header: {
-                if let info {
-                    Text(info)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .textCase(nil)
-                        .padding(.bottom, 8)
-                }
-            }
-        }
-    }
-}
-
 private struct RaylOnboardingRow: View {
     private var hasBadge: Bool {
         if case .none = badge { return false }
@@ -347,42 +327,52 @@ private final class RaylWalletSettingsModel: ObservableObject {
 private struct RaylWalletSettingsActions: View {
     @StateObject private var model: RaylWalletSettingsModel
     @State private var confirmsErase = false
+    @State private var confirmsNewPocket = false
+    /// The balance row for the wallet block at the top of Settings; otherwise Rayl's own
+    /// settings on its page.
+    private let balanceOnly: Bool
 
-    init(controller: RaylNativeWalletSettingsController) {
+    init(controller: RaylNativeWalletSettingsController, balanceOnly: Bool = false) {
         _model = StateObject(wrappedValue: RaylWalletSettingsModel(controller: controller))
+        self.balanceOnly = balanceOnly
     }
 
     // Separate views become separate list rows; buttons sharing one row would share one tap target.
     var body: some View {
         if let snapshot = model.snapshot {
-            balanceRow(snapshot)
-                .sheet(
-                    isPresented: Binding(
-                        get: { (model.snapshot?.fundingStage ?? "idle") != "idle" },
-                        set: { if !$0 { model.controller.resetFunding() } }
-                    )
-                ) {
-                    RaylFundingSheet(model: model)
-                }
-            NavigationLink {
-                RaylUseAnotherWalletView(model: model)
-            } label: {
-                detail(
-                    snapshot.useAnotherWalletTitle,
-                    snapshot.useAnotherWalletBody,
-                    systemImage: "arrow.left.arrow.right"
-                )
+            if balanceOnly {
+                balanceRow(snapshot)
+                    .sheet(
+                        isPresented: Binding(
+                            get: { (model.snapshot?.fundingStage ?? "idle") != "idle" },
+                            set: { if !$0 { model.controller.resetFunding() } }
+                        )
+                    ) {
+                        RaylFundingSheet(model: model)
+                    }
             }
-            .disabled(snapshot.isSubmitting)
-            if snapshot.hasRecoveryPhrase {
-                NavigationLink {
-                    RaylRecoveryPhraseView(model: model)
+            if !balanceOnly && snapshot.pocketLost {
+                Button(role: .destructive) {
+                    confirmsNewPocket = true
                 } label: {
-                    Label(snapshot.recoveryPhraseTitle, systemImage: "key")
+                    detail(
+                        snapshot.startNewPocketTitle,
+                        snapshot.startNewPocketBody,
+                        systemImage: "arrow.counterclockwise"
+                    )
                 }
-                .accessibilityIdentifier("rayl_recovery_phrase")
+                .disabled(snapshot.isSubmitting)
+                .accessibilityIdentifier("rayl_start_new_pocket")
+                .alert(snapshot.startNewPocketConfirmTitle, isPresented: $confirmsNewPocket) {
+                    Button(snapshot.cancelTitle, role: .cancel) {}
+                    Button(snapshot.startTitle, role: .destructive) {
+                        model.controller.startNewPocket()
+                    }
+                } message: {
+                    Text(snapshot.startNewPocketConfirmBody)
+                }
             }
-            if snapshot.canErase {
+            if !balanceOnly && snapshot.canErase {
                 Button(role: .destructive) {
                     confirmsErase = true
                 } label: {
@@ -415,24 +405,16 @@ private struct RaylWalletSettingsActions: View {
         }
     }
 
+    // The shared balance row, so it looks the same whichever wallet is active.
     private func balance(_ snapshot: RaylNativeWalletSettingsSnapshot) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Label(snapshot.balanceTitle, systemImage: "creditcard")
-                Text(snapshot.balance)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if snapshot.keyUnreadable {
-                Text(snapshot.setUpAgainTitle)
-                    .foregroundStyle(.tint)
-            } else if !snapshot.pocketFailed {
-                Text(snapshot.addFundsTitle)
-                    .foregroundStyle(.tint)
-            }
-        }
-        .contentShape(Rectangle())
+        NativeWalletBalanceLabel(
+            title: snapshot.balanceTitle,
+            balance: snapshot.balance,
+            action: snapshot.keyUnreadable
+                ? snapshot.setUpAgainTitle
+                : (snapshot.pocketFailed ? snapshot.retryTitle : snapshot.addFundsTitle),
+            enabled: true
+        )
     }
 
     private func detail(_ title: String, _ body: String, systemImage: String) -> some View {
@@ -445,60 +427,6 @@ private struct RaylWalletSettingsActions: View {
     }
 }
 
-/// The words of a wallet set up without a passkey, read from the Keychain only while shown.
-private struct RaylRecoveryPhraseView: View {
-    @ObservedObject var model: RaylWalletSettingsModel
-    @State private var phrase: String?
-
-    var body: some View {
-        if let snapshot = model.snapshot {
-            List {
-                Section {
-                    Text(phrase ?? "")
-                        .font(.body.monospaced())
-                        .privacySensitive()
-                        .accessibilityIdentifier("rayl_recovery_phrase_words")
-                    Button(snapshot.copyTitle) {
-                        // Local only, so the words never reach other devices through Handoff.
-                        UIPasteboard.general.setItems(
-                            [[UIPasteboard.typeAutomatic: phrase ?? ""]],
-                            options: [.localOnly: true]
-                        )
-                    }
-                    .disabled(phrase == nil)
-                } footer: {
-                    Text(snapshot.recoveryPhraseBody)
-                }
-            }
-            .navigationTitle(snapshot.recoveryPhraseTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                model.controller.recoveryPhrase { phrase = $0 }
-            }
-        }
-    }
-}
-
-/// The entry point to external wallets; choosing one closes Rayl's wallet and starts its setup.
-private struct RaylUseAnotherWalletView: View {
-    @ObservedObject var model: RaylWalletSettingsModel
-
-    var body: some View {
-        Group {
-            if let snapshot = model.snapshot {
-                RaylWalletChoiceList(
-                    wallets: snapshot.otherWallets,
-                    info: snapshot.useAnotherWalletInfo,
-                    isDisabled: snapshot.isSubmitting
-                ) {
-                    model.controller.useWallet(id: $0)
-                }
-            }
-        }
-        .navigationTitle(model.snapshot?.useAnotherWalletTitle ?? "")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
 
 /// Add funds, open for as long as funding is: the invoice to scan, copy, or open in a wallet app on
 /// this phone, then the amount that arrived.

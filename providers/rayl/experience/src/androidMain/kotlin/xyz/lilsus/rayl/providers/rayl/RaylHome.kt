@@ -1,8 +1,5 @@
 package xyz.lilsus.rayl.providers.rayl
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.os.PersistableBundle
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -42,12 +39,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -56,9 +52,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationEventHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import xyz.lilsus.rayl.providers.rayl.experience.R
 import xyz.lilsus.rayl.providers.rayl.feature.payment.raylPaymentStringResource
@@ -77,10 +70,15 @@ import xyz.lilsus.raylsuite.feature.paymentflow.rememberPaymentMessages
 import xyz.lilsus.raylsuite.feature.paymenthub.PaymentHubTab
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentScanFlow
 import xyz.lilsus.raylsuite.feature.settings.SettingsFlow
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletBalanceRow
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsSettings
 
 /** The Android tab shell, shared with the other providers. */
 @Composable
-internal fun RaylTabs(runtime: RaylRuntime, otherWallets: List<RaylWalletOption>) {
+internal fun RaylTabs(runtime: RaylRuntime, cards: WalletCardsHost) {
+    // Back from adding a card reopens Settings, where it was started.
+    remember(runtime) { if (cards.reopensAddCard()) runtime.tabState.select(AppTab.Settings) }
     val selectedTab by runtime.tabState.selectedTab.collectAsStateWithLifecycle()
     AppTabScaffold(
         selectedTab = selectedTab,
@@ -88,16 +86,12 @@ internal fun RaylTabs(runtime: RaylRuntime, otherWallets: List<RaylWalletOption>
             if (!runtime.paymentCoordinator.isSubmitting.value) runtime.tabState.select(tab)
         }
     ) { tab ->
-        RaylTabContent(runtime, otherWallets, tab)
+        RaylTabContent(runtime, cards, tab)
     }
 }
 
 @Composable
-private fun RaylTabContent(
-    runtime: RaylRuntime,
-    otherWallets: List<RaylWalletOption>,
-    tab: AppTab
-) {
+private fun RaylTabContent(runtime: RaylRuntime, cards: WalletCardsHost, tab: AppTab) {
     val coordinator = runtime.paymentCoordinator
     val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
     val selectedTransactionId by runtime.tabState.selectedTransactionId
@@ -128,112 +122,94 @@ private fun RaylTabContent(
             preferredCurrencyCode = { currencyCode }
         )
 
-        AppTab.Settings -> RaylSettingsTab(runtime, otherWallets)
+        AppTab.Settings -> RaylSettingsTab(runtime, cards)
     }
 }
 
+/**
+ * Settings with the shared "Pay with" screens. Choosing another wallet first closes the pocket
+ * session (SPEC-wallet-lifecycle); the pocket itself is never removed.
+ */
 @Composable
-private fun RaylSettingsTab(runtime: RaylRuntime, otherWallets: List<RaylWalletOption>) {
-    var destination by rememberSaveable { mutableStateOf(RaylSettingsDestination.Root) }
-    NavigationEventHandler(
-        state = rememberNavigationEventState(currentInfo = RaylSettingsNavigationInfo(destination)),
-        isForwardEnabled = false,
-        isBackEnabled = destination != RaylSettingsDestination.Root,
-        onBackCompleted = { destination = RaylSettingsDestination.Root }
-    )
-    when (destination) {
-        RaylSettingsDestination.Root -> SettingsFlow(
+private fun RaylSettingsTab(runtime: RaylRuntime, cards: WalletCardsHost) {
+    val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
+    WalletCardsSettings(
+        host = cards,
+        busy = isSubmitting,
+        onChange = { runtime.useWallet(it.encode()) },
+        onRemovePaying = {},
+        balance = { RaylBalanceRow(runtime = runtime) },
+        payingContent = { RaylSettingsActions(runtime = runtime) }
+    ) { walletBlock ->
+        SettingsFlow(
             themePreferences = runtime.themePreferences,
             languageRepository = runtime.languageRepository,
             bitcoinPriceProvider = runtime.bitcoinPriceProvider,
             currencyPreferences = runtime.currencyPreferences,
             paymentPreferences = runtime.paymentPreferences,
             legalLinks = runtime.configuration.legalLinks,
-            overviewBottomContent = {
-                RaylSettingsActions(
-                    runtime = runtime,
-                    onUseAnotherWallet = {
-                        destination = RaylSettingsDestination.UseAnotherWallet
-                    }
-                )
-            }
-        )
-
-        RaylSettingsDestination.UseAnotherWallet -> RaylUseAnotherWalletScreen(
-            runtime = runtime,
-            otherWallets = otherWallets,
-            onBack = { destination = RaylSettingsDestination.Root }
+            overviewTopContent = walletBlock
         )
     }
 }
 
+/** The balance with Add funds, or what keeps the pocket from connecting and the way out. */
 @Composable
-private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> Unit) {
+private fun RaylBalanceRow(runtime: RaylRuntime) {
     val balance by runtime.pocket.balanceSats.collectAsStateWithLifecycle()
     val status by runtime.pocket.status.collectAsStateWithLifecycle()
     val hasRecoveryPhrase by runtime.hasRecoveryPhrase.collectAsStateWithLifecycle()
     // Only a passkey can set an unreadable key up again; without one, reading is retried.
     val unreadable = status == PocketStatus.KeyUnreadable && !hasRecoveryPhrase
     val failed = status == PocketStatus.Failed || status == PocketStatus.KeyUnreadable
-    val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
     val formatter = rememberAmountFormatter()
-    var confirmsErase by rememberSaveable { mutableStateOf(false) }
-    var showsRecoveryPhrase by rememberSaveable { mutableStateOf(false) }
     RaylFundingSheet(runtime.funding)
+    WalletBalanceRow(
+        balance = when {
+            unreadable -> stringResource(R.string.rayl_key_unreadable)
+
+            failed -> stringResource(R.string.rayl_balance_unavailable)
+
+            else ->
+                balance?.let { formatter.format(DisplayAmount(it, DisplayCurrency.Satoshi)) }
+                    ?: stringResource(R.string.rayl_balance_updating)
+        },
+        balanceMaxLines = if (unreadable) 2 else 1,
+        action = when {
+            unreadable -> stringResource(R.string.rayl_set_up_again)
+            failed -> stringResource(R.string.rayl_retry)
+            else -> null
+        },
+        onAddFunds = when {
+            unreadable -> runtime::setUpAgain
+            failed -> runtime::retryPocket
+            else -> runtime.funding::request
+        }
+    )
+}
+
+/** Rayl's own settings on its page while it is active: recovery and debug actions. */
+@Composable
+private fun RaylSettingsActions(runtime: RaylRuntime) {
+    val status by runtime.pocket.status.collectAsStateWithLifecycle()
+    val hasRecoveryPhrase by runtime.hasRecoveryPhrase.collectAsStateWithLifecycle()
+    val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
+    var confirmsErase by rememberSaveable { mutableStateOf(false) }
+    var confirmsNewPocket by rememberSaveable { mutableStateOf(false) }
+    // Without a passkey, an unreadable key has no other copy: only a new pocket is a way out.
+    val lost = status == PocketStatus.KeyUnreadable && hasRecoveryPhrase
 
     Column(verticalArrangement = Arrangement.spacedBy(AppSettingsRowDefaults.RowSpacing)) {
-        AppSettingsRow(
-            title = stringResource(R.string.rayl_balance),
-            subtitle = when {
-                unreadable -> stringResource(R.string.rayl_key_unreadable)
-
-                failed -> stringResource(R.string.rayl_balance_unavailable)
-
-                else ->
-                    balance?.let { formatter.format(DisplayAmount(it, DisplayCurrency.Satoshi)) }
-                        ?: stringResource(R.string.rayl_balance_updating)
-            },
-            subtitleMaxLines = if (unreadable) 2 else 1,
-            icon = Icons.Filled.AccountBalanceWallet,
-            testTag = "rayl_balance",
-            onClick = when {
-                unreadable -> runtime::setUpAgain
-                failed -> runtime::retryPocket
-                else -> runtime.funding::request
-            }
-        ) {
-            Text(
-                text = stringResource(
-                    when {
-                        unreadable -> R.string.rayl_set_up_again
-                        failed -> R.string.rayl_retry
-                        else -> R.string.rayl_add_funds
-                    }
-                ),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        AppSettingsRow(
-            title = stringResource(R.string.rayl_use_another_wallet),
-            subtitle = stringResource(R.string.rayl_use_another_wallet_body),
-            subtitleMaxLines = 2,
-            icon = Icons.Filled.SwapHoriz,
-            onClick = { if (!isSubmitting) onUseAnotherWallet() }
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(AppSettingsRowDefaults.ChevronSize)
-            )
-        }
-        if (hasRecoveryPhrase) {
+        if (lost) {
             AppSettingsRow(
-                title = stringResource(R.string.rayl_recovery_phrase),
-                icon = Icons.Filled.Key,
-                testTag = "rayl_recovery_phrase",
-                onClick = { showsRecoveryPhrase = true }
+                title = stringResource(R.string.rayl_start_new_pocket),
+                subtitle = stringResource(R.string.rayl_start_new_pocket_body),
+                subtitleMaxLines = 3,
+                icon = Icons.Filled.RestartAlt,
+                iconTint = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.error,
+                testTag = "rayl_start_new_pocket",
+                onClick = { if (!isSubmitting) confirmsNewPocket = true }
             )
         }
         if (runtime.canErase) {
@@ -249,8 +225,28 @@ private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> 
         }
     }
 
-    if (showsRecoveryPhrase) {
-        RaylRecoveryPhraseDialog(runtime, onDismiss = { showsRecoveryPhrase = false })
+    if (confirmsNewPocket) {
+        AlertDialog(
+            onDismissRequest = { confirmsNewPocket = false },
+            title = { Text(stringResource(R.string.rayl_start_new_pocket_confirm)) },
+            text = { Text(stringResource(R.string.rayl_start_new_pocket_confirm_body)) },
+            confirmButton = {
+                TextButton(
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    onClick = {
+                        confirmsNewPocket = false
+                        runtime.startNewPocket()
+                    }
+                ) { Text(stringResource(R.string.rayl_start)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmsNewPocket = false }) {
+                    Text(stringResource(R.string.rayl_cancel))
+                }
+            }
+        )
     }
 
     if (confirmsErase) {
@@ -277,165 +273,3 @@ private fun RaylSettingsActions(runtime: RaylRuntime, onUseAnotherWallet: () -> 
         )
     }
 }
-
-/** The words of a wallet set up without a passkey, read from the key store only while shown. */
-@Composable
-private fun RaylRecoveryPhraseDialog(runtime: RaylRuntime, onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    val phrase by produceState<String?>(initialValue = null, runtime) {
-        value = runtime.recoveryPhrase()
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.rayl_recovery_phrase)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(stringResource(R.string.rayl_recovery_phrase_body))
-                Text(
-                    text = phrase.orEmpty(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.testTag("rayl_recovery_phrase_words")
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.rayl_done)) }
-        },
-        dismissButton = {
-            TextButton(
-                enabled = phrase != null,
-                onClick = {
-                    val clip = ClipData.newPlainText("Recovery phrase", phrase).apply {
-                        // Keeps the words out of the clipboard preview (Android 13+).
-                        description.extras = PersistableBundle().apply {
-                            putBoolean("android.content.extra.IS_SENSITIVE", true)
-                        }
-                    }
-                    context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(clip)
-                }
-            ) { Text(stringResource(R.string.rayl_copy)) }
-        }
-    )
-}
-
-/** The entry point to external wallets; choosing one closes Rayl's wallet and starts its setup. */
-@Composable
-private fun RaylUseAnotherWalletScreen(
-    runtime: RaylRuntime,
-    otherWallets: List<RaylWalletOption>,
-    onBack: () -> Unit
-) {
-    val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
-    RaylWalletChoiceScreen(
-        title = stringResource(R.string.rayl_use_another_wallet),
-        info = stringResource(R.string.rayl_use_another_wallet_info),
-        otherWallets = otherWallets,
-        onUseWallet = { if (!isSubmitting) runtime.useWallet(it) },
-        onBack = onBack
-    )
-}
-
-/** The external wallets the host offers; [onUseWallet] receives the chosen one's id. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun RaylWalletChoiceScreen(
-    title: String,
-    info: String?,
-    otherWallets: List<RaylWalletOption>,
-    onUseWallet: (String) -> Unit,
-    onBack: (() -> Unit)?
-) {
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(title) },
-                navigationIcon = { onBack?.let { BackIconButton(onClick = it) } }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .consumeWindowInsets(padding)
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(AppSettingsRowDefaults.RowSpacing)
-        ) {
-            // First what choosing does, then the choices.
-            info?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 12.dp)
-                )
-            }
-            otherWallets.forEach { wallet ->
-                RaylWalletChoiceRow(wallet = wallet, onClick = { onUseWallet(wallet.id) })
-            }
-        }
-    }
-}
-
-/** One wallet to connect, with the host's icon for it or else its initial as a badge. */
-@Composable
-private fun RaylWalletChoiceRow(wallet: RaylWalletOption, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.fillMaxWidth().testTag("rayl_use_wallet_${wallet.id}")
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val icon = LocalRaylWalletIcons.current[wallet.id]
-            if (icon != null) {
-                Image(
-                    painter = painterResource(icon),
-                    contentDescription = null,
-                    modifier = Modifier.size(44.dp)
-                )
-            } else {
-                Box(
-                    modifier = Modifier.size(44.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = wallet.title.take(1),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(text = wallet.title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = wallet.subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(AppSettingsRowDefaults.ChevronSize)
-            )
-        }
-    }
-}
-
-private enum class RaylSettingsDestination { Root, UseAnotherWallet }
-
-private data class RaylSettingsNavigationInfo(val destination: RaylSettingsDestination) :
-    NavigationEventInfo()

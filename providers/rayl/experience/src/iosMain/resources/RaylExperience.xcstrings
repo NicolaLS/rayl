@@ -254,29 +254,6 @@
         }
       }
     },
-    "rayl_copy" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kopieren"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copy"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copiar"
-          }
-        }
-      }
-    },
     "rayl_copy_invoice" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -599,52 +576,6 @@
         }
       }
     },
-    "rayl_recovery_phrase" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wiederherstellungsphrase"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recovery phrase"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Frase de recuperación"
-          }
-        }
-      }
-    },
-    "rayl_recovery_phrase_body" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diese Wörter öffnen dein Rayl-Guthaben in jeder Spark-Wallet. Halte sie geheim."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These words open your Rayl balance in any Spark wallet. Keep them private."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estas palabras abren tu saldo de Rayl en cualquier billetera Spark. Mantenlas en privado."
-          }
-        }
-      }
-    },
     "rayl_retry" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -691,71 +622,117 @@
         }
       }
     },
-    "rayl_use_another_wallet" : {
+    "rayl_start" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Andere Wallet verwenden"
+            "value" : "Anlegen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use another wallet"
+            "value" : "Start"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Usar otra billetera"
+            "value" : "Crear"
           }
         }
       }
     },
-    "rayl_use_another_wallet_body" : {
+    "rayl_start_new_pocket" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mit einer Wallet bezahlen, die du schon hast."
+            "value" : "Neue Pocket anlegen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pay with a wallet you already have."
+            "value" : "Start a new pocket"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paga con una billetera que ya tienes."
+            "value" : "Crear un pocket nuevo"
           }
         }
       }
     },
-    "rayl_use_another_wallet_info" : {
+    "rayl_start_new_pocket_body" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bezahle mit einer Wallet, die du schon hast. Dein Rayl-Guthaben bleibt auf diesem Gerät, und du kannst jederzeit zurückkehren."
+            "value" : "Dieses Telefon kann den Schlüssel deiner Pocket nicht lesen. Eine neue Pocket beginnt leer."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pay with a wallet you already have. Your Rayl balance stays on this device, and you can come back at any time."
+            "value" : "This phone can't read your pocket's key. A new pocket starts empty."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paga con una billetera que ya tienes. Tu saldo de Rayl se queda en este dispositivo y puedes volver cuando quieras."
+            "value" : "Este teléfono no puede leer la clave de tu pocket. Un pocket nuevo empieza vacío."
+          }
+        }
+      }
+    },
+    "rayl_start_new_pocket_confirm" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Pocket anlegen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start a new pocket?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Crear un pocket nuevo?"
+          }
+        }
+      }
+    },
+    "rayl_start_new_pocket_confirm_body" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine jetzige Pocket lässt sich nur noch mit ihrer Wiederherstellungsphrase öffnen, in jeder Spark-Wallet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your current pocket can only be opened again with its recovery phrase, in any Spark wallet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu pocket actual solo se puede abrir de nuevo con su frase de recuperación, en cualquier billetera Spark."
           }
         }
       }

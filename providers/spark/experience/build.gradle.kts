@@ -46,10 +46,10 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
-            implementation(project(":feature:wallet-management"))
+            api(project(":feature:wallet-management"))
         }
         iosMain.dependencies {
-            implementation(project(":feature:wallet-management"))
+            api(project(":feature:wallet-management"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

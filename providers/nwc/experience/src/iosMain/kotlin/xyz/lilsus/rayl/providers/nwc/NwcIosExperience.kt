@@ -28,6 +28,8 @@ import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
 import xyz.lilsus.raylsuite.feature.paymentui.localizedMessage
 import xyz.lilsus.raylsuite.feature.settings.NativeSettingsController
 import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
+import xyz.lilsus.raylsuite.feature.walletmanagement.NativeWalletCardsController
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
 
 /**
  * The Kotlin side of Nwc's native iOS shell. Swift owns the `TabView`; this owns the app scope
@@ -35,9 +37,20 @@ import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
  */
 class NwcIosExperience(
     private val configuration: NwcExperienceConfiguration,
-    private val startMode: WalletStartMode
+    private val startMode: WalletStartMode,
+    private val cards: WalletCardsHost
 ) {
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val nativeCardsControllerDelegate = lazy {
+        NativeWalletCardsController(
+            host = cards,
+            busy = runtime.paymentCoordinator.isSubmitting,
+            languageChanges = runtime.languageRepository.preference,
+            onChange = cards::apply,
+            onRemovePaying = { nativeWalletSettingsController.removeWallet() }
+        )
+    }
 
     private val runtimeDelegate = lazy {
         NwcRuntime(
@@ -51,6 +64,11 @@ class NwcIosExperience(
     }
     private val runtime: NwcRuntime
         get() = runtimeDelegate.value
+
+    init {
+        // Back from adding a card reopens Settings, where it was started.
+        if (cards.reopensAddCard()) runtime.tabState.select(AppTab.Settings)
+    }
 
     private val nativeSettingsControllerDelegate = lazy {
         NativeSettingsController(
@@ -133,7 +151,11 @@ class NwcIosExperience(
                 if (pending) {
                     onChange(false)
                 } else {
-                    runtime.nwcWallet.connection.collect { onChange(it != null) }
+                    runtime.nwcWallet.connection.collect { connection ->
+                        // Reported first, so a card that is already added is turned back.
+                        connection?.let { cards.identified("nwc:${it.walletPublicKey}") }
+                        onChange(connection != null)
+                    }
                 }
             }
         }
@@ -190,6 +212,9 @@ class NwcIosExperience(
         if (nativeWalletSettingsControllerDelegate.isInitialized()) {
             nativeWalletSettingsController.clear()
         }
+        if (nativeCardsControllerDelegate.isInitialized()) {
+            nativeCardsControllerDelegate.value.clear()
+        }
         observerScope.coroutineContext[Job]?.cancel()
         if (runtimeDelegate.isInitialized()) runtime.clear()
     }
@@ -230,6 +255,9 @@ class NwcIosExperience(
     }
 
     fun settingsController(): NativeSettingsController = nativeSettingsController
+
+    /** The shared "Pay with" screens at the top of Settings. */
+    fun cardsController(): NativeWalletCardsController = nativeCardsControllerDelegate.value
 
     fun scanController(): NativePaymentScanController = nativeScanController
 

@@ -7,13 +7,19 @@ import xyz.lilsus.rayl.providers.blink.clearSavedBlinkWallet
 import xyz.lilsus.rayl.providers.nwc.clearSavedNwcWallet
 import xyz.lilsus.rayl.providers.spark.clearSavedSparkWallet
 
-/** Rayl's own wallet is never cleared here; it survives external wallets. See SPEC-wallet-lifecycle. */
-internal suspend fun clearSavedWallet(context: Context, wallet: ExternalWallet): Boolean =
+/** Erases one card's storage. The pocket is never cleared here. See SPEC-wallet-lifecycle. */
+internal suspend fun clearSavedCard(context: Context, card: RaylCard): Boolean =
     withContext(Dispatchers.Default) {
-        when (wallet) {
-            ExternalWallet.Blink -> clearSavedBlinkWallet(context, RAYL_BLINK)
-            ExternalWallet.Nwc -> clearSavedNwcWallet(context, RAYL_NWC)
-            ExternalWallet.Spark -> return@withContext clearSavedSparkWallet(context)
+        when (card.wallet) {
+            ExternalWallet.Blink -> clearSavedBlinkWallet(context, card.blinkConfiguration())
+
+            ExternalWallet.Nwc -> clearSavedNwcWallet(context, card.nwcConfiguration())
+
+            ExternalWallet.Spark ->
+                return@withContext clearSavedSparkWallet(
+                    context,
+                    card.sparkConfiguration().storageName
+                )
         }
         true
     }

@@ -21,7 +21,7 @@ import technology.breez.spark.passkey.PasskeyProvider
 fun createAndroidRaylPocket(context: Context, config: PocketConfig): RaylPocket {
     val appContext = context.applicationContext
     val network = config.network.storageName
-    val directory = File(appContext.noBackupFilesDir, "rayl-pocket/$network")
+    val directory = pocketDirectory(appContext, network)
     val sdkDirectory = File(directory, "sdk")
     return RaylPocket(
         keys = AndroidPocketKeyStore(appContext, directory, network),
@@ -38,6 +38,20 @@ fun createAndroidRaylPocket(context: Context, config: PocketConfig): RaylPocket 
         }
     )
 }
+
+/**
+ * The recovery phrase of the pocket on [config]'s network, which only a pocket set up without a
+ * passkey has. It reads only the key copy, so it works while another wallet pays.
+ */
+suspend fun readAndroidPocketRecoveryPhrase(context: Context, config: PocketConfig): String? {
+    val appContext = context.applicationContext
+    val network = config.network.storageName
+    return AndroidPocketKeyStore(appContext, pocketDirectory(appContext, network), network)
+        .recoveryPhrase()
+}
+
+private fun pocketDirectory(context: Context, network: String) =
+    File(context.noBackupFilesDir, "rayl-pocket/$network")
 
 /**
  * The setup of the pocket [pocket]: derives its key from a passkey for the relying party [rpId],

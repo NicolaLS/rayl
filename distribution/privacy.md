@@ -83,14 +83,15 @@ you use:
   your devices under its own terms. Rayl receives only the key derived from it.
   If you set Rayl's wallet up without a passkey, Rayl creates the key on the
   device and stores it the same way; it is not sent anywhere or backed up.
-- **External wallet credentials:** Your Blink API key, NWC connection URI, or
-  Spark recovery phrase (and passphrase, if you set one) is stored in encrypted
-  app storage on Android or the Keychain on iOS. For a Spark wallet, the Breez
-  SDK also keeps the wallet's data on the device. Only one external wallet is
-  connected at a time. Going back to Rayl's wallet, or cancelling a wallet
-  setup, deletes that wallet's stored credentials and data. While you use an
-  external wallet, Rayl's wallet key copy and data stay on the device so you
-  can go back to it.
+- **Cards (external wallets):** For each card you add, its Blink API key, NWC
+  connection URI, or Spark recovery phrase (and passphrase, if you set one) is
+  stored in encrypted app storage on Android or the Keychain on iOS, apart from
+  every other card. For a Spark card, the Breez SDK also keeps the wallet's
+  data on the device. Rayl also keeps each card's name and the public key that
+  identifies its wallet, so a wallet isn't added twice. Only the wallet that
+  pays is connected. Removing a card, or cancelling its setup, deletes that
+  card's stored credentials and data. While a card pays, Rayl's wallet key copy
+  and data stay on the device so you can pay with it again.
 - **Contacts and Payment Hub widgets:** Contact names, Lightning addresses,
   widget layouts, preset amounts, payment comments, and the local payment
   counts and times used for Favorites and Recents are stored in local app
@@ -121,8 +122,8 @@ Android cloud backup and device-to-device transfer are turned off for Rayl's
 data. On iOS, Rayl's Keychain items are device-only: they are never synced or
 restored to another device. The key copy of Rayl's wallet stays in the
 Keychain if you delete the app, so reinstalling Rayl on the same device opens
-the same wallet. External wallet credentials left in the Keychain by an
-earlier installation are deleted before a new wallet is connected.
+the same wallet. Card credentials left in the Keychain by an earlier
+installation are deleted before any wallet is connected.
 
 ## Network requests and third parties
 
@@ -193,19 +194,21 @@ route them, and on-chain transactions are public and permanent.
 
 ## Deletion and your choices
 
-- **External wallets:** Go back to Rayl's wallet in Settings to delete the
-  external wallet's credentials and data from the device. This does not delete
+- **Cards:** Remove a card in Settings → Wallets to delete its credentials
+  and data from the device. This does not delete
   your account at the provider or revoke a Blink API key or NWC connection; use
   the provider's controls for that.
 - **Rayl's wallet:** Rayl does not offer to delete Rayl's wallet from within the
-  app. On Android, clearing Rayl's storage or
+  app, except to start a new one when the device can no longer read the key of
+  a wallet set up without a passkey. On Android, clearing Rayl's storage or
   uninstalling Rayl deletes the key copy and wallet data from the device. On
   iOS, deleting the app deletes the wallet data, while the key copy stays in
   the device's Keychain until the device is erased. In both cases the funds
   stay in the wallet, and your passkey opens it again. If you delete the
   passkey as well, nobody can open the wallet or recover its funds. A wallet
   set up without a passkey can only be opened again with its recovery phrase,
-  shown in Rayl's Settings, once its key copy is deleted.
+  shown on Rayl's page in Settings → Wallets, once its key copy is
+  deleted.
 - **Contacts and widgets:** Delete them in the Hub. Removing the last PPQ.AI
   widget deletes the stored API key from the device; it does not revoke the
   key at ppq.ai.

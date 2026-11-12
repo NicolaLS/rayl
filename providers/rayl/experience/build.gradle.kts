@@ -10,6 +10,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            api(project(":feature:wallet-management"))
             implementation(project(":providers:rayl:feature:payment"))
             implementation(project(":providers:rayl:integration:pocket"))
             implementation(project(":core:model"))

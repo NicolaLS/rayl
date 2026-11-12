@@ -21,11 +21,18 @@ import xyz.lilsus.raylsuite.feature.paymentflow.rememberPaymentMessages
 import xyz.lilsus.raylsuite.feature.paymenthub.PaymentHubTab
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentScanFlow
 import xyz.lilsus.raylsuite.feature.settings.SettingsFlow
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsHost
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsSettings
 
-internal fun NavGraphBuilder.blinkHome(runtime: BlinkRuntime, onRemoveWallet: () -> Unit) {
+internal fun NavGraphBuilder.blinkHome(
+    runtime: BlinkRuntime,
+    cards: WalletCardsHost,
+    onRemoveWallet: () -> Unit
+) {
     composable<BlinkDestination.Home> {
         BlinkTabs(
             runtime = runtime,
+            cards = cards,
             onRemoveWallet = onRemoveWallet
         )
     }
@@ -33,8 +40,10 @@ internal fun NavGraphBuilder.blinkHome(runtime: BlinkRuntime, onRemoveWallet: ()
 
 /** Blink's Android tab shell. iOS renders its tabs directly with SwiftUI. */
 @Composable
-private fun BlinkTabs(runtime: BlinkRuntime, onRemoveWallet: () -> Unit) {
+private fun BlinkTabs(runtime: BlinkRuntime, cards: WalletCardsHost, onRemoveWallet: () -> Unit) {
     val tabState = runtime.tabState
+    // Back from adding a card reopens Settings, where it was started.
+    remember(runtime) { if (cards.reopensAddCard()) tabState.select(AppTab.Settings) }
     val selectedTab by tabState.selectedTab.collectAsStateWithLifecycle()
 
     AppTabScaffold(
@@ -46,6 +55,7 @@ private fun BlinkTabs(runtime: BlinkRuntime, onRemoveWallet: () -> Unit) {
         BlinkTabContent(
             runtime = runtime,
             tab = tab,
+            cards = cards,
             onRemoveWallet = onRemoveWallet
         )
     }
@@ -53,7 +63,12 @@ private fun BlinkTabs(runtime: BlinkRuntime, onRemoveWallet: () -> Unit) {
 
 /** One tab's content, with no tab bar of its own. */
 @Composable
-internal fun BlinkTabContent(runtime: BlinkRuntime, tab: AppTab, onRemoveWallet: () -> Unit) {
+internal fun BlinkTabContent(
+    runtime: BlinkRuntime,
+    tab: AppTab,
+    cards: WalletCardsHost,
+    onRemoveWallet: () -> Unit
+) {
     val coordinator = runtime.paymentCoordinator
     val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
     val tabState = runtime.tabState
@@ -86,6 +101,7 @@ internal fun BlinkTabContent(runtime: BlinkRuntime, tab: AppTab, onRemoveWallet:
         AppTab.Settings ->
             BlinkSettingsTab(
                 runtime = runtime,
+                cards = cards,
                 onRemoveWallet = onRemoveWallet
             )
     }
@@ -101,7 +117,11 @@ private fun BlinkHubTab(runtime: BlinkRuntime, currencyCode: String) {
 }
 
 @Composable
-private fun BlinkSettingsTab(runtime: BlinkRuntime, onRemoveWallet: () -> Unit) {
+private fun BlinkSettingsTab(
+    runtime: BlinkRuntime,
+    cards: WalletCardsHost,
+    onRemoveWallet: () -> Unit
+) {
     val isSubmitting by runtime.paymentCoordinator.isSubmitting.collectAsStateWithLifecycle()
     val walletSettingsViewModel =
         remember(runtime.blinkWallet) {
@@ -111,22 +131,30 @@ private fun BlinkSettingsTab(runtime: BlinkRuntime, onRemoveWallet: () -> Unit) 
     DisposableEffect(walletSettingsViewModel) {
         onDispose(walletSettingsViewModel::clear)
     }
-    SettingsFlow(
-        themePreferences = runtime.themePreferences,
-        languageRepository = runtime.languageRepository,
-        bitcoinPriceProvider = runtime.bitcoinPriceProvider,
-        currencyPreferences = runtime.currencyPreferences,
-        paymentPreferences = runtime.paymentPreferences,
-        legalLinks = runtime.configuration.legalLinks,
-        modifier = Modifier,
-        overviewBottomContent = {
-            BlinkWalletSettingsActions(
-                state = walletSettingsState,
-                canRemove = !isSubmitting,
-                onLoadFundingWallets = walletSettingsViewModel::loadFundingWallets,
-                onSelectFundingWallet = walletSettingsViewModel::selectFundingWallet,
-                onRemoveWallet = onRemoveWallet
-            )
-        }
-    )
+    val fundingWallet: @Composable () -> Unit = {
+        BlinkWalletSettingsActions(
+            state = walletSettingsState,
+            onLoadFundingWallets = walletSettingsViewModel::loadFundingWallets,
+            onSelectFundingWallet = walletSettingsViewModel::selectFundingWallet
+        )
+    }
+    // Blink keeps no session that must close: the host unmounts it right away.
+    WalletCardsSettings(
+        host = cards,
+        busy = isSubmitting,
+        onChange = { if (!runtime.paymentCoordinator.isSubmitting.value) cards.apply(it) },
+        onRemovePaying = { if (!runtime.paymentCoordinator.isSubmitting.value) onRemoveWallet() },
+        payingContent = fundingWallet
+    ) { walletBlock ->
+        SettingsFlow(
+            themePreferences = runtime.themePreferences,
+            languageRepository = runtime.languageRepository,
+            bitcoinPriceProvider = runtime.bitcoinPriceProvider,
+            currencyPreferences = runtime.currencyPreferences,
+            paymentPreferences = runtime.paymentPreferences,
+            legalLinks = runtime.configuration.legalLinks,
+            modifier = Modifier,
+            overviewTopContent = walletBlock
+        )
+    }
 }

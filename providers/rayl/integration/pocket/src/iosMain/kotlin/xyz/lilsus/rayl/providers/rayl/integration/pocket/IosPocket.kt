@@ -79,6 +79,13 @@ fun createIosRaylPocket(config: PocketConfig): RaylPocket {
 }
 
 /**
+ * The recovery phrase of the pocket on [config]'s network, which only a pocket set up without a
+ * passkey has. It reads only the key copy, so it works while another wallet pays.
+ */
+suspend fun readIosPocketRecoveryPhrase(config: PocketConfig): String? =
+    IosPocketKeyStore(config.network.storageName).recoveryPhrase()
+
+/**
  * The setup of the pocket [pocket]: derives its key from the device's passkeys through
  * [passkeys], or from the stand-in [FilePrfProvider] without one.
  */
