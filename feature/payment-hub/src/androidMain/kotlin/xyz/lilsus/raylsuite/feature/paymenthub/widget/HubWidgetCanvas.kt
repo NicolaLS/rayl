@@ -411,22 +411,26 @@ private fun WidgetGrid(
             if (!state.arranging) viewModel.setArranging(true)
         }
 
+        // The scroll below runs for the whole drag, longer than this composition: it reaches the
+        // current layout through these, not the one the drag started in.
+        val follow by rememberUpdatedState(::followPointer)
+        val currentTopPx by rememberUpdatedState(topPx)
+        val currentViewportHeight by rememberUpdatedState(viewportHeight)
+
         // Near the top or bottom edge a dragged widget scrolls the Hub along.
         LaunchedEffect(draggingId) {
             while (draggingId != null) {
-                val y = pointer.y + topPx - scrollState.value
+                val y = pointer.y + currentTopPx - scrollState.value
+                val bottomEdge = currentViewportHeight - scrollEdgePx
                 val step = when {
                     y < scrollEdgePx -> -((scrollEdgePx - y) / scrollEdgePx).coerceIn(0f, 1f)
-
-                    y > viewportHeight - scrollEdgePx ->
-                        ((y - viewportHeight + scrollEdgePx) / scrollEdgePx).coerceIn(0f, 1f)
-
+                    y > bottomEdge -> ((y - bottomEdge) / scrollEdgePx).coerceIn(0f, 1f)
                     else -> 0f
                 }
                 if (step != 0f) {
                     val moved = scrollState.scrollBy(step * maxScrollStepPx)
                     pointer += Offset(0f, moved)
-                    followPointer()
+                    follow()
                 }
                 delay(16L)
             }
