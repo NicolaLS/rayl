@@ -470,7 +470,7 @@ class WidgetHubViewModel(
 
     /**
      * Asks ppq.ai for a Lightning invoice over [amountInput] US dollars and hands it to the
-     * wallet, which presents and confirms it like any other payment.
+     * wallet, which always asks the user to confirm it.
      */
     fun topUpPpq(widgetId: String, amountInput: String) {
         val service = ppq ?: return
@@ -557,8 +557,8 @@ class WidgetHubViewModel(
     }
 
     /**
-     * Orders a product of the open shop and hands Claro's invoice to the wallet, which presents
-     * and confirms it like any other payment. The shop closes to make room for it.
+     * Orders a product of the open shop and hands Claro's invoice to the wallet, which always asks
+     * the user to confirm it. The shop closes to make room for it.
      */
     fun buyClaro(productId: String) {
         val api = claro ?: return

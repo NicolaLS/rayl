@@ -42,7 +42,7 @@ class PaymentHubController(
 
     private val mutableInvoiceRequests = MutableSharedFlow<String>(extraBufferCapacity = 1)
 
-    /** BOLT11 invoices to pay like any scanned invoice, with the wallet's usual confirmation. */
+    /** BOLT11 invoices to pay like a scanned invoice, but always confirmed: Auto Pay skips them. */
     val invoiceRequests: SharedFlow<String> = mutableInvoiceRequests.asSharedFlow()
 
     private val hub get() = repository.hub.value

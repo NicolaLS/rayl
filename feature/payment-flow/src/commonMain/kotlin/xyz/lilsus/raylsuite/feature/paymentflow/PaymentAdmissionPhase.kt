@@ -33,7 +33,11 @@ internal class PaymentAdmissionPhase(
     private val inputParser = preparation.inputParser
     private val manualAmount = preparation.manualAmount
 
-    suspend fun handlePaymentInput(rawInput: String): AdmissionResult {
+    /** [isFromHubWidget]: a Hub widget's service issued [rawInput], so it is always confirmed. */
+    suspend fun handlePaymentInput(
+        rawInput: String,
+        isFromHubWidget: Boolean = false
+    ): AdmissionResult {
         if (presentation.uiState.value != PaymentUiState.Active) return AdmissionResult.Presented
         preparation.manualEntryContext = null
         return when (val result = inputParser.parse(rawInput)) {
@@ -52,7 +56,7 @@ internal class PaymentAdmissionPhase(
                             }
                         if (rejectExpiredInvoice(target.invoice)) return AdmissionResult.Presented
                         notifyScanSuccess()
-                        processBoltInvoice(target.invoice)
+                        processBoltInvoice(target.invoice, isFromHubWidget)
                     }
 
                     is LightningInputParser.Target.Lnurl -> {
@@ -259,7 +263,10 @@ internal class PaymentAdmissionPhase(
         }
     }
 
-    private fun processBoltInvoice(invoice: Bolt11Invoice): AdmissionResult {
+    private fun processBoltInvoice(
+        invoice: Bolt11Invoice,
+        isFromHubWidget: Boolean
+    ): AdmissionResult {
         val entry =
             manualAmount.reset(
                 ManualAmountConfig(
@@ -276,7 +283,8 @@ internal class PaymentAdmissionPhase(
             AdmissionResult.Payment(
                 PreparedPayment(
                     invoice = invoice,
-                    amountOverrideMsats = null
+                    amountOverrideMsats = null,
+                    isFromHubWidget = isFromHubWidget
                 )
             )
         }

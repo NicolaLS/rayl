@@ -97,11 +97,14 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
             }
         }
         scope.launch {
-            // An invoice a Hub widget obtained from its service is admitted like a scanned one.
+            // An invoice a Hub widget obtained from its service is admitted like a scanned one,
+            // but Auto Pay never pays it: one tap in a widget is not a scan.
             paymentHub.invoiceRequests.collect { invoice ->
                 startAttempt(TelemetryPaymentSource.Hub)
                 launchOperation {
-                    handleAdmissionResult(admission.handlePaymentInput(rawInput = invoice))
+                    handleAdmissionResult(
+                        admission.handlePaymentInput(rawInput = invoice, isFromHubWidget = true)
+                    )
                 }
             }
         }

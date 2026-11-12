@@ -465,10 +465,11 @@ class PaymentFlowCoordinatorTest {
     }
 
     @Test
-    fun anInvoiceFromAHubWidgetIsAdmittedLikeAScannedOne() = flowTest {
-        // MOB-117: a ppq.ai top-up invoice gets the wallet's usual confirmation, and usage data
-        // counts it as started from the Hub.
-        hub.payInvoice(invoice(sats = 20_000).write())
+    fun anInvoiceFromAHubWidgetIsAlwaysConfirmedEvenBelowTheThreshold() = flowTest {
+        // A Claro or ppq.ai invoice is paid only after the user has seen its amount in sats:
+        // Auto Pay is for scans, not for one tap in a widget. Usage data counts it as started
+        // from the Hub.
+        hub.payInvoice(invoice(sats = 500).write())
         testScheduler.advanceUntilIdle()
 
         assertIs<PaymentUiState.Confirm>(coordinator.uiState.value)

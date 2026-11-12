@@ -44,11 +44,14 @@ internal class PaymentConfirmationPhase<P : SettleablePayment>(
         currentCoroutineContext().ensureActive()
         val requiresConfirmation = !request.isManualEntry &&
             amountMsats != null &&
-            confirmationPolicy.shouldConfirm(
-                amountMsats = amountMsats,
-                isManualEntry = false,
-                isPresetTarget = request.targetContext?.isPreset == true
-            )
+            (
+                request.isFromHubWidget ||
+                    confirmationPolicy.shouldConfirm(
+                        amountMsats = amountMsats,
+                        isManualEntry = false,
+                        isPresetTarget = request.targetContext?.isPreset == true
+                    )
+                )
         if (!requiresConfirmation) return ConfirmationResult.Execute(prepared.payment)
 
         val display = confirmationAmount(amountMsats ?: 0L, request.paymentQuote)

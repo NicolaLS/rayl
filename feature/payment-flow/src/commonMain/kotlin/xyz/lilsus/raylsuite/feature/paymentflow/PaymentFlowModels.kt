@@ -19,7 +19,12 @@ data class PreparedPayment(
     val isManualEntry: Boolean = false,
     override val targetContext: HubTargetContext? = null,
     override val lnurlPayDisplay: LnurlPayDisplay? = null,
-    val paymentQuote: PaymentAmountQuote? = null
+    val paymentQuote: PaymentAmountQuote? = null,
+    /**
+     * A Hub widget's service issued the invoice. Auto Pay is for what the user scans, so this is
+     * always confirmed, whatever its amount.
+     */
+    val isFromHubWidget: Boolean = false
 ) : SettleablePayment
 
 data class CompletedPayment(

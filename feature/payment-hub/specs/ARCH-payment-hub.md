@@ -26,7 +26,8 @@ removes everything it was configured with, including any credential.
 Some widgets show live information instead of people to pay. They reach the
 wallet experience only through `PaymentHubController`: it lends them the
 experience's bitcoin prices, and takes an invoice a widget obtained from its
-service into the same payment flow as a scanned invoice.
+service into the same payment flow as a scanned invoice. Unlike a scan, such an
+invoice is always confirmed: Auto Pay never pays it, whatever its amount.
 
 The PPQ.AI and Claro widgets are the Hub's third-party services. Their clients
 belong to the Hub, not to a provider, and the phone calls each service directly:
