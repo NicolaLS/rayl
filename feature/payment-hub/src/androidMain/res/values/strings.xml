@@ -64,7 +64,6 @@
     <string name="hub_widget_empty_body">Add a widget to make your next payment easier.</string>
     <string name="hub_widget_recent_empty">Your recent contacts and shortcuts will appear here.</string>
     <string name="hub_widget_favorites_empty">Your most-used contacts and shortcuts will appear here.</string>
-    <string name="hub_widget_options">Widget options</string>
     <string name="hub_widget_preview_page">Preview %1$d of %2$d</string>
     <string name="hub_widget_error_save">Could not save. Please try again.</string>
     <string name="hub_widget_shortcut_amount">Preset amount</string>

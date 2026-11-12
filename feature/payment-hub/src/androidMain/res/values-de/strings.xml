@@ -64,7 +64,6 @@
     <string name="hub_widget_empty_body">Füge ein Widget hinzu, um deine nächste Zahlung zu vereinfachen.</string>
     <string name="hub_widget_recent_empty">Hier erscheinen deine zuletzt genutzten Kontakte und Kurzbefehle.</string>
     <string name="hub_widget_favorites_empty">Hier erscheinen deine meistgenutzten Kontakte und Kurzbefehle.</string>
-    <string name="hub_widget_options">Widget-Optionen</string>
     <string name="hub_widget_preview_page">Vorschau %1$d von %2$d</string>
     <string name="hub_widget_error_save">Speichern fehlgeschlagen. Bitte versuche es erneut.</string>
     <string name="hub_widget_shortcut_amount">Voreingestellter Betrag</string>

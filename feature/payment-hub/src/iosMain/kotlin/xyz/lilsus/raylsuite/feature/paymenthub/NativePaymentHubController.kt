@@ -168,20 +168,19 @@ class NativePaymentHubController(
 
     fun removeWidget(id: String) = viewModel.removeWidget(id)
 
-    fun moveWidget(id: String, onto: String) = viewModel.moveWidget(id, onto)
-
     fun moveWidgetBy(id: String, offset: Int) = viewModel.moveWidgetBy(id, offset)
 
     fun setArranging(value: Boolean) = viewModel.setArranging(value)
 
     fun pay(actionId: String) = viewModel.pay(actionId)
 
-    fun resizeWidget(id: String, variantId: String) {
-        viewModel.editWidget(id)
-        if (viewModel.state.value.editor?.existingWidgetId != id) return
-        viewModel.selectVariant(variantId)
-        viewModel.configureSelected()
-    }
+    fun resizeWidget(id: String, variantId: String) = viewModel.resizeWidget(id, variantId)
+
+    /** Shows [id] in the place of [targetId] while it is dragged; nothing is saved yet. */
+    fun previewMove(id: String, targetId: String) = viewModel.previewMove(id, targetId)
+
+    /** Keeps the place a dragged widget was let go in. */
+    fun finishMove(id: String) = viewModel.finishMove(id)
 
     fun setCanvasColumns(value: Int) {
         val columns = if (value >= 4) 4 else 2
@@ -617,7 +616,12 @@ class NativePaymentHubController(
                 )
             },
             sizes = definitions.firstOrNull { it.id == definitionId }?.variants.orEmpty().map {
-                NativeHubSizeChoice(it.id, it.title ?: localized(it.titleKey(kind)))
+                NativeHubSizeChoice(
+                    it.id,
+                    it.title ?: localized(it.titleKey(kind)),
+                    it.columns,
+                    it.rows
+                )
             },
             emptyText = localized(
                 when (kind) {
@@ -767,7 +771,8 @@ data class NativeHubInfo(
     val accessibilityLabel: String
 )
 
-data class NativeHubSizeChoice(val id: String, val title: String)
+/** A layout a widget can take, with its shape in grid cells so the menu can draw it. */
+data class NativeHubSizeChoice(val id: String, val title: String, val columns: Int, val rows: Int)
 
 data class NativeHubPerson(
     val id: String,
@@ -864,7 +869,6 @@ data class NativePaymentHubCopy(
     val editHub: String,
     val addWidget: String,
     val editWidget: String,
-    val widgetOptions: String,
     val chooseLayout: String,
     val continueTitle: String,
     val widgetName: String,
@@ -935,7 +939,6 @@ private fun loadCopy() = NativePaymentHubCopy(
     editHub = localized("hub_edit_hub"),
     addWidget = localized("hub_widget_add"),
     editWidget = localized("hub_widget_edit"),
-    widgetOptions = localized("hub_widget_options"),
     chooseLayout = localized("hub_widget_select_variant"),
     continueTitle = localized("hub_widget_continue"),
     widgetName = localized("hub_widget_name"),

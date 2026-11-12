@@ -64,7 +64,6 @@
     <string name="hub_widget_empty_body">Añade un widget para facilitar tu próximo pago.</string>
     <string name="hub_widget_recent_empty">Aquí aparecerán tus contactos y atajos recientes.</string>
     <string name="hub_widget_favorites_empty">Aquí aparecerán tus contactos y atajos más usados.</string>
-    <string name="hub_widget_options">Opciones del widget</string>
     <string name="hub_widget_preview_page">Vista previa %1$d de %2$d</string>
     <string name="hub_widget_error_save">No se pudo guardar. Inténtalo de nuevo.</string>
     <string name="hub_widget_shortcut_amount">Importe predefinido</string>

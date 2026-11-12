@@ -1221,29 +1221,6 @@
         }
       }
     },
-    "hub_widget_options": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Widget options"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Widget-Optionen"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Opciones del widget"
-          }
-        }
-      }
-    },
     "hub_widget_pick_contact": {
       "extractionState": "manual",
       "localizations": {

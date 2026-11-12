@@ -47,6 +47,74 @@ class WidgetHubViewModelTest {
     }
 
     @Test
+    fun aDraggedWidgetShowsItsNewPlaceAndKeepsOnlyTheOneItIsLetGoIn() = runTest {
+        val repo = DefaultPaymentHubRepository(MapSettings())
+        val vm = WidgetHubViewModel(
+            repo,
+            PaymentHubController(repo, this),
+            { "USD" },
+            dispatcher = StandardTestDispatcher(testScheduler)
+        )
+        listOf("USD", "EUR", "GBP").forEach { code ->
+            repo.saveWidget(
+                HubWidgetDraft("local.sats", HubWidgetKind.Sats, LocalHubWidgets.Single, currencyCode = code)
+            )
+        }
+        advanceUntilIdle()
+        val (a, b, c) = repo.hub.value.widgets.map { it.id }
+        fun shown() = vm.state.value.widgets.map { it.id }
+
+        // The others make room as it passes; nothing is saved while it is dragged.
+        vm.previewMove(a, b)
+        vm.previewMove(a, c)
+        assertEquals(listOf(b, c, a), shown())
+        assertEquals(listOf(a, b, c), repo.hub.value.widgets.map { it.id })
+        assertEquals(false, vm.state.value.busy)
+
+        vm.finishMove(a)
+        advanceUntilIdle()
+        assertEquals(listOf(b, c, a), repo.hub.value.widgets.map { it.id })
+        assertEquals(listOf(b, c, a), shown())
+
+        // A drag that ends elsewhere, or with arranging, puts the widget back.
+        vm.previewMove(c, b)
+        vm.cancelMove()
+        assertEquals(listOf(b, c, a), shown())
+        vm.previewMove(c, b)
+        vm.setArranging(false)
+        assertEquals(listOf(b, c, a), shown())
+        vm.clear()
+    }
+
+    @Test
+    fun anotherLayoutAppliesRightAwayWithoutOpeningTheWidgetSettings() = runTest {
+        val repo = DefaultPaymentHubRepository(MapSettings())
+        val vm = WidgetHubViewModel(
+            repo,
+            PaymentHubController(repo, this),
+            { "USD" },
+            dispatcher = StandardTestDispatcher(testScheduler)
+        )
+        repo.saveWidget(
+            HubWidgetDraft("local.rate", HubWidgetKind.Rate, LocalHubWidgets.Single, currencyCode = "EUR")
+        )
+        advanceUntilIdle()
+        val id = repo.hub.value.widgets.single().id
+
+        vm.resizeWidget(id, LocalHubWidgets.Card.id)
+        assertEquals(HubWidgetScreen.Hub, vm.state.value.screen)
+        advanceUntilIdle()
+
+        val widget = repo.hub.value.widgets.single()
+        assertEquals(id, widget.id)
+        assertEquals(LocalHubWidgets.Card, widget.variant)
+        assertEquals("EUR", widget.currencyCode)
+        assertEquals(HubWidgetScreen.Hub, vm.state.value.screen)
+        assertNull(vm.state.value.editor)
+        vm.clear()
+    }
+
+    @Test
     fun shortcutRequiresOneContactAndPositivePresetThenSaves() = runTest {
         val repo = DefaultPaymentHubRepository(MapSettings())
         val host = PaymentHubController(repo, this)

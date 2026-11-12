@@ -70,6 +70,9 @@ class WidgetHubViewModel(
         MutableStateFlow(WidgetHubState(gallery = LocalHubWidgets.definitions))
     val state = mutableState.asStateFlow()
     private var ratesJob: Job? = null
+
+    /** The order shown while a widget is dragged; null when it is the saved one. */
+    private var previewOrder: List<String>? = null
     private val ppqJobs = mutableMapOf<String, Job>()
     private var claroJob: Job? = null
     private var claroOrdersJob: Job? = null
@@ -354,40 +357,54 @@ class WidgetHubViewModel(
     }
 
     fun editWidget(id: String) {
+        val editor = editorFor(id) ?: return
+        mutableState.update {
+            it.copy(screen = HubWidgetScreen.Configure, query = "", error = null, editor = editor)
+        }
+    }
+
+    /**
+     * Gives a placed widget another layout right away, from the Hub, keeping what it was set up
+     * with. A smaller layout keeps only as many people as it holds.
+     */
+    fun resizeWidget(id: String, variantId: String) {
+        if (mutableState.value.busy) return
+        if (repository.hub.value.widget(id)?.variant?.id == variantId) return
+        val editor = editorFor(id) ?: return
+        mutableState.update { it.copy(editor = editor, error = null) }
+        selectVariant(variantId)
+        saveWidget(setUp = false)
+    }
+
+    /** The editor for a placed widget, filled with what it is set up with. */
+    private fun editorFor(id: String): HubWidgetEditor? {
         val hub = repository.hub.value
-        val widget = hub.widget(id) ?: return
+        val widget = hub.widget(id) ?: return null
         val definition = mutableState.value.gallery.firstOrNull { it.id == widget.definitionId }
         if (definition == null) {
             fail(HubWidgetError.Unavailable)
-            return
+            return null
         }
         val variant = definition.variants.firstOrNull { it.id == widget.variant.id }
             ?: definition.variants.first()
         val target = widget.targetId?.let(hub::target)
         val amount = (target?.amountRule as? DirectTargetAmountRule.Preset)?.amount
-        mutableState.update {
-            it.copy(
-                screen = HubWidgetScreen.Configure,
-                query = "",
-                error = null,
-                editor = HubWidgetEditor(
-                    widget.definitionId,
-                    widget.kind,
-                    variant.id,
-                    widget.id,
-                    contactIds = target?.let { listOf(it.contactId) } ?: widget.contactIds,
-                    title = widget.title.orEmpty(),
-                    amountInput = amount?.minor?.formatMinorAmount(
-                        CurrencyCatalog.infoFor(amount.normalizedCurrencyCode).fractionDigits
-                    ).orEmpty(),
-                    currencyCode = amount?.normalizedCurrencyCode
-                        ?: widget.currencyCode
-                        ?: defaultCurrencyCode(),
-                    comment = target?.comment.orEmpty(),
-                    phoneInput = widget.phone.orEmpty()
-                )
-            )
-        }
+        return HubWidgetEditor(
+            widget.definitionId,
+            widget.kind,
+            variant.id,
+            widget.id,
+            contactIds = target?.let { listOf(it.contactId) } ?: widget.contactIds,
+            title = widget.title.orEmpty(),
+            amountInput = amount?.minor?.formatMinorAmount(
+                CurrencyCatalog.infoFor(amount.normalizedCurrencyCode).fractionDigits
+            ).orEmpty(),
+            currencyCode = amount?.normalizedCurrencyCode
+                ?: widget.currencyCode
+                ?: defaultCurrencyCode(),
+            comment = target?.comment.orEmpty(),
+            phoneInput = widget.phone.orEmpty()
+        )
     }
 
     fun removeWidget(id: String) = mutate {
@@ -402,15 +419,47 @@ class WidgetHubViewModel(
         }
     }
 
-    fun moveWidget(id: String, targetId: String) {
-        val index = repository.hub.value.widgets.indexOfFirst { it.id == targetId }
-        if (index >= 0) mutate { repository.moveWidget(id, index) }
+    /**
+     * Shows [id] in the place of [targetId] while it is dragged, without saving: the other
+     * widgets make room as it passes. [finishMove] keeps the place it was let go in.
+     */
+    fun previewMove(id: String, targetId: String) {
+        val order = (previewOrder ?: repository.hub.value.widgets.map { it.id }).toMutableList()
+        val target = order.indexOf(targetId)
+        if (id == targetId || target < 0 || !order.remove(id)) return
+        order.add(target, id)
+        previewOrder = order
+        rebuildTiles()
+    }
+
+    /** Keeps the place [id] was dragged to. */
+    fun finishMove(id: String) {
+        val order = previewOrder ?: return
+        val index = order.indexOf(id)
+        val unchanged = order == repository.hub.value.widgets.map { it.id }
+        if (index < 0 || unchanged || mutableState.value.busy) return cancelMove()
+        mutate {
+            try {
+                repository.moveWidget(id, index)
+            } finally {
+                previewOrder = null
+                rebuildTiles()
+            }
+        }
+    }
+
+    /** Puts a dragged widget back where it was. */
+    fun cancelMove() {
+        if (previewOrder == null) return
+        previewOrder = null
+        rebuildTiles()
     }
     fun moveWidgetBy(id: String, delta: Int) {
         val index = repository.hub.value.widgets.indexOfFirst { it.id == id }
         if (index >= 0) mutate { repository.moveWidget(id, index + delta) }
     }
     fun setArranging(value: Boolean) {
+        if (!value) cancelMove()
         mutableState.update { it.copy(arranging = value, error = null) }
     }
     fun pay(actionId: String) {
@@ -869,7 +918,14 @@ class WidgetHubViewModel(
             }
                 .thenBy { it.id.value }
         )
-        val tiles = hub.widgets.map { widget ->
+        // While a widget is dragged, the others are shown making room for it.
+        val widgets = previewOrder?.let { order ->
+            hub.widgets.sortedBy { widget ->
+                order.indexOf(widget.id).takeIf { it >= 0 }
+                    ?: Int.MAX_VALUE
+            }
+        } ?: hub.widgets
+        val tiles = widgets.map { widget ->
             val targets = when (widget.kind) {
                 HubWidgetKind.Contacts -> widget.contactIds.mapNotNull(hub::contactTarget)
 

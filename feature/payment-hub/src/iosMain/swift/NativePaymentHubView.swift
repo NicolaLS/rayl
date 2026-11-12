@@ -88,7 +88,13 @@ private enum HubGeometry {
 /// The app owns payment behavior; the Hub presents independently configured native widgets.
 struct NativePaymentHubView: View {
     @StateObject private var model: NativePaymentHubModel
-    @State private var hoveredId: String?
+    /// The widget being carried, and the one it last moved onto, so a neighbour of another size
+    /// cannot swap back and forth under the finger.
+    @State private var draggingId: String?
+    @State private var lastTargetId: String?
+    /// The widget iOS lifted for a drag that may not start; kept outside the view's state, so
+    /// lifting a widget for its menu changes nothing on screen.
+    @State private var liftedWidget = HubLiftedWidget()
     @State private var converting: HubConverterTarget?
     @State private var toppingUp: HubPpqTarget?
     @Environment(\.scenePhase) private var scenePhase
@@ -131,6 +137,9 @@ struct NativePaymentHubView: View {
             }
         }
         .onDisappear { model.controller.setArranging(value: false) }
+        .onChange(of: model.snapshot?.canvas.arranging ?? false) { _, arranging in
+            if !arranging { draggingId = nil }
+        }
     }
 
     private func open(_ tile: NativeHubTile) {
@@ -175,21 +184,6 @@ struct NativePaymentHubView: View {
 
     private func canvas(_ state: NativePaymentHubSnapshot) -> some View {
         VStack(spacing: 0) {
-            // The canvas fills the screen: a long press starts arranging and the Add tile adds a
-            // widget, so a bar shows only while arranging, to leave it.
-            if state.canvas.arranging, !state.canvas.tiles.isEmpty {
-                HStack(spacing: 12) {
-                    Text(state.text.editHub).font(.headline).accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Button(state.text.done) {
-                        model.controller.setArranging(value: false)
-                    }
-                    .font(.body.weight(.semibold))
-                    .frame(minHeight: 44)
-                }
-                .padding(.horizontal, HubGeometry.gutter)
-                .disabled(state.busy)
-            }
             if let error = state.error, state.screen == "hub" {
                 Text(error)
                     .font(.footnote)
@@ -235,15 +229,38 @@ struct NativePaymentHubView: View {
             }
         }
         .background(Color(uiColor: .systemGroupedBackground))
+        .overlay(alignment: .topTrailing) {
+            // Arranging ends with Done in the corner, as on the Home Screen; nothing on the Hub
+            // moves for it, so a widget being dragged stays under the finger.
+            if state.canvas.arranging, !state.canvas.tiles.isEmpty {
+                Button(state.text.done) {
+                    model.controller.setArranging(value: false)
+                }
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 18)
+                .frame(height: 36)
+                .background(.regularMaterial, in: Capsule())
+                .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+                .padding(.trailing, HubGeometry.gutter)
+                .padding(.top, 4)
+                .disabled(state.busy)
+                .transition(.scale(scale: 0.85).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: state.canvas.arranging)
     }
 
     private func widgetGrid(_ state: NativePaymentHubSnapshot, unit: CGFloat) -> some View {
         let addPosition = addWidgetPosition(state.canvas)
         return ZStack(alignment: .topLeading) {
             ForEach(Array(state.canvas.tiles.enumerated()), id: \.element.id) { index, tile in
+                let arranging = state.canvas.arranging
+                let carried = draggingId == tile.id
+                let shape = RoundedRectangle(cornerRadius: HubGeometry.corner, style: .continuous)
                 WidgetContent(
                     tile: tile,
-                    interactive: !state.canvas.arranging,
+                    interactive: !arranging,
                     pay: { model.controller.pay(actionId: $0) },
                     open: open
                 )
@@ -251,42 +268,58 @@ struct NativePaymentHubView: View {
                     width: HubGeometry.span(unit, tile.columns),
                     height: HubGeometry.span(unit, tile.rows)
                 )
-                .overlay {
-                    if hoveredId == tile.id {
-                        RoundedRectangle(cornerRadius: HubGeometry.corner)
-                            .strokeBorder(Color.accentColor, lineWidth: 3)
-                    }
-                }
+                // While it is carried, the lifted copy under the finger is the widget.
+                .opacity(carried ? 0 : 1)
                 .overlay(alignment: .topLeading) {
-                    if state.canvas.arranging {
+                    if arranging, !carried {
                         Button { model.controller.removeWidget(id: tile.id) } label: {
                             Image(systemName: "minus")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundStyle(.primary)
-                                .frame(width: 28, height: 28)
+                                .frame(width: 26, height: 26)
                                 .background(.regularMaterial, in: Circle())
+                                .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
                                 .frame(width: 44, height: 44)
                         }
                         .buttonStyle(.plain)
-                        .offset(x: -10, y: -10)
+                        .offset(x: -16, y: -16)
+                        .transition(.scale.combined(with: .opacity))
                         .accessibilityLabel(state.text.remove + ", " + tile.title)
                     }
                 }
-                .overlay(alignment: .topTrailing) {
-                    if state.canvas.arranging {
-                        Menu { widgetActions(tile, index: index, state: state) } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.primary)
-                                .frame(width: 28, height: 28)
-                                .background(.regularMaterial, in: Circle())
-                                .frame(width: 44, height: 44)
-                        }
-                        .offset(x: 10, y: -10)
-                        .accessibilityLabel(state.text.widgetOptions + ", " + tile.title)
-                    }
+                .modifier(HubWiggle(active: arranging && !carried, seed: index))
+                // The lift and the drag keep the widget's own rounded shape.
+                .contentShape(.contextMenuPreview, shape)
+                .contentShape(.dragPreview, shape)
+                .contentShape(shape)
+                // A tap while arranging opens the widget's settings, as on the Home Screen.
+                .gesture(
+                    TapGesture().onEnded { model.controller.editWidget(id: tile.id) },
+                    // Otherwise the widget's own buttons take the tap.
+                    including: arranging ? .all : .subviews
+                )
+                .contextMenu {
+                    if !arranging { widgetMenu(tile, state: state) }
                 }
-                .contextMenu { widgetActions(tile, index: index, state: state) }
+                .onDrag {
+                    // iOS asks for the item as soon as the widget lifts for its menu, before
+                    // anyone drags: only remember which widget it is. Carrying it starts once the
+                    // drag really moves over the Hub (see HubTileDrop), after the menu is gone.
+                    liftedWidget.id = tile.id
+                    return HubDragItem.provider(for: tile.id) {
+                        if liftedWidget.id == tile.id { liftedWidget.id = nil }
+                        guard draggingId == tile.id else { return }
+                        draggingId = nil
+                        model.controller.finishMove(id: tile.id)
+                    }
+                } preview: {
+                    WidgetContent(tile: tile, interactive: false, pay: { _ in })
+                        .frame(
+                            width: HubGeometry.span(unit, tile.columns),
+                            height: HubGeometry.span(unit, tile.rows)
+                        )
+                        .contentShape(.dragPreview, shape)
+                }
                 .accessibilityAction(named: Text(state.text.editWidget)) {
                     model.controller.editWidget(id: tile.id)
                 }
@@ -299,35 +332,73 @@ struct NativePaymentHubView: View {
                 .accessibilityAction(named: Text(state.text.remove)) {
                     model.controller.removeWidget(id: tile.id)
                 }
-                .draggable(tile.id)
-                .dropDestination(for: String.self) { ids, _ in
-                    guard !state.busy, ids.count == 1, let id = ids.first,
-                        id != tile.id, state.canvas.tiles.contains(where: { $0.id == id })
-                    else {
-                        return false
-                    }
-                    model.controller.moveWidget(id: id, onto: tile.id)
-                    hoveredId = nil
-                    return true
-                } isTargeted: { targeted in
-                    if targeted {
-                        hoveredId = tile.id
-                    } else if hoveredId == tile.id {
-                        hoveredId = nil
-                    }
-                }
                 .offset(
                     x: (unit + HubGeometry.gap) * CGFloat(tile.column),
                     y: (unit + HubGeometry.gap) * CGFloat(tile.row)
                 )
             }
 
-            addWidgetTile(state, unit: unit)
-                .offset(
-                    x: (unit + HubGeometry.gap) * CGFloat(addPosition.column),
-                    y: (unit + HubGeometry.gap) * CGFloat(addPosition.row)
-                )
+            // Where a carried widget can land: one slot over each widget, apart from the widgets
+            // themselves. iOS does not hand a drop to the view a drag started from, so a widget
+            // let go over its own new place would otherwise never be put down.
+            if draggingId != nil {
+                ForEach(state.canvas.tiles, id: \.id) { tile in
+                    Color.clear
+                        .frame(
+                            width: HubGeometry.span(unit, tile.columns),
+                            height: HubGeometry.span(unit, tile.rows)
+                        )
+                        .contentShape(Rectangle())
+                        .onDrop(
+                            of: [.text],
+                            delegate: HubTileDrop(
+                                targetId: tile.id,
+                                lifted: liftedWidget,
+                                draggingId: $draggingId,
+                                lastTargetId: $lastTargetId,
+                                controller: model.controller
+                            )
+                        )
+                        .offset(
+                            x: (unit + HubGeometry.gap) * CGFloat(tile.column),
+                            y: (unit + HubGeometry.gap) * CGFloat(tile.row)
+                        )
+                        .accessibilityHidden(true)
+                }
+            }
+
+            // Arranging is about the widgets already placed, so adding one waits.
+            if !state.canvas.arranging {
+                addWidgetTile(state, unit: unit)
+                    .offset(
+                        x: (unit + HubGeometry.gap) * CGFloat(addPosition.column),
+                        y: (unit + HubGeometry.gap) * CGFloat(addPosition.row)
+                    )
+                    .transition(.opacity)
+            }
         }
+        // Widgets glide to their new places as a carried one passes, or as one changes size.
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: placementKey(state.canvas))
+        .animation(.easeInOut(duration: 0.2), value: state.canvas.arranging)
+        // A tap on the Hub around the widgets ends arranging.
+        .background {
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if state.canvas.arranging { model.controller.setArranging(value: false) }
+                }
+        }
+        // A widget let go between the others keeps the place it was shown in.
+        .onDrop(
+            of: [.text],
+            delegate: HubTileDrop(
+                targetId: nil,
+                lifted: liftedWidget,
+                draggingId: $draggingId,
+                lastTargetId: $lastTargetId,
+                controller: model.controller
+            )
+        )
         .frame(
             maxWidth: .infinity,
             minHeight: HubGeometry.span(unit, max(state.canvas.rows, addPosition.row + 1)),
@@ -389,45 +460,47 @@ struct NativePaymentHubView: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// What a long press on a widget offers, as on the Home Screen: its layouts as a row of their
+    /// shapes, then editing it, arranging the Hub, and removing it.
     @ViewBuilder
-    private func widgetActions(_ tile: NativeHubTile, index: Int, state: NativePaymentHubSnapshot)
-        -> some View
-    {
-        Button(state.text.editWidget, systemImage: "slider.horizontal.3") {
-            model.controller.editWidget(id: tile.id)
+    private func widgetMenu(_ tile: NativeHubTile, state: NativePaymentHubSnapshot) -> some View {
+        if tile.sizes.count > 1 {
+            Section {
+                Picker(
+                    state.text.chooseLayout,
+                    selection: Binding(
+                        get: { tile.variantId },
+                        set: { model.controller.resizeWidget(id: tile.id, variantId: $0) }
+                    )
+                ) {
+                    ForEach(tile.sizes, id: \.id) { size in
+                        Label {
+                            Text(size.title)
+                        } icon: {
+                            Image(uiImage: HubLayoutGlyph.image(columns: Int(size.columns), rows: Int(size.rows)))
+                        }
+                        .tag(size.id)
+                    }
+                }
+                .pickerStyle(.palette)
+            }
         }
-        if !state.canvas.arranging {
+        Section {
+            Button(state.text.editWidget, systemImage: "info.circle") {
+                model.controller.editWidget(id: tile.id)
+            }
             Button(state.text.editHub, systemImage: "square.grid.2x2") {
                 model.controller.setArranging(value: true)
             }
-        }
-        if tile.sizes.count > 1 {
-            Menu(state.text.chooseLayout) {
-                ForEach(tile.sizes, id: \.id) { size in
-                    Button {
-                        model.controller.resizeWidget(id: tile.id, variantId: size.id)
-                    } label: {
-                        if size.id == tile.variantId {
-                            Label(size.title, systemImage: "checkmark")
-                        } else {
-                            Text(size.title)
-                        }
-                    }
-                }
+            Button(state.text.remove, systemImage: "minus.circle", role: .destructive) {
+                model.controller.removeWidget(id: tile.id)
             }
         }
-        Button(state.text.moveUp, systemImage: "arrow.up") {
-            model.controller.moveWidgetBy(id: tile.id, offset: -1)
-        }
-        .disabled(index == 0)
-        Button(state.text.moveDown, systemImage: "arrow.down") {
-            model.controller.moveWidgetBy(id: tile.id, offset: 1)
-        }
-        .disabled(index == state.canvas.tiles.count - 1)
-        Divider()
-        Button(state.text.remove, systemImage: "minus.circle", role: .destructive) {
-            model.controller.removeWidget(id: tile.id)
-        }
+    }
+
+    /// Where every widget sits, so a change of order or size animates.
+    private func placementKey(_ canvas: NativeHubCanvas) -> [String] {
+        canvas.tiles.map { "\($0.id)@\($0.column),\($0.row),\($0.columns)x\($0.rows)" }
     }
 
     private func addWidgetPosition(_ canvas: NativeHubCanvas) -> (column: Int32, row: Int32) {
@@ -1443,6 +1516,141 @@ private struct WidgetContent: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(person.title + (person.amount.map { ", " + $0 } ?? ""))
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// The widget iOS has lifted, which becomes the carried one once its drag moves.
+private final class HubLiftedWidget {
+    var id: String?
+}
+
+/// Starts carrying a lifted widget once its drag moves over the Hub, moves it into the place of
+/// the one it passes over, and keeps the order where it is let go. With no target it stands for
+/// the Hub around and between the widgets.
+private struct HubTileDrop: DropDelegate {
+    let targetId: String?
+    let lifted: HubLiftedWidget
+    @Binding var draggingId: String?
+    @Binding var lastTargetId: String?
+    let controller: NativePaymentHubController
+
+    private var carried: String? { draggingId ?? lifted.id }
+
+    func dropEntered(info: DropInfo) {
+        startCarrying()
+        guard let dragged = draggingId, let target = targetId else { return }
+        if target == dragged {
+            lastTargetId = nil
+            return
+        }
+        guard target != lastTargetId else { return }
+        lastTargetId = target
+        controller.previewMove(id: dragged, targetId: target)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        startCarrying()
+        return DropProposal(operation: carried == nil ? .forbidden : .move)
+    }
+
+    func validateDrop(info: DropInfo) -> Bool { carried != nil }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let dragged = carried else { return false }
+        draggingId = nil
+        lastTargetId = nil
+        lifted.id = nil
+        controller.finishMove(id: dragged)
+        return true
+    }
+
+    /// The drag has really started: the widget is carried and the Hub arranges. This waits a
+    /// turn of the main queue, since iOS is still putting its menu away when the drag begins.
+    private func startCarrying() {
+        guard draggingId == nil, let id = lifted.id else { return }
+        let draggingId = $draggingId
+        let lastTargetId = $lastTargetId
+        let controller = controller
+        DispatchQueue.main.async {
+            guard draggingId.wrappedValue == nil else { return }
+            draggingId.wrappedValue = id
+            lastTargetId.wrappedValue = nil
+            controller.setArranging(value: true)
+        }
+    }
+}
+
+/// The item a carried widget travels as. A drag let go outside the Hub calls no drop delegate,
+/// so the end of the drag is noticed when the system lets go of the item.
+private enum HubDragItem {
+    private final class EndWatcher: NSObject {
+        let onEnd: () -> Void
+        init(onEnd: @escaping () -> Void) { self.onEnd = onEnd }
+        deinit {
+            let onEnd = onEnd
+            DispatchQueue.main.async { onEnd() }
+        }
+    }
+
+    private static var watcherKey: UInt8 = 0
+
+    static func provider(for id: String, onEnd: @escaping () -> Void) -> NSItemProvider {
+        let provider = NSItemProvider(object: id as NSString)
+        objc_setAssociatedObject(provider, &watcherKey, EndWatcher(onEnd: onEnd), .OBJC_ASSOCIATION_RETAIN)
+        return provider
+    }
+}
+
+/// The gentle wiggle of an arranged widget, as on the Home Screen; still with Reduce Motion.
+private struct HubWiggle: ViewModifier {
+    let active: Bool
+    let seed: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var tilted = false
+
+    private var wiggles: Bool { active && !reduceMotion }
+
+    func body(content: Content) -> some View {
+        content
+            .rotationEffect(.degrees(wiggles ? (tilted ? 0.9 : -0.9) : 0))
+            .onChange(of: wiggles, initial: true) { _, on in
+                guard on else {
+                    withAnimation(.easeOut(duration: 0.15)) { tilted = false }
+                    return
+                }
+                tilted = false
+                // Each widget keeps its own pace, so the Hub never sways as one.
+                let pace = 0.15 + Double(seed % 3) * 0.012
+                withAnimation(.easeInOut(duration: pace).repeatForever(autoreverses: true).delay(Double(seed % 4) * 0.03)) {
+                    tilted = true
+                }
+            }
+    }
+}
+
+/// A layout drawn as its shape, for the menu's row of layouts: a small square, a wide one, a
+/// large one.
+private enum HubLayoutGlyph {
+    private static var cache: [String: UIImage] = [:]
+
+    static func image(columns: Int, rows: Int) -> UIImage {
+        let key = "\(columns)x\(rows)"
+        if let image = cache[key] { return image }
+        let canvas = CGSize(width: 26, height: 26)
+        let cell = canvas.width / 2.2
+        let width = cell * CGFloat(columns) + CGFloat(columns - 1) * cell * 0.2
+        let height = cell * CGFloat(rows) + CGFloat(rows - 1) * cell * 0.2
+        let rect = CGRect(
+            x: (canvas.width - width) / 2, y: (canvas.height - height) / 2, width: width, height: height
+        ).insetBy(dx: 0.8, dy: 0.8)
+        let image = UIGraphicsImageRenderer(size: canvas).image { _ in
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: cell * 0.3)
+            path.lineWidth = 1.6
+            UIColor.black.setStroke()
+            path.stroke()
+        }.withRenderingMode(.alwaysTemplate)
+        cache[key] = image
+        return image
     }
 }
 

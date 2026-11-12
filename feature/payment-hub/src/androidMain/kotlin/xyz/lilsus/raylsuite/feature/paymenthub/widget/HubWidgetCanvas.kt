@@ -1,9 +1,25 @@
 package xyz.lilsus.raylsuite.feature.paymenthub.widget
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,14 +39,22 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.RemoveCircleOutline
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +65,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,21 +77,33 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -74,8 +111,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetKind
@@ -156,7 +197,6 @@ internal fun HubWidgetCanvas(
     }
     // The canvas runs edge to edge: tiles scroll under the status bar, which a fade keeps legible.
     val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val arrangingBar = state.arranging && state.widgets.isNotEmpty()
     val page = MaterialTheme.colorScheme.surfaceContainer
     // Pulling down refreshes every widget at once, with a tick when the pull takes; the spinner
     // stays until each price and balance has arrived or failed.
@@ -188,32 +228,14 @@ internal fun HubWidgetCanvas(
         }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // The canvas fills the screen: a long press starts arranging and the Add tile adds a
-            // widget, so a bar shows only while arranging, to leave it.
-            if (arrangingBar) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(top = statusBar)
-                        .padding(horizontal = 16.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.hub_edit_hub),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f).semantics { heading() }
-                    )
-                    TextButton(onClick = { viewModel.setArranging(false) }, enabled = !state.busy) {
-                        Text(stringResource(R.string.hub_canvas_done))
-                    }
-                }
-            }
             state.error?.let { error ->
                 Text(
                     error.label(state.selectedVariant?.capacity ?: 1),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics {
-                        liveRegion = LiveRegionMode.Polite
-                    }
+                    modifier = Modifier.padding(top = statusBar)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite }
                 )
             }
             Box(contentAlignment = Alignment.TopCenter, modifier = Modifier.fillMaxSize()) {
@@ -229,7 +251,9 @@ internal fun HubWidgetCanvas(
                                 .verticalScroll(scrollState)
                         )
                     } else {
-                        val top = (if (arrangingBar) 0.dp else statusBar) + 16.dp
+                        // Nothing above the grid moves while arranging, so a widget being dragged
+                        // stays under the finger.
+                        val top = (if (state.error == null) statusBar else 0.dp) + 16.dp
                         WidgetGrid(
                             state = state,
                             viewModel = viewModel,
@@ -240,22 +264,39 @@ internal fun HubWidgetCanvas(
                             topPadding = top,
                             modifier = Modifier.fillMaxWidth()
                                 .verticalScroll(scrollState)
-                                .padding(start = 16.dp, end = 16.dp, top = top, bottom = 16.dp)
+                                .padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = top,
+                                    // Room to scroll the last widgets clear of the Done button.
+                                    bottom = if (state.arranging) 96.dp else 16.dp
+                                )
                         )
                     }
                 }
             }
         }
-        if (!arrangingBar) {
-            Box(
-                Modifier.fillMaxWidth().height(statusBar + FADE).background(
-                    Brush.verticalGradient(
-                        // Solid behind the status bar, fading out just below it.
-                        0f to page,
-                        statusBar / (statusBar + FADE) to page,
-                        1f to page.copy(alpha = 0f)
-                    )
+        Box(
+            Modifier.fillMaxWidth().height(statusBar + FADE).background(
+                Brush.verticalGradient(
+                    // Solid behind the status bar, fading out just below it.
+                    0f to page,
+                    statusBar / (statusBar + FADE) to page,
+                    1f to page.copy(alpha = 0f)
                 )
+            )
+        )
+        // Arranging ends with Done where the thumb is, and the Hub above it never moves.
+        AnimatedVisibility(
+            visible = state.arranging && state.widgets.isNotEmpty(),
+            enter = scaleIn() + fadeIn(),
+            exit = scaleOut() + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+        ) {
+            ExtendedFloatingActionButton(
+                onClick = { viewModel.setArranging(false) },
+                icon = { Icon(Icons.Filled.Check, contentDescription = null) },
+                text = { Text(stringResource(R.string.hub_canvas_done)) }
             )
         }
     }
@@ -288,6 +329,11 @@ private fun HubEmptyCanvas(enabled: Boolean, onAdd: () -> Unit, modifier: Modifi
     }
 }
 
+/**
+ * The placed widgets. A long press lifts a widget and opens its menu; moving on from there, or a
+ * long press while arranging, picks it up, and the others make room as it passes. The order is
+ * saved once it is let go.
+ */
 @Composable
 private fun WidgetGrid(
     state: WidgetHubState,
@@ -299,11 +345,22 @@ private fun WidgetGrid(
     topPadding: Dp,
     modifier: Modifier
 ) {
+    // The widget whose menu is open; it stays lifted above the others until the menu closes.
+    var menuId by remember { mutableStateOf<String?>(null) }
     var draggingId by remember { mutableStateOf<String?>(null) }
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    var dragStart by remember { mutableStateOf(Offset.Zero) }
-    var dropId by remember { mutableStateOf<String?>(null) }
-    var dragScrollStart by remember { mutableStateOf(0) }
+    // Where the finger is in the grid, where on the widget it took hold, and how far it has moved
+    // since the menu opened.
+    var pointer by remember { mutableStateOf(Offset.Zero) }
+    var grab by remember { mutableStateOf(Offset.Zero) }
+    var travel by remember { mutableStateOf(0f) }
+    // The widget last moved onto, so a neighbour of another size cannot swap back and forth.
+    var lastTarget by remember { mutableStateOf<String?>(null) }
+    val haptics = LocalHapticFeedback.current
+    val baseConfiguration = LocalViewConfiguration.current
+    val touchSlop = baseConfiguration.touchSlop
+    LaunchedEffect(state.arranging) {
+        if (!state.arranging) draggingId = null
+    }
     val gap = 12.dp
     BoxWithConstraints(modifier) {
         val unit = (maxWidth - gap * (columns - 1)) / columns
@@ -325,117 +382,173 @@ private fun WidgetGrid(
         val density = LocalDensity.current
         val stridePx = with(density) { (unit + gap).toPx() }
         val gapPx = with(density) { gap.toPx() }
-        val gutterPx = with(density) { topPadding.toPx() }
+        val topPx = with(density) { topPadding.toPx() }
         val scrollEdgePx = with(density) { 64.dp.toPx() }
         val maxScrollStepPx = with(density) { 12.dp.toPx() }
 
-        fun updateDropTarget() {
-            val dragged = placements.firstOrNull { it.value.id == draggingId } ?: return
-            val point = Offset(stridePx * dragged.column, stridePx * dragged.row) +
-                dragStart + dragOffset + Offset(0f, (scrollState.value - dragScrollStart).toFloat())
-            dropId = placements.firstOrNull { other ->
+        fun originOf(id: String): Offset? = placements.firstOrNull { it.value.id == id }?.let {
+            Offset(stridePx * it.column, stridePx * it.row)
+        }
+
+        // The others make room as the finger passes over them; nothing is saved until it lets go.
+        fun followPointer() {
+            val dragged = draggingId ?: return
+            val over = placements.firstOrNull { other ->
                 val left = stridePx * other.column
                 val top = stridePx * other.row
                 val right = stridePx * (other.column + other.columns) - gapPx
                 val bottom = stridePx * (other.row + other.rows) - gapPx
-                other.value.id != draggingId && point.x in left..right && point.y in top..bottom
+                pointer.x in left..right && pointer.y in top..bottom
             }?.value?.id
+            if (over == null || over == dragged) {
+                lastTarget = null
+            } else if (over != lastTarget) {
+                lastTarget = over
+                viewModel.previewMove(dragged, over)
+            }
         }
 
+        fun pickUp(id: String) {
+            menuId = null
+            lastTarget = null
+            draggingId = id
+            if (!state.arranging) viewModel.setArranging(true)
+        }
+
+        // Near the top or bottom edge a dragged widget scrolls the Hub along.
         LaunchedEffect(draggingId) {
             while (draggingId != null) {
-                val dragged = placements.firstOrNull { it.value.id == draggingId } ?: break
-                val pointerY = stridePx * dragged.row + dragStart.y + dragOffset.y +
-                    gutterPx - dragScrollStart
-                val scroll = when {
-                    pointerY < scrollEdgePx ->
-                        -((scrollEdgePx - pointerY) / scrollEdgePx).coerceIn(0f, 1f)
+                val y = pointer.y + topPx - scrollState.value
+                val step = when {
+                    y < scrollEdgePx -> -((scrollEdgePx - y) / scrollEdgePx).coerceIn(0f, 1f)
 
-                    pointerY > viewportHeight - scrollEdgePx ->
-                        ((pointerY - viewportHeight + scrollEdgePx) / scrollEdgePx).coerceIn(0f, 1f)
+                    y > viewportHeight - scrollEdgePx ->
+                        ((y - viewportHeight + scrollEdgePx) / scrollEdgePx).coerceIn(0f, 1f)
 
                     else -> 0f
                 }
-                if (scroll != 0f) {
-                    scrollState.scrollBy(scroll * maxScrollStepPx)
-                    updateDropTarget()
+                if (step != 0f) {
+                    val moved = scrollState.scrollBy(step * maxScrollStepPx)
+                    pointer += Offset(0f, moved)
+                    followPointer()
                 }
                 delay(16L)
             }
         }
-        Box(Modifier.fillMaxWidth().height(unit * rows + gap * (rows - 1).coerceAtLeast(0))) {
-            placements.forEachIndexed { index, placement ->
-                val tile = placement.value
-                key(tile.id) {
-                    val dragging = draggingId == tile.id
-                    val dragModifier = Modifier.widgetDrag(
-                        onStart = { offset ->
-                            viewModel.setArranging(true)
-                            draggingId = tile.id
-                            dragStart = offset
-                            dragScrollStart = scrollState.value
-                            dragOffset = Offset.Zero
-                            dropId = null
-                        },
-                        onDrag = { offset ->
-                            dragOffset = offset
-                            updateDropTarget()
-                        },
-                        onEnd = {
-                            dropId?.let { viewModel.moveWidget(tile.id, it) }
-                            draggingId = null
-                            dragOffset = Offset.Zero
-                            dropId = null
-                        },
-                        onCancel = {
-                            draggingId = null
-                            dragOffset = Offset.Zero
-                            dropId = null
-                        }
-                    )
-                    WidgetCanvasTile(
-                        tile = tile,
-                        state = state,
-                        onOpen = onOpen,
-                        interactive = !state.busy && !state.arranging && draggingId == null,
-                        arranging = state.arranging,
-                        enabled = !state.busy && draggingId == null,
-                        variants = state.gallery.firstOrNull { it.id == tile.definitionId }
-                            ?.variants.orEmpty(),
-                        canMoveUp = index > 0,
-                        canMoveDown = index < placements.lastIndex,
-                        dropTarget = dropId == tile.id,
-                        viewModel = viewModel,
-                        modifier = Modifier.offset(
-                            x = (unit + gap) * placement.column,
-                            y =
-                                (unit + gap) * placement.row
+        run {
+            Box(Modifier.fillMaxWidth().height(unit * rows + gap * (rows - 1).coerceAtLeast(0))) {
+                placements.forEachIndexed { index, placement ->
+                    val tile = placement.value
+                    key(tile.id) {
+                        val dragging = draggingId == tile.id
+                        val slot = IntOffset(
+                            (stridePx * placement.column).roundToInt(),
+                            (stridePx * placement.row).roundToInt()
                         )
-                            .width(unit * placement.columns + gap * (placement.columns - 1))
-                            .height(unit * placement.rows + gap * (placement.rows - 1))
-                            .zIndex(if (dragging) 2f else 0f)
-                            .graphicsLayer {
-                                translationX = if (dragging) dragOffset.x else 0f
-                                translationY = if (dragging) {
-                                    dragOffset.y + scrollState.value - dragScrollStart
-                                } else {
-                                    0f
-                                }
-                                scaleX = if (dragging) 1.03f else 1f
-                                scaleY = if (dragging) 1.03f else 1f
-                                alpha = if (dragging) 0.9f else 1f
-                            }.then(if (state.busy) Modifier else dragModifier)
+                        // A dragged widget follows the finger; every other one glides to its place.
+                        val target = if (dragging) (pointer - grab).round() else slot
+                        val position = remember { Animatable(target, IntOffset.VectorConverter) }
+                        LaunchedEffect(target, dragging) {
+                            if (dragging) {
+                                position.snapTo(target)
+                            } else {
+                                position.animateTo(
+                                    target,
+                                    spring(stiffness = Spring.StiffnessMediumLow)
+                                )
+                            }
+                        }
+                        WidgetCanvasTile(
+                            tile = tile,
+                            state = state,
+                            onOpen = onOpen,
+                            menuOpen = menuId == tile.id,
+                            dragging = dragging,
+                            variants = state.gallery.firstOrNull { it.id == tile.definitionId }
+                                ?.variants.orEmpty(),
+                            canMoveUp = index > 0,
+                            canMoveDown = index < placements.lastIndex,
+                            viewModel = viewModel,
+                            onCloseMenu = { if (menuId == tile.id) menuId = null },
+                            modifier = Modifier
+                                .offset { position.value }
+                                .width(unit * placement.columns + gap * (placement.columns - 1))
+                                .height(unit * placement.rows + gap * (placement.rows - 1))
+                                .zIndex(
+                                    when {
+                                        dragging -> 2f
+                                        menuId == tile.id -> 1f
+                                        else -> 0f
+                                    }
+                                )
+                                .tileGestures(
+                                    enabled =
+                                        !state.busy &&
+                                            draggingId.let { it == null || it == tile.id },
+                                    // While arranging, a widget is picked up sooner than a long
+                                    // press opens its menu.
+                                    holdMillis = if (state.arranging) {
+                                        QUICK_PICK_UP_MS
+                                    } else {
+                                        baseConfiguration.longPressTimeoutMillis
+                                    },
+                                    onTap = if (state.arranging) {
+                                        { viewModel.editWidget(tile.id) }
+                                    } else {
+                                        null
+                                    },
+                                    onLongPress = { at ->
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        grab = at
+                                        pointer = (originOf(tile.id) ?: Offset.Zero) + at
+                                        travel = 0f
+                                        if (state.arranging) pickUp(tile.id) else menuId = tile.id
+                                    },
+                                    onDrag = { delta ->
+                                        pointer += delta
+                                        travel += delta.getDistance()
+                                        // Moving on from the menu picks the widget up and starts
+                                        // arranging, the way the home screen does.
+                                        if (draggingId == null && menuId == tile.id &&
+                                            travel > touchSlop
+                                        ) {
+                                            pickUp(tile.id)
+                                        }
+                                        if (draggingId == tile.id) followPointer()
+                                    },
+                                    onRelease = {
+                                        if (draggingId == tile.id) {
+                                            draggingId = null
+                                            viewModel.finishMove(tile.id)
+                                        }
+                                    },
+                                    onCancel = {
+                                        if (draggingId == tile.id) {
+                                            draggingId = null
+                                            viewModel.cancelMove()
+                                        }
+                                    }
+                                )
+                        )
+                    }
+                }
+                // Arranging is about the widgets already placed, so adding one waits.
+                AnimatedVisibility(
+                    visible = !state.arranging,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.offset(
+                        x = (unit + gap) * addColumn,
+                        y = (unit + gap) * addRow
+                    )
+                ) {
+                    AddWidgetTile(
+                        enabled = !state.busy,
+                        onClick = viewModel::openGallery,
+                        modifier = Modifier.size(unit)
                     )
                 }
             }
-            AddWidgetTile(
-                enabled = !state.busy,
-                onClick = viewModel::openGallery,
-                modifier = Modifier.offset(
-                    x = (unit + gap) * addColumn,
-                    y = (unit + gap) * addRow
-                ).size(unit)
-            )
         }
     }
 }
@@ -494,194 +607,294 @@ private fun WidgetCanvasTile(
     tile: HubWidgetTile,
     state: WidgetHubState,
     onOpen: (HubWidgetTile) -> Unit,
-    interactive: Boolean,
-    arranging: Boolean,
-    enabled: Boolean,
+    menuOpen: Boolean,
+    dragging: Boolean,
     variants: List<HubWidgetVariant>,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
-    dropTarget: Boolean,
     viewModel: WidgetHubViewModel,
+    onCloseMenu: () -> Unit,
     modifier: Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    var choosingLayout by remember { mutableStateOf(false) }
     val edit = stringResource(R.string.hub_widget_edit)
     val remove = stringResource(R.string.hub_configure_delete)
     val title = tile.title?.takeIf(String::isNotBlank) ?: tile.kind.label()
     val moveUp = stringResource(R.string.hub_action_move_up)
     val moveDown = stringResource(R.string.hub_action_move_down)
+    val arranging = state.arranging
+    // Lifted while its menu is open or while it is carried; settled a little smaller while
+    // arranging, so the "−" sits clear of its corner.
+    val scale by animateFloatAsState(
+        when {
+            dragging -> 1.05f
+            menuOpen -> 1.03f
+            arranging -> 0.96f
+            else -> 1f
+        },
+        spring(stiffness = Spring.StiffnessMediumLow),
+        label = "tile scale"
+    )
+    val lift by animateDpAsState(
+        if (dragging || menuOpen) 12.dp else 0.dp,
+        spring(stiffness = Spring.StiffnessMediumLow),
+        label = "tile lift"
+    )
     Box(
-        modifier = modifier.semantics {
-            customActions = buildList {
-                add(
-                    CustomAccessibilityAction(edit) {
-                        viewModel.editWidget(tile.id)
-                        true
-                    }
-                )
-                add(
-                    CustomAccessibilityAction(remove) {
-                        viewModel.removeWidget(tile.id)
-                        true
-                    }
-                )
-                if (canMoveUp) {
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                shadowElevation = lift.toPx()
+                shape = HubTileShape
+                clip = false
+            }
+            .semantics {
+                customActions = buildList {
                     add(
-                        CustomAccessibilityAction(moveUp) {
-                            viewModel.moveWidgetBy(tile.id, -1)
+                        CustomAccessibilityAction(edit) {
+                            viewModel.editWidget(tile.id)
                             true
                         }
                     )
-                }
-                if (canMoveDown) {
                     add(
-                        CustomAccessibilityAction(moveDown) {
-                            viewModel.moveWidgetBy(tile.id, 1)
+                        CustomAccessibilityAction(remove) {
+                            viewModel.removeWidget(tile.id)
                             true
                         }
                     )
+                    if (canMoveUp) {
+                        add(
+                            CustomAccessibilityAction(moveUp) {
+                                viewModel.moveWidgetBy(tile.id, -1)
+                                true
+                            }
+                        )
+                    }
+                    if (canMoveDown) {
+                        add(
+                            CustomAccessibilityAction(moveDown) {
+                                viewModel.moveWidgetBy(tile.id, 1)
+                                true
+                            }
+                        )
+                    }
                 }
             }
-        }.then(
-            if (dropTarget) {
-                Modifier.border(
-                    2.dp,
-                    MaterialTheme.colorScheme.primary,
-                    HubTileShape
-                )
-            } else {
-                Modifier
-            }
-        )
     ) {
         HubWidgetFace(
             tile,
             state,
             onPay = viewModel::pay,
             modifier = Modifier.fillMaxSize(),
-            interactive = interactive,
+            interactive = !state.busy && !arranging && !menuOpen,
             onOpen = onOpen
         )
-        if (arranging) {
-            IconButton(
-                onClick = { viewModel.removeWidget(tile.id) },
-                enabled = enabled,
-                modifier = Modifier.align(Alignment.TopStart).offset(x = (-8).dp, y = (-8).dp)
-            ) {
+        AnimatedVisibility(
+            visible = arranging && !dragging,
+            enter = scaleIn() + fadeIn(),
+            exit = scaleOut() + fadeOut(),
+            modifier = Modifier.align(Alignment.TopStart).offset(x = (-18).dp, y = (-18).dp)
+        ) {
+            IconButton(onClick = { viewModel.removeWidget(tile.id) }, enabled = !state.busy) {
                 Icon(
                     Icons.Filled.Remove,
                     contentDescription = "$remove, $title",
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.background(
-                        MaterialTheme.colorScheme.errorContainer,
-                        CircleShape
-                    )
-                        .padding(4.dp).size(20.dp)
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .shadow(2.dp, CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest, CircleShape)
+                        .padding(4.dp)
+                        .size(18.dp)
                 )
             }
         }
-        Box(modifier = Modifier.align(Alignment.TopEnd)) {
-            if (arranging) {
-                IconButton(
-                    onClick = {
-                        choosingLayout = false
-                        expanded = true
-                    },
-                    enabled = enabled,
-                    modifier = Modifier.offset(x = 8.dp, y = (-8).dp).size(48.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.MoreHoriz,
-                        contentDescription =
-                            stringResource(R.string.hub_widget_options) + ", $title",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.background(
-                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                            CircleShape
-                        )
-                            .padding(4.dp).size(20.dp)
+        WidgetMenu(
+            expanded = menuOpen,
+            tile = tile,
+            variants = variants,
+            onDismiss = onCloseMenu,
+            onResize = { variantId ->
+                onCloseMenu()
+                viewModel.resizeWidget(tile.id, variantId)
+            },
+            onEdit = {
+                onCloseMenu()
+                viewModel.editWidget(tile.id)
+            },
+            onArrange = {
+                onCloseMenu()
+                viewModel.setArranging(true)
+            },
+            onRemove = {
+                onCloseMenu()
+                viewModel.removeWidget(tile.id)
+            }
+        )
+    }
+}
+
+/**
+ * What a long press on a widget offers: its layouts as a row of their shapes, then editing it,
+ * arranging the Hub, and removing it.
+ */
+@Composable
+private fun WidgetMenu(
+    expanded: Boolean,
+    tile: HubWidgetTile,
+    variants: List<HubWidgetVariant>,
+    onDismiss: () -> Unit,
+    onResize: (String) -> Unit,
+    onEdit: () -> Unit,
+    onArrange: () -> Unit,
+    onRemove: () -> Unit
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        offset = DpOffset(0.dp, 8.dp),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        if (variants.size > 1) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                variants.forEach { variant ->
+                    LayoutChoice(
+                        variant = variant,
+                        label = variant.label(tile.kind),
+                        selected = variant.id == tile.variant.id,
+                        onClick = { onResize(variant.id) }
                     )
                 }
             }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                if (choosingLayout) {
-                    DropdownMenuItem(text = {
-                        Text(stringResource(R.string.hub_new_back))
-                    }, onClick = {
-                        choosingLayout = false
-                    })
-                    variants.forEach { variant ->
-                        DropdownMenuItem(
-                            text = { Text(variant.label(tile.kind)) },
-                            enabled = variant.id != tile.variant.id,
-                            onClick = {
-                                expanded = false
-                                viewModel.editWidget(tile.id)
-                                if (viewModel.state.value.editor?.existingWidgetId == tile.id) {
-                                    viewModel.selectVariant(variant.id)
-                                    viewModel.configureSelected()
-                                }
-                            }
-                        )
-                    }
-                } else {
-                    DropdownMenuItem(text = { Text(edit) }, onClick = {
-                        expanded = false
-                        viewModel.editWidget(tile.id)
-                    })
-                    if (variants.size > 1) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.hub_widget_select_variant)) },
-                            onClick = { choosingLayout = true }
-                        )
-                    }
-                    DropdownMenuItem(text = { Text(moveUp) }, enabled = canMoveUp, onClick = {
-                        expanded = false
-                        viewModel.moveWidgetBy(tile.id, -1)
-                    })
-                    DropdownMenuItem(text = { Text(moveDown) }, enabled = canMoveDown, onClick = {
-                        expanded = false
-                        viewModel.moveWidgetBy(tile.id, 1)
-                    })
-                    DropdownMenuItem(text = { Text(remove) }, onClick = {
-                        expanded = false
-                        viewModel.removeWidget(tile.id)
-                    })
-                }
-            }
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+        }
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.hub_widget_edit)) },
+            leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+            onClick = onEdit
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.hub_edit_hub)) },
+            leadingIcon = { Icon(Icons.Outlined.GridView, contentDescription = null) },
+            onClick = onArrange
+        )
+        val error = MaterialTheme.colorScheme.error
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.hub_configure_delete), color = error) },
+            leadingIcon = {
+                Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = null, tint = error)
+            },
+            onClick = onRemove
+        )
+    }
+}
+
+/** One layout of a widget, drawn as its shape: a small square, a wide one, a large one. */
+@Composable
+private fun LayoutChoice(
+    variant: HubWidgetVariant,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val ink = if (selected) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(width = 56.dp, height = 44.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+            )
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .semantics { contentDescription = label }
+    ) {
+        Canvas(Modifier.size(26.dp)) {
+            val cell = size.minDimension / 2.2f
+            val width = cell * variant.columns + (variant.columns - 1) * cell * 0.2f
+            val height = cell * variant.rows + (variant.rows - 1) * cell * 0.2f
+            val stroke = 1.6.dp.toPx()
+            drawRoundRect(
+                color = ink,
+                topLeft = Offset((size.width - width) / 2, (size.height - height) / 2),
+                size = Size(width, height),
+                cornerRadius = CornerRadius(cell * 0.3f),
+                style = Stroke(stroke)
+            )
         }
     }
 }
 
-@Composable
-private fun Modifier.widgetDrag(
-    onStart: (Offset) -> Unit,
+/**
+ * A widget's own gestures: a tap, while given [onTap]; a press held for [holdMillis], and what the
+ * finger does after it. A held press keeps the face beneath from also taking the touch as a tap.
+ */
+private fun Modifier.tileGestures(
+    enabled: Boolean,
+    holdMillis: Long,
+    onTap: (() -> Unit)?,
+    onLongPress: (Offset) -> Unit,
     onDrag: (Offset) -> Unit,
-    onEnd: () -> Unit,
+    onRelease: () -> Unit,
     onCancel: () -> Unit
-): Modifier {
-    val start by rememberUpdatedState(onStart)
-    val drag by rememberUpdatedState(onDrag)
-    val end by rememberUpdatedState(onEnd)
+): Modifier = composed {
+    if (!enabled) return@composed this
+    val hold by rememberUpdatedState(holdMillis)
+    val tap by rememberUpdatedState(onTap)
+    val longPress by rememberUpdatedState(onLongPress)
+    val move by rememberUpdatedState(onDrag)
+    val release by rememberUpdatedState(onRelease)
     val cancel by rememberUpdatedState(onCancel)
-    return pointerInput(Unit) {
-        var total = Offset.Zero
-        detectDragGesturesAfterLongPress(
-            onDragStart = {
-                total = Offset.Zero
-                start(it)
-            },
-            onDrag = { change, delta ->
+    pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            var at = down.position
+            var up: PointerInputChange? = null
+            // Null once the press has been held long enough; otherwise it ended or moved away.
+            val ended = withTimeoutOrNull(hold) {
+                while (true) {
+                    val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
+                    if (change == null) break
+                    if (change.changedToUpIgnoreConsumed()) {
+                        up = change
+                        break
+                    }
+                    val wandered =
+                        (change.position - down.position).getDistance() >
+                            viewConfiguration.touchSlop
+                    if (change.isConsumed || wandered) break
+                    at = change.position
+                }
+                true
+            }
+            if (ended != null) {
+                val change = up
+                val onTapNow = tap
+                if (change != null && !change.isConsumed && onTapNow != null) {
+                    change.consume()
+                    onTapNow()
+                }
+                return@awaitEachGesture
+            }
+            longPress(at)
+            val released = drag(down.id) { change ->
+                move(change.positionChange())
                 change.consume()
-                total += delta
-                drag(total)
-            },
-            onDragEnd = { end() },
-            onDragCancel = { cancel() }
-        )
+            }
+            currentEvent.changes.forEach { it.consume() }
+            if (released) release() else cancel()
+        }
     }
 }
 
 /** How far below the status bar the canvas fades out. */
 private val FADE = 24.dp
+
+/** How long a press takes to pick a widget up while arranging. */
+private const val QUICK_PICK_UP_MS = 200L
