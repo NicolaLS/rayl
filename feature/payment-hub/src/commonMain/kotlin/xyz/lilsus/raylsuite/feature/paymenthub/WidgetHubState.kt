@@ -85,7 +85,7 @@ data class HubWidgetEditor(
     val amountInput: String = "",
     val currencyCode: String = "USD",
     val comment: String = "",
-    /** A new ppq.ai API key. It is checked and stored on save, and never shown again. */
+    /** A new API key for this widget. It is checked and stored on save, and never shown again. */
     val apiKeyInput: String = "",
     /** The number a Claro widget tops up, as the user typed it. */
     val phoneInput: String = ""
@@ -122,7 +122,8 @@ data class WidgetHubState(
     val ratesUnavailable: Boolean = false,
     /** The fiat currency a new Rate or Sats widget starts with. */
     val defaultFiatCode: String = "USD",
-    val ppq: HubPpqAccount = HubPpqAccount(),
+    /** The ppq.ai account of each PPQ.AI widget, by widget id. */
+    val ppq: Map<String, HubPpqAccount> = emptyMap(),
     val claro: HubClaroShop = HubClaroShop(),
     val feedback: HubFeedbackState = HubFeedbackState()
 ) {
@@ -134,6 +135,9 @@ data class WidgetHubState(
 
     val selectedDefinition: HubWidgetDefinition?
         get() = gallery.firstOrNull { it.id == editor?.definitionId }
+
+    /** The account of [widgetId]; a widget without a key, or one not placed yet, has none. */
+    fun ppqAccount(widgetId: String?): HubPpqAccount = widgetId?.let(ppq::get) ?: HubPpqAccount()
 
     val selectedVariant: HubWidgetVariant?
         get() = selectedDefinition?.variants?.firstOrNull { it.id == editor?.variantId }
@@ -156,7 +160,9 @@ internal fun WidgetHubState.editorValidationError(): HubWidgetError? {
     if (editor.kind == HubWidgetKind.Shortcut && editor.shortcutAmount() == null) {
         return HubWidgetError.InvalidAmount
     }
-    if (editor.kind == HubWidgetKind.Ppq && editor.apiKeyInput.isBlank() && !ppq.connected) {
+    if (editor.kind == HubWidgetKind.Ppq && editor.apiKeyInput.isBlank() &&
+        !ppqAccount(editor.existingWidgetId).connected
+    ) {
         return HubWidgetError.ApiKeyRequired
     }
     if (editor.kind == HubWidgetKind.Claro && claroPhone(editor.phoneInput) == null) {

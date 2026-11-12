@@ -96,9 +96,9 @@ class NativePaymentHubController(
 
     fun updateApiKey(value: String) = viewModel.updateApiKey(value)
 
-    fun topUpPpq(amount: String) = viewModel.topUpPpq(amount)
+    fun topUpPpq(widgetId: String, amount: String) = viewModel.topUpPpq(widgetId, amount)
 
-    fun clearPpqTopUpError() = viewModel.clearPpqTopUpError()
+    fun clearPpqTopUpError(widgetId: String) = viewModel.clearPpqTopUpError(widgetId)
 
     fun updatePhone(value: String) = viewModel.updatePhone(value)
 
@@ -259,7 +259,7 @@ class NativePaymentHubController(
                     apiKey = editor.apiKeyInput,
                     apiKeyHint = if (editor.kind == HubWidgetKind.Ppq) {
                         localized(
-                            if (state.ppq.connected) {
+                            if (state.ppqAccount(editor.existingWidgetId).connected) {
                                 "hub_ppq_api_key_saved"
                             } else {
                                 "hub_ppq_api_key_hint"
@@ -346,20 +346,22 @@ class NativePaymentHubController(
                 failed = state.feedback.failed,
                 sentSerial = state.feedback.sentSerial
             ),
-            ppq = NativeHubPpq(
-                balance = state.ppq.balanceAmount()?.let {
-                    localized("hub_ppq_balance") + " · " + currentAmountFormatter().format(it)
-                },
-                presets = HubPpqAccount.TOP_UP_PRESETS_USD.map(Int::toString),
-                toppingUp = state.ppq.toppingUp,
-                topUpError = when (state.ppq.topUpError) {
-                    HubPpqTopUpError.Amount -> localized("hub_ppq_error_amount")
-                    HubPpqTopUpError.InvalidKey -> localized("hub_ppq_error_key")
-                    HubPpqTopUpError.Unreachable -> localized("hub_ppq_error_unreachable")
-                    null -> null
-                },
-                topUpSerial = state.ppq.topUpSerial
-            ),
+            ppq = state.ppq.mapValues { (_, account) ->
+                NativeHubPpq(
+                    balance = account.balanceAmount()?.let {
+                        localized("hub_ppq_balance") + " · " + currentAmountFormatter().format(it)
+                    },
+                    presets = HubPpqAccount.TOP_UP_PRESETS_USD.map(Int::toString),
+                    toppingUp = account.toppingUp,
+                    topUpError = when (account.topUpError) {
+                        HubPpqTopUpError.Amount -> localized("hub_ppq_error_amount")
+                        HubPpqTopUpError.InvalidKey -> localized("hub_ppq_error_key")
+                        HubPpqTopUpError.Unreachable -> localized("hub_ppq_error_unreachable")
+                        null -> null
+                    },
+                    topUpSerial = account.topUpSerial
+                )
+            },
             claro = state.claro.let { shop ->
                 NativeHubClaro(
                     open = shop.widgetId != null,
@@ -396,7 +398,8 @@ class NativePaymentHubController(
         currencyCode: String?,
         state: WidgetHubState,
         preview: Boolean,
-        phone: String? = null
+        phone: String? = null,
+        widgetId: String? = null
     ): NativeHubInfo? {
         if (!kind.showsInformation) return null
         val name = localized(kind.titleKey())
@@ -415,10 +418,10 @@ class NativePaymentHubController(
             )
         }
         if (kind == HubWidgetKind.Ppq) {
-            val account = if (preview && state.ppq.balanceUsd == null) {
+            val account = if (preview && state.ppqAccount(widgetId).balanceUsd == null) {
                 HubPpqAccount(connected = true, balanceUsd = 12.5)
             } else {
-                state.ppq
+                state.ppqAccount(widgetId)
             }
             val value = account.balanceAmount()?.let { currentAmountFormatter().format(it) }
             val needsKey = !account.connected || account.problem == HubPpqProblem.InvalidKey
@@ -606,7 +609,15 @@ class NativePaymentHubController(
                     else -> "hub_widget_needs_setup"
                 }
             ),
-            info = infoFor(kind, variant, currencyCode, state, preview = false, phone = phone)
+            info = infoFor(
+                kind,
+                variant,
+                currencyCode,
+                state,
+                preview = false,
+                phone = phone,
+                widgetId = id
+            )
         )
     }
 }
@@ -625,7 +636,8 @@ data class NativePaymentHubSnapshot(
     val contactSavedSerial: Int,
     /** Choosing a layout already adds the widget, so that screen offers "Add" not "Continue". */
     val addsWithoutSetup: Boolean,
-    val ppq: NativeHubPpq,
+    /** The account of each PPQ.AI widget, by widget id. */
+    val ppq: Map<String, NativeHubPpq>,
     val claro: NativeHubClaro,
     val feedback: NativeHubFeedback
 )
@@ -633,7 +645,7 @@ data class NativePaymentHubSnapshot(
 /** The feedback form's progress. [sentSerial] changes when a message arrived, which closes it. */
 data class NativeHubFeedback(val sending: Boolean, val failed: Boolean, val sentSerial: Int)
 
-/** The ppq.ai account as the top-up sheet shows it. */
+/** One PPQ.AI widget's account as its top-up sheet shows it. */
 data class NativeHubPpq(
     val balance: String?,
     /** Whole US dollar amounts offered as shortcuts. */

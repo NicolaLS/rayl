@@ -70,7 +70,7 @@ struct NativePaymentHubView: View {
     @StateObject private var model: NativePaymentHubModel
     @State private var hoveredId: String?
     @State private var converting: HubConverterTarget?
-    @State private var toppingUp = false
+    @State private var toppingUp: HubPpqTarget?
     @Environment(\.scenePhase) private var scenePhase
     init(controller: NativePaymentHubController) {
         _model = StateObject(wrappedValue: NativePaymentHubModel(controller: controller))
@@ -95,8 +95,8 @@ struct NativePaymentHubView: View {
                 HubConverterSheet(target: target, text: state.text, controller: model.controller)
             }
         }
-        .sheet(isPresented: $toppingUp) {
-            HubPpqTopUpSheet(model: model)
+        .sheet(item: $toppingUp) { target in
+            HubPpqTopUpSheet(model: model, widgetId: target.id)
         }
         .sheet(isPresented: claroPresented) {
             HubClaroSheet(model: model)
@@ -125,8 +125,8 @@ struct NativePaymentHubView: View {
         case "convert":
             converting = HubConverterTarget(id: tile.id, info: info)
         case "topup":
-            model.controller.clearPpqTopUpError()
-            toppingUp = true
+            model.controller.clearPpqTopUpError(widgetId: tile.id)
+            toppingUp = HubPpqTarget(id: tile.id)
         case "claro":
             model.controller.openClaro(id: tile.id)
         case "setup":
@@ -1537,21 +1537,36 @@ private struct HubConverterSheet: View {
     }
 }
 
+/// The PPQ.AI widget whose account the top-up sheet is for.
+private struct HubPpqTarget: Identifiable {
+    let id: String
+}
+
 /// Picks an amount; the wallet's own payment screen takes over once ppq.ai sent the invoice.
 private struct HubPpqTopUpSheet: View {
     @ObservedObject var model: NativePaymentHubModel
+    let widgetId: String
     @Environment(\.dismiss) private var dismiss
     @State private var amount = "10"
     @State private var openedAt: Int32
 
-    init(model: NativePaymentHubModel) {
+    init(model: NativePaymentHubModel, widgetId: String) {
         self.model = model
-        _openedAt = State(initialValue: model.snapshot?.ppq.topUpSerial ?? 0)
+        self.widgetId = widgetId
+        _openedAt = State(initialValue: model.snapshot?.ppq[widgetId]?.topUpSerial ?? 0)
+    }
+
+    /// Each PPQ.AI widget has its own account; a widget removed meanwhile shows an empty one.
+    private func account(_ state: NativePaymentHubSnapshot) -> NativeHubPpq {
+        state.ppq[widgetId] ?? NativeHubPpq(
+            balance: nil, presets: [], toppingUp: false, topUpError: nil, topUpSerial: 0
+        )
     }
 
     var body: some View {
         NavigationStack {
             if let state = model.snapshot {
+                let account = account(state)
                 Form {
                     Section {
                         HStack(spacing: 14) {
@@ -1562,7 +1577,7 @@ private struct HubPpqTopUpSheet: View {
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("PPQ.AI").font(.headline)
-                                if let balance = state.ppq.balance {
+                                if let balance = account.balance {
                                     Text(balance)
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
@@ -1574,7 +1589,7 @@ private struct HubPpqTopUpSheet: View {
                     }
                     Section {
                         HStack(spacing: 8) {
-                            ForEach(state.ppq.presets, id: \.self) { preset in
+                            ForEach(account.presets, id: \.self) { preset in
                                 Button {
                                     amount = preset
                                 } label: {
@@ -1598,15 +1613,15 @@ private struct HubPpqTopUpSheet: View {
                                 .monospacedDigit()
                         }
                     } footer: {
-                        Text(state.ppq.topUpError ?? state.text.topUpBody)
-                            .foregroundStyle(state.ppq.topUpError == nil ? Color.secondary : Color.red)
+                        Text(account.topUpError ?? state.text.topUpBody)
+                            .foregroundStyle(account.topUpError == nil ? Color.secondary : Color.red)
                     }
                 }
-                .disabled(state.ppq.toppingUp)
+                .disabled(account.toppingUp)
                 .scrollDismissesKeyboard(.interactively)
                 .safeAreaInset(edge: .bottom) {
-                    HubPrimaryButton(title: state.text.topUpAction, busy: state.ppq.toppingUp) {
-                        model.controller.topUpPpq(amount: amount)
+                    HubPrimaryButton(title: state.text.topUpAction, busy: account.toppingUp) {
+                        model.controller.topUpPpq(widgetId: widgetId, amount: amount)
                     }
                 }
                 .navigationTitle(state.text.topUpTitle)
@@ -1615,17 +1630,17 @@ private struct HubPpqTopUpSheet: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { dismiss() } label: { Image(systemName: "xmark") }
                             .accessibilityLabel(state.text.cancel)
-                            .disabled(state.ppq.toppingUp)
+                            .disabled(account.toppingUp)
                     }
                 }
-                .onChange(of: amount) { _, _ in model.controller.clearPpqTopUpError() }
-                .onChange(of: state.ppq.topUpSerial) { _, value in
+                .onChange(of: amount) { _, _ in model.controller.clearPpqTopUpError(widgetId: widgetId) }
+                .onChange(of: account.topUpSerial) { _, value in
                     if value != openedAt { dismiss() }
                 }
             }
         }
         .presentationDetents([.medium, .large])
-        .interactiveDismissDisabled(model.snapshot?.ppq.toppingUp == true)
+        .interactiveDismissDisabled(model.snapshot?.ppq[widgetId]?.toppingUp == true)
     }
 }
 

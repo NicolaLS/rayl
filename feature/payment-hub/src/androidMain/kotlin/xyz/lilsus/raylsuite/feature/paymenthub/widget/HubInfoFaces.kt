@@ -153,10 +153,10 @@ internal fun HubInfoFace(
         }
 
         else -> {
-            val account = if (preview && state.ppq.balanceUsd == null) {
+            val account = if (preview && state.ppqAccount(tile.id).balanceUsd == null) {
                 HubPpqAccount(connected = true, balanceUsd = 12.5)
             } else {
-                state.ppq
+                state.ppqAccount(tile.id)
             }
             val needsKey = !account.connected || account.problem == HubPpqProblem.InvalidKey
             FigureContent(

@@ -69,7 +69,7 @@ class WidgetHubViewModel(
         MutableStateFlow(WidgetHubState(gallery = LocalHubWidgets.definitions))
     val state = mutableState.asStateFlow()
     private var ratesJob: Job? = null
-    private var ppqJob: Job? = null
+    private val ppqJobs = mutableMapOf<String, Job>()
     private var claroJob: Job? = null
     private var claroOrdersJob: Job? = null
 
@@ -329,14 +329,15 @@ class WidgetHubViewModel(
             claroPhone(editor.phoneInput).takeIf { editor.kind == HubWidgetKind.Claro }
         )
         mutate {
-            if (editor.kind == HubWidgetKind.Ppq && editor.apiKeyInput.isNotBlank() &&
-                !connectPpq(editor.apiKeyInput)
-            ) {
-                return@mutate
+            val newKey = editor.apiKeyInput.takeIf {
+                editor.kind == HubWidgetKind.Ppq && it.isNotBlank()
             }
-            if (repository.saveWidget(draft, editor.existingWidgetId) == null) {
+            val balance = newKey?.let { checkPpqKey(it) ?: return@mutate }
+            val saved = repository.saveWidget(draft, editor.existingWidgetId)
+            if (saved == null) {
                 fail(HubWidgetError.SaveFailed)
             } else {
+                if (newKey != null && balance != null) connectPpq(saved.id, newKey, balance)
                 close()
             }
         }
@@ -380,15 +381,17 @@ class WidgetHubViewModel(
     }
 
     fun removeWidget(id: String) = mutate {
+        val wasPpq = repository.hub.value.widget(id)?.kind == HubWidgetKind.Ppq
         repository.deleteWidget(id)
         if (mutableState.value.editor?.existingWidgetId == id) close()
-        // The key is only there for the widgets; a Hub without one keeps no credential.
-        if (ppq != null && repository.hub.value.widgets.none { it.kind == HubWidgetKind.Ppq }) {
-            ppqJob?.cancel()
-            withContext(background) { ppq.forgetApiKey() }
-            mutableState.update { it.copy(ppq = HubPpqAccount()) }
+        // A key belongs to its widget alone and goes with it.
+        if (ppq != null && wasPpq) {
+            ppqJobs.remove(id)?.cancel()
+            withContext(background) { ppq.forgetApiKey(id) }
+            mutableState.update { it.copy(ppq = it.ppq - id) }
         }
     }
+
     fun moveWidget(id: String, targetId: String) {
         val index = repository.hub.value.widgets.indexOfFirst { it.id == targetId }
         if (index >= 0) mutate { repository.moveWidget(id, index) }
@@ -410,18 +413,20 @@ class WidgetHubViewModel(
      * Asks ppq.ai for a Lightning invoice over [amountInput] US dollars and hands it to the
      * wallet, which presents and confirms it like any other payment.
      */
-    fun topUpPpq(amountInput: String) {
+    fun topUpPpq(widgetId: String, amountInput: String) {
         val service = ppq ?: return
-        if (mutableState.value.ppq.toppingUp || mutableState.value.arranging) return
+        if (mutableState.value.ppqAccount(widgetId).toppingUp || mutableState.value.arranging) {
+            return
+        }
         val cents = amountInput.parseMinorAmount(2)
         if (cents == null || cents !in HubPpqAccount.TOP_UP_CENTS) {
-            return updatePpq { it.copy(topUpError = HubPpqTopUpError.Amount) }
+            return updatePpq(widgetId) { it.copy(topUpError = HubPpqTopUpError.Amount) }
         }
-        updatePpq { it.copy(toppingUp = true, topUpError = null) }
+        updatePpq(widgetId) { it.copy(toppingUp = true, topUpError = null) }
         scope.launch {
             var result: PpqResult<String> = PpqResult.Unreachable
             try {
-                val key = withContext(background) { service.apiKey() }
+                val key = withContext(background) { service.apiKey(widgetId) }
                 result = if (key == null) {
                     PpqResult.InvalidKey
                 } else {
@@ -433,7 +438,7 @@ class WidgetHubViewModel(
                 // An unreadable credential store is reported like an unreachable service.
             } finally {
                 val outcome = result
-                updatePpq { account ->
+                updatePpq(widgetId) { account ->
                     when (outcome) {
                         is PpqResult.Ok -> account.copy(
                             toppingUp = false,
@@ -457,7 +462,7 @@ class WidgetHubViewModel(
         }
     }
 
-    fun clearPpqTopUpError() = updatePpq { it.copy(topUpError = null) }
+    fun clearPpqTopUpError(widgetId: String) = updatePpq(widgetId) { it.copy(topUpError = null) }
 
     /** Opens the shop for a Claro widget and reads what Claro sells to its number. */
     fun openClaro(widgetId: String) {
@@ -573,8 +578,15 @@ class WidgetHubViewModel(
         feedbackApi?.close()
     }
 
-    private fun updatePpq(transform: (HubPpqAccount) -> HubPpqAccount) {
-        mutableState.update { it.copy(ppq = transform(it.ppq)) }
+    /** Changes the account of [widgetId], unless its widget is gone by now. */
+    private fun updatePpq(widgetId: String, transform: (HubPpqAccount) -> HubPpqAccount) {
+        if (repository.hub.value.widget(widgetId) == null) return
+        mutableState.update {
+            it.copy(
+                ppq =
+                    it.ppq + (widgetId to transform(it.ppqAccount(widgetId)))
+            )
+        }
     }
 
     /**
@@ -732,62 +744,78 @@ class WidgetHubViewModel(
 
     private fun refreshPpq() {
         val service = ppq ?: return
-        ppqJob?.cancel()
-        ppqJob = scope.launch {
-            val key = try {
-                withContext(background) { service.apiKey() }
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                // The credential store is closed, as the iOS Keychain is while the device is
-                // locked. What is on screen stays, and the next refresh reads it again.
-                return@launch
-            }
-            if (key == null) {
-                updatePpq { HubPpqAccount(topUpSerial = it.topUpSerial) }
-                return@launch
-            }
-            updatePpq { it.copy(connected = true) }
-            when (val balance = service.api.balanceUsd(key)) {
-                is PpqResult.Ok ->
-                    updatePpq { it.copy(balanceUsd = balance.value, problem = null) }
+        val widgets = repository.hub.value.widgets.filter { it.kind == HubWidgetKind.Ppq }
+        // A widget deleted elsewhere takes its account with it.
+        mutableState.update { state ->
+            state.copy(
+                ppq = state.ppq.filterKeys { id ->
+                    widgets.any {
+                        it.id ==
+                            id
+                    }
+                }
+            )
+        }
+        widgets.forEach { widget ->
+            val id = widget.id
+            ppqJobs[id]?.cancel()
+            ppqJobs[id] = scope.launch {
+                val key = try {
+                    withContext(background) { service.apiKey(id) }
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (_: Exception) {
+                    // The credential store is closed, as the iOS Keychain is while the device
+                    // is locked. What is on screen stays, and the next refresh reads it again.
+                    return@launch
+                }
+                if (key == null) {
+                    updatePpq(id) { HubPpqAccount(topUpSerial = it.topUpSerial) }
+                    return@launch
+                }
+                updatePpq(id) { it.copy(connected = true) }
+                when (val balance = service.api.balanceUsd(key)) {
+                    is PpqResult.Ok ->
+                        updatePpq(id) { it.copy(balanceUsd = balance.value, problem = null) }
 
-                PpqResult.InvalidKey ->
-                    updatePpq { it.copy(problem = HubPpqProblem.InvalidKey) }
+                    PpqResult.InvalidKey ->
+                        updatePpq(id) { it.copy(problem = HubPpqProblem.InvalidKey) }
 
-                PpqResult.Unreachable ->
-                    updatePpq { it.copy(problem = HubPpqProblem.Unreachable) }
+                    PpqResult.Unreachable ->
+                        updatePpq(id) { it.copy(problem = HubPpqProblem.Unreachable) }
+                }
             }
         }
     }
 
-    /** Stores [apiKey] once ppq.ai accepted it. Reports the reason and returns false otherwise. */
-    private suspend fun connectPpq(apiKey: String): Boolean {
+    /** Asks ppq.ai for the balance of [apiKey]. Reports the reason and returns null on failure. */
+    private suspend fun checkPpqKey(apiKey: String): Double? {
         val service = ppq
         if (service == null) {
             fail(HubWidgetError.Unavailable)
-            return false
+            return null
         }
         return when (val balance = service.api.balanceUsd(apiKey)) {
-            is PpqResult.Ok -> {
-                ppqJob?.cancel()
-                withContext(background) { service.saveApiKey(apiKey) }
-                updatePpq {
-                    it.copy(connected = true, balanceUsd = balance.value, problem = null)
-                }
-                true
-            }
+            is PpqResult.Ok -> balance.value
 
             PpqResult.InvalidKey -> {
                 fail(HubWidgetError.InvalidApiKey)
-                false
+                null
             }
 
             PpqResult.Unreachable -> {
                 fail(HubWidgetError.ServiceUnreachable)
-                false
+                null
             }
         }
+    }
+
+    /** Keeps [apiKey], which ppq.ai accepted, as the key of [widgetId] alone. */
+    private suspend fun connectPpq(widgetId: String, apiKey: String, balance: Double) {
+        val service = ppq ?: return
+        ppqJobs.remove(widgetId)?.cancel()
+        withContext(background) { service.saveApiKey(widgetId, apiKey) }
+        updatePpq(widgetId) { it.copy(connected = true, balanceUsd = balance, problem = null) }
     }
 
     private fun edit(transform: (HubWidgetEditor) -> HubWidgetEditor) {

@@ -124,7 +124,12 @@ internal fun HubWidgetEditorScreen(
                     CurrencyChoice(editor, viewModel, enabled = !state.busy)
                 }
                 if (editor.kind == HubWidgetKind.Ppq) {
-                    ApiKeyField(editor, state.ppq.connected, viewModel, enabled = !state.busy)
+                    ApiKeyField(
+                        editor,
+                        state.ppqAccount(editor.existingWidgetId).connected,
+                        viewModel,
+                        enabled = !state.busy
+                    )
                 }
                 if (editor.kind == HubWidgetKind.Claro) {
                     PhoneField(editor, viewModel, enabled = !state.busy)

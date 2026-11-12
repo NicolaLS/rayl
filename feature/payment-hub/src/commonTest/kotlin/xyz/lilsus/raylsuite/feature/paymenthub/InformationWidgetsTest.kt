@@ -48,7 +48,7 @@ class InformationWidgetsTest {
         val topUps = mutableListOf<Pair<String, Double>>()
         var closed = false
 
-        override suspend fun balanceUsd(apiKey: String) = if (apiKey == "sk-good") balance else PpqResult.InvalidKey
+        override suspend fun balanceUsd(apiKey: String) = if (apiKey in GOOD_KEYS) balance else PpqResult.InvalidKey
 
         override suspend fun createLightningTopUp(apiKey: String, usd: Double): PpqResult<String> {
             topUps += apiKey to usd
@@ -60,7 +60,7 @@ class InformationWidgetsTest {
         }
     }
 
-    private class Hub(scope: TestScope, displayCurrency: String = "USD") {
+    private class Hub(val scope: TestScope, displayCurrency: String = "USD") {
         val prices = mutableMapOf<String, Double?>("USD" to 100_000.0, "EUR" to 90_000.0)
         val history = mutableMapOf<String, List<Double>?>("USD" to listOf(80_000.0, 90_000.0))
         val secrets = Secrets()
@@ -83,6 +83,26 @@ class InformationWidgetsTest {
             background = dispatcher
         )
         val state get() = vm.state.value
+
+        /** Places a PPQ.AI widget without a key and returns its id. */
+        fun placePpq(): String {
+            vm.selectDefinition("local.ppq")
+            vm.continueFromVariants()
+            scope.advanceUntilIdle()
+            return state.widgets.last().id
+        }
+
+        /** Places a PPQ.AI widget and gives it [key] through its settings. */
+        fun addPpq(key: String): String {
+            val id = placePpq()
+            vm.editWidget(id)
+            vm.updateApiKey(key)
+            vm.saveWidget()
+            scope.advanceUntilIdle()
+            return id
+        }
+
+        fun storedKeys() = secrets.values.toMap()
     }
 
     @Test
@@ -196,16 +216,14 @@ class InformationWidgetsTest {
     }
 
     @Test
-    fun ppqAsksForItsKeyOnceAndStoresOnlyAKeyTheServiceAccepts() = runTest {
+    fun ppqAsksForItsKeyAndStoresOnlyAKeyTheServiceAccepts() = runTest {
         val hub = Hub(this)
         advanceUntilIdle()
         // The widget is placed before it has a key; its settings then ask for one.
-        hub.vm.selectDefinition("local.ppq")
-        hub.vm.continueFromVariants()
-        advanceUntilIdle()
+        val id = hub.placePpq()
         assertEquals(HubWidgetScreen.Hub, hub.state.screen)
-        assertEquals(false, hub.state.ppq.connected)
-        hub.vm.editWidget(hub.state.widgets.single().id)
+        assertEquals(false, hub.state.ppqAccount(id).connected)
+        hub.vm.editWidget(id)
         assertEquals(HubWidgetScreen.Configure, hub.state.screen)
         assertEquals(HubWidgetError.ApiKeyRequired, hub.state.editorValidationError())
 
@@ -213,75 +231,115 @@ class InformationWidgetsTest {
         hub.vm.saveWidget()
         advanceUntilIdle()
         assertEquals(HubWidgetError.InvalidApiKey, hub.state.error)
-        assertEquals(emptyMap(), hub.secrets.values)
+        assertEquals(emptyMap(), hub.storedKeys())
 
         hub.api.balance = PpqResult.Unreachable
         hub.vm.updateApiKey("sk-good")
         hub.vm.saveWidget()
         advanceUntilIdle()
         assertEquals(HubWidgetError.ServiceUnreachable, hub.state.error)
-        assertEquals(emptyMap(), hub.secrets.values)
+        assertEquals(emptyMap(), hub.storedKeys())
 
         hub.api.balance = PpqResult.Ok(12.5)
         hub.vm.saveWidget()
         advanceUntilIdle()
         assertEquals(HubWidgetScreen.Hub, hub.state.screen)
         assertEquals(HubWidgetKind.Ppq, hub.state.widgets.single().kind)
-        assertEquals(listOf("sk-good"), hub.secrets.values.values.toList())
-        assertEquals(HubPpqAccount(connected = true, balanceUsd = 12.5), hub.state.ppq)
+        assertEquals(listOf("sk-good"), hub.storedKeys().values.toList())
+        assertEquals(HubPpqAccount(connected = true, balanceUsd = 12.5), hub.state.ppqAccount(id))
         // The key never reaches the Hub document, which is stored in plain settings.
-        assertEquals(false, hub.settings.keys.any { hub.settings.getStringOrNull(it).orEmpty().contains("sk-good") })
-
-        // A second widget needs no key again.
-        hub.vm.selectDefinition("local.ppq")
-        assertEquals(true, hub.state.addsWithoutSetup)
-        hub.vm.continueFromVariants()
-        advanceUntilIdle()
-        assertEquals(2, hub.state.widgets.size)
+        assertEquals(
+            false,
+            hub.settings.keys.any { hub.settings.getStringOrNull(it).orEmpty().contains("sk-good") }
+        )
         hub.vm.clear()
         assertEquals(true, hub.api.closed)
     }
 
     @Test
-    fun removingTheLastPpqWidgetForgetsTheKey() = runTest {
+    fun aPpqWidgetAddedWhileAnotherHasAKeyStillNeedsItsOwn() = runTest {
         val hub = Hub(this)
         advanceUntilIdle()
-        repeat(2) {
-            hub.vm.selectDefinition("local.ppq")
-            hub.vm.updateApiKey("sk-good")
-            hub.vm.saveWidget()
-            advanceUntilIdle()
-        }
-        hub.vm.removeWidget(hub.state.widgets.first().id)
-        advanceUntilIdle()
-        assertEquals(1, hub.secrets.values.size)
-        assertEquals(true, hub.state.ppq.connected)
+        hub.addPpq("sk-good")
 
-        hub.vm.removeWidget(hub.state.widgets.single().id)
+        hub.vm.selectDefinition("local.ppq")
+        assertEquals(true, hub.state.addsWithoutSetup)
+        hub.vm.continueFromVariants()
         advanceUntilIdle()
-        assertEquals(emptyMap(), hub.secrets.values)
-        assertEquals(HubPpqAccount(), hub.state.ppq)
+        val second = hub.state.widgets.last().id
+        assertEquals(2, hub.state.widgets.size)
+        assertEquals(false, hub.state.ppqAccount(second).connected)
+        hub.vm.editWidget(second)
+        assertEquals(HubWidgetError.ApiKeyRequired, hub.state.editorValidationError())
+        hub.vm.clear()
+    }
+
+    @Test
+    fun eachPpqWidgetKeepsItsOwnKeyAndForgetsItWithTheWidget() = runTest {
+        val hub = Hub(this)
+        advanceUntilIdle()
+        val first = hub.addPpq("sk-good")
+        val second = hub.addPpq("sk-other")
+        assertEquals(
+            mapOf("ppq.apiKey.$first" to "sk-good", "ppq.apiKey.$second" to "sk-other"),
+            hub.storedKeys()
+        )
+
+        // Replacing one widget's key leaves the other's alone.
+        hub.vm.editWidget(first)
+        hub.vm.updateApiKey("sk-other")
+        hub.vm.saveWidget()
+        advanceUntilIdle()
+        assertEquals(
+            mapOf("ppq.apiKey.$first" to "sk-other", "ppq.apiKey.$second" to "sk-other"),
+            hub.storedKeys()
+        )
+
+        hub.vm.removeWidget(first)
+        advanceUntilIdle()
+        assertEquals(mapOf("ppq.apiKey.$second" to "sk-other"), hub.storedKeys())
+        assertEquals(true, hub.state.ppqAccount(second).connected)
+        assertEquals(HubPpqAccount(), hub.state.ppqAccount(first))
+
+        hub.vm.removeWidget(second)
+        advanceUntilIdle()
+        assertEquals(emptyMap(), hub.storedKeys())
+        assertEquals(emptyMap(), hub.state.ppq)
+        hub.vm.clear()
+    }
+
+    @Test
+    fun eachPpqWidgetShowsItsOwnAccount() = runTest {
+        val hub = Hub(this)
+        advanceUntilIdle()
+        val first = hub.addPpq("sk-good")
+        val second = hub.placePpq()
+        hub.secrets.putString("ppq.apiKey.$second", "sk-rejected")
+        hub.vm.refreshLive()
+        advanceUntilIdle()
+
+        assertEquals(HubPpqAccount(connected = true, balanceUsd = 12.5), hub.state.ppqAccount(first))
+        assertEquals(HubPpqProblem.InvalidKey, hub.state.ppqAccount(second).problem)
+        assertNull(hub.state.ppqAccount(first).problem)
         hub.vm.clear()
     }
 
     @Test
     fun aRefreshKeepsTheLastBalanceWhenTheServiceCannotBeReached() = runTest {
         val hub = Hub(this)
-        hub.secrets.putString("ppq.apiKey", "sk-good")
-        hub.vm.refreshLive()
-        advanceUntilIdle()
-        assertEquals(HubPpqAccount(connected = true, balanceUsd = 12.5), hub.state.ppq)
+        val id = hub.addPpq("sk-good")
+        assertEquals(HubPpqAccount(connected = true, balanceUsd = 12.5), hub.state.ppqAccount(id))
 
         hub.api.balance = PpqResult.Unreachable
         hub.vm.refreshLive()
         advanceUntilIdle()
-        assertEquals(12.5, hub.state.ppq.balanceUsd)
-        assertEquals(HubPpqProblem.Unreachable, hub.state.ppq.problem)
+        assertEquals(12.5, hub.state.ppqAccount(id).balanceUsd)
+        assertEquals(HubPpqProblem.Unreachable, hub.state.ppqAccount(id).problem)
 
         hub.api.balance = PpqResult.InvalidKey
         hub.vm.refreshLive()
         advanceUntilIdle()
-        assertEquals(HubPpqProblem.InvalidKey, hub.state.ppq.problem)
+        assertEquals(HubPpqProblem.InvalidKey, hub.state.ppqAccount(id).problem)
         hub.vm.clear()
     }
 
@@ -289,49 +347,51 @@ class InformationWidgetsTest {
     fun aLockedCredentialStoreIsReadAgainLaterInsteadOfCrashing() = runTest {
         // The Hub keeps refreshing while it is on screen, also when the device locks under it.
         val hub = Hub(this)
-        hub.secrets.putString("ppq.apiKey", "sk-good")
+        val id = hub.placePpq()
+        hub.secrets.putString("ppq.apiKey.$id", "sk-good")
         hub.secrets.locked = true
         hub.vm.refreshLive()
         advanceUntilIdle()
-        assertEquals(HubPpqAccount(), hub.state.ppq)
+        assertEquals(HubPpqAccount(), hub.state.ppqAccount(id))
 
-        hub.vm.topUpPpq("5")
+        hub.vm.topUpPpq(id, "5")
         advanceUntilIdle()
-        assertEquals(HubPpqTopUpError.Unreachable, hub.state.ppq.topUpError)
+        assertEquals(HubPpqTopUpError.Unreachable, hub.state.ppqAccount(id).topUpError)
         assertEquals(emptyList(), hub.api.topUps)
 
         hub.secrets.locked = false
         hub.vm.refreshLive()
         advanceUntilIdle()
-        assertEquals(12.5, hub.state.ppq.balanceUsd)
+        assertEquals(12.5, hub.state.ppqAccount(id).balanceUsd)
 
-        // Once read, the key is not asked for again, so a later lock changes nothing.
+        // What is on screen stays while the store is locked again.
         hub.secrets.locked = true
         hub.vm.refreshLive()
         advanceUntilIdle()
-        assertEquals(12.5, hub.state.ppq.balanceUsd)
-        assertNull(hub.state.ppq.problem)
+        assertEquals(12.5, hub.state.ppqAccount(id).balanceUsd)
+        assertNull(hub.state.ppqAccount(id).problem)
         hub.vm.clear()
     }
 
     @Test
-    fun aTopUpHandsTheInvoiceToTheWallet() = runTest {
+    fun aTopUpHandsTheInvoiceToTheWalletUsingTheKeyOfItsWidget() = runTest {
         val hub = Hub(this)
-        hub.secrets.putString("ppq.apiKey", "sk-good")
+        val first = hub.addPpq("sk-good")
+        val second = hub.addPpq("sk-other")
         val invoices = mutableListOf<String>()
         // Collected in the foreground: runTest does not run to idle for background work alone.
         val collecting = launch(hub.dispatcher) { hub.host.invoiceRequests.collect { invoices += it } }
-        hub.vm.refreshLive()
+
+        hub.vm.topUpPpq(second, "25")
+        assertEquals(true, hub.state.ppqAccount(second).toppingUp)
+        assertEquals(false, hub.state.ppqAccount(first).toppingUp)
         advanceUntilIdle()
 
-        hub.vm.topUpPpq("25")
-        assertEquals(true, hub.state.ppq.toppingUp)
-        advanceUntilIdle()
-
-        assertEquals(listOf("sk-good" to 25.0), hub.api.topUps)
+        assertEquals(listOf("sk-other" to 25.0), hub.api.topUps)
         assertEquals(listOf("lnbc1invoice"), invoices)
-        assertEquals(false, hub.state.ppq.toppingUp)
-        assertEquals(1, hub.state.ppq.topUpSerial)
+        assertEquals(false, hub.state.ppqAccount(second).toppingUp)
+        assertEquals(1, hub.state.ppqAccount(second).topUpSerial)
+        assertEquals(0, hub.state.ppqAccount(first).topUpSerial)
         collecting.cancel()
         hub.vm.clear()
     }
@@ -339,29 +399,34 @@ class InformationWidgetsTest {
     @Test
     fun aTopUpOutsideTheLimitsOrWithoutServiceAsksForNothing() = runTest {
         val hub = Hub(this)
-        hub.secrets.putString("ppq.apiKey", "sk-good")
+        val id = hub.addPpq("sk-good")
         val invoices = mutableListOf<String>()
         val collecting = launch(hub.dispatcher) { hub.host.invoiceRequests.collect { invoices += it } }
         advanceUntilIdle()
 
         for (amount in listOf("", "0.09", "1000.01", "abc")) {
-            hub.vm.topUpPpq(amount)
+            hub.vm.topUpPpq(id, amount)
             advanceUntilIdle()
-            assertEquals(HubPpqTopUpError.Amount, hub.state.ppq.topUpError, amount)
+            assertEquals(HubPpqTopUpError.Amount, hub.state.ppqAccount(id).topUpError, amount)
         }
         assertEquals(emptyList(), hub.api.topUps)
 
         hub.api.topUp = PpqResult.Unreachable
-        hub.vm.topUpPpq("0.10")
+        hub.vm.topUpPpq(id, "0.10")
         advanceUntilIdle()
         assertEquals(listOf("sk-good" to 0.1), hub.api.topUps)
-        assertEquals(HubPpqTopUpError.Unreachable, hub.state.ppq.topUpError)
-        assertEquals(0, hub.state.ppq.topUpSerial)
+        assertEquals(HubPpqTopUpError.Unreachable, hub.state.ppqAccount(id).topUpError)
+        assertEquals(0, hub.state.ppqAccount(id).topUpSerial)
         assertEquals(emptyList(), invoices)
 
-        hub.vm.clearPpqTopUpError()
-        assertNull(hub.state.ppq.topUpError)
+        hub.vm.clearPpqTopUpError(id)
+        assertNull(hub.state.ppqAccount(id).topUpError)
         collecting.cancel()
         hub.vm.clear()
+    }
+
+    private companion object {
+        /** The keys the fake ppq.ai accepts; any other is rejected. */
+        val GOOD_KEYS = setOf("sk-good", "sk-other")
     }
 }

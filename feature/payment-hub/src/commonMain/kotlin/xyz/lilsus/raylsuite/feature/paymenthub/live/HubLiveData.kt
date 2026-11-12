@@ -66,7 +66,7 @@ enum class HubPpqProblem { InvalidKey, Unreachable }
 
 enum class HubPpqTopUpError { Amount, InvalidKey, Unreachable }
 
-/** The ppq.ai account every PPQ.AI widget shows. */
+/** The ppq.ai account behind one PPQ.AI widget, which has its own API key. */
 data class HubPpqAccount(
     /** An API key is stored on this device. */
     val connected: Boolean = false,

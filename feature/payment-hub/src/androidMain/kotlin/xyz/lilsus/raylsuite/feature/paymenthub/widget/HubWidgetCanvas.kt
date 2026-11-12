@@ -87,7 +87,7 @@ internal fun HubWidgetCanvas(
         onDispose { viewModel.setArranging(false) }
     }
     var convertingCode by remember { mutableStateOf<String?>(null) }
-    var toppingUp by remember { mutableStateOf(false) }
+    var toppingUpId by remember { mutableStateOf<String?>(null) }
     val open: (HubWidgetTile) -> Unit = { tile ->
         when (tile.kind) {
             // Both bitcoin widgets open the same converter, in the widget's own currency.
@@ -99,13 +99,14 @@ internal fun HubWidgetCanvas(
                 if (tile.people.isEmpty()) viewModel.editWidget(tile.id)
 
             // Without a usable key there is nothing to top up; the widget's settings ask for one.
-            HubWidgetKind.Ppq -> if (state.ppq.connected &&
-                state.ppq.problem != HubPpqProblem.InvalidKey
-            ) {
-                viewModel.clearPpqTopUpError()
-                toppingUp = true
-            } else {
-                viewModel.editWidget(tile.id)
+            HubWidgetKind.Ppq -> {
+                val account = state.ppqAccount(tile.id)
+                if (account.connected && account.problem != HubPpqProblem.InvalidKey) {
+                    viewModel.clearPpqTopUpError(tile.id)
+                    toppingUpId = tile.id
+                } else {
+                    viewModel.editWidget(tile.id)
+                }
             }
 
             // Before it knows a number there is nothing to shop for; the settings ask for one.
@@ -133,12 +134,12 @@ internal fun HubWidgetCanvas(
             HubSatsConverterDialog(rate, onDismiss = { convertingCode = null })
         }
     }
-    if (toppingUp) {
+    toppingUpId?.let { widgetId ->
         HubPpqTopUpSheet(
-            account = state.ppq,
-            onTopUp = viewModel::topUpPpq,
-            onClearError = viewModel::clearPpqTopUpError,
-            onDismiss = { toppingUp = false }
+            account = state.ppqAccount(widgetId),
+            onTopUp = { viewModel.topUpPpq(widgetId, it) },
+            onClearError = { viewModel.clearPpqTopUpError(widgetId) },
+            onDismiss = { toppingUpId = null }
         )
     }
     Column(modifier = modifier) {
