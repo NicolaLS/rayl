@@ -291,6 +291,15 @@ struct NativePaymentHubView: View {
                 )
                 // While it is carried, the lifted copy under the finger is the widget.
                 .opacity(carried ? 0 : 1)
+                // The widget's rounded shape takes its taps. The "−" is added after it: it sits
+                // over the corner, mostly outside that shape, and must not be cut down to it.
+                .contentShape(shape)
+                // A tap while arranging opens the widget's settings, as on the Home Screen.
+                .gesture(
+                    TapGesture().onEnded { model.controller.editWidget(id: tile.id) },
+                    // Otherwise the widget's own buttons take the tap.
+                    including: arranging ? .all : .subviews
+                )
                 .overlay(alignment: .topLeading) {
                     if arranging, !carried {
                         Button { model.controller.removeWidget(id: tile.id) } label: {
@@ -312,13 +321,6 @@ struct NativePaymentHubView: View {
                 // The lift and the drag keep the widget's own rounded shape.
                 .contentShape(.contextMenuPreview, shape)
                 .contentShape(.dragPreview, shape)
-                .contentShape(shape)
-                // A tap while arranging opens the widget's settings, as on the Home Screen.
-                .gesture(
-                    TapGesture().onEnded { model.controller.editWidget(id: tile.id) },
-                    // Otherwise the widget's own buttons take the tap.
-                    including: arranging ? .all : .subviews
-                )
                 .contextMenu {
                     if !arranging { widgetMenu(tile, state: state) }
                 }
@@ -372,6 +374,13 @@ struct NativePaymentHubView: View {
         // Widgets glide to their new places as a carried one passes, or as one changes size.
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: placementKey(state.canvas))
         .animation(.easeInOut(duration: 0.2), value: state.canvas.arranging)
+        // The widgets are placed by offset, which doesn't size the stack, so the grid gets its
+        // full size here, before anything that should cover all of it.
+        .frame(
+            maxWidth: .infinity,
+            minHeight: HubGeometry.span(unit, max(state.canvas.rows, addPosition.row + 1)),
+            alignment: .topLeading
+        )
         // A tap on the Hub around the widgets ends arranging.
         .background {
             Color.clear
@@ -380,11 +389,6 @@ struct NativePaymentHubView: View {
                     if state.canvas.arranging { model.controller.setArranging(value: false) }
                 }
         }
-        .frame(
-            maxWidth: .infinity,
-            minHeight: HubGeometry.span(unit, max(state.canvas.rows, addPosition.row + 1)),
-            alignment: .topLeading
-        )
         // While a widget is carried, the whole grid takes it, also over the widget's own place:
         // iOS doesn't hand a drop to the view a drag started from.
         .overlay {
