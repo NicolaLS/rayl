@@ -2670,6 +2670,52 @@
         }
       }
     },
+    "hub_ppq_signup_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PPQ.AI ist ein KI-Dienst mit Abrechnung nach Nutzung: Chatte mit führenden Modellen und erzeuge Bilder ohne Abo, bezahlt per Lightning. Noch kein Konto? Der Anmeldelink ist ein Partnerlink."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PPQ.AI is a pay-per-use AI service: chat with leading models and generate images without a subscription, paid with Lightning. No account yet? The sign-up link is an affiliate link."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PPQ.AI es un servicio de IA de pago por uso: chatea con modelos líderes y genera imágenes sin suscripción, pagando con Lightning. ¿Aún no tienes cuenta? El enlace de registro es un enlace de afiliado."
+          }
+        }
+      }
+    },
+    "hub_ppq_signup_action": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei ppq.ai registrieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign up at ppq.ai"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regístrate en ppq.ai"
+          }
+        }
+      }
+    },
     "hub_ppq_api_key_saved": {
       "extractionState": "manual",
       "localizations": {

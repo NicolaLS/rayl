@@ -103,6 +103,8 @@
     <string name="hub_ppq_amount">Amount in USD</string>
     <string name="hub_ppq_api_key">API key</string>
     <string name="hub_ppq_api_key_hint">Create a key at ppq.ai under API. It is stored only on this device.</string>
+    <string name="hub_ppq_signup_body">PPQ.AI is a pay-per-use AI service: chat with leading models and generate images without a subscription, paid with Lightning. No account yet? The sign-up link is an affiliate link.</string>
+    <string name="hub_ppq_signup_action">Sign up at ppq.ai</string>
     <string name="hub_ppq_api_key_saved">A key is saved on this device. Enter a new one to replace it.</string>
     <string name="hub_ppq_add_key">Add API key</string>
     <string name="hub_ppq_error_enter_key">Enter your ppq.ai API key.</string>

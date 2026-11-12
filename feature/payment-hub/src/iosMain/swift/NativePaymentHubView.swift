@@ -730,6 +730,16 @@ private struct WidgetConfigurationView: View {
                         } footer: {
                             Text(hint)
                         }
+                        if let body = editor.signupBody {
+                            Section {
+                                Link(
+                                    editor.signupAction,
+                                    destination: URL(string: "https://ppq.ai/invite/52f36fe6")!
+                                )
+                            } footer: {
+                                Text(body)
+                            }
+                        }
                     }
                     if let hint = editor.phoneHint {
                         Section {

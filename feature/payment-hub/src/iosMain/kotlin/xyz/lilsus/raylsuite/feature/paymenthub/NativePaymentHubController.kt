@@ -268,6 +268,12 @@ class NativePaymentHubController(
                     } else {
                         null
                     },
+                    signupBody = if (editor.kind == HubWidgetKind.Ppq) {
+                        localized("hub_ppq_signup_body")
+                    } else {
+                        null
+                    },
+                    signupAction = localized("hub_ppq_signup_action"),
                     phone = editor.phoneInput,
                     phoneHint = localized("hub_claro_phone_hint").takeIf {
                         editor.kind == HubWidgetKind.Claro
@@ -795,6 +801,9 @@ data class NativeHubEditor(
     val apiKey: String,
     /** Explains the ppq.ai API key field; null for every other widget. */
     val apiKeyHint: String?,
+    /** Introduces ppq.ai to people without an account; null for every other widget. */
+    val signupBody: String?,
+    val signupAction: String,
     val phone: String,
     /** Explains the Claro phone number field; null for every other widget. */
     val phoneHint: String?,

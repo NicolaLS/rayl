@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -312,8 +313,21 @@ private fun ApiKeyField(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp)
         )
+        val uriHandler = LocalUriHandler.current
+        Text(
+            stringResource(R.string.hub_ppq_signup_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+        TextButton(onClick = { uriHandler.openUri(PPQ_SIGNUP_URL) }) {
+            Text(stringResource(R.string.hub_ppq_signup_action))
+        }
     }
 }
+
+/** The author's affiliate invite for people who do not have a ppq.ai account yet. */
+internal const val PPQ_SIGNUP_URL = "https://ppq.ai/invite/52f36fe6"
 
 /** The number a Claro widget tops up. Claro El Salvador sells to Salvadoran numbers only. */
 @Composable
