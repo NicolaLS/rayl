@@ -2877,6 +2877,126 @@
         }
       }
     },
+    "hub_widget_section_bills": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Rechnungen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Bills" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Facturas" } }
+      }
+    },
+    "hub_bill_water": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Wasser" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Water" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Agua" } }
+      }
+    },
+    "hub_bill_electricity": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Strom" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Electricity" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Electricidad" } }
+      }
+    },
+    "hub_bill_telecom": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Telefon, Internet & TV" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Phone, internet & TV" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Teléfono, internet y TV" } }
+      }
+    },
+    "hub_bill_anda_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Wasser, landesweit." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Water, nationwide." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Agua, en todo el país." } }
+      }
+    },
+    "hub_bill_caess_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Strom in San Salvador und im Norden." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Electricity in San Salvador and the north." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Electricidad en San Salvador y la zona norte." } }
+      }
+    },
+    "hub_bill_delsur_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Strom in der Mitte und im Süden." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Electricity in the centre and south." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Electricidad en la zona centro-sur." } }
+      }
+    },
+    "hub_bill_clesa_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Strom im Westen." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Electricity in the west." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Electricidad en la zona occidental." } }
+      }
+    },
+    "hub_bill_eeo_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Strom im Osten." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Electricity in the east." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Electricidad en la zona oriental." } }
+      }
+    },
+    "hub_bill_deusem_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Strom in Usulután." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Electricity in Usulután." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Electricidad en Usulután." } }
+      }
+    },
+    "hub_bill_tigo_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Laufzeitverträge, Internet und TV für zu Hause." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Postpaid plans, home internet and TV." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Planes pospago, internet y TV para el hogar." } }
+      }
+    },
+    "hub_bill_claroresidencial_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Internet, TV und Festnetz für zu Hause." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Home internet, TV and landline." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Internet, TV y telefonía fija para el hogar." } }
+      }
+    },
+    "hub_bill_soon_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Kommt bald" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Coming soon" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Muy pronto" } }
+      }
+    },
+    "hub_bill_soon_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Wir arbeiten daran, dass du Rechnungen von %1$@ hier bezahlen kannst." } },
+        "en": { "stringUnit": { "state": "translated", "value": "We're working on letting you pay %1$@ bills here." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Estamos trabajando para que puedas pagar aquí tus facturas de %1$@." } }
+      }
+    },
+    "hub_bill_soon_ok": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "OK" } },
+        "en": { "stringUnit": { "state": "translated", "value": "OK" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Entendido" } }
+      }
+    },
     "hub_widget_claro": {
       "extractionState": "manual",
       "localizations": {

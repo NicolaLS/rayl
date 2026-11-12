@@ -10,6 +10,9 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import xyz.lilsus.raylsuite.core.model.LightningAddress
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryFakeDoor
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryFakeDoorAction
+import xyz.lilsus.raylsuite.feature.paymenthub.bills.HubBill
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -83,6 +86,39 @@ class WidgetHubViewModelTest {
         vm.previewMove(c, b)
         vm.setArranging(false)
         assertEquals(listOf(b, c, a), shown())
+        vm.clear()
+    }
+
+    @Test
+    fun aBillIsReportedAsItsOwnDoorAndAddsNothingToTheHub() = runTest {
+        val repo = DefaultPaymentHubRepository(MapSettings())
+        val reported = mutableListOf<Pair<TelemetryFakeDoor, TelemetryFakeDoorAction>>()
+        val vm = WidgetHubViewModel(
+            repo,
+            PaymentHubController(repo, this),
+            { "USD" },
+            dispatcher = StandardTestDispatcher(testScheduler),
+            fakeDoor = { door, action -> reported += door to action }
+        )
+        vm.openGallery()
+
+        vm.billSeen(HubBill.Delsur)
+        vm.billTapped(HubBill.Delsur)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                TelemetryFakeDoor.BillDelsur to TelemetryFakeDoorAction.Shown,
+                TelemetryFakeDoor.BillDelsur to TelemetryFakeDoorAction.Tapped
+            ),
+            reported
+        )
+        // A bill is not a widget: nothing is set up or placed, and the gallery stays open.
+        assertEquals(HubWidgetScreen.Gallery, vm.state.value.screen)
+        assertNull(vm.state.value.editor)
+        assertEquals(emptyList(), repo.hub.value.widgets)
+        // Two billers sharing a door would be counted as one.
+        assertEquals(HubBill.entries.size, HubBill.entries.map { it.door }.toSet().size)
         vm.clear()
     }
 

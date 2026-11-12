@@ -172,8 +172,15 @@ enum class TelemetryUsageDataChoice(override val wire: String) : TelemetryValue 
  * together with the door itself.
  */
 enum class TelemetryFakeDoor(override val wire: String) : TelemetryValue {
-    /** Never shown; keeps the list non-empty until the first door exists. */
-    Placeholder("placeholder")
+    // Paying a Salvadoran bill from the Hub, one door per biller.
+    BillAnda("bill_anda"),
+    BillCaess("bill_caess"),
+    BillDelsur("bill_delsur"),
+    BillClesa("bill_clesa"),
+    BillEeo("bill_eeo"),
+    BillDeusem("bill_deusem"),
+    BillTigo("bill_tigo"),
+    BillClaroResidencial("bill_claro_residencial")
 }
 
 enum class TelemetryFakeDoorAction(override val wire: String) : TelemetryValue {

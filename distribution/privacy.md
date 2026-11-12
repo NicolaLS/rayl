@@ -36,7 +36,9 @@ anything not yet sent.
   read a code; which onboarding steps were completed; that a setting was
   changed (not its value); that a top-up or package was ordered through a Hub
   widget and whether it was paid and delivered (not the phone number, the
-  product, or the price); that the question to turn usage data off was shown, which is
+  product, or the price); that something the Hub offers before it can do it,
+  such as paying a particular company's bill, was shown or tapped, once per
+  installation; that the question to turn usage data off was shown, which is
   sent before you answer it, and that it was kept on or turned on again (never
   that it was turned off: from then on nothing is sent). Each batch also carries the app version, the
   operating system version, and the device model (such as "Pixel 8").

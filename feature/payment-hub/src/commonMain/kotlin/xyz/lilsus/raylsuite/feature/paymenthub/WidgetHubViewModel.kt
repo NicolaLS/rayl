@@ -16,12 +16,15 @@ import kotlinx.coroutines.withContext
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.model.LightningAddress
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryCatalog
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryFakeDoor
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryFakeDoorAction
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubProduct
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubPurchaseStep
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubService
 import xyz.lilsus.raylsuite.core.raylapi.telemetryEvent
 import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 import xyz.lilsus.raylsuite.core.telemetry.TelemetryRecorder
+import xyz.lilsus.raylsuite.feature.paymenthub.bills.HubBill
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroApi
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroDelivery
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroInvoice
@@ -61,6 +64,9 @@ class WidgetHubViewModel(
     /** Where the credential store is read and written. */
     private val background: CoroutineDispatcher = Dispatchers.Default,
     private val telemetry: TelemetryRecorder = Telemetry,
+    /** Reports a fake door, once per installation and only while the user shares usage data. */
+    private val fakeDoor: (TelemetryFakeDoor, TelemetryFakeDoorAction) -> Unit =
+        Telemetry::fakeDoor,
     /** Whether the user shares usage data. Without it nobody would learn what an order became. */
     private val sharesUsageData: () -> Boolean = { Telemetry.enabled.value },
     private val clock: () -> Long = ::platformCurrentTimeMillis
@@ -629,6 +635,12 @@ class WidgetHubViewModel(
     fun clearFeedbackError() = mutableState.update {
         it.copy(feedback = it.feedback.copy(failed = false))
     }
+
+    /** [bill] came into view in the gallery. */
+    fun billSeen(bill: HubBill) = fakeDoor(bill.door, TelemetryFakeDoorAction.Shown)
+
+    /** Someone wants to pay [bill]. The Hub cannot yet; the platform says that it is on its way. */
+    fun billTapped(bill: HubBill) = fakeDoor(bill.door, TelemetryFakeDoorAction.Tapped)
 
     fun clear() {
         scope.cancel()

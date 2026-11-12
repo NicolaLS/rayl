@@ -3,11 +3,15 @@ package xyz.lilsus.raylsuite.feature.paymenthub
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -135,6 +139,11 @@ private fun HubEditorSheet(state: WidgetHubState, viewModel: WidgetHubViewModel)
         onDismissRequest = { if (editing) viewModel.close() },
         sheetState = sheetState,
         sheetGesturesEnabled = !state.busy,
+        // No room for the status bar: the sheet rests just below it, and the padding would make
+        // the sheet taller whenever it springs up into it. A taller sheet moves its resting place,
+        // and the sheet then springs again with the whole fling that settled it, so a fling at
+        // the end of the gallery set it bouncing forever.
+        contentWindowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom) },
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false)
     ) {
         NavigationEventHandler(

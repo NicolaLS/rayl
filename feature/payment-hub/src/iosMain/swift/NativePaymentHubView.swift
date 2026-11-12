@@ -73,6 +73,29 @@ private enum HubPalette {
         default: return nil
         }
     }
+
+    /// The colour a bill's tile glows in, taken from its biller's mark.
+    static func billGlow(_ id: String) -> Color? {
+        switch id {
+        case "anda": return Color(red: 0.0, green: 0.36, blue: 0.68)
+        case "caess", "clesa", "eeo", "deusem": return Color(red: 0.60, green: 0.44, blue: 1.0)
+        case "delsur": return Color(red: 0.20, green: 0.62, blue: 0.80)
+        case "tigo": return Color(red: 0.28, green: 0.42, blue: 0.67)
+        case "claroresidencial": return claro
+        default: return nil
+        }
+    }
+
+    static func billMark(_ id: String) -> String? {
+        switch id {
+        case "anda": return "hub_bill_anda"
+        case "caess", "clesa", "eeo", "deusem": return "hub_bill_aes"
+        case "delsur": return "hub_bill_delsur"
+        case "tigo": return "hub_bill_tigo"
+        case "claroresidencial": return "hub_claro"
+        default: return nil
+        }
+    }
 }
 
 private enum HubGeometry {
@@ -517,9 +540,16 @@ struct NativePaymentHubView: View {
     }
 }
 
+/// A tapped bill, whose sheet says that paying it is on its way.
+private struct HubBillTarget: Identifiable {
+    let id: String
+    let bill: NativeHubBill
+}
+
 private struct HubEditorSheet: View {
     @ObservedObject var model: NativePaymentHubModel
     @State private var givingFeedback = false
+    @State private var openBill: HubBillTarget?
 
     var body: some View {
         NavigationStack(path: navigationPath) {
@@ -536,6 +566,11 @@ private struct HubEditorSheet: View {
         }
         .sheet(isPresented: $givingFeedback) {
             HubFeedbackSheet(model: model)
+        }
+        .sheet(item: $openBill) { target in
+            if let state = model.snapshot {
+                HubBillSheet(bill: target.bill, text: state.text)
+            }
         }
     }
 
@@ -623,6 +658,7 @@ private struct HubEditorSheet: View {
                 gallerySection(state, title: state.text.sectionInfo, kinds: ["rate", "sats"])
                 gallerySection(state, title: state.text.sectionAi, kinds: ["ppq"])
                 gallerySection(state, title: state.text.sectionMobile, kinds: ["claro"])
+                billsSection(state)
                 feedbackPrompt(state)
             }
             .padding(20)
@@ -636,34 +672,64 @@ private struct HubEditorSheet: View {
     }
 
     private func gallerySection(_ state: NativePaymentHubSnapshot, title: String, kinds: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.title3.bold()).accessibilityAddTraits(.isHeader)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14, alignment: .top), count: 2), spacing: 24) {
-                ForEach(state.gallery.filter { kinds.contains($0.kind) }, id: \.id) { definition in
-                    Button {
-                        model.controller.selectDefinition(id: definition.id)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 7) {
-                            if let preview = definition.variants.first?.preview {
-                                WidgetContent(tile: preview, interactive: false, pay: { _ in }, compactPreview: true)
-                                    .aspectRatio(1.05, contentMode: .fit)
-                                    .allowsHitTesting(false)
-                                    .accessibilityHidden(true)
-                            }
-                            Text(definition.title).font(.headline).foregroundStyle(.primary)
-                            Text(definition.detail)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
+        galleryGrid(title) {
+            ForEach(state.gallery.filter { kinds.contains($0.kind) }, id: \.id) { definition in
+                galleryEntry(title: definition.title, detail: definition.detail) {
+                    model.controller.selectDefinition(id: definition.id)
+                } face: {
+                    if let preview = definition.variants.first?.preview {
+                        WidgetContent(tile: preview, interactive: false, pay: { _ in }, compactPreview: true)
+                            .allowsHitTesting(false)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
+    }
+
+    /// Bills the Hub cannot pay yet. A tap says that paying one is on its way.
+    private func billsSection(_ state: NativePaymentHubSnapshot) -> some View {
+        galleryGrid(state.text.sectionBills) {
+            ForEach(state.bills, id: \.id) { bill in
+                galleryEntry(title: bill.title, detail: bill.detail) {
+                    model.controller.billTapped(id: bill.id)
+                    openBill = HubBillTarget(id: bill.id, bill: bill)
+                } face: {
+                    HubBillFace(bill: bill)
+                }
+                // The grid is lazy, so this is when the bill comes into view.
+                .onAppear { model.controller.billSeen(id: bill.id) }
+            }
+        }
+    }
+
+    private func galleryGrid<Entries: View>(_ title: String, @ViewBuilder entries: () -> Entries) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title).font(.title3.bold()).accessibilityAddTraits(.isHeader)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14, alignment: .top), count: 2), spacing: 24) {
+                entries()
+            }
+        }
+    }
+
+    private func galleryEntry<Face: View>(
+        title: String, detail: String, action: @escaping () -> Void, @ViewBuilder face: () -> Face
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 7) {
+                face()
+                    .aspectRatio(1.05, contentMode: .fit)
+                    .accessibilityHidden(true)
+                Text(title).font(.headline).foregroundStyle(.primary)
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     @ToolbarContentBuilder
@@ -1191,6 +1257,52 @@ private struct HubPrimaryButton: View {
     }
 }
 
+/// Every tile is the same face, so a person, an amount and a price sit side by side as one family.
+/// Colour comes from the portraits and from a widget's own glow.
+private struct HubFace: ViewModifier {
+    let glow: Color?
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                ZStack {
+                    LinearGradient(colors: [HubPalette.faceTop, HubPalette.faceBottom], startPoint: .top, endPoint: .bottom)
+                    if let glow {
+                        // A trace of the widget's own colour, so a row of them is not one slab.
+                        RadialGradient(
+                            colors: [glow.opacity(colorScheme == .dark ? 0.26 : 0.16), glow.opacity(0)],
+                            center: .topTrailing,
+                            startRadius: 0,
+                            endRadius: 190
+                        )
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: HubGeometry.corner, style: .continuous))
+            // By day a white face needs a little lift off the light page.
+            .shadow(color: colorScheme == .dark ? .clear : HubPalette.shadow, radius: 8, y: 3)
+    }
+}
+
+/// A service's mark on a white disc, the only colour a tile's header carries.
+private struct HubMarkDisc: View {
+    let mark: String
+    let size: CGFloat
+
+    var body: some View {
+        Image(mark)
+            .resizable()
+            .scaledToFit()
+            .padding(size * 0.15)
+            .frame(width: size, height: size)
+            .background(.white, in: Circle())
+            // By day the white disc would melt into a white face without a hairline.
+            .overlay { Circle().strokeBorder(HubPalette.hairline, lineWidth: 1) }
+            .accessibilityHidden(true)
+    }
+}
+
 private struct WidgetContent: View {
     let tile: NativeHubTile
     let interactive: Bool
@@ -1198,7 +1310,6 @@ private struct WidgetContent: View {
     /// A tap on a widget that opens something of its own instead of paying a person.
     var open: (NativeHubTile) -> Void = { _ in }
     var compactPreview = false
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
@@ -1214,25 +1325,7 @@ private struct WidgetContent: View {
                 group
             }
         }
-        .background {
-            // Every tile is the same face, so a person, an amount and a price sit side by side as
-            // one family. Colour comes from the portraits and from a widget's own glow.
-            ZStack {
-                LinearGradient(colors: [HubPalette.faceTop, HubPalette.faceBottom], startPoint: .top, endPoint: .bottom)
-                if let glow = HubPalette.glow(tile.kind) {
-                    // A trace of the widget's own colour, so a row of them is not one slab.
-                    RadialGradient(
-                        colors: [glow.opacity(colorScheme == .dark ? 0.26 : 0.16), glow.opacity(0)],
-                        center: .topTrailing,
-                        startRadius: 0,
-                        endRadius: 190
-                    )
-                }
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: HubGeometry.corner, style: .continuous))
-        // By day a white face needs a little lift off the light page.
-        .shadow(color: colorScheme == .dark ? .clear : HubPalette.shadow, radius: 8, y: 3)
+        .modifier(HubFace(glow: HubPalette.glow(tile.kind)))
     }
 
     private var small: Bool { tile.columns == 1 }
@@ -1244,15 +1337,7 @@ private struct WidgetContent: View {
     private func header<Trailing: View>(_ title: String, @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: 7) {
             if let mark = HubPalette.mark(tile.kind) {
-                Image(mark)
-                    .resizable()
-                    .scaledToFit()
-                    .padding(4)
-                    .frame(width: 26, height: 26)
-                    .background(.white, in: Circle())
-                    // By day the white disc would melt into a white face without a hairline.
-                    .overlay { Circle().strokeBorder(HubPalette.hairline, lineWidth: 1) }
-                    .accessibilityHidden(true)
+                HubMarkDisc(mark: mark, size: 26)
             }
             Text(title)
                 .font(.footnote.weight(.semibold))
@@ -1962,14 +2047,7 @@ private struct HubClaroSheet: View {
                         List {
                             Section {
                                 HStack(spacing: 14) {
-                                    Image("hub_claro")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .padding(7)
-                                        .frame(width: 44, height: 44)
-                                        .background(.white, in: Circle())
-                                        .overlay { Circle().strokeBorder(HubPalette.hairline, lineWidth: 1) }
-                                        .accessibilityHidden(true)
+                                    HubMarkDisc(mark: "hub_claro", size: 44)
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text("Claro").font(.headline)
                                         Text(shop.phone)
@@ -2057,6 +2135,58 @@ private struct HubClaroSheet: View {
                 }
             }
         }
+    }
+}
+
+/// A biller's mark on a tile's face, with what the bill is for.
+private struct HubBillFace: View {
+    let bill: NativeHubBill
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if let mark = HubPalette.billMark(bill.id) {
+                HubMarkDisc(mark: mark, size: 64)
+            }
+            Text(bill.category)
+                .font(.subheadline)
+                .foregroundStyle(HubPalette.ink.opacity(0.8))
+                .lineLimit(1)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .modifier(HubFace(glow: HubPalette.billGlow(bill.id)))
+    }
+}
+
+/// What a tap on a bill shows: paying it is on its way.
+private struct HubBillSheet: View {
+    let bill: NativeHubBill
+    let text: NativePaymentHubCopy
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if let mark = HubPalette.billMark(bill.id) {
+                HubMarkDisc(mark: mark, size: 56)
+            }
+            Text(text.billSoonTitle)
+                .font(.title2.bold())
+                .accessibilityAddTraits(.isHeader)
+            Text(bill.soon)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { dismiss() } label: {
+                Text(text.billSoonOk)
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity, minHeight: 36)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.top, 8)
+        }
+        .padding(24)
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 }
 

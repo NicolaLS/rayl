@@ -14,6 +14,7 @@ import xyz.lilsus.raylsuite.core.settings.createSecureSettings
 import xyz.lilsus.raylsuite.core.ui.format.currentAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
 import xyz.lilsus.raylsuite.core.ui.resources.nativeString
+import xyz.lilsus.raylsuite.feature.paymenthub.bills.HubBill
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.HubGridSpan
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.gridRowCount
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.packHubGrid
@@ -132,6 +133,18 @@ class NativePaymentHubController(
 
     fun clearFeedbackError() = viewModel.clearFeedbackError()
 
+    /** The bill [id] came into view in the gallery. */
+    fun billSeen(id: String) {
+        billFor(id)?.let(viewModel::billSeen)
+    }
+
+    /** Someone tapped the bill [id]; the view says that paying it is on its way. */
+    fun billTapped(id: String) {
+        billFor(id)?.let(viewModel::billTapped)
+    }
+
+    private fun billFor(id: String): HubBill? = HubBill.entries.firstOrNull { it.nativeId == id }
+
     /** Both converter fields after the user typed [input] into the fiat one. */
     fun convertFiat(currencyCode: String, input: String): NativeHubConversion =
         viewModel.state.value.rates[currencyCode]?.convertFiat(input)
@@ -216,6 +229,7 @@ class NativePaymentHubController(
                 arranging = state.arranging
             ),
             gallery = definitions,
+            bills = HubBill.entries.map { it.toNative() },
             selectedDefinition = definitions.firstOrNull { it.id == state.editor?.definitionId },
             editor = state.editor?.let { editor ->
                 val variant = state.selectedVariant ?: return@let null
@@ -648,6 +662,8 @@ data class NativePaymentHubSnapshot(
     val text: NativePaymentHubCopy,
     val canvas: NativeHubCanvas,
     val gallery: List<NativeHubDefinition>,
+    /** The bills the gallery offers before the Hub can pay them. */
+    val bills: List<NativeHubBill>,
     val selectedDefinition: NativeHubDefinition?,
     val editor: NativeHubEditor?,
     val query: String,
@@ -718,6 +734,17 @@ data class NativeHubDefinition(
     val title: String,
     val detail: String,
     val variants: List<NativeHubVariant>
+)
+
+data class NativeHubBill(
+    /** Also names the biller's mark and colour in the view. */
+    val id: String,
+    val title: String,
+    val detail: String,
+    /** What the bill is for: water, electricity, or phone, internet and TV. */
+    val category: String,
+    /** What a tap shows: paying this bill is on its way. */
+    val soon: String
 )
 
 data class NativeHubVariant(
@@ -836,6 +863,9 @@ data class NativePaymentHubCopy(
     val sectionInfo: String,
     val sectionAi: String,
     val sectionMobile: String,
+    val sectionBills: String,
+    val billSoonTitle: String,
+    val billSoonOk: String,
     val feedbackPrompt: String,
     val feedbackPromptBody: String,
     val feedbackThanks: String,
@@ -906,6 +936,9 @@ private fun loadCopy() = NativePaymentHubCopy(
     sectionInfo = localized("hub_widget_section_info"),
     sectionAi = localized("hub_widget_section_ai"),
     sectionMobile = localized("hub_widget_section_mobile"),
+    sectionBills = localized("hub_widget_section_bills"),
+    billSoonTitle = localized("hub_bill_soon_title"),
+    billSoonOk = localized("hub_bill_soon_ok"),
     feedbackPrompt = localized("hub_feedback_prompt"),
     feedbackPromptBody = localized("hub_feedback_prompt_body"),
     feedbackThanks = localized("hub_feedback_thanks"),
@@ -966,6 +999,16 @@ private fun loadCopy() = NativePaymentHubCopy(
     unavailable = localized("hub_widget_unavailable"),
     contactsTitle = localized("hub_widget_contacts"),
     automaticHint = localized("hub_widget_recents_hint")
+)
+
+private val HubBill.nativeId: String get() = name.lowercase()
+
+private fun HubBill.toNative() = NativeHubBill(
+    id = nativeId,
+    title = title,
+    detail = localized("hub_bill_${nativeId}_body"),
+    category = localized("hub_bill_${kind.name.lowercase()}"),
+    soon = nativeString(resource("hub_bill_soon_body"), title)
 )
 
 private fun ClaroProduct.toNative() =

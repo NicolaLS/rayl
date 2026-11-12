@@ -128,39 +128,7 @@ internal fun HubWidgetFace(
         HubWidgetKind.Claro -> ClaroRed
         else -> null
     }
-    val face = hubFaceColors()
-    Box(
-        // Every tile is the same face, so a person, an amount and a price sit side by side as one
-        // family. Colour comes from the portraits and from a widget's own glow.
-        modifier
-            .then(
-                if (face.dark) {
-                    Modifier
-                } else {
-                    // By day a white face needs a little lift off the light page.
-                    Modifier.shadow(
-                        8.dp,
-                        HubTileShape,
-                        ambientColor = face.ink.copy(alpha = 0.16f),
-                        spotColor = face.ink.copy(alpha = 0.22f)
-                    )
-                }
-            )
-            .clip(HubTileShape)
-            .background(Brush.verticalGradient(listOf(face.top, face.bottom)))
-            .drawBehind {
-                // A trace of the widget's own colour, so a row of them is not one slab.
-                if (glow != null) {
-                    drawRect(
-                        Brush.radialGradient(
-                            listOf(glow.copy(alpha = face.glowAlpha), glow.copy(alpha = 0f)),
-                            center = Offset(size.width, 0f),
-                            radius = 190.dp.toPx()
-                        )
-                    )
-                }
-            }
-    ) {
+    Box(modifier.hubFace(hubFaceColors(), glow)) {
         when {
             tile.kind.showsInformation -> HubInfoFace(tile, state, preview, interactive, onOpen)
             tile.people.isEmpty() && !preview -> EmptyFace(tile, interactive, onOpen)
@@ -170,6 +138,39 @@ internal fun HubWidgetFace(
         }
     }
 }
+
+/**
+ * Every tile is the same face, so a person, an amount and a price sit side by side as one family.
+ * Colour comes from the portraits and from a widget's own [glow].
+ */
+internal fun Modifier.hubFace(face: HubFaceColors, glow: Color?): Modifier = this
+    .then(
+        if (face.dark) {
+            Modifier
+        } else {
+            // By day a white face needs a little lift off the light page.
+            Modifier.shadow(
+                8.dp,
+                HubTileShape,
+                ambientColor = face.ink.copy(alpha = 0.16f),
+                spotColor = face.ink.copy(alpha = 0.22f)
+            )
+        }
+    )
+    .clip(HubTileShape)
+    .background(Brush.verticalGradient(listOf(face.top, face.bottom)))
+    .drawBehind {
+        // A trace of the widget's own colour, so a row of them is not one slab.
+        if (glow != null) {
+            drawRect(
+                Brush.radialGradient(
+                    listOf(glow.copy(alpha = face.glowAlpha), glow.copy(alpha = 0f)),
+                    center = Offset(size.width, 0f),
+                    radius = 190.dp.toPx()
+                )
+            )
+        }
+    }
 
 /** A small tile centres what it shows; a wide one keeps it on the leading edge. */
 internal val HubWidgetTile.small: Boolean get() = variant.columns == 1

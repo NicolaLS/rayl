@@ -1,5 +1,6 @@
 package xyz.lilsus.raylsuite.feature.paymenthub.widget
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +59,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetVariant
 import xyz.lilsus.raylsuite.feature.paymenthub.R
 import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubState
 import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubViewModel
+import xyz.lilsus.raylsuite.feature.paymenthub.bills.HubBill
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.claroPhone
 
 @Composable
@@ -67,6 +69,8 @@ internal fun HubWidgetGallery(
     modifier: Modifier = Modifier
 ) {
     var feedbackOpen by rememberSaveable { mutableStateOf(false) }
+    var openBill by rememberSaveable { mutableStateOf<HubBill?>(null) }
+    openBill?.let { bill -> HubBillSheet(bill, onDismiss = { openBill = null }) }
     if (feedbackOpen) {
         HubFeedbackSheet(
             feedback = state.feedback,
@@ -104,14 +108,7 @@ internal fun HubWidgetGallery(
                 R.string.hub_widget_section_ai to listOf(HubWidgetKind.Ppq),
                 R.string.hub_widget_section_mobile to listOf(HubWidgetKind.Claro)
             ).forEach { (title, kinds) ->
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text(
-                        stringResource(title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 8.dp).semantics { heading() }
-                    )
-                }
+                item(span = { GridItemSpan(maxLineSpan) }) { GallerySectionTitle(title) }
                 items(
                     state.gallery.filter {
                         it.kind in kinds
@@ -124,10 +121,33 @@ internal fun HubWidgetGallery(
                 }
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
+                GallerySectionTitle(R.string.hub_widget_section_bills)
+            }
+            items(HubBill.entries, key = { "bill.${it.name}" }) { bill ->
+                HubBillEntry(
+                    bill,
+                    onSeen = { viewModel.billSeen(bill) },
+                    onClick = {
+                        viewModel.billTapped(bill)
+                        openBill = bill
+                    }
+                )
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 FeedbackPrompt(thanked = state.feedback.sentSerial > 0) { feedbackOpen = true }
             }
         }
     }
+}
+
+@Composable
+private fun GallerySectionTitle(@StringRes title: Int) {
+    Text(
+        stringResource(title),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 8.dp).semantics { heading() }
+    )
 }
 
 /** The way out of the gallery for someone who did not find their widget. */
