@@ -159,7 +159,11 @@ struct NativePaymentHubView: View {
         }
         .onDisappear { model.controller.setArranging(value: false) }
         .onChange(of: model.snapshot?.canvas.arranging ?? false) { _, arranging in
-            if !arranging { draggingId = nil }
+            // Done during a drag puts it down for good: the drag can't start arranging again.
+            if !arranging {
+                draggingId = nil
+                liftedWidget.reset()
+            }
         }
     }
 
@@ -250,6 +254,18 @@ struct NativePaymentHubView: View {
             }
         }
         .background(Color(uiColor: .systemGroupedBackground))
+        // A widget let go anywhere on the Hub is put down where it is shown, not flown back as
+        // if the drag were cancelled. Over the grid, the grid's own drop target takes it.
+        .onDrop(
+            of: [.text],
+            delegate: HubGridDrop(
+                tiles: [],
+                unit: 0,
+                lifted: liftedWidget,
+                draggingId: $draggingId,
+                controller: model.controller
+            )
+        )
         .overlay(alignment: .topTrailing) {
             // Arranging ends with Done in the corner, as on the Home Screen; nothing on the Hub
             // moves for it, so a widget being dragged stays under the finger.
@@ -327,11 +343,12 @@ struct NativePaymentHubView: View {
                 .onDrag {
                     // iOS asks for the item as soon as the widget lifts for its menu, before
                     // anyone drags: only remember which widget it is. Carrying it starts once the
-                    // drag really moves over the Hub (see HubTileDrop), after the menu is gone.
-                    liftedWidget.id = tile.id
+                    // drag really moves over the Hub (see HubGridDrop), after the menu is gone.
+                    let lift = liftedWidget.lift(tile.id)
                     return HubDragItem.provider(for: tile.id) {
-                        if liftedWidget.id == tile.id { liftedWidget.id = nil }
-                        guard draggingId == tile.id else { return }
+                        // iOS lets go of an item some time after its drag, so an earlier lift's
+                        // item can go during a later drag: only this lift's own drag ends here.
+                        guard liftedWidget.end(lift) else { return }
                         draggingId = nil
                         model.controller.finishMove()
                     }
@@ -1623,16 +1640,63 @@ private struct WidgetContent: View {
 }
 
 /// The widget iOS has lifted, which becomes the carried one once its drag moves, and where the
-/// finger holds it.
+/// finger holds it. Each lift is told apart, since iOS lets go of a lift's item some time after
+/// its drag, possibly during the next one.
 private final class HubLiftedWidget {
-    var id: String?
+    /// The widget lifted last, until its drag ends or arranging does.
+    private(set) var id: String?
     /// Where on the carried widget the finger holds it, measured when carrying starts.
     var grab: CGPoint?
+    private var lastLift: UUID?
+    private var carriedLift: UUID?
+
+    /// The last lift, while it may still become a drag.
+    var pending: (id: String, lift: UUID)? {
+        guard let id, let lastLift else { return nil }
+        return (id, lastLift)
+    }
+
+    /// Remembers that [id] was lifted; the lift it returns identifies this lift's drag.
+    func lift(_ id: String) -> UUID {
+        let lift = UUID()
+        self.id = id
+        lastLift = lift
+        return lift
+    }
+
+    /// Carries [lift], unless a later lift or the end of arranging came first.
+    func carry(_ lift: UUID) -> Bool {
+        guard lift == lastLift else { return false }
+        carriedLift = lift
+        grab = nil
+        return true
+    }
+
+    /// iOS let go of [lift]'s item. Returns whether that ended the drag being carried, which no
+    /// drop put down.
+    func end(_ lift: UUID) -> Bool {
+        if lift == lastLift {
+            id = nil
+            lastLift = nil
+        }
+        guard lift == carriedLift else { return false }
+        carriedLift = nil
+        return true
+    }
+
+    /// A drop put the widget down, or arranging ended: nothing is lifted any more.
+    func reset() {
+        id = nil
+        lastLift = nil
+        carriedLift = nil
+        grab = nil
+    }
 }
 
 /// The Hub's grid as the place a carried widget is dropped. Starts carrying a lifted widget once
 /// its drag moves over the Hub, shows it where it is held, and keeps the order where it is let go.
-/// Locations are in the grid's own space, with its first cell at the origin.
+/// Locations are in the grid's own space, with its first cell at the origin. Without tiles it
+/// stands for the Hub around the grid, where a carried widget is only put down.
 private struct HubGridDrop: DropDelegate {
     let tiles: [NativeHubTile]
     let unit: CGFloat
@@ -1656,9 +1720,9 @@ private struct HubGridDrop: DropDelegate {
     func validateDrop(info: DropInfo) -> Bool { carried != nil }
 
     func performDrop(info: DropInfo) -> Bool {
-        guard let dragged = carried else { return false }
+        guard carried != nil else { return false }
+        lifted.reset()
         draggingId = nil
-        lifted.id = nil
         controller.finishMove()
         return true
     }
@@ -1689,14 +1753,13 @@ private struct HubGridDrop: DropDelegate {
     /// The drag has really started: the widget is carried and the Hub arranges. This waits a
     /// turn of the main queue, since iOS is still putting its menu away when the drag begins.
     private func startCarrying() {
-        guard draggingId == nil, let id = lifted.id else { return }
+        guard draggingId == nil, let pending = lifted.pending else { return }
         let draggingId = $draggingId
         let lifted = lifted
         let controller = controller
         DispatchQueue.main.async {
-            guard draggingId.wrappedValue == nil else { return }
-            lifted.grab = nil
-            draggingId.wrappedValue = id
+            guard draggingId.wrappedValue == nil, lifted.carry(pending.lift) else { return }
+            draggingId.wrappedValue = pending.id
             controller.setArranging(value: true)
         }
     }
