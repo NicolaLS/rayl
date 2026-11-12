@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,8 +33,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.toRect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -236,38 +240,63 @@ private fun FigureFace(
             TileHint(content.hint, small)
             return@Column
         }
-        // A chart takes the middle and moves the figure up; without one the figure is centred.
-        val charted = content.chart.size >= 2
-        if (!charted) Spacer(Modifier.weight(1f))
-        if (content.value !=
-            null
-        ) {
-            TileFigure(content.value, small)
-        } else {
-            TileFigurePlaceholder(small)
-        }
-        if (charted) {
+        // A small tile has no room for a chart that shows anything, so it keeps just the figure.
+        val charted = content.chart.size >= 2 && !small
+        when {
+            !charted -> {
+                Spacer(Modifier.weight(1f))
+                FigureValue(content.value, small)
+                Spacer(Modifier.weight(1f))
+                TileCaption(content.caption, small, content.captionColor)
+            }
+
+            // A row is too short to stack a chart under the figure: it would come out flat, so the
+            // chart stands beside the figure and runs off the trailing edge.
+            tile.variant.rows == 1 -> Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f).fillMaxWidth()
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                ) {
+                    Spacer(Modifier.weight(1f))
+                    FigureValue(content.value, small)
+                    Spacer(Modifier.weight(1f))
+                    TileCaption(content.caption, small, content.captionColor)
+                }
+                HubSparkline(
+                    content.chart,
+                    Modifier.weight(1f).fillMaxHeight().bleed(leading = false),
+                    fadeIn = true
+                )
+            }
+
             // The day's prices fill the room below the price, edge to edge.
-            HubSparkline(
-                content.chart,
-                Modifier.weight(1f).fillMaxWidth()
-                    .layout { measurable, constraints ->
-                        val bleed = 14.dp.roundToPx()
-                        val placeable = measurable.measure(
-                            constraints.copy(
-                                minWidth = constraints.maxWidth + bleed * 2,
-                                maxWidth = constraints.maxWidth + bleed * 2
-                            )
-                        )
-                        layout(constraints.maxWidth, placeable.height) {
-                            placeable.place(-bleed, 0)
-                        }
-                    }
-            )
-        } else {
-            Spacer(Modifier.weight(1f))
+            else -> {
+                FigureValue(content.value, small)
+                HubSparkline(
+                    content.chart,
+                    Modifier.weight(1f).fillMaxWidth().bleed(leading = true)
+                )
+                TileCaption(content.caption, small, content.captionColor)
+            }
         }
-        TileCaption(content.caption, small, content.captionColor)
+    }
+}
+
+@Composable
+private fun FigureValue(value: String?, small: Boolean) {
+    if (value != null) TileFigure(value, small) else TileFigurePlaceholder(small)
+}
+
+/** Runs past the tile's 14dp padding to its trailing edge, and to its leading edge too if asked. */
+private fun Modifier.bleed(leading: Boolean): Modifier = layout { measurable, constraints ->
+    val bleed = 14.dp.roundToPx()
+    val width = constraints.maxWidth + bleed * (if (leading) 2 else 1)
+    val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+    layout(constraints.maxWidth, placeable.height) {
+        placeable.place(if (leading) -bleed else 0, 0)
     }
 }
 
@@ -319,9 +348,12 @@ private fun FigureAction(title: String, icon: ImageVector, wide: Boolean) {
     }
 }
 
-/** The day's prices as one soft line that runs off both edges of the tile, fading out below. */
+/**
+ * The day's prices as one soft line that runs off both edges of the tile, fading out below. A chart
+ * that starts inside the tile can fade its fill in, so it has no hard edge beside the figure.
+ */
 @Composable
-private fun HubSparkline(points: List<Float>, modifier: Modifier) {
+private fun HubSparkline(points: List<Float>, modifier: Modifier, fadeIn: Boolean = false) {
     val ink = hubFaceColors().ink
     Canvas(modifier) {
         val stroke = 2.dp.toPx()
@@ -345,12 +377,22 @@ private fun HubSparkline(points: List<Float>, modifier: Modifier) {
             lineTo(0f, size.height)
             close()
         }
-        drawPath(
-            area,
-            Brush.verticalGradient(
-                listOf(ink.copy(alpha = 0.14f), ink.copy(alpha = 0f))
+        val fill = Brush.verticalGradient(listOf(ink.copy(alpha = 0.14f), ink.copy(alpha = 0f)))
+        if (fadeIn) {
+            // The fill alone goes into a layer, where its leading edge is masked away.
+            drawContext.canvas.saveLayer(size.toRect(), Paint())
+            drawPath(area, fill)
+            drawRect(
+                Brush.horizontalGradient(
+                    listOf(Color.Transparent, Color.Black),
+                    endX = 32.dp.toPx()
+                ),
+                blendMode = BlendMode.DstIn
             )
-        )
+            drawContext.canvas.restore()
+        } else {
+            drawPath(area, fill)
+        }
         drawPath(
             line,
             ink.copy(alpha = 0.92f),

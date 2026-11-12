@@ -1323,7 +1323,7 @@ private struct WidgetContent: View {
 
     /// Rate, sats and ppq.ai share the shortcut's frame, so tiles side by side line up: what the
     /// figure is about on top, the figure in the middle, and one caption on the bottom line. A
-    /// chart takes the middle and moves the figure up.
+    /// chart takes the middle and moves the figure up, or stands beside it on a row.
     private func figure(_ info: NativeHubInfo) -> some View {
         HubTileAction(interactive: interactive && info.action != "none", action: { open(tile) }) {
             VStack(alignment: .leading, spacing: 8) {
@@ -1333,22 +1333,29 @@ private struct WidgetContent: View {
                 if let setup = info.hint {
                     hint(setup)
                 } else {
-                    let charted = info.chart.count >= 2
-                    if !charted { Spacer(minLength: 0) }
-                    if let value = info.value {
-                        figureText(value)
+                    // A small tile has no room for a chart that shows anything, so it keeps just
+                    // the figure.
+                    let points = small ? [] : info.chart.map { CGFloat($0.floatValue) }
+                    if points.count < 2 {
+                        centredFigure(info)
+                    } else if tile.rows == 1 {
+                        // A row is too short to stack a chart under the figure: it would come out
+                        // flat, so the chart stands beside the figure and runs off the trailing edge.
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 8) { centredFigure(info) }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            HubSparkline(points: points, fadesIn: true)
+                                .padding(.trailing, -14)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     } else {
-                        figurePlaceholder
-                    }
-                    if charted {
+                        figureValue(info)
                         // The day's prices fill the room below the price, edge to edge.
-                        HubSparkline(points: info.chart.map { CGFloat($0.floatValue) })
+                        HubSparkline(points: points)
                             .padding(.horizontal, -14)
                             .frame(maxHeight: .infinity)
-                    } else {
-                        Spacer(minLength: 0)
+                        caption(info.caption, color: captionColor(info.captionTone))
                     }
-                    caption(info.caption, color: captionColor(info.captionTone))
                 }
             }
             .padding(14)
@@ -1360,6 +1367,24 @@ private struct WidgetContent: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(info.accessibilityLabel)
         .accessibilityAddTraits(info.action == "none" ? [] : .isButton)
+    }
+
+    /// The figure in the middle of the room it has, and its caption on the bottom line.
+    @ViewBuilder
+    private func centredFigure(_ info: NativeHubInfo) -> some View {
+        Spacer(minLength: 0)
+        figureValue(info)
+        Spacer(minLength: 0)
+        caption(info.caption, color: captionColor(info.captionTone))
+    }
+
+    @ViewBuilder
+    private func figureValue(_ info: NativeHubInfo) -> some View {
+        if let value = info.value {
+            figureText(value)
+        } else {
+            figurePlaceholder
+        }
     }
 
     /// What a tap does, in the corner where a shortcut shows its bolt. A wide tile names it.
@@ -1654,9 +1679,11 @@ private enum HubLayoutGlyph {
     }
 }
 
-/// The day's prices as one soft line that runs off both edges of the tile, fading out below.
+/// The day's prices as one soft line that runs off both edges of the tile, fading out below. A
+/// chart that starts inside the tile can fade its fill in, so it has no hard edge beside the figure.
 private struct HubSparkline: View {
     let points: [CGFloat]
+    var fadesIn = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -1670,6 +1697,16 @@ private struct HubSparkline: View {
                             endPoint: .bottom
                         )
                     )
+                    .mask {
+                        LinearGradient(
+                            stops: [
+                                .init(color: fadesIn ? .clear : .black, location: 0),
+                                .init(color: .black, location: min(1, 32 / max(proxy.size.width, 1)))
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    }
                 line.stroke(
                     HubPalette.ink.opacity(0.92),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
