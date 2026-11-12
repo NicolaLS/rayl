@@ -468,7 +468,9 @@ class WidgetHubViewModel(
     }
     fun setArranging(value: Boolean) {
         if (!value) cancelMove()
-        mutableState.update { it.copy(arranging = value, error = null) }
+        // Arranging can start with a widget already in hand. An error going away above the Hub
+        // then would move the Hub, and the widget with it, away from the finger, so it stays.
+        mutableState.update { it.copy(arranging = value, error = if (value) it.error else null) }
     }
     fun pay(actionId: String) {
         if (!mutableState.value.arranging && actionId.isNotBlank()) {

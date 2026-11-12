@@ -92,6 +92,27 @@ class WidgetHubViewModelTest {
     }
 
     @Test
+    fun startingToArrangeLeavesAnErrorInPlaceAndLeavingClearsIt() = runTest {
+        // Regression test for MOB-146: arranging can start with a widget in hand, and an error
+        // going away above the Hub moved the Hub away from the finger.
+        val repo = DefaultPaymentHubRepository(MapSettings())
+        val vm = WidgetHubViewModel(
+            repo,
+            PaymentHubController(repo, this),
+            { "USD" },
+            dispatcher = StandardTestDispatcher(testScheduler)
+        )
+        vm.addContact("", "alice@example.com")
+        assertEquals(HubWidgetError.ContactNameRequired, vm.state.value.error)
+
+        vm.setArranging(true)
+        assertEquals(HubWidgetError.ContactNameRequired, vm.state.value.error)
+        vm.setArranging(false)
+        assertNull(vm.state.value.error)
+        vm.clear()
+    }
+
+    @Test
     fun aWidgetDraggedPastOneOfAnotherSizeLandsWhereItIsHeldAndStaysThere() = runTest {
         // Regression test for MOB-139: with a wide widget in between, two orders each put the
         // other widget under the finger, and the drag swapped back and forth on every move.

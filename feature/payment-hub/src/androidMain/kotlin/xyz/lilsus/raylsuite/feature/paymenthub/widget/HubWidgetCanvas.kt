@@ -75,6 +75,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -446,14 +447,19 @@ private fun WidgetGrid(
                             (stridePx * placement.row).roundToInt()
                         )
                         // A dragged widget follows the finger; every other one glides to its place.
-                        val target = if (dragging) (pointer - grab).round() else slot
-                        val position = remember { Animatable(target, IntOffset.VectorConverter) }
-                        LaunchedEffect(target, dragging) {
+                        // The finger is followed outside composition, so a move only moves the
+                        // widget instead of composing the whole grid again.
+                        val position = remember { Animatable(slot, IntOffset.VectorConverter) }
+                        LaunchedEffect(dragging) {
                             if (dragging) {
-                                position.snapTo(target)
-                            } else {
+                                snapshotFlow { (pointer - grab).round() }
+                                    .collect { position.snapTo(it) }
+                            }
+                        }
+                        LaunchedEffect(slot, dragging) {
+                            if (!dragging) {
                                 position.animateTo(
-                                    target,
+                                    slot,
                                     spring(stiffness = Spring.StiffnessMediumLow)
                                 )
                             }
@@ -835,6 +841,9 @@ private fun LayoutChoice(
 /**
  * A widget's own gestures: a tap, while given [onTap]; a press held for [holdMillis], and what the
  * finger does after it. A held press keeps the face beneath from also taking the touch as a tap.
+ *
+ * Whether it is [enabled] counts when a press starts. A press under way always ends with
+ * [onRelease] or [onCancel], also when the Hub becomes busy meanwhile or the widget goes away.
  */
 private fun Modifier.tileGestures(
     enabled: Boolean,
@@ -845,7 +854,7 @@ private fun Modifier.tileGestures(
     onRelease: () -> Unit,
     onCancel: () -> Unit
 ): Modifier = composed {
-    if (!enabled) return@composed this
+    val accepts by rememberUpdatedState(enabled)
     val hold by rememberUpdatedState(holdMillis)
     val tap by rememberUpdatedState(onTap)
     val longPress by rememberUpdatedState(onLongPress)
@@ -855,6 +864,7 @@ private fun Modifier.tileGestures(
     pointerInput(Unit) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
+            if (!accepts) return@awaitEachGesture
             var at = down.position
             var up: PointerInputChange? = null
             // Null once the press has been held long enough; otherwise it ended or moved away.
@@ -884,12 +894,19 @@ private fun Modifier.tileGestures(
                 return@awaitEachGesture
             }
             longPress(at)
-            val released = drag(down.id) { change ->
-                move(change.positionChange())
-                change.consume()
+            var putDown = false
+            try {
+                val released = drag(down.id) { change ->
+                    move(change.positionChange())
+                    change.consume()
+                }
+                currentEvent.changes.forEach { it.consume() }
+                putDown = true
+                if (released) release() else cancel()
+            } finally {
+                // Stopped from outside, as when the widget leaves the Hub: put it down all the same.
+                if (!putDown) cancel()
             }
-            currentEvent.changes.forEach { it.consume() }
-            if (released) release() else cancel()
         }
     }
 }
