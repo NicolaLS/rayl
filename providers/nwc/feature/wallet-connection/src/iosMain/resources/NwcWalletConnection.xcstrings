@@ -369,52 +369,6 @@
         }
       }
     },
-    "connect_wallet_details_encryption": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unterstützte Verschlüsselung"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Supported encryption"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cifrado compatible"
-          }
-        }
-      }
-    },
-    "connect_wallet_details_encryption_active": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktive Verschlüsselung: %1$@"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Active encryption: %1$@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cifrado activo: %1$@"
-          }
-        }
-      }
-    },
     "connect_wallet_details_lud16": {
       "extractionState": "stale",
       "localizations": {
@@ -434,52 +388,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dirección Lightning"
-          }
-        }
-      }
-    },
-    "connect_wallet_details_methods": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unterstützte Methoden"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Supported methods"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Métodos compatibles"
-          }
-        }
-      }
-    },
-    "connect_wallet_details_pubkey": {
-      "extractionState": "stale",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Öffentlicher Wallet-Schlüssel"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wallet public key"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clave pública de la billetera"
           }
         }
       }

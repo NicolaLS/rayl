@@ -16,12 +16,8 @@
     <string name="connect_wallet_cancel">Abbrechen</string>
     <string name="connect_wallet_confirm">Wallet hinzufügen</string>
     <string name="connect_wallet_alias_label">Wallet-Alias (optional)</string>
-    <string name="connect_wallet_details_pubkey">Öffentlicher Wallet-Schlüssel</string>
     <string name="connect_wallet_details_relay">Primäres Relay</string>
     <string name="connect_wallet_details_lud16">Lightning-Adresse</string>
-    <string name="connect_wallet_details_methods">Unterstützte Methoden</string>
-    <string name="connect_wallet_details_encryption">Unterstützte Verschlüsselung</string>
-    <string name="connect_wallet_details_encryption_active">Aktive Verschlüsselung: %1$s</string>
     <string name="connect_wallet_loading">Wallet-Informationen werden abgerufen…</string>
     <string name="connect_wallet_retry">Erneut versuchen</string>
     <string name="connect_wallet_warning_missing_pay_invoice">Diese Wallet kündigt die Funktion pay_invoice nicht an. Zahlungen werden fehlschlagen.</string>

@@ -16,12 +16,8 @@
     <string name="connect_wallet_cancel">Cancelar</string>
     <string name="connect_wallet_confirm">Añadir billetera</string>
     <string name="connect_wallet_alias_label">Alias de la billetera (opcional)</string>
-    <string name="connect_wallet_details_pubkey">Clave pública de la billetera</string>
     <string name="connect_wallet_details_relay">Relé principal</string>
     <string name="connect_wallet_details_lud16">Dirección Lightning</string>
-    <string name="connect_wallet_details_methods">Métodos compatibles</string>
-    <string name="connect_wallet_details_encryption">Cifrado compatible</string>
-    <string name="connect_wallet_details_encryption_active">Cifrado activo: %1$s</string>
     <string name="connect_wallet_loading">Obteniendo información de la billetera…</string>
     <string name="connect_wallet_retry">Reintentar</string>
     <string name="connect_wallet_warning_missing_pay_invoice">Esta billetera no anuncia la capacidad pay_invoice. Los pagos fallarán.</string>

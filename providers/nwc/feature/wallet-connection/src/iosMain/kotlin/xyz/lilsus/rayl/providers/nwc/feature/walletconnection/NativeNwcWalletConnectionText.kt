@@ -20,11 +20,8 @@ data class NativeNwcWalletConnectionText(
     val cancel: String,
     val confirm: String,
     val aliasLabel: String,
-    val publicKeyLabel: String,
     val relayLabel: String,
     val lightningAddressLabel: String,
-    val methodsLabel: String,
-    val encryptionLabel: String,
     val loading: String,
     val retry: String,
     val warningHeading: String,
@@ -101,12 +98,6 @@ suspend fun nativeNwcWalletConnectionText(appName: String): NativeNwcWalletConne
         aliasLabel = nativeString(
             NativeStringResource(table = "NwcWalletConnection", key = "connect_wallet_alias_label")
         ),
-        publicKeyLabel = nativeString(
-            NativeStringResource(
-                table = "NwcWalletConnection",
-                key = "connect_wallet_details_pubkey"
-            )
-        ),
         relayLabel = nativeString(
             NativeStringResource(
                 table = "NwcWalletConnection",
@@ -117,18 +108,6 @@ suspend fun nativeNwcWalletConnectionText(appName: String): NativeNwcWalletConne
             NativeStringResource(
                 table = "NwcWalletConnection",
                 key = "connect_wallet_details_lud16"
-            )
-        ),
-        methodsLabel = nativeString(
-            NativeStringResource(
-                table = "NwcWalletConnection",
-                key = "connect_wallet_details_methods"
-            )
-        ),
-        encryptionLabel = nativeString(
-            NativeStringResource(
-                table = "NwcWalletConnection",
-                key = "connect_wallet_details_encryption"
             )
         ),
         loading = nativeString(
@@ -200,17 +179,3 @@ suspend fun nativeNwcWalletConnectionText(appName: String): NativeNwcWalletConne
             )
         )
     )
-
-suspend fun nativeNwcActiveEncryptionText(value: String): String = nativeString(
-    NativeStringResource(
-        table = "NwcWalletConnection",
-        key = "connect_wallet_details_encryption_active"
-    ),
-    formatNativeEncryptionScheme(value)
-)
-
-private fun formatNativeEncryptionScheme(value: String): String = when (value.lowercase()) {
-    "nip44_v2" -> "NIP-44 v2"
-    "nip04" -> "NIP-04"
-    else -> value
-}

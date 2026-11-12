@@ -16,7 +16,6 @@ import xyz.lilsus.rayl.providers.nwc.feature.walletconnection.AddNwcWalletEvent
 import xyz.lilsus.rayl.providers.nwc.feature.walletconnection.AddNwcWalletViewModel
 import xyz.lilsus.rayl.providers.nwc.feature.walletconnection.ConnectNwcWalletEvent
 import xyz.lilsus.rayl.providers.nwc.feature.walletconnection.ConnectNwcWalletViewModel
-import xyz.lilsus.rayl.providers.nwc.feature.walletconnection.nativeNwcActiveEncryptionText
 import xyz.lilsus.rayl.providers.nwc.feature.walletconnection.nativeNwcWalletConnectionText
 import xyz.lilsus.rayl.providers.nwc.integration.nwc.NwcConnectionError
 import xyz.lilsus.rayl.providers.nwc.integration.nwc.NwcWalletDiscovery
@@ -76,17 +75,12 @@ data class NwcNativeOnboardingSnapshot(
     val connectionError: String?,
     val warningHeading: String,
     val warnings: List<String>,
-    val publicKeyLabel: String,
+    /** Present once discovery read the wallet's info event. */
     val walletPublicKey: String?,
     val relayLabel: String,
     val relay: String?,
     val lightningAddressLabel: String,
-    val lightningAddress: String?,
-    val methodsLabel: String,
-    val methods: String?,
-    val encryptionLabel: String,
-    val encryptionSchemes: String?,
-    val activeEncryption: String?
+    val lightningAddress: String?
 )
 
 class NwcNativeOnboardingController internal constructor(private val runtime: NwcRuntime) {
@@ -333,9 +327,6 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
             walletPublicKey = null,
             relay = null,
             lightningAddress = null,
-            methods = null,
-            encryptionSchemes = null,
-            activeEncryption = null,
             warnings = emptyList(),
             connectionError = null,
             confirmationPresented = false,
@@ -445,21 +436,11 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
                 connectionError = connect.error?.message(wallet),
                 warningHeading = wallet.warningHeading,
                 warnings = discovery?.warnings(wallet).orEmpty(),
-                publicKeyLabel = wallet.publicKeyLabel,
                 walletPublicKey = discovery?.walletPublicKey,
                 relayLabel = wallet.relayLabel,
                 relay = discovery?.relayUrl,
                 lightningAddressLabel = wallet.lightningAddressLabel,
-                lightningAddress = discovery?.lightningAddress,
-                methodsLabel = wallet.methodsLabel,
-                methods = discovery?.metadata?.methods?.sorted()?.joinToString(),
-                encryptionLabel = wallet.encryptionLabel,
-                encryptionSchemes =
-                    discovery?.metadata?.encryptionSchemes?.sorted()?.joinToString(),
-                activeEncryption =
-                    discovery?.metadata?.negotiatedEncryption?.let {
-                        nativeNwcActiveEncryptionText(it)
-                    }
+                lightningAddress = discovery?.lightningAddress
             )
     }
 
