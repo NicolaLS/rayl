@@ -4,6 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,8 +67,6 @@ import xyz.lilsus.raylsuite.feature.paymenthub.live.satsLabel
 internal val BitcoinOrange = Color(0xFFF7931A)
 internal val PpqEmber = Color(0xFFFF5C33)
 internal val ClaroRed = Color(0xFFDA291C)
-private val RateUp = Color(0xFF5FE08D)
-private val RateDown = Color(0xFFFF8A80)
 private const val PPQ_NAME = "PPQ.AI"
 private const val CLARO_NAME = "Claro"
 
@@ -101,7 +100,8 @@ internal fun HubInfoFace(
     interactive: Boolean,
     onOpen: (HubWidgetTile) -> Unit
 ) {
-    val plain = Color.White.copy(alpha = 0.8f)
+    val face = hubFaceColors()
+    val plain = face.quiet
     val formatter = rememberAmountFormatter()
     val code = tile.currencyCode ?: state.defaultFiatCode
     val rate = state.rates[code].forFace(code, preview)
@@ -122,8 +122,8 @@ internal fun HubInfoFace(
                     ?: code,
                 captionColor = when {
                     unavailable != null || change == null -> plain
-                    (rate.changePercent ?: 0.0) >= 0 -> RateUp
-                    else -> RateDown
+                    (rate.changePercent ?: 0.0) >= 0 -> face.up
+                    else -> face.down
                 },
                 chart = remember(rate) { rate?.chart().orEmpty() },
                 action = stringResource(R.string.hub_converter_title).takeIf { rate != null },
@@ -171,8 +171,8 @@ internal fun HubInfoFace(
                     }
                 ),
                 captionColor = when {
-                    !account.connected -> Color.White
-                    account.problem == HubPpqProblem.InvalidKey -> RateDown
+                    !account.connected -> face.ink
+                    account.problem == HubPpqProblem.InvalidKey -> face.down
                     else -> plain
                 },
                 action = stringResource(
@@ -274,9 +274,18 @@ private fun FigureFace(
 /** The service's own mark, the only one a tile's header carries. */
 @Composable
 internal fun ServiceMark(@DrawableRes mark: Int, size: Dp = 26.dp) {
+    val face = hubFaceColors()
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier.size(size).background(Color.White, CircleShape)
+            // By day the white disc would melt into a white face without a hairline.
+            .then(
+                if (face.dark) {
+                    Modifier
+                } else {
+                    Modifier.border(1.dp, face.ink.copy(alpha = 0.08f), CircleShape)
+                }
+            )
     ) {
         Image(
             painterResource(mark),
@@ -289,20 +298,21 @@ internal fun ServiceMark(@DrawableRes mark: Int, size: Dp = 26.dp) {
 /** What a tap does, in the corner where a shortcut shows its bolt. A wide tile names it. */
 @Composable
 private fun FigureAction(title: String, icon: ImageVector, wide: Boolean) {
+    val face = hubFaceColors()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
         modifier = Modifier.height(26.dp)
             .then(if (wide) Modifier else Modifier.width(26.dp))
-            .background(Color.White.copy(alpha = 0.14f), CircleShape)
+            .background(face.chip, CircleShape)
             .padding(horizontal = if (wide) 10.dp else 0.dp)
     ) {
-        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+        Icon(icon, contentDescription = null, tint = face.ink, modifier = Modifier.size(16.dp))
         if (wide) {
             Text(
                 title,
                 style = MaterialTheme.typography.labelLarge,
-                color = Color.White,
+                color = face.ink,
                 maxLines = 1
             )
         }
@@ -312,6 +322,7 @@ private fun FigureAction(title: String, icon: ImageVector, wide: Boolean) {
 /** The day's prices as one soft line that runs off both edges of the tile, fading out below. */
 @Composable
 private fun HubSparkline(points: List<Float>, modifier: Modifier) {
+    val ink = hubFaceColors().ink
     Canvas(modifier) {
         val stroke = 2.dp.toPx()
         // Room for the stroke above and below.
@@ -337,12 +348,12 @@ private fun HubSparkline(points: List<Float>, modifier: Modifier) {
         drawPath(
             area,
             Brush.verticalGradient(
-                listOf(Color.White.copy(alpha = 0.14f), Color.White.copy(alpha = 0f))
+                listOf(ink.copy(alpha = 0.14f), ink.copy(alpha = 0f))
             )
         )
         drawPath(
             line,
-            Color.White.copy(alpha = 0.92f),
+            ink.copy(alpha = 0.92f),
             style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
     }

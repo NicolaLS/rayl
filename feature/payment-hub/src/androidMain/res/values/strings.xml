@@ -1,5 +1,4 @@
 <resources>
-    <string name="hub_canvas_edit">Edit</string>
     <string name="hub_edit_hub">Edit Hub</string>
     <string name="hub_widget_section_people">People</string>
     <string name="hub_widget_section_collections">Collections</string>

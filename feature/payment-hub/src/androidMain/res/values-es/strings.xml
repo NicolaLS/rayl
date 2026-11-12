@@ -2,7 +2,6 @@
     <string name="hub_edit_hub">Editar Hub</string>
     <string name="hub_widget_section_people">Personas</string>
     <string name="hub_widget_section_collections">Colecciones</string>
-    <string name="hub_canvas_edit">Editar</string>
     <string name="hub_canvas_done">Listo</string>
     <string name="hub_canvas_move">Mover</string>
     <string name="hub_canvas_pay">Pagar a %1$s</string>

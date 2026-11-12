@@ -33,9 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -58,6 +60,52 @@ import xyz.lilsus.raylsuite.feature.paymenthub.WidgetHubState
 
 internal val HubTileShape = RoundedCornerShape(28.dp)
 
+/**
+ * The colours of a tile's face. Both themes share one family: at night a navy face that brightens
+ * towards the top, by day a white one that warms into lilac at the top, each written in the
+ * other's colour.
+ */
+internal class HubFaceColors(
+    val dark: Boolean,
+    val top: Color,
+    val bottom: Color,
+    val ink: Color,
+    val up: Color,
+    val down: Color,
+    val glowAlpha: Float
+) {
+    val quiet = ink.copy(alpha = 0.8f)
+    val faint = ink.copy(alpha = 0.6f)
+
+    /** Behind the small round actions and placeholders that sit on a face. */
+    val chip = ink.copy(alpha = if (dark) 0.14f else 0.07f)
+}
+
+private val NightFace = HubFaceColors(
+    dark = true,
+    top = Color(0xFF29294D),
+    bottom = Color(0xFF101520),
+    ink = Color.White,
+    up = Color(0xFF5FE08D),
+    down = Color(0xFFFF8A80),
+    glowAlpha = 0.26f
+)
+
+private val DayFace = HubFaceColors(
+    dark = false,
+    top = Color(0xFFEDEBFA),
+    bottom = Color(0xFFFFFFFF),
+    ink = Color(0xFF1C1D3A),
+    up = Color(0xFF1E9E52),
+    down = Color(0xFFD8473C),
+    glowAlpha = 0.16f
+)
+
+/** Follows the app's theme, which may differ from the system's. */
+@Composable
+internal fun hubFaceColors(): HubFaceColors =
+    if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) NightFace else DayFace
+
 /** Gallery and canvas share the same faces. Preview values never become payment actions. */
 @Composable
 internal fun HubWidgetFace(
@@ -78,17 +126,32 @@ internal fun HubWidgetFace(
         HubWidgetKind.Claro -> ClaroRed
         else -> null
     }
+    val face = hubFaceColors()
     Box(
-        // Every tile is the same dark face, so a person, an amount and a price sit side by side
-        // as one family. Colour comes from the portraits and from a widget's own glow.
-        modifier.clip(HubTileShape)
-            .background(Brush.verticalGradient(listOf(Color(0xFF29294D), Color(0xFF101520))))
+        // Every tile is the same face, so a person, an amount and a price sit side by side as one
+        // family. Colour comes from the portraits and from a widget's own glow.
+        modifier
+            .then(
+                if (face.dark) {
+                    Modifier
+                } else {
+                    // By day a white face needs a little lift off the light page.
+                    Modifier.shadow(
+                        6.dp,
+                        HubTileShape,
+                        ambientColor = face.ink.copy(alpha = 0.10f),
+                        spotColor = face.ink.copy(alpha = 0.14f)
+                    )
+                }
+            )
+            .clip(HubTileShape)
+            .background(Brush.verticalGradient(listOf(face.top, face.bottom)))
             .drawBehind {
                 // A trace of the widget's own colour, so a row of them is not one slab.
                 if (glow != null) {
                     drawRect(
                         Brush.radialGradient(
-                            listOf(glow.copy(alpha = 0.26f), glow.copy(alpha = 0f)),
+                            listOf(glow.copy(alpha = face.glowAlpha), glow.copy(alpha = 0f)),
                             center = Offset(size.width, 0f),
                             radius = 190.dp.toPx()
                         )
@@ -105,8 +168,6 @@ internal fun HubWidgetFace(
         }
     }
 }
-
-internal val Quiet = Color.White.copy(alpha = 0.8f)
 
 /** A small tile centres what it shows; a wide one keeps it on the leading edge. */
 internal val HubWidgetTile.small: Boolean get() = variant.columns == 1
@@ -130,7 +191,7 @@ internal fun TileHeader(
         Text(
             title,
             style = MaterialTheme.typography.labelLarge,
-            color = Quiet,
+            color = hubFaceColors().quiet,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
@@ -141,7 +202,7 @@ internal fun TileHeader(
 
 /** The one line under a tile's figure or portrait. */
 @Composable
-internal fun TileCaption(text: String, small: Boolean, color: Color = Quiet) {
+internal fun TileCaption(text: String, small: Boolean, color: Color = hubFaceColors().quiet) {
     Text(
         text,
         style = MaterialTheme.typography.bodyMedium,
@@ -163,7 +224,7 @@ internal fun ColumnScope.TileHint(text: String, small: Boolean) {
         Text(
             text,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.6f),
+            color = hubFaceColors().faint,
             textAlign = if (small) TextAlign.Center else TextAlign.Start,
             overflow = TextOverflow.Ellipsis
         )
@@ -174,7 +235,7 @@ internal fun ColumnScope.TileHint(text: String, small: Boolean) {
 internal fun TileFigure(text: String, small: Boolean) {
     Text(
         text,
-        color = Color.White,
+        color = hubFaceColors().ink,
         style = MaterialTheme.typography.headlineLarge.copy(
             fontWeight = FontWeight.Bold,
             fontFeatureSettings = "tnum",
@@ -196,7 +257,7 @@ internal fun TileFigurePlaceholder(small: Boolean) {
     ) {
         Box(
             Modifier.size(width = 104.dp, height = 30.dp)
-                .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(9.dp))
+                .background(hubFaceColors().chip, RoundedCornerShape(9.dp))
         )
     }
 }
@@ -272,6 +333,7 @@ private fun ShortcutFace(
     } else {
         ""
     }
+    val face = hubFaceColors()
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize().payAction(person, interactive, onPay).padding(14.dp)
@@ -279,10 +341,9 @@ private fun ShortcutFace(
         TileHeader(tile.title?.takeIf(String::isNotBlank) ?: tile.kind.label()) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(26.dp)
-                    .background(Color.White.copy(alpha = 0.14f), CircleShape)
+                modifier = Modifier.size(26.dp).background(face.chip, CircleShape)
             ) {
-                Icon(Icons.Filled.Bolt, null, tint = Color.White, modifier = Modifier.size(17.dp))
+                Icon(Icons.Filled.Bolt, null, tint = face.ink, modifier = Modifier.size(17.dp))
             }
         }
         Spacer(Modifier.weight(1f))
@@ -378,6 +439,7 @@ private fun ContactLine(
     modifier: Modifier
 ) {
     val amount = person?.formattedAmount()
+    val face = hubFaceColors()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -389,7 +451,7 @@ private fun ContactLine(
                 person?.title ?: stringResource(R.string.hub_widget_contact_placeholder),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White,
+                color = face.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -397,7 +459,7 @@ private fun ContactLine(
                 Text(
                     amount,
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = face.ink.copy(alpha = 0.7f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -407,7 +469,7 @@ private fun ContactLine(
             Text(
                 amount,
                 style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
-                color = Quiet,
+                color = face.quiet,
                 maxLines = 1
             )
         }

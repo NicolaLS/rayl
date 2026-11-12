@@ -28,11 +28,31 @@ private struct HubConverterTarget: Identifiable {
     let info: NativeHubInfo
 }
 
+private extension Color {
+    /// A colour that follows the appearance the app shows, which may differ from the system's.
+    init(day: UIColor, night: UIColor) {
+        self.init(uiColor: UIColor { $0.userInterfaceStyle == .dark ? night : day })
+    }
+}
+
+/// The colours of a tile's face. Both appearances share one family: at night a navy face that
+/// brightens towards the top, by day a white one that warms into lilac at the top, each written
+/// in the other's colour.
 private enum HubPalette {
+    private static let navyInk = UIColor(red: 0.11, green: 0.11, blue: 0.23, alpha: 1)
+
+    static let faceTop = Color(day: UIColor(red: 0.93, green: 0.92, blue: 0.98, alpha: 1), night: UIColor(red: 0.16, green: 0.16, blue: 0.30, alpha: 1))
+    static let faceBottom = Color(day: .white, night: UIColor(red: 0.06, green: 0.08, blue: 0.13, alpha: 1))
+    static let ink = Color(day: navyInk, night: .white)
+    /// Behind the small round actions and placeholders that sit on a face.
+    static let chip = Color(day: navyInk.withAlphaComponent(0.07), night: UIColor.white.withAlphaComponent(0.14))
+    static let hairline = Color(day: navyInk.withAlphaComponent(0.08), night: .clear)
+    static let shadow = Color(uiColor: navyInk.withAlphaComponent(0.12))
+
     /// Bitcoin's own orange marks the widgets that are about bitcoin rather than a person.
     static let bitcoin = Color(red: 0.97, green: 0.58, blue: 0.10)
-    static let up = Color(red: 0.37, green: 0.88, blue: 0.55)
-    static let down = Color(red: 1.0, green: 0.54, blue: 0.50)
+    static let up = Color(day: UIColor(red: 0.12, green: 0.62, blue: 0.32, alpha: 1), night: UIColor(red: 0.37, green: 0.88, blue: 0.55, alpha: 1))
+    static let down = Color(day: UIColor(red: 0.85, green: 0.28, blue: 0.24, alpha: 1), night: UIColor(red: 1.0, green: 0.54, blue: 0.50, alpha: 1))
     static let ember = Color(red: 1.0, green: 0.36, blue: 0.20)
     static let claro = Color(red: 0.85, green: 0.16, blue: 0.11)
 
@@ -155,19 +175,14 @@ struct NativePaymentHubView: View {
 
     private func canvas(_ state: NativePaymentHubSnapshot) -> some View {
         VStack(spacing: 0) {
-            if !state.canvas.tiles.isEmpty {
+            // The canvas fills the screen: a long press starts arranging and the Add tile adds a
+            // widget, so a bar shows only while arranging, to leave it.
+            if state.canvas.arranging, !state.canvas.tiles.isEmpty {
                 HStack(spacing: 12) {
-                    if state.canvas.arranging {
-                        Text(state.text.editHub).font(.headline).accessibilityAddTraits(.isHeader)
-                    }
+                    Text(state.text.editHub).font(.headline).accessibilityAddTraits(.isHeader)
                     Spacer()
-                    Button { model.controller.openGallery() } label: {
-                        Image(systemName: "plus").frame(minWidth: 44, minHeight: 44)
-                    }
-                    .accessibilityLabel(state.text.addWidget)
-                    .buttonStyle(.plain)
-                    Button(state.canvas.arranging ? state.text.done : state.text.edit) {
-                        model.controller.setArranging(value: !state.canvas.arranging)
+                    Button(state.text.done) {
+                        model.controller.setArranging(value: false)
                     }
                     .font(.body.weight(.semibold))
                     .frame(minHeight: 44)
@@ -1103,6 +1118,7 @@ private struct WidgetContent: View {
     /// A tap on a widget that opens something of its own instead of paying a person.
     var open: (NativeHubTile) -> Void = { _ in }
     var compactPreview = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
@@ -1119,14 +1135,14 @@ private struct WidgetContent: View {
             }
         }
         .background {
-            // Every tile is the same dark face, so a person, an amount and a price sit side by side
-            // as one family. Colour comes from the portraits and from a widget's own glow.
+            // Every tile is the same face, so a person, an amount and a price sit side by side as
+            // one family. Colour comes from the portraits and from a widget's own glow.
             ZStack {
-                LinearGradient(colors: [Color(red: 0.16, green: 0.16, blue: 0.30), Color(red: 0.06, green: 0.08, blue: 0.13)], startPoint: .top, endPoint: .bottom)
+                LinearGradient(colors: [HubPalette.faceTop, HubPalette.faceBottom], startPoint: .top, endPoint: .bottom)
                 if let glow = HubPalette.glow(tile.kind) {
                     // A trace of the widget's own colour, so a row of them is not one slab.
                     RadialGradient(
-                        colors: [glow.opacity(0.26), glow.opacity(0)],
+                        colors: [glow.opacity(colorScheme == .dark ? 0.26 : 0.16), glow.opacity(0)],
                         center: .topTrailing,
                         startRadius: 0,
                         endRadius: 190
@@ -1135,6 +1151,8 @@ private struct WidgetContent: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: HubGeometry.corner, style: .continuous))
+        // By day a white face needs a little lift off the light page.
+        .shadow(color: colorScheme == .dark ? .clear : HubPalette.shadow, radius: 8, y: 3)
     }
 
     private var small: Bool { tile.columns == 1 }
@@ -1152,11 +1170,13 @@ private struct WidgetContent: View {
                     .padding(4)
                     .frame(width: 26, height: 26)
                     .background(.white, in: Circle())
+                    // By day the white disc would melt into a white face without a hairline.
+                    .overlay { Circle().strokeBorder(HubPalette.hairline, lineWidth: 1) }
                     .accessibilityHidden(true)
             }
             Text(title)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(HubPalette.ink.opacity(0.8))
                 .lineLimit(1)
             Spacer(minLength: 0)
             trailing()
@@ -1165,7 +1185,7 @@ private struct WidgetContent: View {
     }
 
     /// The one line under a tile's figure or portrait.
-    private func caption(_ text: String, color: Color = .white.opacity(0.8)) -> some View {
+    private func caption(_ text: String, color: Color = HubPalette.ink.opacity(0.8)) -> some View {
         Text(text)
             .font(.subheadline)
             .foregroundStyle(color)
@@ -1178,7 +1198,7 @@ private struct WidgetContent: View {
     private func hint(_ text: String) -> some View {
         Text(text)
             .font(.footnote)
-            .foregroundStyle(.white.opacity(0.6))
+            .foregroundStyle(HubPalette.ink.opacity(0.6))
             .multilineTextAlignment(small ? .center : .leading)
             .minimumScaleFactor(0.85)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: bodyAlignment)
@@ -1195,7 +1215,7 @@ private struct WidgetContent: View {
     /// Stands where a figure will be while it is not known, like a system widget's placeholder.
     private var figurePlaceholder: some View {
         RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .fill(.white.opacity(0.14))
+            .fill(HubPalette.chip)
             .frame(width: 104, height: 30)
             .frame(height: 43)
             .frame(maxWidth: .infinity, alignment: bodyAlignment)
@@ -1212,7 +1232,7 @@ private struct WidgetContent: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .foregroundStyle(.white)
+            .foregroundStyle(HubPalette.ink)
             .contentShape(Rectangle())
         }
         .accessibilityElement(children: .combine)
@@ -1250,7 +1270,7 @@ private struct WidgetContent: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .foregroundStyle(.white)
+            .foregroundStyle(HubPalette.ink)
             .contentShape(Rectangle())
         }
         .allowsHitTesting(interactive)
@@ -1271,12 +1291,12 @@ private struct WidgetContent: View {
                 .lineLimit(1)
                 .padding(.horizontal, 10)
                 .frame(height: 26)
-                .background(.white.opacity(0.14), in: Capsule())
+                .background(HubPalette.chip, in: Capsule())
         } else {
             Image(systemName: symbol)
                 .font(.system(size: 12, weight: .bold))
                 .frame(width: 26, height: 26)
-                .background(.white.opacity(0.14), in: Circle())
+                .background(HubPalette.chip, in: Circle())
         }
     }
 
@@ -1284,8 +1304,8 @@ private struct WidgetContent: View {
         switch tone {
         case "up": return HubPalette.up
         case "down": return HubPalette.down
-        case "accent": return .white
-        default: return .white.opacity(0.8)
+        case "accent": return HubPalette.ink
+        default: return HubPalette.ink.opacity(0.8)
         }
     }
 
@@ -1296,7 +1316,7 @@ private struct WidgetContent: View {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 13, weight: .bold))
                         .frame(width: 26, height: 26)
-                        .background(.white.opacity(0.14), in: Circle())
+                        .background(HubPalette.chip, in: Circle())
                         .accessibilityHidden(true)
                 }
                 Spacer(minLength: 0)
@@ -1307,7 +1327,7 @@ private struct WidgetContent: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .foregroundStyle(.white)
+            .foregroundStyle(HubPalette.ink)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1329,7 +1349,7 @@ private struct WidgetContent: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .foregroundStyle(.white)
+            .foregroundStyle(HubPalette.ink)
             .contentShape(Rectangle())
         }
         .allowsHitTesting(interactive)
@@ -1372,7 +1392,7 @@ private struct WidgetContent: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .foregroundStyle(.white)
+        .foregroundStyle(HubPalette.ink)
         .accessibilityElement(children: .contain)
     }
 
@@ -1389,7 +1409,7 @@ private struct WidgetContent: View {
                     if stacked, let amount = person.amount {
                         Text(amount)
                             .font(.caption)
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(HubPalette.ink.opacity(0.7))
                             .monospacedDigit()
                             .lineLimit(1)
                     }
@@ -1398,7 +1418,7 @@ private struct WidgetContent: View {
                 if !stacked, let amount = person.amount {
                     Text(amount)
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(HubPalette.ink.opacity(0.8))
                         .monospacedDigit()
                         .lineLimit(1)
                         .layoutPriority(1)
@@ -1424,13 +1444,13 @@ private struct HubSparkline: View {
                 area(under: line, in: proxy.size)
                     .fill(
                         LinearGradient(
-                            colors: [.white.opacity(0.14), .white.opacity(0)],
+                            colors: [HubPalette.ink.opacity(0.14), HubPalette.ink.opacity(0)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
                 line.stroke(
-                    .white.opacity(0.92),
+                    HubPalette.ink.opacity(0.92),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
                 )
             }
@@ -1690,6 +1710,7 @@ private struct HubClaroSheet: View {
                                         .padding(7)
                                         .frame(width: 44, height: 44)
                                         .background(.white, in: Circle())
+                                        .overlay { Circle().strokeBorder(HubPalette.hairline, lineWidth: 1) }
                                         .accessibilityHidden(true)
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text("Claro").font(.headline)

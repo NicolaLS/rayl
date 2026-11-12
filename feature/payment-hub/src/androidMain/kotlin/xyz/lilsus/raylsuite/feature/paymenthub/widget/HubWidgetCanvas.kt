@@ -143,38 +143,20 @@ internal fun HubWidgetCanvas(
         )
     }
     Column(modifier = modifier) {
-        if (state.widgets.isNotEmpty()) {
+        // The canvas fills the screen: a long press starts arranging and the Add tile adds a
+        // widget, so a bar shows only while arranging, to leave it.
+        if (state.arranging && state.widgets.isNotEmpty()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
-                if (state.arranging) {
-                    Text(
-                        stringResource(R.string.hub_edit_hub),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.semantics { heading() }
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = viewModel::openGallery, enabled = !state.busy) {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = stringResource(R.string.hub_widget_add)
-                    )
-                }
-                TextButton(
-                    onClick = { viewModel.setArranging(!state.arranging) },
-                    enabled = !state.busy
-                ) {
-                    Text(
-                        stringResource(
-                            if (state.arranging) {
-                                R.string.hub_canvas_done
-                            } else {
-                                R.string.hub_canvas_edit
-                            }
-                        )
-                    )
+                Text(
+                    stringResource(R.string.hub_edit_hub),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f).semantics { heading() }
+                )
+                TextButton(onClick = { viewModel.setArranging(false) }, enabled = !state.busy) {
+                    Text(stringResource(R.string.hub_canvas_done))
                 }
             }
         }
