@@ -11,10 +11,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.nwc.feature.onboarding.NwcConnectionDraft
 import xyz.lilsus.rayl.providers.nwc.feature.payment.NwcPaymentSettlement
 import xyz.lilsus.rayl.providers.nwc.integration.nwc.createNwcWallet
+import xyz.lilsus.raylsuite.core.model.DisplayAmount
+import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
 import xyz.lilsus.raylsuite.core.settings.ConnectionStorageReset
@@ -31,6 +34,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletBalance
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
 import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
 
@@ -118,10 +122,24 @@ internal class NwcRuntime(
             bitcoinPriceProvider = bitcoinPriceProvider
         )
 
+    /** Shown in Settings; NWC cards are funded in their own wallet apps. */
+    val balance = WalletBalance(scope) {
+        nwcWallet.balanceSats()?.let { DisplayAmount(it, DisplayCurrency.Satoshi) }
+    }
+
     init {
         if (runtimeStarted) {
             scope.launch {
                 appLifecycle.isInForeground.collectLatest(nwcWallet::onAppForegroundChanged)
+            }
+            scope.launch {
+                // Once connected, and after every payment.
+                combine(nwcWallet.connection, paymentCoordinator.isSubmitting) {
+                        connection,
+                        submitting
+                    ->
+                    connection != null && !submitting
+                }.collect { if (it) balance.refresh() }
             }
             scope.launch {
                 // A payment always presents on the Scan tab, wherever it was started from.

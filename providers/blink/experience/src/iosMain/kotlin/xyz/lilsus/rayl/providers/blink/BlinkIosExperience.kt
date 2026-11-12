@@ -44,6 +44,7 @@ class BlinkIosExperience(
     private val nativeCardsControllerDelegate = lazy {
         NativeWalletCardsController(
             host = cards,
+            balance = runtime.balance,
             busy = runtime.paymentCoordinator.isSubmitting,
             languageChanges = runtime.languageRepository.preference,
             onChange = cards::apply,

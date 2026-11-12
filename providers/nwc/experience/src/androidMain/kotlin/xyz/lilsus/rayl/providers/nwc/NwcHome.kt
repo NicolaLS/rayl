@@ -151,6 +151,7 @@ private fun NwcSettingsTab(runtime: NwcRuntime, cards: WalletCardsHost) {
         // NWC keeps no session that must close: the host unmounts it right away.
         NwcSettingsDestination.Root -> WalletCardsSettings(
             host = cards,
+            cardBalance = runtime.balance,
             busy = isSubmitting,
             onChange = { if (!runtime.paymentCoordinator.isSubmitting.value) cards.apply(it) },
             onRemovePaying = {

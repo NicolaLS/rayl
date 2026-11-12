@@ -8,10 +8,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 import xyz.lilsus.rayl.providers.spark.feature.payment.SparkPaymentSettlement
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletViewModel
+import xyz.lilsus.raylsuite.core.model.DisplayAmount
+import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
 import xyz.lilsus.raylsuite.core.ui.platform.HapticFeedbackManager
 import xyz.lilsus.raylsuite.feature.appshell.AppTabState
@@ -24,6 +27,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletBalance
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
 import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
 
@@ -49,6 +53,11 @@ internal class SparkRuntime(
 
     /** The connected wallet's identity public key, once known. */
     val walletIdentity = walletAccess.payments.identity
+
+    /** Shown in Settings; Spark cards are funded in their own wallet apps. */
+    val balance = WalletBalance(scope) {
+        walletAccess.payments.balanceSats()?.let { DisplayAmount(it, DisplayCurrency.Satoshi) }
+    }
     val walletViewModel = WalletViewModel(walletAccess)
     val removed = walletAccess.removed
     val canCancelSetup: Boolean
@@ -90,6 +99,12 @@ internal class SparkRuntime(
         )
 
     init {
+        scope.launch {
+            // Once connected, and after every payment.
+            combine(walletIdentity, paymentCoordinator.isSubmitting) { identity, submitting ->
+                identity != null && !submitting
+            }.collect { if (it) balance.refresh() }
+        }
         scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.
             paymentCoordinator.uiState.collect { state ->

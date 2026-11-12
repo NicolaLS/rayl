@@ -42,6 +42,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -64,6 +65,7 @@ import xyz.lilsus.raylsuite.core.ui.components.AppSettingsRow
 import xyz.lilsus.raylsuite.core.ui.components.AppSettingsRowDefaults
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
 import xyz.lilsus.raylsuite.core.ui.components.RaylMark
+import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
 
 /** The host's marks for each provider (`rayl` for the pocket), by [WalletCard.provider]. */
 val LocalWalletCardIcons = staticCompositionLocalOf<Map<String, Int>> { emptyMap() }
@@ -84,6 +86,8 @@ fun WalletCardsSettings(
     onChange: (WalletCardChange) -> Unit,
     onRemovePaying: () -> Unit,
     balance: (@Composable () -> Unit)? = null,
+    /** A card's balance, shown in the balance row unless [balance] replaces that row. */
+    cardBalance: WalletBalance? = null,
     payingContent: @Composable () -> Unit = {},
     settings: @Composable (walletBlock: @Composable () -> Unit) -> Unit
 ) {
@@ -105,7 +109,7 @@ fun WalletCardsSettings(
         null -> settings {
             WalletBlock(
                 cards = cards,
-                balance = balance ?: { WalletBalanceRow(balance = null, onAddFunds = null) },
+                balance = balance ?: { CardBalanceRow(cardBalance) },
                 onWallets = toList,
                 onDetails = { destination = DETAILS }
             )
@@ -170,6 +174,15 @@ fun WalletBalanceRow(
             }
         )
     }
+}
+
+/** A card's balance, refreshed whenever Settings opens; cards are funded in their own apps. */
+@Composable
+private fun CardBalanceRow(balance: WalletBalance?) {
+    LaunchedEffect(balance) { balance?.refresh() }
+    val amount = balance?.amount?.collectAsStateWithLifecycle()?.value
+    val formatter = rememberAmountFormatter()
+    WalletBalanceRow(balance = amount?.let(formatter::format), onAddFunds = null)
 }
 
 /** The active wallet, its balance, and its details: always the top of Settings. */

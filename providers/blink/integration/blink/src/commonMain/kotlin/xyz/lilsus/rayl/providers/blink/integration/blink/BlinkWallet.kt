@@ -169,6 +169,17 @@ class BlinkWallet internal constructor(
         requireCredentials().selectedFundingWallet
             ?: throw BlinkApiException(BlinkApiError.FundingWalletUnavailable)
 
+    /**
+     * The balance of the funding wallet in its own minor unit, sats or cents, or `null` while not
+     * connected.
+     */
+    suspend fun fundingWalletBalance(): Pair<Long, BlinkWalletCurrency>? {
+        if (connection.value == null) return null
+        val credentials = credentialStore.read() ?: return null
+        val wallet = credentials.selectedFundingWallet ?: return null
+        return apiClient.fetchWalletBalance(credentials.apiKey, wallet.id) to wallet.currency
+    }
+
     suspend fun fetchContacts(): List<BlinkContact> {
         val credentials = requireCredentials()
         return apiClient.fetchContacts(credentials.apiKey)

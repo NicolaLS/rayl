@@ -141,6 +141,7 @@ private fun BlinkSettingsTab(
     // Blink keeps no session that must close: the host unmounts it right away.
     WalletCardsSettings(
         host = cards,
+        cardBalance = runtime.balance,
         busy = isSubmitting,
         onChange = { if (!runtime.paymentCoordinator.isSubmitting.value) cards.apply(it) },
         onRemovePaying = { if (!runtime.paymentCoordinator.isSubmitting.value) onRemoveWallet() },

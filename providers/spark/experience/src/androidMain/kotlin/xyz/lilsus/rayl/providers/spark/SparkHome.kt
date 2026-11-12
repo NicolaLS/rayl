@@ -143,6 +143,7 @@ private fun SparkSettingsTab(
 
     WalletCardsSettings(
         host = cards,
+        cardBalance = runtime.balance,
         busy = isSubmitting || walletState.access != WalletAccessState.Connected,
         onChange = { if (!runtime.paymentCoordinator.isSubmitting.value) onLeave(it) },
         onRemovePaying = {

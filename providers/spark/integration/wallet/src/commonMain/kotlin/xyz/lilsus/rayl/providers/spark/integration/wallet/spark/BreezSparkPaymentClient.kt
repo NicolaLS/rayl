@@ -41,6 +41,9 @@ class BreezSparkPaymentClient(
     override suspend fun identityPubkey(): String =
         sdk.getInfo(GetInfoRequest(ensureSynced = false)).identityPubkey
 
+    override suspend fun balanceSats(): Long =
+        sdk.getInfo(GetInfoRequest(ensureSynced = false)).balanceSats.toLong()
+
     override suspend fun quote(invoice: String, amountSats: Long?): SparkQuoteResult = try {
         awaitInitialSync()
         val response = sdk.prepareSendPayment(

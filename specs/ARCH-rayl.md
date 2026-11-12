@@ -12,8 +12,9 @@ password manager support it, a passkey. Besides the pocket, the user adds cards:
 any number of external wallets, several of one provider included, with no
 release availability gates. Every wallet's Settings start with the shared wallet
 block from `feature/wallet-management`, the same for every wallet: the active
-wallet, which opens Wallets to pick another or add a card; its balance with Add
-funds (only the pocket has them so far); and Details, the active wallet's page with
+wallet, which opens Wallets to pick another or add a card; its balance, refreshed
+when Settings opens and after payments, with Add funds only for the pocket (cards
+are funded in their own wallet apps); and Details, the active wallet's page with
 its own settings and Remove card. Wallets lists the pocket like any card, first.
 [RaylCards](../app/shared/src/commonMain/kotlin/xyz/lilsus/rayl/RaylCards.kt)
 owns the cards, which one pays, and per-card storage names; it keeps setup

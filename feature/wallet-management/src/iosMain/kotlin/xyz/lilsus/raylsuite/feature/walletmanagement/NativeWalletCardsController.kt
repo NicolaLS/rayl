@@ -7,7 +7,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import xyz.lilsus.raylsuite.core.model.DisplayAmount
+import xyz.lilsus.raylsuite.core.ui.format.currentAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
 import xyz.lilsus.raylsuite.core.ui.resources.nativeString
 
@@ -38,6 +41,8 @@ data class NativeWalletCardsSnapshot(
     val activeTitle: String,
     val detailsTitle: String,
     val balanceTitle: String,
+    /** A card's balance, once its wallet reported one. */
+    val cardBalance: String?,
     val addFundsTitle: String,
     val removeTitle: String,
     val renameTitle: String,
@@ -61,14 +66,21 @@ class NativeWalletCardsController(
     private val busy: StateFlow<Boolean>,
     private val languageChanges: Flow<Any?>,
     private val onChange: (WalletCardChange) -> Unit,
-    private val onRemovePaying: () -> Unit
+    private val onRemovePaying: () -> Unit,
+    /** A card's balance for the balance row; Rayl shows its own row instead. */
+    private val balance: WalletBalance? = null
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     fun observe(onSnapshot: (NativeWalletCardsSnapshot) -> Unit): () -> Unit {
         val job = scope.launch {
-            combine(host.cards, busy, languageChanges) { cards, isBusy, _ ->
-                snapshot(cards, isBusy)
+            combine(
+                host.cards,
+                busy,
+                languageChanges,
+                balance?.amount ?: flowOf(null)
+            ) { cards, isBusy, _, amount ->
+                snapshot(cards, isBusy, amount)
             }.collect(onSnapshot)
         }
         return { job.cancel() }
@@ -89,6 +101,11 @@ class NativeWalletCardsController(
 
     fun rename(id: String, name: String) = host.rename(id, name)
 
+    /** Refreshes a card's balance; Settings calls it whenever it opens. */
+    fun refreshBalance() {
+        balance?.refresh()
+    }
+
     /** See [WalletCardsHost.reopensAddCard]. */
     fun reopensAddCard(): Boolean = host.reopensAddCard()
 
@@ -103,7 +120,11 @@ class NativeWalletCardsController(
         scope.coroutineContext[Job]?.cancel()
     }
 
-    private fun snapshot(cards: WalletCards, isBusy: Boolean): NativeWalletCardsSnapshot {
+    private fun snapshot(
+        cards: WalletCards,
+        isBusy: Boolean,
+        amount: DisplayAmount?
+    ): NativeWalletCardsSnapshot {
         val active = text("wallet_cards_active")
         val pocketName = text("wallet_cards_pocket")
         fun row(card: WalletCard) = NativeWalletCardRow(
@@ -127,6 +148,7 @@ class NativeWalletCardsController(
             activeTitle = active,
             detailsTitle = text("wallet_cards_details"),
             balanceTitle = text("wallet_cards_balance"),
+            cardBalance = amount?.let { currentAmountFormatter().format(it) },
             addFundsTitle = text("wallet_cards_add_funds"),
             removeTitle = text("wallet_cards_remove"),
             renameTitle = text("wallet_cards_rename"),

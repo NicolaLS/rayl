@@ -44,6 +44,16 @@ fragment BlinkTransactionPaymentResult on Transaction {
   }
 }
 
+query BlinkWalletBalance($walletId: WalletId!) {
+  me {
+    defaultAccount {
+      walletById(walletId: $walletId) {
+        balance
+      }
+    }
+  }
+}
+
 query BlinkPaymentTransaction($walletId: WalletId!, $transactionId: ID!) {
   me {
     defaultAccount {

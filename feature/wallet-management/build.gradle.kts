@@ -10,12 +10,14 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:ui"))
+            api(project(":core:model"))
             api(project(":feature:settings"))
             api(libs.kotlinx.coroutines.core)
             implementation(libs.compose.runtime)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
         androidMain.dependencies {
             implementation(libs.androidx.lifecycle.runtimeCompose)

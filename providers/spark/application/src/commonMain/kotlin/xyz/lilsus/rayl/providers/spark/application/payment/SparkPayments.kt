@@ -20,6 +20,9 @@ interface SparkPaymentClient {
 
     /** The wallet's identity public key, the same in every app that opens this wallet. */
     suspend fun identityPubkey(): String? = null
+
+    /** The wallet's balance as last synced, in sats. */
+    suspend fun balanceSats(): Long? = null
 }
 
 /** A funded, fee-quoted payment that has not been submitted. */
@@ -90,6 +93,9 @@ class SparkPayments : PaymentSessionLifecycle {
         client = null
         mutableIdentity.value = null
     }
+
+    /** The connected wallet's balance; `null` while no session is attached. */
+    suspend fun balanceSats(): Long? = client?.balanceSats()
 
     suspend fun quote(invoice: String, amountSats: Long?): SparkQuoteResult {
         val current = client ?: return SparkQuoteResult.NotReady

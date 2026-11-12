@@ -15,6 +15,7 @@ import kotlin.math.absoluteValue
 import xyz.lilsus.rayl.providers.blink.integration.blink.graphql.AuthorizationQuery
 import xyz.lilsus.rayl.providers.blink.integration.blink.graphql.BlinkContactsQuery
 import xyz.lilsus.rayl.providers.blink.integration.blink.graphql.BlinkPaymentTransactionQuery
+import xyz.lilsus.rayl.providers.blink.integration.blink.graphql.BlinkWalletBalanceQuery
 import xyz.lilsus.rayl.providers.blink.integration.blink.graphql.FundingWalletsQuery
 import xyz.lilsus.rayl.providers.blink.integration.blink.graphql.LnInvoicePaymentSendMutation
 import xyz.lilsus.rayl.providers.blink.integration.blink.graphql.LnNoAmountInvoicePaymentSendMutation
@@ -356,6 +357,17 @@ class BlinkApiClient(
                     ?.blinkTransactionPaymentResult
             )
         )
+    }
+
+    /** The balance of the wallet [walletId]: sats for a BTC wallet, cents for a USD wallet. */
+    internal suspend fun fetchWalletBalance(apiKey: String, walletId: String): Long {
+        val data = executeGraphQlRequest(
+            apiKey = apiKey,
+            logLabel = "BlinkWalletBalance",
+            call = apolloClient.query(BlinkWalletBalanceQuery(walletId))
+        )
+        return data.me?.defaultAccount?.walletById?.balance
+            ?: throw BlinkApiException(BlinkApiError.Unexpected("Missing wallet balance"))
     }
 
     /** Returns null while the exact submitted transaction is still pending. */

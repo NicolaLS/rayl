@@ -54,12 +54,14 @@ struct NativeWalletCardsEntry: View {
             if let balance {
                 balance
             } else {
+                // Cards are funded in their own apps: their balance is only shown.
                 NativeWalletBalanceLabel(
                     title: snapshot.balanceTitle,
-                    balance: nil,
+                    balance: snapshot.cardBalance,
                     action: snapshot.addFundsTitle,
                     enabled: false
                 )
+                .onAppear { model.controller.refreshBalance() }
             }
             NavigationLink {
                 NativeWalletCardPage(model: model, payingContent: payingContent)

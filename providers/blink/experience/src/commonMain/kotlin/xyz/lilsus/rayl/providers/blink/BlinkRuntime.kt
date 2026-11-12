@@ -8,10 +8,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.blink.feature.blinkcontacts.BlinkContactsImporter
 import xyz.lilsus.rayl.providers.blink.feature.payment.BlinkPaymentSettlement
+import xyz.lilsus.rayl.providers.blink.integration.blink.BlinkWalletCurrency
 import xyz.lilsus.rayl.providers.blink.integration.blink.createBlinkWallet
+import xyz.lilsus.raylsuite.core.model.DisplayAmount
+import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 import xyz.lilsus.raylsuite.core.model.WalletStartMode
 import xyz.lilsus.raylsuite.core.network.createNetworkConnectivity
 import xyz.lilsus.raylsuite.core.settings.ConnectionStorageReset
@@ -27,6 +31,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.DefaultPaymentHubRepository
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
 import xyz.lilsus.raylsuite.feature.themesettings.DefaultThemePreferences
+import xyz.lilsus.raylsuite.feature.walletmanagement.WalletBalance
 import xyz.lilsus.raylsuite.integration.exchangerate.RaylBitcoinPriceProvider
 import xyz.lilsus.raylsuite.integration.lnurl.KtorLnurlPayClient
 
@@ -120,6 +125,17 @@ internal class BlinkRuntime(
     val onboardingViewModel by onboardingViewModelDelegate
 
     val onboardingState = BlinkOnboardingState(appSettings)
+
+    /** Shown in Settings; Blink cards are funded in their own wallet apps. */
+    val balance = WalletBalance(scope) {
+        blinkWallet.fundingWalletBalance()?.let { (amount, currency) ->
+            when (currency) {
+                BlinkWalletCurrency.BTC -> DisplayAmount(amount, DisplayCurrency.Satoshi)
+                BlinkWalletCurrency.USD -> DisplayAmount(amount, DisplayCurrency.Fiat("USD"))
+            }
+        }
+    }
+
     val canConnect: Boolean get() = !closed && !mutableRemovalPending.value && !mutableRemoved.value
 
     init {
@@ -139,6 +155,15 @@ internal class BlinkRuntime(
                 }
                 wasConnected = isConnected
             }
+        }
+        scope.launch {
+            // Once connected, after every payment, and when another funding wallet is chosen.
+            combine(
+                blinkWallet.connection,
+                blinkWallet.selectedFundingWallet,
+                paymentCoordinator.isSubmitting
+            ) { connection, _, submitting -> connection != null && !submitting }
+                .collect { if (it) balance.refresh() }
         }
         scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.

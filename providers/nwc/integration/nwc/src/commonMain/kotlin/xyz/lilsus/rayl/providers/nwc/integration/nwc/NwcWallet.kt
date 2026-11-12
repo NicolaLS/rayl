@@ -260,6 +260,16 @@ class NwcWallet internal constructor(
         }
     }
 
+    /**
+     * The wallet's balance in sats, or `null` when it cannot tell: not connected, offline, or a
+     * connection without `get_balance`, which NWC leaves optional.
+     */
+    suspend fun balanceSats(): Long? {
+        if (!isInForeground || !isNetworkAvailable()) return null
+        val activeClient = getOrCreateClient() ?: return null
+        return activeClient.getBalance(timeoutMs = BALANCE_TIMEOUT_MS).getOrNull()?.sats
+    }
+
     private suspend fun lookupInvoice(paymentHash: String): NwcLookupOutcome {
         if (!isInForeground) {
             return NwcLookupOutcome.Unavailable("App is in the background")
@@ -534,6 +544,7 @@ private const val REQUIRED_LOOKUP_METHOD = "lookup_invoice"
 
 private const val PAY_RESPONSE_TIMEOUT_MS = 15_000L
 private const val LOOKUP_TIMEOUT_MS = 10_000L
+private const val BALANCE_TIMEOUT_MS = 10_000L
 private const val PAYMENT_STATUS_POLL_INTERVAL_MS = 2_000L
 
 /**
