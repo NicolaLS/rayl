@@ -1,48 +1,25 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "settings_payments" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zahlungen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Payments"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pagos"
-          }
-        }
-      }
-    },
     "settings_payments_confirm_label" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zahlung bestätigen"
+            "value" : "Zahlungen bestätigen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Confirm Payment"
+            "value" : "Confirm payments"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Confirmar pago"
+            "value" : "Confirmar pagos"
           }
         }
       }
@@ -76,19 +53,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vibrieren bei erfolgreicher Zahlung"
+            "value" : "Nach dem Bezahlen vibrieren"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vibrate on successful payment"
+            "value" : "Vibrate after paying"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vibrar al completar el pago"
+            "value" : "Vibrar después de pagar"
           }
         }
       }
@@ -99,65 +76,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vibrieren, wenn ein Code erkannt wird"
+            "value" : "Beim Scannen vibrieren"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vibrate when a code is recognized"
+            "value" : "Vibrate on scan"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vibrar cuando se reconoce un código"
-          }
-        }
-      }
-    },
-    "settings_payments_haptics_title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vibrationen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vibrations"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vibraciones"
-          }
-        }
-      }
-    },
-    "settings_payments_hub_title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zahlungs-Hub"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Payment hub"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Centro de pagos"
+            "value" : "Vibrar al escanear"
           }
         }
       }
@@ -168,19 +99,42 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nach dem Bezahlen das Speichern eines Kontakts und Hinzufügen eines Kontakte-Widgets anbieten"
+            "value" : "Speichern neuer Kontakte anbieten"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Offer to save a contact and add a Contacts widget after paying"
+            "value" : "Offer to save new contacts"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ofrecer guardar un contacto y añadir un widget de Contactos después de pagar"
+            "value" : "Ofrecer guardar contactos nuevos"
+          }
+        }
+      }
+    },
+    "settings_payments_offer_save_targets_subtitle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach dem Bezahlen an jemand Neues"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After paying someone new"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Después de pagar a alguien nuevo"
           }
         }
       }

@@ -1,7 +1,6 @@
 <resources>
     <string name="settings_title">Settings</string>
     <string name="settings_payments">Payments</string>
-    <string name="settings_payments_subtitle">Confirmations and vibrations</string>
     <string name="settings_currency">Currency</string>
     <string name="settings_currency_subtitle">Payment display currency</string>
     <string name="settings_language">Language</string>
@@ -27,4 +26,6 @@
     <string name="settings_usage_data_off_body">Rayl shares anonymous timings and counts, such as how long a payment takes. Never amounts, invoices, or anything that identifies you. This is how we find problems and make Rayl better for you.</string>
     <string name="settings_usage_data_off_confirm">Turn off</string>
     <string name="settings_usage_data_off_keep">Keep on</string>
+    <string name="settings_section_app">App</string>
+    <string name="settings_section_privacy">Privacy</string>
 </resources>

@@ -1,6 +1,0 @@
-<resources>
-    <string name="settings_theme">Tema</string>
-    <string name="settings_theme_system_default">Usar configuración del sistema (%1$s)</string>
-    <string name="settings_theme_light">Claro</string>
-    <string name="settings_theme_dark">Oscuro</string>
-</resources>

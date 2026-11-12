@@ -26,7 +26,6 @@
 		D30000000000000000000001 /* CoreUI.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000001 /* CoreUI.xcstrings */; };
 		D30000000000000000000002 /* AppShell.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000002 /* AppShell.xcstrings */; };
 		D30000000000000000000003 /* CurrencySettings.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000003 /* CurrencySettings.xcstrings */; };
-		D30000000000000000000004 /* LanguageSettings.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000004 /* LanguageSettings.xcstrings */; };
 		D30000000000000000000005 /* Onboarding.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000005 /* Onboarding.xcstrings */; };
 		D30000000000000000000006 /* PaymentHub.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000006 /* PaymentHub.xcstrings */; };
 		D30000000000000000000007 /* PaymentSettings.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000007 /* PaymentSettings.xcstrings */; };
@@ -51,7 +50,6 @@
 		E30000000000000000000001 /* CoreUI.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000001 /* CoreUI.xcstrings */; };
 		E30000000000000000000002 /* AppShell.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000002 /* AppShell.xcstrings */; };
 		E30000000000000000000003 /* CurrencySettings.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000003 /* CurrencySettings.xcstrings */; };
-		E30000000000000000000004 /* LanguageSettings.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000004 /* LanguageSettings.xcstrings */; };
 		E30000000000000000000005 /* Onboarding.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000005 /* Onboarding.xcstrings */; };
 		E30000000000000000000006 /* PaymentHub.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000006 /* PaymentHub.xcstrings */; };
 		E30000000000000000000007 /* PaymentSettings.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C30000000000000000000007 /* PaymentSettings.xcstrings */; };
@@ -86,7 +84,6 @@
 		C30000000000000000000001 /* CoreUI.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = CoreUI.xcstrings; path = ../../core/ui/src/iosMain/resources/CoreUI.xcstrings; sourceTree = "<group>"; };
 		C30000000000000000000002 /* AppShell.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = AppShell.xcstrings; path = "../../feature/app-shell/src/iosMain/resources/AppShell.xcstrings"; sourceTree = "<group>"; };
 		C30000000000000000000003 /* CurrencySettings.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = CurrencySettings.xcstrings; path = "../../feature/currency-settings/src/iosMain/resources/CurrencySettings.xcstrings"; sourceTree = "<group>"; };
-		C30000000000000000000004 /* LanguageSettings.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = LanguageSettings.xcstrings; path = "../../feature/language-settings/src/iosMain/resources/LanguageSettings.xcstrings"; sourceTree = "<group>"; };
 		C30000000000000000000005 /* Onboarding.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = Onboarding.xcstrings; path = ../../feature/onboarding/src/iosMain/resources/Onboarding.xcstrings; sourceTree = "<group>"; };
 		C30000000000000000000006 /* PaymentHub.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = PaymentHub.xcstrings; path = "../../feature/payment-hub/src/iosMain/resources/PaymentHub.xcstrings"; sourceTree = "<group>"; };
 		C30000000000000000000007 /* PaymentSettings.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = PaymentSettings.xcstrings; path = "../../feature/payment-settings/src/iosMain/resources/PaymentSettings.xcstrings"; sourceTree = "<group>"; };
@@ -241,7 +238,6 @@
 				C30000000000000000000001 /* CoreUI.xcstrings */,
 				C30000000000000000000002 /* AppShell.xcstrings */,
 				C30000000000000000000003 /* CurrencySettings.xcstrings */,
-				C30000000000000000000004 /* LanguageSettings.xcstrings */,
 				C30000000000000000000005 /* Onboarding.xcstrings */,
 				C30000000000000000000006 /* PaymentHub.xcstrings */,
 				C30000000000000000000007 /* PaymentSettings.xcstrings */,
@@ -436,7 +432,6 @@
 				D30000000000000000000001 /* CoreUI.xcstrings in Resources */,
 				D30000000000000000000002 /* AppShell.xcstrings in Resources */,
 				D30000000000000000000003 /* CurrencySettings.xcstrings in Resources */,
-				D30000000000000000000004 /* LanguageSettings.xcstrings in Resources */,
 				D30000000000000000000005 /* Onboarding.xcstrings in Resources */,
 				D30000000000000000000006 /* PaymentHub.xcstrings in Resources */,
 				D30000000000000000000007 /* PaymentSettings.xcstrings in Resources */,
@@ -474,7 +469,6 @@
 				E30000000000000000000001 /* CoreUI.xcstrings in Resources */,
 				E30000000000000000000002 /* AppShell.xcstrings in Resources */,
 				E30000000000000000000003 /* CurrencySettings.xcstrings in Resources */,
-				E30000000000000000000004 /* LanguageSettings.xcstrings in Resources */,
 				E30000000000000000000005 /* Onboarding.xcstrings in Resources */,
 				E30000000000000000000006 /* PaymentHub.xcstrings in Resources */,
 				E30000000000000000000007 /* PaymentSettings.xcstrings in Resources */,

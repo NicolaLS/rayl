@@ -25,19 +25,16 @@ import xyz.lilsus.raylsuite.feature.currencysettings.CurrencyPreferences
 import xyz.lilsus.raylsuite.feature.currencysettings.CurrencySettingsScreen
 import xyz.lilsus.raylsuite.feature.currencysettings.CurrencySettingsViewModel
 import xyz.lilsus.raylsuite.feature.languagesettings.LanguageRepository
-import xyz.lilsus.raylsuite.feature.languagesettings.LanguageSettingsScreen
 import xyz.lilsus.raylsuite.feature.languagesettings.LanguageSettingsViewModel
 import xyz.lilsus.raylsuite.feature.paymentsettings.PaymentPreferencesRepository
-import xyz.lilsus.raylsuite.feature.paymentsettings.PaymentSettingsScreen
 import xyz.lilsus.raylsuite.feature.paymentsettings.PaymentSettingsViewModel
 import xyz.lilsus.raylsuite.feature.settings.R
 import xyz.lilsus.raylsuite.feature.themesettings.ThemePreferences
-import xyz.lilsus.raylsuite.feature.themesettings.ThemeSettingsScreen
 import xyz.lilsus.raylsuite.feature.themesettings.ThemeSettingsViewModel
 
 /**
- * The Settings tab: an overview plus its detail screens. It is a tab root, so [onBack] is null
- * unless a host wants an explicit way out of the whole flow.
+ * The Settings tab: an overview that changes every setting in place, plus the currency list. It is
+ * a tab root, so [onBack] is null unless a host wants an explicit way out of the whole flow.
  */
 @Composable
 fun SettingsFlow(
@@ -49,27 +46,14 @@ fun SettingsFlow(
     legalLinks: SettingsLegalLinks,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
-    overviewTopContent: (@Composable () -> Unit)? = null,
-    overviewBottomContent: (@Composable () -> Unit)? = null,
-    leadingEntries: List<SettingsEntry> = emptyList(),
-    trailingEntries: List<SettingsEntry> = emptyList()
+    overviewTopContent: (@Composable () -> Unit)? = null
 ) {
     var destination by rememberSaveable { mutableStateOf(SettingsDestination.Overview) }
-
-    val paymentSettingsViewModel =
-        remember(paymentPreferences, currencyPreferences, bitcoinPriceProvider) {
-            PaymentSettingsViewModel(
-                paymentPreferences = paymentPreferences,
-                currencyPreferences = currencyPreferences,
-                bitcoinPriceProvider = bitcoinPriceProvider
-            )
-        }
-    val paymentSettingsState by paymentSettingsViewModel.uiState.collectAsStateWithLifecycle()
 
     fun navigateBack() {
         when (destination) {
             SettingsDestination.Overview -> onBack?.invoke()
-            else -> destination = SettingsDestination.Overview
+            SettingsDestination.Currency -> destination = SettingsDestination.Overview
         }
     }
 
@@ -81,35 +65,24 @@ fun SettingsFlow(
         onBackCompleted = ::navigateBack
     )
 
-    DisposableEffect(paymentSettingsViewModel) {
-        onDispose(paymentSettingsViewModel::clear)
-    }
-
     when (destination) {
-        SettingsDestination.Overview -> {
-            SettingsOverview(
-                currencyPreferences = currencyPreferences,
-                languageRepository = languageRepository,
-                themePreferences = themePreferences,
-                legalLinks = legalLinks,
-                onBack = onBack,
-                onPayments = { destination = SettingsDestination.Payments },
-                onCurrency = { destination = SettingsDestination.Currency },
-                onLanguage = { destination = SettingsDestination.Language },
-                onTheme = { destination = SettingsDestination.Theme },
-                modifier = modifier,
-                overviewTopContent = overviewTopContent,
-                overviewBottomContent = overviewBottomContent,
-                leadingEntries = leadingEntries,
-                trailingEntries = trailingEntries
-            )
-        }
+        SettingsDestination.Overview -> SettingsOverview(
+            themePreferences = themePreferences,
+            languageRepository = languageRepository,
+            bitcoinPriceProvider = bitcoinPriceProvider,
+            currencyPreferences = currencyPreferences,
+            paymentPreferences = paymentPreferences,
+            legalLinks = legalLinks,
+            onBack = onBack,
+            onCurrency = { destination = SettingsDestination.Currency },
+            modifier = modifier,
+            overviewTopContent = overviewTopContent
+        )
 
         SettingsDestination.Currency -> {
-            val viewModel =
-                remember(currencyPreferences) {
-                    CurrencySettingsViewModel(currencyPreferences)
-                }
+            val viewModel = remember(currencyPreferences) {
+                CurrencySettingsViewModel(currencyPreferences)
+            }
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             ClearOnDispose(viewModel, viewModel::clear)
             CurrencySettingsScreen(
@@ -120,73 +93,37 @@ fun SettingsFlow(
                 modifier = modifier
             )
         }
-
-        SettingsDestination.Language -> {
-            val viewModel =
-                remember(languageRepository) {
-                    LanguageSettingsViewModel(languageRepository)
-                }
-            val state by viewModel.uiState.collectAsStateWithLifecycle()
-            ClearOnDispose(viewModel, viewModel::clear)
-            LanguageSettingsScreen(
-                state = state,
-                onQueryChange = viewModel::updateSearch,
-                onOptionSelected = viewModel::selectOption,
-                onBack = ::navigateBack,
-                modifier = modifier
-            )
-        }
-
-        SettingsDestination.Theme -> {
-            val viewModel =
-                remember(themePreferences) {
-                    ThemeSettingsViewModel(themePreferences)
-                }
-            val state by viewModel.uiState.collectAsStateWithLifecycle()
-            ClearOnDispose(viewModel, viewModel::clear)
-            ThemeSettingsScreen(
-                state = state,
-                onThemeSelected = viewModel::selectTheme,
-                onBack = ::navigateBack,
-                modifier = modifier
-            )
-        }
-
-        SettingsDestination.Payments -> {
-            PaymentSettingsScreen(
-                state = paymentSettingsState,
-                onBack = ::navigateBack,
-                onModeSelected = paymentSettingsViewModel::selectConfirmationMode,
-                onThresholdChanged =
-                    paymentSettingsViewModel::updateConfirmationThreshold,
-                onOfferToSaveNewTargetsChanged =
-                    paymentSettingsViewModel::setOfferToSaveNewTargets,
-                onVibrateOnScanChanged = paymentSettingsViewModel::setVibrateOnScan,
-                onVibrateOnPaymentChanged =
-                    paymentSettingsViewModel::setVibrateOnPayment,
-                modifier = modifier
-            )
-        }
     }
 }
 
 @Composable
 private fun SettingsOverview(
-    currencyPreferences: CurrencyPreferences,
-    languageRepository: LanguageRepository,
     themePreferences: ThemePreferences,
+    languageRepository: LanguageRepository,
+    bitcoinPriceProvider: BitcoinPriceProvider,
+    currencyPreferences: CurrencyPreferences,
+    paymentPreferences: PaymentPreferencesRepository,
     legalLinks: SettingsLegalLinks,
     onBack: (() -> Unit)?,
-    onPayments: () -> Unit,
     onCurrency: () -> Unit,
-    onLanguage: () -> Unit,
-    onTheme: () -> Unit,
     modifier: Modifier,
-    overviewTopContent: (@Composable () -> Unit)?,
-    overviewBottomContent: (@Composable () -> Unit)?,
-    leadingEntries: List<SettingsEntry>,
-    trailingEntries: List<SettingsEntry>
+    overviewTopContent: (@Composable () -> Unit)?
 ) {
+    val payments = remember(paymentPreferences, currencyPreferences, bitcoinPriceProvider) {
+        PaymentSettingsViewModel(
+            paymentPreferences = paymentPreferences,
+            currencyPreferences = currencyPreferences,
+            bitcoinPriceProvider = bitcoinPriceProvider
+        )
+    }
+    ClearOnDispose(payments, payments::clear)
+    val languages = remember(languageRepository) { LanguageSettingsViewModel(languageRepository) }
+    ClearOnDispose(languages, languages::clear)
+    val themes = remember(themePreferences) { ThemeSettingsViewModel(themePreferences) }
+    ClearOnDispose(themes, themes::clear)
+
+    val payment by payments.uiState.collectAsStateWithLifecycle()
+    val language by languages.uiState.collectAsStateWithLifecycle()
     val currencyCode by currencyPreferences.code.collectAsStateWithLifecycle(
         CurrencyCatalog.DEFAULT_CODE
     )
@@ -197,23 +134,48 @@ private fun SettingsOverview(
 
     SettingsScreen(
         onBack = onBack,
-        onPayments = onPayments,
-        onCurrency = onCurrency,
-        onLanguage = onLanguage,
-        onTheme = onTheme,
+        payment = payment,
+        currencySubtitle = currencyCode,
+        languages = LanguageCatalog.supported.map {
+            SettingsChoice(it.code, languageName(it.code))
+        },
+        selectedLanguage = language.selectedCode,
+        languageSubtitle = languageSubtitle(languagePreference),
+        themes = listOf(
+            SettingsChoice(THEME_SYSTEM, themeTitle(ThemePreference.System)),
+            SettingsChoice(THEME_LIGHT, themeTitle(ThemePreference.Light)),
+            SettingsChoice(THEME_DARK, themeTitle(ThemePreference.Dark))
+        ),
+        selectedTheme = when (themePreference) {
+            ThemePreference.System -> THEME_SYSTEM
+            ThemePreference.Light -> THEME_LIGHT
+            ThemePreference.Dark -> THEME_DARK
+        },
+        usageDataEnabled = usageDataEnabled,
+        actions = SettingsActions(
+            onCurrency = onCurrency,
+            onLanguageSelected = languages::selectOption,
+            onThemeSelected = { id ->
+                themes.selectTheme(
+                    when (id) {
+                        THEME_LIGHT -> ThemePreference.Light
+                        THEME_DARK -> ThemePreference.Dark
+                        else -> ThemePreference.System
+                    }
+                )
+            },
+            onConfirmationModeSelected = payments::selectConfirmationMode,
+            onThresholdChanged = payments::updateConfirmationThreshold,
+            onOfferToSaveNewTargetsChanged = payments::setOfferToSaveNewTargets,
+            onVibrateOnScanChanged = payments::setVibrateOnScan,
+            onVibrateOnPaymentChanged = payments::setVibrateOnPayment,
+            onUsageDataChanged = Telemetry::setEnabled,
+            onUsageDataAsked = Telemetry::usageDataAsked,
+            onUsageDataKeptOn = Telemetry::usageDataKeptOn
+        ),
         legalLinks = legalLinks,
         modifier = modifier,
-        currencySubtitle = currencyCode,
-        languageSubtitle = languageSubtitle(languagePreference),
-        themeSubtitle = themeSubtitle(themePreference),
-        overviewTopContent = overviewTopContent,
-        overviewBottomContent = overviewBottomContent,
-        leadingEntries = leadingEntries,
-        trailingEntries = trailingEntries,
-        usageDataEnabled = usageDataEnabled,
-        onUsageDataChanged = Telemetry::setEnabled,
-        onUsageDataAsked = Telemetry::usageDataAsked,
-        onUsageDataKeptOn = Telemetry::usageDataKeptOn
+        overviewTopContent = overviewTopContent
     )
 }
 
@@ -255,7 +217,7 @@ private fun languageNameResource(code: String): Int = when (code) {
 }
 
 @Composable
-private fun themeSubtitle(preference: ThemePreference): String = when (preference) {
+private fun themeTitle(preference: ThemePreference): String = when (preference) {
     ThemePreference.System ->
         stringResource(
             R.string.settings_theme_system_default,
@@ -273,12 +235,13 @@ private fun themeSubtitle(preference: ThemePreference): String = when (preferenc
     ThemePreference.Dark -> stringResource(R.string.settings_theme_dark)
 }
 
+private const val THEME_SYSTEM = "system"
+private const val THEME_LIGHT = "light"
+private const val THEME_DARK = "dark"
+
 private enum class SettingsDestination {
     Overview,
-    Currency,
-    Language,
-    Theme,
-    Payments
+    Currency
 }
 
 private data class SettingsNavigationInfo(val destination: SettingsDestination) :

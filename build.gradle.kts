@@ -21,7 +21,7 @@ plugins {
 
 val ktlintCliVersion = libs.versions.ktlintCli
 val nativeLocalizationLocales = listOf("en", "de", "es")
-val androidOnlyLocalizationModules = setOf("feature/theme-settings")
+val androidOnlyLocalizationModules = emptySet<String>()
 val appleOnlyLocalizationModules = emptySet<String>()
 
 data class NativeLocalizationEntry(val kind: String, val variants: Map<String, String>)

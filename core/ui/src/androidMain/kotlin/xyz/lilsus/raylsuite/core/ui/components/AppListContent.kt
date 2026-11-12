@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -150,6 +151,7 @@ fun AppListRow(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     contentPadding: PaddingValues = AppListDefaults.RowPadding,
     role: Role = Role.Button,
+    shape: Shape = MaterialTheme.shapes.medium,
     content: @Composable RowScope.() -> Unit
 ) {
     val surfaceModifier = if (testTag == null) {
@@ -185,7 +187,7 @@ fun AppListRow(
     Surface(
         modifier = surfaceModifier,
         tonalElevation = tonalElevation,
-        shape = MaterialTheme.shapes.medium,
+        shape = shape,
         color = color,
         contentColor = contentColor
     ) {

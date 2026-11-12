@@ -63,6 +63,7 @@ import androidx.navigationevent.compose.NavigationEventHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import xyz.lilsus.raylsuite.core.ui.components.AppSettingsRow
 import xyz.lilsus.raylsuite.core.ui.components.AppSettingsRowDefaults
+import xyz.lilsus.raylsuite.core.ui.components.AppSettingsSection
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
 import xyz.lilsus.raylsuite.core.ui.components.RaylMark
 import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
@@ -185,7 +186,10 @@ private fun CardBalanceRow(balance: WalletBalance?) {
     WalletBalanceRow(balance = amount?.let(formatter::format), onAddFunds = null)
 }
 
-/** The active wallet, its balance, and its details: always the top of Settings. */
+/**
+ * The active wallet, its balance, and its details: always the top of Settings. The rows go into the
+ * section the host puts them in, so they read as one block.
+ */
 @Composable
 private fun WalletBlock(
     cards: WalletCards,
@@ -193,27 +197,21 @@ private fun WalletBlock(
     onWallets: () -> Unit,
     onDetails: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(AppSettingsRowDefaults.RowSpacing)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ProviderMark(cards.paying.provider, cards.paying.displayName(), size = 40)
-            AppSettingsRow(
-                title = cards.paying.displayName(),
-                testTag = "settings_wallets",
-                onClick = onWallets,
-                modifier = Modifier.weight(1f)
-            ) { Chevron() }
+    AppSettingsRow(
+        title = cards.paying.displayName(),
+        testTag = "settings_wallets",
+        onClick = onWallets,
+        leadingContent = {
+            ProviderMark(cards.paying.provider, cards.paying.displayName(), size = MARK_SIZE)
         }
-        balance()
-        AppSettingsRow(
-            title = stringResource(R.string.wallet_cards_details),
-            icon = Icons.Filled.Info,
-            testTag = "settings_wallet_details",
-            onClick = onDetails
-        ) { Chevron() }
-    }
+    ) { Chevron() }
+    balance()
+    AppSettingsRow(
+        title = stringResource(R.string.wallet_cards_details),
+        icon = Icons.Filled.Info,
+        testTag = "settings_wallet_details",
+        onClick = onDetails
+    ) { Chevron() }
 }
 
 @Composable
@@ -245,18 +243,16 @@ private fun WalletCardsList(
             )
         }
         // Rayl is simply the card every user has from the start.
-        (listOf(cards.pocket) + cards.cards).forEach { card ->
-            val active = card.id == cards.payingId
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ProviderMark(card.provider, card.displayName(), size = 40)
+        AppSettingsSection {
+            (listOf(cards.pocket) + cards.cards).forEach { card ->
+                val active = card.id == cards.payingId
                 AppSettingsRow(
                     title = card.displayName(),
                     testTag = "wallet_card_${card.id}",
                     onClick = { if (!active && !busy) onActivate(card.id) },
-                    modifier = Modifier.weight(1f)
+                    leadingContent = {
+                        ProviderMark(card.provider, card.displayName(), size = MARK_SIZE)
+                    }
                 ) {
                     if (active) {
                         Icon(
@@ -268,14 +264,14 @@ private fun WalletCardsList(
                     }
                 }
             }
-        }
-        if (cards.addable.isNotEmpty()) {
-            AppSettingsRow(
-                title = stringResource(R.string.wallet_cards_add),
-                icon = Icons.Filled.Add,
-                testTag = "wallet_cards_add",
-                onClick = onAdd
-            )
+            if (cards.addable.isNotEmpty()) {
+                AppSettingsRow(
+                    title = stringResource(R.string.wallet_cards_add),
+                    icon = Icons.Filled.Add,
+                    testTag = "wallet_cards_add",
+                    onClick = onAdd
+                )
+            }
         }
     }
 }
@@ -569,6 +565,9 @@ private fun WalletCard.displayName(): String =
 
 /** [WalletCard.provider] of the pocket. */
 private const val POCKET_PROVIDER = "rayl"
+
+/** A wallet's mark where it leads a row. */
+private const val MARK_SIZE = 32
 
 /** A balance this wallet cannot show here. */
 private const val PLACEHOLDER = "—"

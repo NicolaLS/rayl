@@ -21,7 +21,6 @@ import xyz.lilsus.raylsuite.feature.currencysettings.CurrencySettingsViewModel
 import xyz.lilsus.raylsuite.feature.currencysettings.nativeCurrencyStrings
 import xyz.lilsus.raylsuite.feature.languagesettings.LanguageRepository
 import xyz.lilsus.raylsuite.feature.languagesettings.LanguageSettingsViewModel
-import xyz.lilsus.raylsuite.feature.languagesettings.nativeLanguageSearchPlaceholder
 import xyz.lilsus.raylsuite.feature.paymentsettings.PaymentPreferencesRepository
 import xyz.lilsus.raylsuite.feature.paymentsettings.PaymentSettingsViewModel
 import xyz.lilsus.raylsuite.feature.paymentsettings.nativePaymentSettingsStrings
@@ -47,22 +46,21 @@ data class NativePaymentSettingsSnapshot(
 data class NativeSettingsText(
     val settingsTitle: String,
     val paymentsTitle: String,
-    val paymentsSubtitle: String,
     val currencyTitle: String,
     val currencySubtitle: String,
     val currencySearch: String,
     val languageTitle: String,
-    val languageSearch: String,
     val languageSystemSettingsHint: String,
     val themeTitle: String,
     val paymentConfirmTitle: String,
     val paymentAlways: String,
     val paymentAbove: String,
-    val paymentHubTitle: String,
     val paymentOfferSaveTargets: String,
-    val paymentHapticsTitle: String,
+    val paymentOfferSaveTargetsSubtitle: String,
     val paymentHapticsScan: String,
     val paymentHapticsPayment: String,
+    val appSectionTitle: String,
+    val privacySectionTitle: String,
     val usageDataTitle: String,
     val usageDataSubtitle: String,
     val usageDataOffTitle: String,
@@ -335,9 +333,6 @@ private suspend fun loadResources(
                 paymentsTitle = nativeString(
                     NativeStringResource(table = "Settings", key = "settings_payments")
                 ),
-                paymentsSubtitle = nativeString(
-                    NativeStringResource(table = "Settings", key = "settings_payments_subtitle")
-                ),
                 currencyTitle = nativeString(
                     NativeStringResource(table = "Settings", key = "settings_currency")
                 ),
@@ -348,7 +343,6 @@ private suspend fun loadResources(
                 languageTitle = nativeString(
                     NativeStringResource(table = "Settings", key = "settings_language")
                 ),
-                languageSearch = nativeLanguageSearchPlaceholder(),
                 languageSystemSettingsHint =
                     nativeString(
                         NativeStringResource(
@@ -362,9 +356,15 @@ private suspend fun loadResources(
                 paymentConfirmTitle = paymentStrings.getValue("confirmTitle"),
                 paymentAlways = paymentStrings.getValue("always"),
                 paymentAbove = paymentStrings.getValue("above"),
-                paymentHubTitle = paymentStrings.getValue("hubTitle"),
                 paymentOfferSaveTargets = paymentStrings.getValue("offerSaveTargets"),
-                paymentHapticsTitle = paymentStrings.getValue("hapticsTitle"),
+                paymentOfferSaveTargetsSubtitle =
+                    paymentStrings.getValue("offerSaveTargetsSubtitle"),
+                appSectionTitle = nativeString(
+                    NativeStringResource(table = "Settings", key = "settings_section_app")
+                ),
+                privacySectionTitle = nativeString(
+                    NativeStringResource(table = "Settings", key = "settings_section_privacy")
+                ),
                 paymentHapticsScan = paymentStrings.getValue("hapticsScan"),
                 paymentHapticsPayment = paymentStrings.getValue("hapticsPayment"),
                 usageDataTitle = nativeString(

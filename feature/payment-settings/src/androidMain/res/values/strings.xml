@@ -1,12 +1,10 @@
 <resources>
-    <string name="settings_payments">Payments</string>
-    <string name="settings_payments_confirm_label">Confirm Payment</string>
+    <string name="settings_payments_confirm_label">Confirm payments</string>
     <string name="settings_payments_confirm_threshold">%1$s or more</string>
     <string name="settings_payments_option_always">Always</string>
     <string name="settings_payments_option_above">Above</string>
-    <string name="settings_payments_haptics_title">Vibrations</string>
-    <string name="settings_payments_haptics_scan">Vibrate when a code is recognized</string>
-    <string name="settings_payments_haptics_payment">Vibrate on successful payment</string>
-    <string name="settings_payments_hub_title">Payment hub</string>
-    <string name="settings_payments_offer_save_targets">Offer to save a contact and add a Contacts widget after paying</string>
+    <string name="settings_payments_haptics_scan">Vibrate on scan</string>
+    <string name="settings_payments_haptics_payment">Vibrate after paying</string>
+    <string name="settings_payments_offer_save_targets">Offer to save new contacts</string>
+    <string name="settings_payments_offer_save_targets_subtitle">After paying someone new</string>
 </resources>

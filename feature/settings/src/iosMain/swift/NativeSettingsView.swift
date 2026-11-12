@@ -67,19 +67,8 @@ struct NativeSettingsView: View {
                     }
                 }
 
-                Section {
-                    NavigationLink {
-                        NativePaymentSettingsView(
-                            snapshot: snapshot,
-                            controller: model.controller
-                        )
-                    } label: {
-                        settingsLabel(
-                            title: snapshot.text.paymentsTitle,
-                            subtitle: snapshot.text.paymentsSubtitle,
-                            symbol: "bolt.fill"
-                        )
-                    }
+                Section(snapshot.text.paymentsTitle) {
+                    NativeConfirmationRow(snapshot: snapshot, controller: model.controller)
 
                     NavigationLink {
                         NativeOptionPicker(
@@ -100,6 +89,21 @@ struct NativeSettingsView: View {
                         )
                     }
 
+                    Toggle(
+                        isOn: Binding(
+                            get: { snapshot.payment.offerToSaveNewTargets },
+                            set: model.controller.setOfferToSaveNewTargets
+                        )
+                    ) {
+                        settingsLabel(
+                            title: snapshot.text.paymentOfferSaveTargets,
+                            subtitle: snapshot.text.paymentOfferSaveTargetsSubtitle,
+                            symbol: "person.crop.circle.badge.plus"
+                        )
+                    }
+                }
+
+                Section(snapshot.text.appSectionTitle) {
                     if snapshot.languageManagedBySystem {
                         Button(action: openSystemSettings) {
                             HStack {
@@ -121,46 +125,51 @@ struct NativeSettingsView: View {
                         }
                         .buttonStyle(.plain)
                     } else {
-                        NavigationLink {
-                            NativeOptionPicker(
-                                title: snapshot.text.languageTitle,
-                                searchPrompt: snapshot.text.languageSearch,
-                                options: snapshot.languageOptions,
-                                selectedId: snapshot.selectedLanguageId,
-                                onSelect: model.controller.selectLanguage
-                            )
-                        } label: {
-                            settingsLabel(
-                                title: snapshot.text.languageTitle,
-                                subtitle: optionTitle(
-                                    snapshot.languageOptions,
-                                    selectedId: snapshot.selectedLanguageId
-                                ),
-                                symbol: "globe"
-                            )
+                        choice(
+                            title: snapshot.text.languageTitle,
+                            symbol: "globe",
+                            options: snapshot.languageOptions,
+                            selectedId: snapshot.selectedLanguageId,
+                            onSelect: model.controller.selectLanguage
+                        )
+                    }
+
+                    choice(
+                        title: snapshot.text.themeTitle,
+                        symbol: "circle.lefthalf.filled",
+                        options: snapshot.themeOptions,
+                        selectedId: snapshot.selectedThemeId,
+                        onSelect: model.controller.selectTheme
+                    )
+
+                    Toggle(
+                        isOn: Binding(
+                            get: { snapshot.payment.vibrateOnScan },
+                            set: model.controller.setVibrateOnScan
+                        )
+                    ) {
+                        Label {
+                            Text(snapshot.text.paymentHapticsScan)
+                        } icon: {
+                            Image(systemName: "qrcode.viewfinder").foregroundStyle(.tint)
                         }
                     }
 
-                    NavigationLink {
-                        NativeOptionPicker(
-                            title: snapshot.text.themeTitle,
-                            options: snapshot.themeOptions,
-                            selectedId: snapshot.selectedThemeId,
-                            onSelect: model.controller.selectTheme
+                    Toggle(
+                        isOn: Binding(
+                            get: { snapshot.payment.vibrateOnPayment },
+                            set: model.controller.setVibrateOnPayment
                         )
-                    } label: {
-                        settingsLabel(
-                            title: snapshot.text.themeTitle,
-                            subtitle: optionTitle(
-                                snapshot.themeOptions,
-                                selectedId: snapshot.selectedThemeId
-                            ),
-                            symbol: "circle.lefthalf.filled"
-                        )
+                    ) {
+                        Label {
+                            Text(snapshot.text.paymentHapticsPayment)
+                        } icon: {
+                            Image(systemName: "iphone.radiowaves.left.and.right").foregroundStyle(.tint)
+                        }
                     }
                 }
 
-                Section {
+                Section(snapshot.text.privacySectionTitle) {
                     // Turning usage data off asks once, with the reason to keep it.
                     Toggle(
                         isOn: Binding(
@@ -234,6 +243,30 @@ struct NativeSettingsView: View {
             Image(systemName: symbol)
                 .foregroundStyle(.tint)
         }
+    }
+
+    /// A setting with a few fixed answers, picked in place from a menu.
+    private func choice(
+        title: String,
+        symbol: String,
+        options: [NativeSettingsOption],
+        selectedId: String,
+        onSelect: @escaping (String) -> Void
+    ) -> some View {
+        Picker(
+            selection: Binding(get: { selectedId }, set: onSelect)
+        ) {
+            ForEach(options, id: \.id) { option in
+                Text(option.title).tag(option.id)
+            }
+        } label: {
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: symbol).foregroundStyle(.tint)
+            }
+        }
+        .pickerStyle(.menu)
     }
 
     private func optionTitle(
@@ -320,101 +353,54 @@ private struct NativeOptionPicker: View {
     }
 }
 
-private struct NativePaymentSettingsView: View {
+/// Always, or only from an amount on, chosen right where the rule is named.
+private struct NativeConfirmationRow: View {
     let snapshot: NativeSettingsSnapshot
     let controller: NativeSettingsController
 
     var body: some View {
-        Form {
-            confirmationSection
-            hubSection
-            hapticsSection
+        VStack(alignment: .leading, spacing: 12) {
+            Label {
+                Text(snapshot.text.paymentConfirmTitle)
+            } icon: {
+                Image(systemName: "checkmark.shield").foregroundStyle(.tint)
+            }
+            Picker(
+                snapshot.text.paymentConfirmTitle,
+                selection: Binding(
+                    get: { payment.confirmationMode },
+                    set: { controller.selectConfirmationMode(id: $0) }
+                )
+            ) {
+                Text(snapshot.text.paymentAlways).tag("always")
+                Text(snapshot.text.paymentAbove).tag("above")
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            // Only the threshold needs spelling out; "Always" already reads off the selector.
+            if payment.confirmationMode == "above" {
+                Text(thresholdDescription)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Slider(
+                    value: Binding(
+                        get: { Double(thresholdIndex) },
+                        set: { controller.selectThresholdStep(index: Int32($0.rounded())) }
+                    ),
+                    in: 0...Double(max(thresholdSteps.count - 1, 0)),
+                    step: 1
+                )
+                .disabled(thresholdSteps.count < 2)
+                .accessibilityLabel(snapshot.text.paymentConfirmTitle)
+                .accessibilityValue(thresholdDescription)
+            }
         }
-        .navigationTitle(snapshot.text.paymentsTitle)
-        .navigationBarTitleDisplayMode(.inline)
+        .padding(.vertical, 4)
     }
 
     private var payment: NativePaymentSettingsSnapshot {
         snapshot.payment
-    }
-
-    private var confirmationSection: some View {
-        Section(snapshot.text.paymentConfirmTitle) {
-            confirmationOption(snapshot.text.paymentAlways, mode: "always")
-            confirmationOption(snapshot.text.paymentAbove, mode: "above")
-
-            if payment.confirmationMode == "above" {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(thresholdDescription)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Slider(
-                        value: Binding(
-                            get: { Double(thresholdIndex) },
-                            set: { controller.selectThresholdStep(index: Int32($0.rounded())) }
-                        ),
-                        in: 0...Double(max(thresholdSteps.count - 1, 0)),
-                        step: 1
-                    )
-                    .disabled(thresholdSteps.count < 2)
-                    .accessibilityLabel(snapshot.text.paymentConfirmTitle)
-                    .accessibilityValue(thresholdDescription)
-                }
-            }
-        }
-    }
-
-    private func confirmationOption(_ title: String, mode: String) -> some View {
-        Button {
-            controller.selectConfirmationMode(id: mode)
-        } label: {
-            HStack(spacing: 16) {
-                Text(title)
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-                if payment.confirmationMode == mode {
-                    Image(systemName: "checkmark")
-                        .fontWeight(.semibold)
-                        .accessibilityHidden(true)
-                }
-            }
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .accessibilityAddTraits(payment.confirmationMode == mode ? .isSelected : [])
-    }
-
-    private var hubSection: some View {
-        Section(snapshot.text.paymentHubTitle) {
-            Toggle(
-                snapshot.text.paymentOfferSaveTargets,
-                isOn: Binding(
-                    get: { payment.offerToSaveNewTargets },
-                    set: controller.setOfferToSaveNewTargets
-                )
-            )
-        }
-    }
-
-    private var hapticsSection: some View {
-        Section(snapshot.text.paymentHapticsTitle) {
-            Toggle(
-                snapshot.text.paymentHapticsScan,
-                isOn: Binding(
-                    get: { payment.vibrateOnScan },
-                    set: controller.setVibrateOnScan
-                )
-            )
-            Toggle(
-                snapshot.text.paymentHapticsPayment,
-                isOn: Binding(
-                    get: { payment.vibrateOnPayment },
-                    set: controller.setVibrateOnPayment
-                )
-            )
-        }
     }
 
     private var thresholdSteps: [Int64] {

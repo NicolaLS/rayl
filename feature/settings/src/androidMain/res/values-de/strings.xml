@@ -1,7 +1,6 @@
 <resources>
     <string name="settings_title">Einstellungen</string>
     <string name="settings_payments">Zahlungen</string>
-    <string name="settings_payments_subtitle">Bestätigungen und Vibrationen</string>
     <string name="settings_currency">Währung</string>
     <string name="settings_currency_subtitle">Währung für Zahlungsanzeige</string>
     <string name="settings_language">Sprache</string>
@@ -27,4 +26,6 @@
     <string name="settings_usage_data_off_body">Rayl teilt anonyme Zeitmessungen und Zähler, zum Beispiel wie lange eine Zahlung dauert. Niemals Beträge, Rechnungen oder etwas, das dich identifiziert. So finden wir Probleme und machen Rayl für dich besser.</string>
     <string name="settings_usage_data_off_confirm">Ausschalten</string>
     <string name="settings_usage_data_off_keep">Eingeschaltet lassen</string>
+    <string name="settings_section_app">App</string>
+    <string name="settings_section_privacy">Datenschutz</string>
 </resources>

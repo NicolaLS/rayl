@@ -1,12 +1,10 @@
 <resources>
-    <string name="settings_payments">Zahlungen</string>
-    <string name="settings_payments_confirm_label">Zahlung bestätigen</string>
+    <string name="settings_payments_confirm_label">Zahlungen bestätigen</string>
     <string name="settings_payments_confirm_threshold">%1$s oder mehr</string>
     <string name="settings_payments_option_always">Immer</string>
     <string name="settings_payments_option_above">Über</string>
-    <string name="settings_payments_haptics_title">Vibrationen</string>
-    <string name="settings_payments_haptics_scan">Vibrieren, wenn ein Code erkannt wird</string>
-    <string name="settings_payments_haptics_payment">Vibrieren bei erfolgreicher Zahlung</string>
-    <string name="settings_payments_hub_title">Zahlungs-Hub</string>
-    <string name="settings_payments_offer_save_targets">Nach dem Bezahlen das Speichern eines Kontakts und Hinzufügen eines Kontakte-Widgets anbieten</string>
+    <string name="settings_payments_haptics_scan">Beim Scannen vibrieren</string>
+    <string name="settings_payments_haptics_payment">Nach dem Bezahlen vibrieren</string>
+    <string name="settings_payments_offer_save_targets">Speichern neuer Kontakte anbieten</string>
+    <string name="settings_payments_offer_save_targets_subtitle">Nach dem Bezahlen an jemand Neues</string>
 </resources>

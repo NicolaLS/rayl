@@ -16,10 +16,6 @@ suspend fun nativePaymentSettingsStrings(): Map<String, String> = mapOf(
         nativeString(
             NativeStringResource(table = "PaymentSettings", key = "settings_payments_option_above")
         ),
-    "hapticsTitle" to
-        nativeString(
-            NativeStringResource(table = "PaymentSettings", key = "settings_payments_haptics_title")
-        ),
     "hapticsScan" to
         nativeString(
             NativeStringResource(table = "PaymentSettings", key = "settings_payments_haptics_scan")
@@ -31,15 +27,18 @@ suspend fun nativePaymentSettingsStrings(): Map<String, String> = mapOf(
                 key = "settings_payments_haptics_payment"
             )
         ),
-    "hubTitle" to
-        nativeString(
-            NativeStringResource(table = "PaymentSettings", key = "settings_payments_hub_title")
-        ),
     "offerSaveTargets" to
         nativeString(
             NativeStringResource(
                 table = "PaymentSettings",
                 key = "settings_payments_offer_save_targets"
+            )
+        ),
+    "offerSaveTargetsSubtitle" to
+        nativeString(
+            NativeStringResource(
+                table = "PaymentSettings",
+                key = "settings_payments_offer_save_targets_subtitle"
             )
         )
 )

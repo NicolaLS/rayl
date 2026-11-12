@@ -323,25 +323,48 @@
         }
       }
     },
-    "settings_payments_subtitle" : {
+    "settings_section_app" : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bestätigungen und Vibrationen"
+            "value" : "App"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Confirmations and vibrations"
+            "value" : "App"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Confirmaciones y vibraciones"
+            "value" : "App"
+          }
+        }
+      }
+    },
+    "settings_section_privacy" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacidad"
           }
         }
       }

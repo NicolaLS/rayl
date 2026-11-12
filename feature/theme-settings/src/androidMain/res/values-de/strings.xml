@@ -1,6 +1,0 @@
-<resources>
-    <string name="settings_theme">Design</string>
-    <string name="settings_theme_system_default">Systemeinstellung verwenden (%1$s)</string>
-    <string name="settings_theme_light">Hell</string>
-    <string name="settings_theme_dark">Dunkel</string>
-</resources>
