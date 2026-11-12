@@ -107,9 +107,9 @@ internal fun HubWidgetGallery(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
                         stringResource(title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.semantics { heading() }
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 8.dp).semantics { heading() }
                     )
                 }
                 items(
@@ -172,7 +172,8 @@ private fun GalleryEntry(
             preview = true,
             interactive = false,
             compactPreview = true,
-            modifier = Modifier.fillMaxWidth().aspectRatio(1.05f).clearAndSetSemantics {}
+            // Square like the tile it becomes, so a chart keeps its room.
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f).clearAndSetSemantics {}
         )
         Text(definition.label(), style = MaterialTheme.typography.titleMedium)
         val body = definition.body()

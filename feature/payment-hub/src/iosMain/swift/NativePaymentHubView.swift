@@ -1184,13 +1184,16 @@ private struct WidgetContent: View {
         .frame(minHeight: 26)
     }
 
-    /// The one line under a tile's figure or portrait.
-    private func caption(_ text: String, color: Color = HubPalette.ink.opacity(0.8)) -> some View {
+    /// The one line under a tile's figure or portrait. An address keeps both of its ends when it
+    /// is too long; words are cut at the end.
+    private func caption(
+        _ text: String, color: Color = HubPalette.ink.opacity(0.8), address: Bool = false
+    ) -> some View {
         Text(text)
             .font(.subheadline)
             .foregroundStyle(color)
             .lineLimit(1)
-            .truncationMode(.middle)
+            .truncationMode(address ? .middle : .tail)
             .frame(maxWidth: .infinity, alignment: bodyAlignment)
     }
 
@@ -1323,7 +1326,7 @@ private struct WidgetContent: View {
                 figureText(person.amount ?? "")
                 Spacer(minLength: 0)
                 // Where the money goes, on the line where a contact shows its address.
-                caption(person.address.isEmpty ? person.contactTitle : person.address)
+                caption(person.address.isEmpty ? person.contactTitle : person.address, address: true)
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -1345,7 +1348,10 @@ private struct WidgetContent: View {
                     HubAvatar(initials: person.initials, size: max(24, min(proxy.size.width, proxy.size.height, 72)))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                caption(person.address.isEmpty || person.address == person.title ? tile.title : person.address)
+                caption(
+                    person.address.isEmpty || person.address == person.title ? tile.title : person.address,
+                    address: true
+                )
             }
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

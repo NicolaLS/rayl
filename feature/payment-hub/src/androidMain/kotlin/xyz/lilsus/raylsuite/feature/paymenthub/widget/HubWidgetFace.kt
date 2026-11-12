@@ -43,11 +43,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.model.DisplayAmount
@@ -93,7 +95,7 @@ private val NightFace = HubFaceColors(
 
 private val DayFace = HubFaceColors(
     dark = false,
-    top = Color(0xFFEDEBFA),
+    top = Color(0xFFF3F1FC),
     bottom = Color(0xFFFFFFFF),
     ink = Color(0xFF1C1D3A),
     up = Color(0xFF1E9E52),
@@ -137,10 +139,10 @@ internal fun HubWidgetFace(
                 } else {
                     // By day a white face needs a little lift off the light page.
                     Modifier.shadow(
-                        6.dp,
+                        8.dp,
                         HubTileShape,
-                        ambientColor = face.ink.copy(alpha = 0.10f),
-                        spotColor = face.ink.copy(alpha = 0.14f)
+                        ambientColor = face.ink.copy(alpha = 0.16f),
+                        spotColor = face.ink.copy(alpha = 0.22f)
                     )
                 }
             )
@@ -200,15 +202,23 @@ internal fun TileHeader(
     }
 }
 
-/** The one line under a tile's figure or portrait. */
+/**
+ * The one line under a tile's figure or portrait. An [address] keeps both of its ends when it is
+ * too long; words are cut at the end.
+ */
 @Composable
-internal fun TileCaption(text: String, small: Boolean, color: Color = hubFaceColors().quiet) {
+internal fun TileCaption(
+    text: String,
+    small: Boolean,
+    color: Color = hubFaceColors().quiet,
+    address: Boolean = false
+) {
     Text(
         text,
         style = MaterialTheme.typography.bodyMedium,
         color = color,
         maxLines = 1,
-        overflow = TextOverflow.MiddleEllipsis,
+        overflow = if (address) TextOverflow.MiddleEllipsis else TextOverflow.Ellipsis,
         textAlign = if (small) TextAlign.Center else TextAlign.Start,
         modifier = Modifier.fillMaxWidth()
     )
@@ -237,9 +247,15 @@ internal fun TileFigure(text: String, small: Boolean) {
         text,
         color = hubFaceColors().ink,
         style = MaterialTheme.typography.headlineLarge.copy(
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             fontFeatureSettings = "tnum",
-            letterSpacing = (-1).sp
+            letterSpacing = (-1).sp,
+            // A figure needs no room above or below its digits; small tiles need it for the chart.
+            lineHeight = 1.em,
+            lineHeightStyle = LineHeightStyle(
+                LineHeightStyle.Alignment.Center,
+                LineHeightStyle.Trim.Both
+            )
         ),
         autoSize = TextAutoSize.StepBased(minFontSize = 16.sp, maxFontSize = 36.sp),
         maxLines = 1,
@@ -313,7 +329,8 @@ private fun SingleContactFace(tile: HubWidgetTile, onPay: (String) -> Unit, inte
         }
         TileCaption(
             person?.address?.takeIf { it.isNotBlank() && it != name } ?: tile.kind.label(),
-            small = true
+            small = true,
+            address = true
         )
     }
 }
@@ -354,7 +371,8 @@ private fun ShortcutFace(
             person?.address?.takeIf(String::isNotBlank)
                 ?: person?.contactTitle
                 ?: stringResource(R.string.hub_widget_contact_placeholder),
-            tile.small
+            tile.small,
+            address = true
         )
     }
 }

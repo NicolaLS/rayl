@@ -1,23 +1,39 @@
 package xyz.lilsus.raylsuite.feature.paymenthub
 
-import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,61 +96,111 @@ fun PaymentHubTab(
     NavigationEventHandler(
         state = rememberNavigationEventState(currentInfo = WidgetHubNavigationInfo(state.screen)),
         isForwardEnabled = false,
-        isBackEnabled = state.screen != HubWidgetScreen.Hub || state.arranging,
-        onBackCompleted = {
-            if (state.arranging &&
-                state.screen == HubWidgetScreen.Hub
-            ) {
-                viewModel.setArranging(false)
-            } else {
-                viewModel.back()
-            }
-        }
+        isBackEnabled = state.screen == HubWidgetScreen.Hub && state.arranging,
+        onBackCompleted = { viewModel.setArranging(false) }
     )
-    Scaffold(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = {
-            if (state.screen != HubWidgetScreen.Hub) {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            stringResource(
-                                when (state.screen) {
-                                    HubWidgetScreen.Gallery -> R.string.hub_widget_gallery_title
+    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainer)) {
+        HubWidgetCanvas(state, viewModel, Modifier.fillMaxSize())
+        HubEditorSheet(state, viewModel)
+    }
+}
 
-                                    HubWidgetScreen.Variants -> R.string.hub_widget_select_variant
-
-                                    HubWidgetScreen.Configure ->
-                                        if (state.editor?.existingWidgetId != null) {
-                                            R.string.hub_widget_edit
-                                        } else {
-                                            R.string.hub_configure_title
-                                        }
-
-                                    HubWidgetScreen.Hub -> R.string.hub_widget_gallery_title
-                                }
-                            )
-                        )
-                    },
-                    navigationIcon = { BackIconButton(onClick = { viewModel.back() }) },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    )
-                )
-            }
-        }
-    ) { padding ->
-        val content = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
-        when (state.screen) {
-            HubWidgetScreen.Hub -> HubWidgetCanvas(state, viewModel, content)
-            HubWidgetScreen.Gallery -> HubWidgetGallery(state, viewModel, content)
-            HubWidgetScreen.Variants -> HubWidgetVariants(state, viewModel, content)
-            HubWidgetScreen.Configure -> HubWidgetEditorScreen(state, viewModel, content)
+/**
+ * Adding or editing a widget happens in a sheet over the Hub, like Android's own widget picker:
+ * the tabs stay out of the way and the Hub stays in sight above it. Back steps through the sheet's
+ * screens before it closes.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HubEditorSheet(state: WidgetHubState, viewModel: WidgetHubViewModel) {
+    val editing = state.screen != HubWidgetScreen.Hub
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var open by remember { mutableStateOf(editing) }
+    // What the sheet showed last, so it keeps its content while it slides away.
+    var shown by remember { mutableStateOf(state.screen) }
+    if (editing) shown = state.screen
+    LaunchedEffect(editing) {
+        if (editing) {
+            open = true
+        } else if (open) {
+            sheetState.hide()
+            open = false
         }
     }
+    if (!open && !editing) return
+    // Closing from the first screen leaves the sheet; every other screen steps back.
+    val closes = state.screen == HubWidgetScreen.Gallery ||
+        (state.screen == HubWidgetScreen.Variants && state.editor?.existingWidgetId != null)
+    ModalBottomSheet(
+        onDismissRequest = { if (editing) viewModel.close() },
+        sheetState = sheetState,
+        sheetGesturesEnabled = !state.busy,
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false)
+    ) {
+        NavigationEventHandler(
+            state = rememberNavigationEventState(
+                currentInfo = WidgetHubNavigationInfo(state.screen)
+            ),
+            isForwardEnabled = false,
+            isBackEnabled = editing && !state.busy,
+            onBackCompleted = { viewModel.back() }
+        )
+        // A little of the Hub stays in sight above the sheet, so it reads as a layer over it.
+        Column(Modifier.fillMaxHeight(SHEET_HEIGHT)) {
+            Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp)) {
+                if (closes) {
+                    IconButton(
+                        onClick = { viewModel.close() },
+                        enabled = !state.busy,
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    ) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.hub_canvas_remove_cancel)
+                        )
+                    }
+                } else {
+                    BackIconButton(
+                        onClick = { if (!state.busy) viewModel.back() },
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    )
+                }
+                Text(
+                    stringResource(sheetTitle(shown, state)),
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.Center).padding(horizontal = 56.dp)
+                        .semantics { heading() }
+                )
+            }
+            val content = Modifier.fillMaxWidth().weight(1f)
+            when (shown) {
+                HubWidgetScreen.Gallery -> HubWidgetGallery(state, viewModel, content)
+                HubWidgetScreen.Variants -> HubWidgetVariants(state, viewModel, content)
+                HubWidgetScreen.Configure -> HubWidgetEditorScreen(state, viewModel, content)
+                HubWidgetScreen.Hub -> Unit
+            }
+        }
+    }
+}
+
+private fun sheetTitle(screen: HubWidgetScreen, state: WidgetHubState): Int = when (screen) {
+    HubWidgetScreen.Variants -> R.string.hub_widget_select_variant
+
+    HubWidgetScreen.Configure ->
+        if (state.editor?.existingWidgetId != null) {
+            R.string.hub_widget_edit
+        } else {
+            R.string.hub_configure_title
+        }
+
+    else -> R.string.hub_widget_gallery_title
 }
 
 private const val LIVE_REFRESH_MS = 60_000L
 
 private data class WidgetHubNavigationInfo(val screen: HubWidgetScreen) : NavigationEventInfo()
+
+/** How much of the screen the editing sheet takes. */
+private const val SHEET_HEIGHT = 0.94f

@@ -71,7 +71,8 @@ fun AppSettingsPanel(modifier: Modifier = Modifier, content: @Composable ColumnS
         modifier = modifier.fillMaxWidth(),
         tonalElevation = 1.dp,
         shape = LocalAppSettingsRowShape.current ?: MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurface
     ) {
         Column(
             modifier = Modifier.padding(AppSettingsRowDefaults.RowPadding),

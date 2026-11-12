@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +52,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -63,6 +67,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
@@ -142,59 +147,81 @@ internal fun HubWidgetCanvas(
             onDismiss = { toppingUpId = null }
         )
     }
-    Column(modifier = modifier) {
-        // The canvas fills the screen: a long press starts arranging and the Add tile adds a
-        // widget, so a bar shows only while arranging, to leave it.
-        if (state.arranging && state.widgets.isNotEmpty()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            ) {
+    // The canvas runs edge to edge: tiles scroll under the status bar, which a fade keeps legible.
+    val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val arrangingBar = state.arranging && state.widgets.isNotEmpty()
+    val page = MaterialTheme.colorScheme.surfaceContainer
+    Box(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // The canvas fills the screen: a long press starts arranging and the Add tile adds a
+            // widget, so a bar shows only while arranging, to leave it.
+            if (arrangingBar) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(top = statusBar)
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.hub_edit_hub),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f).semantics { heading() }
+                    )
+                    TextButton(onClick = { viewModel.setArranging(false) }, enabled = !state.busy) {
+                        Text(stringResource(R.string.hub_canvas_done))
+                    }
+                }
+            }
+            state.error?.let { error ->
                 Text(
-                    stringResource(R.string.hub_edit_hub),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f).semantics { heading() }
+                    error.label(state.selectedVariant?.capacity ?: 1),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics {
+                        liveRegion = LiveRegionMode.Polite
+                    }
                 )
-                TextButton(onClick = { viewModel.setArranging(false) }, enabled = !state.busy) {
-                    Text(stringResource(R.string.hub_canvas_done))
+            }
+            Box(contentAlignment = Alignment.TopCenter, modifier = Modifier.fillMaxSize()) {
+                BoxWithConstraints(Modifier.widthIn(max = 1100.dp).fillMaxWidth()) {
+                    val scrollState = rememberScrollState()
+                    if (state.widgets.isEmpty()) {
+                        // A lone dashed square in an empty screen reads as a loading failure, so the
+                        // first run says what the canvas is for.
+                        HubEmptyCanvas(
+                            enabled = !state.busy,
+                            onAdd = viewModel::openGallery,
+                            modifier = Modifier.fillMaxSize().padding(top = statusBar)
+                                .verticalScroll(scrollState)
+                        )
+                    } else {
+                        val top = (if (arrangingBar) 0.dp else statusBar) + 16.dp
+                        WidgetGrid(
+                            state = state,
+                            viewModel = viewModel,
+                            onOpen = open,
+                            columns = if (maxWidth >= 700.dp) 4 else 2,
+                            scrollState = scrollState,
+                            viewportHeight = constraints.maxHeight.toFloat(),
+                            topPadding = top,
+                            modifier = Modifier.fillMaxWidth()
+                                .verticalScroll(scrollState)
+                                .padding(start = 16.dp, end = 16.dp, top = top, bottom = 16.dp)
+                        )
+                    }
                 }
             }
         }
-        state.error?.let { error ->
-            Text(
-                error.label(state.selectedVariant?.capacity ?: 1),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics {
-                    liveRegion = LiveRegionMode.Polite
-                }
+        if (!arrangingBar) {
+            Box(
+                Modifier.fillMaxWidth().height(statusBar + FADE).background(
+                    Brush.verticalGradient(
+                        // Solid behind the status bar, fading out just below it.
+                        0f to page,
+                        statusBar / (statusBar + FADE) to page,
+                        1f to page.copy(alpha = 0f)
+                    )
+                )
             )
-        }
-        Box(contentAlignment = Alignment.TopCenter, modifier = Modifier.fillMaxSize()) {
-            BoxWithConstraints(Modifier.widthIn(max = 1100.dp).fillMaxWidth()) {
-                val scrollState = rememberScrollState()
-                if (state.widgets.isEmpty()) {
-                    // A lone dashed square in an empty screen reads as a loading failure, so the
-                    // first run says what the canvas is for.
-                    HubEmptyCanvas(
-                        enabled = !state.busy,
-                        onAdd = viewModel::openGallery,
-                        modifier = Modifier.fillMaxSize().verticalScroll(scrollState)
-                    )
-                } else {
-                    WidgetGrid(
-                        state = state,
-                        viewModel = viewModel,
-                        onOpen = open,
-                        columns = if (maxWidth >= 700.dp) 4 else 2,
-                        scrollState = scrollState,
-                        viewportHeight = constraints.maxHeight.toFloat(),
-                        modifier = Modifier.fillMaxWidth()
-                            .verticalScroll(scrollState)
-                            .padding(horizontal = 16.dp, vertical = 16.dp)
-                    )
-                }
-            }
         }
     }
 }
@@ -234,6 +261,7 @@ private fun WidgetGrid(
     columns: Int,
     scrollState: ScrollState,
     viewportHeight: Float,
+    topPadding: Dp,
     modifier: Modifier
 ) {
     var draggingId by remember { mutableStateOf<String?>(null) }
@@ -262,7 +290,7 @@ private fun WidgetGrid(
         val density = LocalDensity.current
         val stridePx = with(density) { (unit + gap).toPx() }
         val gapPx = with(density) { gap.toPx() }
-        val gutterPx = with(density) { 16.dp.toPx() }
+        val gutterPx = with(density) { topPadding.toPx() }
         val scrollEdgePx = with(density) { 64.dp.toPx() }
         val maxScrollStepPx = with(density) { 12.dp.toPx() }
 
@@ -619,3 +647,6 @@ private fun Modifier.widgetDrag(
         )
     }
 }
+
+/** How far below the status bar the canvas fades out. */
+private val FADE = 24.dp

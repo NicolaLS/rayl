@@ -2,6 +2,7 @@ package xyz.lilsus.raylsuite.feature.appshell
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -56,12 +57,18 @@ fun AppTabScaffold(
             }
         }
     ) { padding ->
+        // The Hub runs under the status bar and keeps it legible itself; other tabs start below it.
+        val content = if (selectedTab == AppTab.Hub) {
+            PaddingValues(bottom = padding.calculateBottomPadding())
+        } else {
+            padding
+        }
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .consumeWindowInsets(padding)
+                    .padding(content)
+                    .consumeWindowInsets(content)
         ) {
             tabContentState.SaveableStateProvider(selectedTab.storedValue) {
                 content(selectedTab)

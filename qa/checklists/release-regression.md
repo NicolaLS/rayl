@@ -85,5 +85,5 @@ manager supports PRF; check once whether App Live devices can complete a passkey
 | L3 | Store listing screenshots and text | Match 1.1 (MOB-98) |
 | L4 | Google Play Data safety and App Store privacy labels | Match the 1.1 privacy policy: financial info and payment history on the device, the passkey login, the services that receive data (MOB-96) |
 | L5 | Hub in light and in dark appearance, each widget kind | Light: white tiles with navy text, price change and errors readable, service marks outlined; dark: navy tiles with white text |
-| L6 | Hub top | No bar; a long press starts arranging and shows only "Edit Hub" with Done; the Add tile adds widgets |
+| L6 | Hub top and adding widgets | No bar; a long press starts arranging and shows only "Edit Hub" with Done; Android tiles fade out under the status bar; Add widget opens a sheet over the Hub, where Back steps back before it closes |
 | L7 | Settings on Android and iOS, light and dark | Wallet rows grouped as one block on top, then Payments, App and Privacy; confirmation, threshold, language, theme and switches change in place; only Currency and the wallet rows open screens |
