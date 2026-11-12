@@ -477,7 +477,14 @@ struct NativePaymentHubView: View {
                     state.text.chooseLayout,
                     selection: Binding(
                         get: { tile.variantId },
-                        set: { model.controller.resizeWidget(id: tile.id, variantId: $0) }
+                        set: { variant in
+                            // The menu closes first. Its lifted copy shows the widget live, so a
+                            // new size while it is open spills out of the copy, and the copy then
+                            // flies to wherever the resized widget was packed.
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                model.controller.resizeWidget(id: tile.id, variantId: variant)
+                            }
+                        }
                     )
                 ) {
                     ForEach(tile.sizes, id: \.id) { size in
@@ -490,6 +497,8 @@ struct NativePaymentHubView: View {
                     }
                 }
                 .pickerStyle(.palette)
+                // A palette keeps its menu open by default; a layout is one choice, then done.
+                .menuActionDismissBehavior(.enabled)
             }
         }
         Section {
