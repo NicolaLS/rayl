@@ -221,6 +221,13 @@ struct NativePaymentHubView: View {
                     .frame(maxWidth: .infinity)
                     .disabled(state.busy)
                 }
+                .refreshable {
+                    // Pulling down refreshes every widget at once; the system's refresh control
+                    // gives the tick when the pull takes.
+                    await withCheckedContinuation { done in
+                        model.controller.refreshNow { done.resume() }
+                    }
+                }
                 .onAppear { model.controller.setCanvasColumns(value: Int32(columns)) }
                 .onChange(of: columns) { _, value in
                     model.controller.setCanvasColumns(value: Int32(value))

@@ -94,6 +94,17 @@ class NativePaymentHubController(
     /** Called when the Hub appears and about once a minute while it stays on screen. */
     fun refreshLive() = viewModel.refreshLive()
 
+    /** A refresh someone pulled for: [onDone] runs once every price and balance has arrived or failed. */
+    fun refreshNow(onDone: () -> Unit) {
+        scope.launch {
+            try {
+                viewModel.refreshNow()
+            } finally {
+                onDone()
+            }
+        }
+    }
+
     fun updateApiKey(value: String) = viewModel.updateApiKey(value)
 
     fun topUpPpq(widgetId: String, amount: String) = viewModel.topUpPpq(widgetId, amount)

@@ -87,3 +87,4 @@ manager supports PRF; check once whether App Live devices can complete a passkey
 | L5 | Hub in light and in dark appearance, each widget kind | Light: white tiles with navy text, price change and errors readable, service marks outlined; dark: navy tiles with white text |
 | L6 | Hub top and adding widgets | No bar; a long press starts arranging and shows only "Edit Hub" with Done; Android tiles fade out under the status bar; Add widget opens a sheet over the Hub, where Back steps back before it closes |
 | L7 | Settings on Android and iOS, light and dark | Wallet rows grouped as one block on top, then Payments, App and Privacy; confirmation, threshold, language, theme and switches change in place; only Currency and the wallet rows open screens |
+| L8 | Pull down at the top of the Hub, online and offline | A tick when the pull takes; the spinner stays until prices and PPQ.AI balances are back; offline the last values stay |

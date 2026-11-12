@@ -183,6 +183,24 @@ class InformationWidgetsTest {
     }
 
     @Test
+    fun aRefreshAskedForReturnsOnceEveryPriceAndBalanceHasArrived() = runTest {
+        val hub = Hub(this)
+        hub.repository.saveWidget(
+            HubWidgetDraft("local.sats", HubWidgetKind.Sats, LocalHubWidgets.Single, currencyCode = "USD")
+        )
+        val ppq = hub.addPpq(GOOD_KEYS.first())
+        hub.prices["USD"] = 120_000.0
+        hub.api.balance = PpqResult.Ok(40.0)
+
+        // Pull to refresh holds its spinner for exactly this long: no scheduler is advanced here.
+        hub.vm.refreshNow()
+
+        assertEquals(120_000.0, hub.state.rates["USD"]?.price)
+        assertEquals(40.0, hub.state.ppqAccount(ppq).balanceUsd)
+        hub.vm.clear()
+    }
+
+    @Test
     fun aFailedRefreshKeepsTheLastPriceAndSaysSoOnlyWhereNoneIsKnown() = runTest {
         val hub = Hub(this)
         hub.repository.saveWidget(

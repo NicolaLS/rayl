@@ -10,6 +10,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
@@ -113,6 +114,15 @@ class WidgetHubViewModel(
         refreshRates()
         refreshPpq()
         followClaroOrders()
+    }
+
+    /**
+     * Refreshes like [refreshLive], for someone who asked to: returns once every price and balance
+     * on the Hub has arrived or failed. Claro orders are followed in the background as usual.
+     */
+    suspend fun refreshNow() {
+        refreshLive()
+        (listOfNotNull(ratesJob) + ppqJobs.values.toList()).joinAll()
     }
 
     fun openGallery() {

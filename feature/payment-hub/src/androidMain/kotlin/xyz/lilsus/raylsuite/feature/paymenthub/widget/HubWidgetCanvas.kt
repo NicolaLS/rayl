@@ -37,6 +37,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -56,8 +60,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -71,6 +77,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetKind
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetTile
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetVariant
@@ -151,7 +158,35 @@ internal fun HubWidgetCanvas(
     val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val arrangingBar = state.arranging && state.widgets.isNotEmpty()
     val page = MaterialTheme.colorScheme.surfaceContainer
-    Box(modifier = modifier) {
+    // Pulling down refreshes every widget at once, with a tick when the pull takes; the spinner
+    // stays until each price and balance has arrived or failed.
+    var refreshing by remember { mutableStateOf(false) }
+    val pull = rememberPullToRefreshState()
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = {
+            haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+            refreshing = true
+            scope.launch {
+                try {
+                    viewModel.refreshNow()
+                } finally {
+                    refreshing = false
+                }
+            }
+        },
+        state = pull,
+        modifier = modifier,
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = pull,
+                isRefreshing = refreshing,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = statusBar)
+            )
+        }
+    ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // The canvas fills the screen: a long press starts arranging and the Add tile adds a
             // widget, so a bar shows only while arranging, to leave it.
