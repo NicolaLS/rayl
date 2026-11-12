@@ -353,8 +353,6 @@ private fun WidgetGrid(
     var pointer by remember { mutableStateOf(Offset.Zero) }
     var grab by remember { mutableStateOf(Offset.Zero) }
     var travel by remember { mutableStateOf(0f) }
-    // The widget last moved onto, so a neighbour of another size cannot swap back and forth.
-    var lastTarget by remember { mutableStateOf<String?>(null) }
     val haptics = LocalHapticFeedback.current
     val baseConfiguration = LocalViewConfiguration.current
     val touchSlop = baseConfiguration.touchSlop
@@ -390,27 +388,25 @@ private fun WidgetGrid(
             Offset(stridePx * it.column, stridePx * it.row)
         }
 
-        // The others make room as the finger passes over them; nothing is saved until it lets go.
+        // The others make room for the widget where it is held; nothing is saved until it is let
+        // go. The view model takes its middle in cells, a cell and the gap after it counting as one.
         fun followPointer() {
-            val dragged = draggingId ?: return
-            val over = placements.firstOrNull { other ->
-                val left = stridePx * other.column
-                val top = stridePx * other.row
-                val right = stridePx * (other.column + other.columns) - gapPx
-                val bottom = stridePx * (other.row + other.rows) - gapPx
-                pointer.x in left..right && pointer.y in top..bottom
-            }?.value?.id
-            if (over == null || over == dragged) {
-                lastTarget = null
-            } else if (over != lastTarget) {
-                lastTarget = over
-                viewModel.previewMove(dragged, over)
-            }
+            val dragged = placements.firstOrNull { it.value.id == draggingId } ?: return
+            val size = Offset(
+                stridePx * dragged.columns - gapPx,
+                stridePx * dragged.rows - gapPx
+            )
+            val middle = pointer - grab + size / 2f + Offset(gapPx, gapPx) / 2f
+            viewModel.previewMove(
+                dragged.value.id,
+                middle.x / stridePx,
+                middle.y / stridePx,
+                columns
+            )
         }
 
         fun pickUp(id: String) {
             menuId = null
-            lastTarget = null
             draggingId = id
             if (!state.arranging) viewModel.setArranging(true)
         }
@@ -519,7 +515,7 @@ private fun WidgetGrid(
                                     onRelease = {
                                         if (draggingId == tile.id) {
                                             draggingId = null
-                                            viewModel.finishMove(tile.id)
+                                            viewModel.finishMove()
                                         }
                                     },
                                     onCancel = {

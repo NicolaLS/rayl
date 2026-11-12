@@ -137,6 +137,13 @@ class DefaultPaymentHubRepository(
         }
     }
 
+    override suspend fun arrangeWidgets(ids: List<String>) {
+        mutate { current ->
+            val named = ids.distinct().mapNotNull(current::widget)
+            current.copy(widgets = named + current.widgets.filterNot { it.id in ids })
+        }
+    }
+
     override suspend fun saveContactAndWidget(
         address: LightningAddress,
         title: String

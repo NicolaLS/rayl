@@ -25,6 +25,8 @@ import xyz.lilsus.raylsuite.core.raylapi.telemetryEvent
 import xyz.lilsus.raylsuite.core.telemetry.Telemetry
 import xyz.lilsus.raylsuite.core.telemetry.TelemetryRecorder
 import xyz.lilsus.raylsuite.feature.paymenthub.bills.HubBill
+import xyz.lilsus.raylsuite.feature.paymenthub.canvas.HubGridSpan
+import xyz.lilsus.raylsuite.feature.paymenthub.canvas.hubOrderFor
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroApi
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroDelivery
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroInvoice
@@ -426,27 +428,27 @@ class WidgetHubViewModel(
     }
 
     /**
-     * Shows [id] in the place of [targetId] while it is dragged, without saving: the other
-     * widgets make room as it passes. [finishMove] keeps the place it was let go in.
+     * Shows [id] where it is held while it is dragged, without saving: the other widgets make room
+     * for it. [x] and [y] are the middle of the carried widget in cells of a grid [columns] wide,
+     * counting a cell and the gap after it as one. [finishMove] keeps the place it was let go in.
      */
-    fun previewMove(id: String, targetId: String) {
-        val order = (previewOrder ?: repository.hub.value.widgets.map { it.id }).toMutableList()
-        val target = order.indexOf(targetId)
-        if (id == targetId || target < 0 || !order.remove(id)) return
-        order.add(target, id)
-        previewOrder = order
+    fun previewMove(id: String, x: Float, y: Float, columns: Int) {
+        val widgets = repository.hub.value.widgets
+        val spans = widgets.associate { it.id to HubGridSpan(it.variant.columns, it.variant.rows) }
+        val shown = previewOrder.orEmpty().filter { it in spans }
+        val order = shown + spans.keys.filter { it !in shown }
+        previewOrder = hubOrderFor(order, id, x, y, columns) { spans.getValue(it) } ?: return
         rebuildTiles()
     }
 
-    /** Keeps the place [id] was dragged to. */
-    fun finishMove(id: String) {
+    /** Keeps the order shown where a dragged widget was let go. */
+    fun finishMove() {
         val order = previewOrder ?: return
-        val index = order.indexOf(id)
         val unchanged = order == repository.hub.value.widgets.map { it.id }
-        if (index < 0 || unchanged || mutableState.value.busy) return cancelMove()
+        if (unchanged || mutableState.value.busy) return cancelMove()
         mutate {
             try {
-                repository.moveWidget(id, index)
+                repository.arrangeWidgets(order)
             } finally {
                 previewOrder = null
                 rebuildTiles()

@@ -11,6 +11,9 @@ interface PaymentHubRepository {
     suspend fun saveWidget(draft: HubWidgetDraft, id: String? = null): HubWidget?
     suspend fun deleteWidget(id: String)
     suspend fun moveWidget(id: String, index: Int)
+
+    /** Puts the widgets in the order of [ids]; any it doesn't name follow in their own order. */
+    suspend fun arrangeWidgets(ids: List<String>)
     suspend fun saveContactAndWidget(address: LightningAddress, title: String): HubContact
     suspend fun recordSuccessfulPayment(id: HubItemId, paidAtMs: Long)
 

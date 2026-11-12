@@ -189,11 +189,15 @@ class NativePaymentHubController(
 
     fun resizeWidget(id: String, variantId: String) = viewModel.resizeWidget(id, variantId)
 
-    /** Shows [id] in the place of [targetId] while it is dragged; nothing is saved yet. */
-    fun previewMove(id: String, targetId: String) = viewModel.previewMove(id, targetId)
+    /**
+     * Shows [id] where it is held while it is dragged; nothing is saved yet. [x] and [y] are the
+     * middle of the carried widget in grid cells, a cell and the gap after it counting as one.
+     */
+    fun previewMove(id: String, x: Double, y: Double) =
+        viewModel.previewMove(id, x.toFloat(), y.toFloat(), canvasColumns)
 
     /** Keeps the place a dragged widget was let go in. */
-    fun finishMove(id: String) = viewModel.finishMove(id)
+    fun finishMove() = viewModel.finishMove()
 
     fun setCanvasColumns(value: Int) {
         val columns = if (value >= 4) 4 else 2

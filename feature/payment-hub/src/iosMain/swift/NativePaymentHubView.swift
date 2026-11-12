@@ -111,10 +111,8 @@ private enum HubGeometry {
 /// The app owns payment behavior; the Hub presents independently configured native widgets.
 struct NativePaymentHubView: View {
     @StateObject private var model: NativePaymentHubModel
-    /// The widget being carried, and the one it last moved onto, so a neighbour of another size
-    /// cannot swap back and forth under the finger.
+    /// The widget being carried.
     @State private var draggingId: String?
-    @State private var lastTargetId: String?
     /// The widget iOS lifted for a drag that may not start; kept outside the view's state, so
     /// lifting a widget for its menu changes nothing on screen.
     @State private var liftedWidget = HubLiftedWidget()
@@ -333,7 +331,7 @@ struct NativePaymentHubView: View {
                         if liftedWidget.id == tile.id { liftedWidget.id = nil }
                         guard draggingId == tile.id else { return }
                         draggingId = nil
-                        model.controller.finishMove(id: tile.id)
+                        model.controller.finishMove()
                     }
                 } preview: {
                     WidgetContent(tile: tile, interactive: false, pay: { _ in })
@@ -361,35 +359,6 @@ struct NativePaymentHubView: View {
                 )
             }
 
-            // Where a carried widget can land: one slot over each widget, apart from the widgets
-            // themselves. iOS does not hand a drop to the view a drag started from, so a widget
-            // let go over its own new place would otherwise never be put down.
-            if draggingId != nil {
-                ForEach(state.canvas.tiles, id: \.id) { tile in
-                    Color.clear
-                        .frame(
-                            width: HubGeometry.span(unit, tile.columns),
-                            height: HubGeometry.span(unit, tile.rows)
-                        )
-                        .contentShape(Rectangle())
-                        .onDrop(
-                            of: [.text],
-                            delegate: HubTileDrop(
-                                targetId: tile.id,
-                                lifted: liftedWidget,
-                                draggingId: $draggingId,
-                                lastTargetId: $lastTargetId,
-                                controller: model.controller
-                            )
-                        )
-                        .offset(
-                            x: (unit + HubGeometry.gap) * CGFloat(tile.column),
-                            y: (unit + HubGeometry.gap) * CGFloat(tile.row)
-                        )
-                        .accessibilityHidden(true)
-                }
-            }
-
             // Arranging is about the widgets already placed, so adding one waits.
             if !state.canvas.arranging {
                 addWidgetTile(state, unit: unit)
@@ -411,21 +380,32 @@ struct NativePaymentHubView: View {
                     if state.canvas.arranging { model.controller.setArranging(value: false) }
                 }
         }
-        // A widget let go between the others keeps the place it was shown in.
-        .onDrop(
-            of: [.text],
-            delegate: HubTileDrop(
-                targetId: nil,
-                lifted: liftedWidget,
-                draggingId: $draggingId,
-                lastTargetId: $lastTargetId,
-                controller: model.controller
-            )
-        )
         .frame(
             maxWidth: .infinity,
             minHeight: HubGeometry.span(unit, max(state.canvas.rows, addPosition.row + 1)),
             alignment: .topLeading
+        )
+        // While a widget is carried, the whole grid takes it, also over the widget's own place:
+        // iOS doesn't hand a drop to the view a drag started from.
+        .overlay {
+            if draggingId != nil {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onDrop(of: [.text], delegate: gridDrop(state, unit: unit))
+                    .accessibilityHidden(true)
+            }
+        }
+        // Before that, the drag moving over the Hub is what starts carrying it.
+        .onDrop(of: [.text], delegate: gridDrop(state, unit: unit))
+    }
+
+    private func gridDrop(_ state: NativePaymentHubSnapshot, unit: CGFloat) -> HubGridDrop {
+        HubGridDrop(
+            tiles: state.canvas.tiles,
+            unit: unit,
+            lifted: liftedWidget,
+            draggingId: $draggingId,
+            controller: model.controller
         )
     }
 
@@ -1629,37 +1609,34 @@ private struct WidgetContent: View {
     }
 }
 
-/// The widget iOS has lifted, which becomes the carried one once its drag moves.
+/// The widget iOS has lifted, which becomes the carried one once its drag moves, and where the
+/// finger holds it.
 private final class HubLiftedWidget {
     var id: String?
+    /// Where on the carried widget the finger holds it, measured when carrying starts.
+    var grab: CGPoint?
 }
 
-/// Starts carrying a lifted widget once its drag moves over the Hub, moves it into the place of
-/// the one it passes over, and keeps the order where it is let go. With no target it stands for
-/// the Hub around and between the widgets.
-private struct HubTileDrop: DropDelegate {
-    let targetId: String?
+/// The Hub's grid as the place a carried widget is dropped. Starts carrying a lifted widget once
+/// its drag moves over the Hub, shows it where it is held, and keeps the order where it is let go.
+/// Locations are in the grid's own space, with its first cell at the origin.
+private struct HubGridDrop: DropDelegate {
+    let tiles: [NativeHubTile]
+    let unit: CGFloat
     let lifted: HubLiftedWidget
     @Binding var draggingId: String?
-    @Binding var lastTargetId: String?
     let controller: NativePaymentHubController
 
     private var carried: String? { draggingId ?? lifted.id }
 
     func dropEntered(info: DropInfo) {
         startCarrying()
-        guard let dragged = draggingId, let target = targetId else { return }
-        if target == dragged {
-            lastTargetId = nil
-            return
-        }
-        guard target != lastTargetId else { return }
-        lastTargetId = target
-        controller.previewMove(id: dragged, targetId: target)
+        follow(info.location)
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
         startCarrying()
+        follow(info.location)
         return DropProposal(operation: carried == nil ? .forbidden : .move)
     }
 
@@ -1668,10 +1645,32 @@ private struct HubTileDrop: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         guard let dragged = carried else { return false }
         draggingId = nil
-        lastTargetId = nil
         lifted.id = nil
-        controller.finishMove(id: dragged)
+        controller.finishMove()
         return true
+    }
+
+    /// The others make room so the carried widget sits where it is held. The controller takes
+    /// the widget's middle in cells, a cell and the gap after it counting as one.
+    private func follow(_ location: CGPoint) {
+        guard let dragged = draggingId, let tile = tiles.first(where: { $0.id == dragged }) else {
+            return
+        }
+        let stride = unit + HubGeometry.gap
+        let size = CGSize(
+            width: HubGeometry.span(unit, tile.columns), height: HubGeometry.span(unit, tile.rows))
+        let grab = lifted.grab ?? {
+            // Measured once, while the widget still sits in its own place.
+            let grab = CGPoint(
+                x: min(max(location.x - stride * CGFloat(tile.column), 0), size.width),
+                y: min(max(location.y - stride * CGFloat(tile.row), 0), size.height)
+            )
+            lifted.grab = grab
+            return grab
+        }()
+        let x = location.x - grab.x + (size.width + HubGeometry.gap) / 2
+        let y = location.y - grab.y + (size.height + HubGeometry.gap) / 2
+        controller.previewMove(id: dragged, x: x / stride, y: y / stride)
     }
 
     /// The drag has really started: the widget is carried and the Hub arranges. This waits a
@@ -1679,12 +1678,12 @@ private struct HubTileDrop: DropDelegate {
     private func startCarrying() {
         guard draggingId == nil, let id = lifted.id else { return }
         let draggingId = $draggingId
-        let lastTargetId = $lastTargetId
+        let lifted = lifted
         let controller = controller
         DispatchQueue.main.async {
             guard draggingId.wrappedValue == nil else { return }
+            lifted.grab = nil
             draggingId.wrappedValue = id
-            lastTargetId.wrappedValue = nil
             controller.setArranging(value: true)
         }
     }

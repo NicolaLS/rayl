@@ -67,25 +67,62 @@ class WidgetHubViewModelTest {
         val (a, b, c) = repo.hub.value.widgets.map { it.id }
         fun shown() = vm.state.value.widgets.map { it.id }
 
-        // The others make room as it passes; nothing is saved while it is dragged.
-        vm.previewMove(a, b)
-        vm.previewMove(a, c)
+        // Two columns: a b / c. The others make room as it passes; nothing is saved meanwhile.
+        vm.previewMove(a, x = 1.5f, y = 0.5f, columns = 2)
+        assertEquals(listOf(b, a, c), shown())
+        vm.previewMove(a, x = 0.5f, y = 1.5f, columns = 2)
         assertEquals(listOf(b, c, a), shown())
         assertEquals(listOf(a, b, c), repo.hub.value.widgets.map { it.id })
         assertEquals(false, vm.state.value.busy)
 
-        vm.finishMove(a)
+        vm.finishMove()
         advanceUntilIdle()
         assertEquals(listOf(b, c, a), repo.hub.value.widgets.map { it.id })
         assertEquals(listOf(b, c, a), shown())
 
         // A drag that ends elsewhere, or with arranging, puts the widget back.
-        vm.previewMove(c, b)
+        vm.previewMove(c, x = 0.5f, y = 0.5f, columns = 2)
+        assertEquals(listOf(c, b, a), shown())
         vm.cancelMove()
         assertEquals(listOf(b, c, a), shown())
-        vm.previewMove(c, b)
+        vm.previewMove(c, x = 0.5f, y = 0.5f, columns = 2)
         vm.setArranging(false)
         assertEquals(listOf(b, c, a), shown())
+        vm.clear()
+    }
+
+    @Test
+    fun aWidgetDraggedPastOneOfAnotherSizeLandsWhereItIsHeldAndStaysThere() = runTest {
+        // Regression test for MOB-139: with a wide widget in between, two orders each put the
+        // other widget under the finger, and the drag swapped back and forth on every move.
+        val repo = DefaultPaymentHubRepository(MapSettings())
+        val vm = WidgetHubViewModel(
+            repo,
+            PaymentHubController(repo, this),
+            { "USD" },
+            dispatcher = StandardTestDispatcher(testScheduler)
+        )
+        repo.saveWidget(HubWidgetDraft("local.sats", HubWidgetKind.Sats, LocalHubWidgets.Single, currencyCode = "USD"))
+        repo.saveWidget(HubWidgetDraft("local.rate", HubWidgetKind.Rate, LocalHubWidgets.Row, currencyCode = "USD"))
+        repo.saveWidget(HubWidgetDraft("local.sats", HubWidgetKind.Sats, LocalHubWidgets.Single, currencyCode = "EUR"))
+        advanceUntilIdle()
+        // Packed in two columns: small, small / wide.
+        val (small, wide, other) = repo.hub.value.widgets.map { it.id }
+        fun shown() = vm.state.value.widgets.map { it.id }
+
+        // Held where it already is, nothing moves.
+        vm.previewMove(small, x = 0.6f, y = 0.4f, columns = 2)
+        assertEquals(listOf(small, wide, other), shown())
+
+        // Held over the other small one, the two trade places, and a finger that keeps moving a
+        // little there changes nothing more.
+        listOf(1.5f, 1.45f, 1.55f, 1.4f, 1.5f).forEach { x ->
+            vm.previewMove(small, x = x, y = 0.5f, columns = 2)
+            assertEquals(listOf(other, wide, small), shown())
+        }
+        vm.finishMove()
+        advanceUntilIdle()
+        assertEquals(listOf(other, wide, small), repo.hub.value.widgets.map { it.id })
         vm.clear()
     }
 
