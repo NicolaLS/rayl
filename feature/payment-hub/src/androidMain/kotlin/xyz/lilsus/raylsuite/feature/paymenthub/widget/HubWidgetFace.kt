@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -175,16 +174,9 @@ internal fun Modifier.hubFace(face: HubFaceColors, glow: Color?): Modifier = thi
 /** A small tile centres what it shows; a wide one keeps it on the leading edge. */
 internal val HubWidgetTile.small: Boolean get() = variant.columns == 1
 
-/**
- * What every tile starts with: what it is about, and what a tap does in the far corner. Only a
- * service brings its own mark.
- */
+/** What every tile starts with: what it is about. Only a service brings its own mark. */
 @Composable
-internal fun TileHeader(
-    title: String,
-    mark: (@Composable () -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null
-) {
+internal fun TileHeader(title: String, mark: (@Composable () -> Unit)? = null) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
@@ -199,7 +191,6 @@ internal fun TileHeader(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        trailing?.invoke()
     }
 }
 
@@ -343,19 +334,11 @@ private fun ShortcutFace(
     } else {
         ""
     }
-    val face = hubFaceColors()
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize().payAction(person, interactive, onPay).padding(14.dp)
     ) {
-        TileHeader(tile.title?.takeIf(String::isNotBlank) ?: tile.kind.label()) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(26.dp).background(face.chip, CircleShape)
-            ) {
-                Icon(Icons.Filled.Bolt, null, tint = face.ink, modifier = Modifier.size(17.dp))
-            }
-        }
+        TileHeader(tile.title?.takeIf(String::isNotBlank) ?: tile.kind.label())
         Spacer(Modifier.weight(1f))
         TileFigure(amount, tile.small)
         Spacer(Modifier.weight(1f))

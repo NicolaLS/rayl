@@ -1337,9 +1337,8 @@ private struct WidgetContent: View {
     /// A small tile centres what it shows; a wide one keeps it on the leading edge.
     private var bodyAlignment: Alignment { small ? .center : .leading }
 
-    /// What every tile starts with: what it is about, and what a tap does in the far corner. Only
-    /// a service brings its own mark.
-    private func header<Trailing: View>(_ title: String, @ViewBuilder trailing: () -> Trailing) -> some View {
+    /// What every tile starts with: what it is about. Only a service brings its own mark.
+    private func header(_ title: String) -> some View {
         HStack(spacing: 7) {
             if let mark = HubPalette.mark(tile.kind) {
                 HubMarkDisc(mark: mark, size: 26)
@@ -1349,7 +1348,6 @@ private struct WidgetContent: View {
                 .foregroundStyle(HubPalette.ink.opacity(0.8))
                 .lineLimit(1)
             Spacer(minLength: 0)
-            trailing()
         }
         .frame(minHeight: 26)
     }
@@ -1399,7 +1397,7 @@ private struct WidgetContent: View {
     /// nothing: that is how the Hub is customised, so the widget teaches it.
     private var empty: some View {
         VStack(alignment: .leading, spacing: 8) {
-            header(tile.title) { EmptyView() }
+            header(tile.title)
             hint(tile.emptyText)
         }
         .padding(14)
@@ -1416,9 +1414,7 @@ private struct WidgetContent: View {
         let tappable = info.action != "none" && info.hint == nil
         return HubTileAction(interactive: interactive && tappable, action: { open(tile) }) {
             VStack(alignment: .leading, spacing: 8) {
-                header(info.headline) {
-                    if info.hint == nil { figureAction(info) }
-                }
+                header(info.headline)
                 if let setup = info.hint {
                     hint(setup)
                 } else {
@@ -1476,27 +1472,6 @@ private struct WidgetContent: View {
         }
     }
 
-    /// What a tap does, in the corner where a shortcut shows its bolt. A wide tile names it.
-    @ViewBuilder
-    private func figureAction(_ info: NativeHubInfo) -> some View {
-        let symbol = info.action == "convert" ? "arrow.up.arrow.down" : "plus"
-        if info.action == "none" {
-            EmptyView()
-        } else if tile.columns > 1, !info.actionTitle.isEmpty {
-            Label(info.actionTitle, systemImage: symbol)
-                .font(.footnote.weight(.semibold))
-                .lineLimit(1)
-                .padding(.horizontal, 10)
-                .frame(height: 26)
-                .background(HubPalette.chip, in: Capsule())
-        } else {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .bold))
-                .frame(width: 26, height: 26)
-                .background(HubPalette.chip, in: Circle())
-        }
-    }
-
     private func captionColor(_ tone: String) -> Color {
         switch tone {
         case "up": return HubPalette.up
@@ -1509,13 +1484,7 @@ private struct WidgetContent: View {
     private func shortcut(_ person: NativeHubPerson) -> some View {
         HubTileAction(interactive: interactive, action: { pay(person.actionId) }) {
             VStack(alignment: .leading, spacing: 8) {
-                header(tile.title) {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 13, weight: .bold))
-                        .frame(width: 26, height: 26)
-                        .background(HubPalette.chip, in: Circle())
-                        .accessibilityHidden(true)
-                }
+                header(tile.title)
                 Spacer(minLength: 0)
                 figureText(person.amount ?? "")
                 Spacer(minLength: 0)
@@ -1537,7 +1506,7 @@ private struct WidgetContent: View {
     private func single(_ person: NativeHubPerson) -> some View {
         HubTileAction(interactive: interactive, action: { pay(person.actionId) }) {
             VStack(alignment: .leading, spacing: 8) {
-                header(tile.customTitle ?? person.title) { EmptyView() }
+                header(tile.customTitle ?? person.title)
                 GeometryReader { proxy in
                     HubAvatar(initials: person.initials, size: max(24, min(proxy.size.width, proxy.size.height, 72)))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1568,7 +1537,7 @@ private struct WidgetContent: View {
         let avatar: CGFloat = card ? 44 : 34
         let gap: CGFloat = card ? 12 : 6
         return VStack(alignment: .leading, spacing: 8) {
-            header(tile.title) { EmptyView() }
+            header(tile.title)
             Group {
                 if paired {
                     LazyVGrid(

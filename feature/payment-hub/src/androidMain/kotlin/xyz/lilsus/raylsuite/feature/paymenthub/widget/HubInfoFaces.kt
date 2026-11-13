@@ -20,14 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CurrencyBitcoin
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -42,7 +36,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -86,7 +79,6 @@ private class FigureContent(
     val chart: List<Float> = emptyList(),
     /** Names what a tap does; null when a tap does nothing. */
     val action: String? = null,
-    val actionIcon: ImageVector = Icons.Filled.Add,
     /** Says how to set the widget up, in place of a figure it cannot show before that. */
     val hint: String? = null
 )
@@ -130,8 +122,7 @@ internal fun HubInfoFace(
                     else -> face.down
                 },
                 chart = remember(rate) { rate?.chart().orEmpty() },
-                action = stringResource(R.string.hub_converter_title).takeIf { rate != null },
-                actionIcon = Icons.Filled.SwapVert
+                action = stringResource(R.string.hub_converter_title).takeIf { rate != null }
             )
         }
 
@@ -140,8 +131,7 @@ internal fun HubInfoFace(
             value = rate?.satsLabel(),
             caption = unavailable ?: stringResource(R.string.hub_sats_unit),
             captionColor = plain,
-            action = stringResource(R.string.hub_converter_title).takeIf { rate != null },
-            actionIcon = Icons.Filled.SwapVert
+            action = stringResource(R.string.hub_converter_title).takeIf { rate != null }
         )
 
         HubWidgetKind.Claro -> {
@@ -230,11 +220,6 @@ private fun FigureFace(
                 }
 
                 else -> null
-            },
-            trailing = if (action != null && content.hint == null) {
-                { FigureAction(action, content.actionIcon, wide = !small) }
-            } else {
-                null
             }
         )
         if (content.hint != null) {
@@ -322,30 +307,6 @@ internal fun ServiceMark(@DrawableRes mark: Int, size: Dp = 26.dp) {
             contentDescription = null,
             modifier = Modifier.size(size * 0.7f)
         )
-    }
-}
-
-/** What a tap does, in the corner where a shortcut shows its bolt. A wide tile names it. */
-@Composable
-private fun FigureAction(title: String, icon: ImageVector, wide: Boolean) {
-    val face = hubFaceColors()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-        modifier = Modifier.height(26.dp)
-            .then(if (wide) Modifier else Modifier.width(26.dp))
-            .background(face.chip, CircleShape)
-            .padding(horizontal = if (wide) 10.dp else 0.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = face.ink, modifier = Modifier.size(16.dp))
-        if (wide) {
-            Text(
-                title,
-                style = MaterialTheme.typography.labelLarge,
-                color = face.ink,
-                maxLines = 1
-            )
-        }
     }
 }
 

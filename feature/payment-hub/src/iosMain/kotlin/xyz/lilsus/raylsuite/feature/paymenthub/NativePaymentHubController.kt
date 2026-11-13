@@ -446,7 +446,6 @@ class NativePaymentHubController(
                 caption = caption,
                 // Before it knows a number there is nothing to shop for; the settings ask for one.
                 action = if (number == null) "setup" else "claro",
-                actionTitle = localized("hub_claro_top_up"),
                 hint = localized("hub_widget_needs_setup").takeIf { number == null },
                 accessibilityLabel = listOfNotNull(name, number, caption).joinToString()
             )
@@ -477,7 +476,6 @@ class NativePaymentHubController(
                     else -> "plain"
                 },
                 action = if (needsKey) "setup" else "topup",
-                actionTitle = localized(if (needsKey) "hub_ppq_add_key" else "hub_ppq_top_up"),
                 hint = localized("hub_widget_needs_setup").takeIf { !account.connected },
                 accessibilityLabel = listOfNotNull(name, value, caption).joinToString()
             )
@@ -504,7 +502,6 @@ class NativePaymentHubController(
                 caption = caption,
                 currencyCode = code,
                 action = if (rate == null) "none" else "convert",
-                actionTitle = localized("hub_converter_title"),
                 converterNote = converterNote,
                 converterPlaceholder = value.orEmpty(),
                 wholeUnits = wholeUnits,
@@ -526,7 +523,6 @@ class NativePaymentHubController(
             chart = rate?.chart().orEmpty(),
             currencyCode = code,
             action = if (rate == null) "none" else "convert",
-            actionTitle = localized("hub_converter_title"),
             converterNote = converterNote,
             converterPlaceholder = rate?.satsLabel().orEmpty(),
             wholeUnits = wholeUnits,
@@ -791,8 +787,6 @@ data class NativeHubInfo(
     val currencyCode: String = "",
     /** What a tap does: `none`, `convert`, `topup`, `claro` or `setup`. */
     val action: String = "none",
-    /** Names [action] on a wide widget, which has room to say it. */
-    val actionTitle: String = "",
     /** Says how to set the widget up, in place of a figure it cannot show before that. */
     val hint: String? = null,
     val converterNote: String = "",
