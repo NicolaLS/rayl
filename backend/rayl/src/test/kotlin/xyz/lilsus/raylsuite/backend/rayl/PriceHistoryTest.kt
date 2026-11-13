@@ -4,6 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import xyz.lilsus.raylsuite.core.raylapi.BitcoinPriceHistory
@@ -46,6 +48,23 @@ class PriceHistoryTest {
 
         now += 31 * 60_000
         assertNull(board.history("USD"))
+    }
+
+    @Test
+    fun afterAFailureTheUpstreamIsLeftAloneForThirtySeconds() = runTest {
+        upstream = null
+        // Fifty requests while the upstream fails: only the first asks it (MOB-150).
+        coroutineScope { repeat(50) { launch { assertNull(board.history("USD")) } } }
+        assertEquals(1, requests.size)
+
+        now += 29_999
+        assertNull(board.history("USD"))
+        assertEquals(1, requests.size)
+
+        now += 1
+        upstream = listOf(100.0, 101.0)
+        assertEquals(listOf(100.0, 101.0), board.history("USD")?.prices)
+        assertEquals(2, requests.size)
     }
 
     @Test

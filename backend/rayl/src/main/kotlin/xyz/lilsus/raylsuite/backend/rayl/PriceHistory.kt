@@ -21,17 +21,20 @@ fun interface PriceHistorySource {
 /**
  * Serves the last 24 hours of bitcoin's price for the app's chart. Each currency is fetched when
  * it is first asked for and reused for [maxAgeMs]; a failing upstream keeps serving the previous
- * chart until it is [staleAfterMs] old. Unlike [PriceBoard] this has one source, because a chart
- * that is a little off harms nobody and no payment is quoted from it.
+ * chart until it is [staleAfterMs] old, and is not asked again for [retryAfterMs] after a failure.
+ * Unlike [PriceBoard] this has one source, because a chart that is a little off harms nobody and
+ * no payment is quoted from it.
  */
 class PriceHistoryBoard(
     private val source: PriceHistorySource,
     private val clock: () -> Long = System::currentTimeMillis,
     private val maxAgeMs: Long = 5 * 60_000L,
     private val staleAfterMs: Long = 60 * 60_000L,
+    private val retryAfterMs: Long = 30_000L,
     private val log: (String) -> Unit = ::println
 ) {
     private val charts = ConcurrentHashMap<String, Chart>()
+    private val failedAtMs = ConcurrentHashMap<String, Long>()
     private val locks = ConcurrentHashMap<String, Mutex>()
 
     /** Null for a currency that is not charted, and when no usable chart is known. */
@@ -39,10 +42,17 @@ class PriceHistoryBoard(
         if (currency !in CURRENCIES) return null
         val chart = locks.getOrPut(currency) { Mutex() }.withLock {
             val known = charts[currency]
-            if (known != null && clock() - known.fetchedAtMs <= maxAgeMs) {
-                known
-            } else {
-                fetch(currency)?.also { charts[currency] = it } ?: known
+            val failed = failedAtMs[currency]
+            when {
+                known != null && clock() - known.fetchedAtMs <= maxAgeMs -> known
+
+                // Requests queue behind the lock. Without a pause each would ask a failing
+                // upstream again, one after another, and wait out its timeout (MOB-150).
+                failed != null && clock() - failed < retryAfterMs -> known
+
+                else -> fetch(currency)
+                    ?.also { charts[currency] = it }
+                    ?: known.also { failedAtMs[currency] = clock() }
             }
         }
         return chart
