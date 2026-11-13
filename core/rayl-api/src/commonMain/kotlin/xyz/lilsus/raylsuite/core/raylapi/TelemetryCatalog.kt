@@ -228,7 +228,8 @@ class TelemetryEventSpec(
 )
 
 object TelemetryCatalog {
-    const val MAX_EVENTS_PER_BATCH = 200
+    /** What the app can buffer in one process (`TelemetryEngine.MAX_BUFFERED_EVENTS`), no more. */
+    const val MAX_EVENTS_PER_BATCH = 100
     const val MAX_DEVICE_MODEL_LENGTH = 64
 
     /** Durations are milliseconds; one hour bounds them, and counts and pixel sizes fit below it. */

@@ -1,9 +1,11 @@
 package xyz.lilsus.raylsuite.backend.rayl
 
 import java.sql.Connection
+import javax.sql.DataSource
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.junit.Assume.assumeTrue
 
@@ -23,7 +25,10 @@ class PostgresTelemetryStoreTest {
     private val today = 1_794_268_800L
     private val day = 86_400L
 
-    private fun storeTest(block: suspend (PostgresTelemetryStore) -> Unit) = runTest {
+    private fun storeTest(
+        store: (DataSource) -> PostgresTelemetryStore = ::PostgresTelemetryStore,
+        block: suspend (PostgresTelemetryStore) -> Unit
+    ) = runTest {
         assumeTrue("RAYL_TEST_DATABASE_URL is not set", databaseUrl.isNotBlank())
         dataSource.connection.use { connection ->
             connection.createStatement().use { statement ->
@@ -32,11 +37,11 @@ class PostgresTelemetryStoreTest {
                 )
             }
         }
-        val store = PostgresTelemetryStore(dataSource)
-        store.createTables()
+        val created = store(dataSource)
+        created.createTables()
         // A restarted server creates them again.
-        store.createTables()
-        block(store)
+        created.createTables()
+        block(created)
     }
 
     @AfterTest
@@ -48,11 +53,12 @@ class PostgresTelemetryStoreTest {
         receivedHour: Long,
         outcome: String,
         settleMs: Long,
-        deviceModel: String = "Pixel 8"
+        deviceModel: String = "Pixel 8",
+        appVersion: String = "1.2.0"
     ) = TelemetryRow(
         receivedHour = receivedHour,
         platform = "android",
-        appVersion = "1.2.0",
+        appVersion = appVersion,
         osMajor = 16,
         deviceModel = deviceModel,
         name = "payment",
@@ -126,5 +132,80 @@ class PostgresTelemetryStoreTest {
             listOf(1L),
             query("select events from telemetry_daily_counts") { it.getLong(1) }
         )
+    }
+
+    @Test
+    fun storesNothingMoreOnceTheTablesReachTheBudget() = storeTest { seeded ->
+        seeded.insert(listOf(payment(today + 3_600, "paid", 1_000)))
+        val used = query("select pg_total_relation_size('telemetry_events')") { it.getLong(1) }
+            .single()
+        assertTrue(used > 0, "a stored row should take space")
+
+        // A budget the tables have already reached. Nothing is stored and nothing fails, so the
+        // app is still answered 204 and does not retry what this backend will not keep.
+        val full = PostgresTelemetryStore(dataSource, maxStorageBytes = used, log = {})
+        full.insert(listOf(payment(today + 3_600, "paid", 2_000)))
+        assertEquals(listOf(1L), eventCount())
+
+        // Room again, as after the daily delete: events are stored as before.
+        val roomy = PostgresTelemetryStore(dataSource, maxStorageBytes = used + MEGABYTE, log = {})
+        roomy.insert(listOf(payment(today + 3_600, "paid", 3_000)))
+        assertEquals(listOf(2L), eventCount())
+    }
+
+    @Test
+    fun aDayKeepsTheVersionsThatSentMostAndFoldsTheRestIntoOther() = storeTest(
+        store = { PostgresTelemetryStore(it, maxRollupVersions = 2, log = {}) }
+    ) { store ->
+        val yesterday = today - day
+        store.insert(
+            List(3) { payment(yesterday + 3_600, "paid", 1_000, appVersion = "1.2.0") } +
+                List(2) { payment(yesterday + 3_600, "paid", 1_000, appVersion = "1.3.0") } +
+                // Versions no app ever shipped. Each would be its own group, kept for ever.
+                payment(yesterday + 3_600, "paid", 1_000, appVersion = "999.999.999-aaaaaaaa") +
+                payment(yesterday + 3_600, "paid", 1_000, appVersion = "999.999.998-bbbbbbbb")
+        )
+
+        store.maintain(nowSeconds = today + 4_000)
+        // Folding the day again gives the same rows.
+        store.maintain(nowSeconds = today + 4_000)
+
+        assertEquals(listOf("1.2.0 3", "1.3.0 2", "other 2"), dailyCounts("app_version"))
+        assertEquals(listOf("1.2.0 3", "1.3.0 2", "other 2"), dailyMeasures("app_version"))
+    }
+
+    @Test
+    fun aKindOfEventKeepsOnlyItsCommonestGroups() = storeTest(
+        store = { PostgresTelemetryStore(it, maxRollupGroups = 2, log = {}) }
+    ) { store ->
+        val yesterday = today - day
+        store.insert(
+            List(3) { payment(yesterday + 3_600, "paid", 1_000) } +
+                List(2) { payment(yesterday + 3_600, "failed", 1_000) } +
+                // One of a kind, as a sprayed combination is: not worth keeping for ever.
+                payment(yesterday + 3_600, "unknown", 1_000) +
+                payment(yesterday + 3_600, "rejected", 1_000)
+        )
+
+        store.maintain(nowSeconds = today + 4_000)
+
+        assertEquals(listOf("failed 2", "paid 3"), dailyCounts("dimensions->>'outcome'"))
+        assertEquals(listOf("failed 2", "paid 3"), dailyMeasures("dimensions->>'outcome'"))
+    }
+
+    private fun eventCount() = query("select count(*) from telemetry_events") { it.getLong(1) }
+
+    private fun dailyCounts(column: String) =
+        query("select $column, events from telemetry_daily_counts order by 1") {
+            "${it.getString(1)} ${it.getLong(2)}"
+        }
+
+    private fun dailyMeasures(column: String) =
+        query("select $column, samples from telemetry_daily_measures order by 1") {
+            "${it.getString(1)} ${it.getLong(2)}"
+        }
+
+    private companion object {
+        const val MEGABYTE = 1024L * 1024
     }
 }

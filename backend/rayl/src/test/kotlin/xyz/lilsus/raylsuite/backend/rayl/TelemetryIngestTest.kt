@@ -11,6 +11,7 @@ import io.ktor.server.testing.testApplication
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import xyz.lilsus.raylsuite.core.raylapi.RaylApi
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryCatalog
 
 class TelemetryIngestTest {
     private val stored = mutableListOf<TelemetryRow>()
@@ -129,6 +130,23 @@ class TelemetryIngestTest {
     fun rejectsWhatIsNotABatch() = telemetryTest {
         assertEquals(HttpStatusCode.BadRequest, send("not json").status)
         assertEquals(HttpStatusCode.BadRequest, send("""{"platform":"android"}""").status)
+        assertEquals(emptyList(), stored)
+    }
+
+    @Test
+    fun keepsAsManyEventsAsAnAppCanBufferAndNoMore() = telemetryTest {
+        // This cap is what bounds the rows one request can store, so it is kept at what the app
+        // buffers in a process (MOB-148).
+        val cap = TelemetryCatalog.MAX_EVENTS_PER_BATCH
+        val event = """{"name":"launch","dimensions":{"wallet":"rayl"}}"""
+        fun events(count: Int) = batch(List(count) { event }.joinToString(","))
+
+        assertEquals(HttpStatusCode.NoContent, send(events(cap)).status)
+        assertEquals(cap, stored.size)
+
+        stored.clear()
+        // One more is dropped whole, and still answered 204, so no app starts retrying.
+        assertEquals(HttpStatusCode.NoContent, send(events(cap + 1)).status)
         assertEquals(emptyList(), stored)
     }
 

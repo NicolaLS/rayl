@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryBatch
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryCatalog
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryEvent
 import xyz.lilsus.raylsuite.core.raylapi.TelemetrySetting
@@ -229,6 +230,14 @@ class TelemetryEngineTest {
 
         assertEquals(TelemetryEngine.MAX_BUFFERED_EVENTS, sent.single().size)
         assertEquals(language, sent.single().last())
+        // The backend drops a batch with more events than its catalogue allows, and that cap is
+        // what bounds the rows one request can store (MOB-148). A full buffer must stay inside it.
+        assertEquals(
+            sent.single().size,
+            TelemetryCatalog.sanitize(
+                TelemetryBatch("android", "1.3.0", 16, "Pixel 8", sent.single())
+            )?.events?.size
+        )
     }
 
     @Test

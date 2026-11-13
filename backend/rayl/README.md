@@ -37,11 +37,23 @@ The sender is the address Railway's edge reports in `X-Real-IP`, with an IPv6 ad
 /64. It is held in the limiter's memory for about a minute and is never logged or stored. The
 limiters live in the one running instance; with more than one replica each would count on its own.
 
+## What is kept
+
+A request says nothing about how much it stores, so two limits bound that instead. A batch holds
+at most 100 events, what one app buffers in a process, which is about 60 kB stored; at the limit
+over all senders that is still more a minute than the 90-day expiry removes, so events stop being
+stored once the three usage-data tables reach 2 GB of the volume's 5 GB. Requests are still
+answered 204: an app must not retry what this backend will not keep. The rest of the volume is
+left for feedback, WAL and vacuum.
+
+The per-day figures are never deleted, so a day is folded into at most the 20 app versions that
+sent the most, the rest together as `other`, and the 500 commonest groups per kind of event. Real
+traffic is far inside both; invented versions and sprayed dimension combinations are what would
+otherwise grow the kept tables without end.
+
 What this does not stop: many addresses together can still reach the limits over all senders,
-which blocks usage data and feedback for everyone and adds up to 120,000 rows a minute while it
-lasts. That is accepted. Anonymous data cannot be tied to an installation, so there is nothing
-stronger to limit by. Revisit if junk shows up in the dashboard or the database grows faster
-than the 90-day expiry removes.
+which blocks usage data and feedback for everyone while it lasts. That is accepted. Anonymous
+data cannot be tied to an installation, so there is nothing stronger to limit by.
 
 Run locally on `127.0.0.1:8080`:
 

@@ -6,6 +6,8 @@ import java.net.URI
 import java.sql.Timestamp
 import javax.sql.DataSource
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -14,8 +16,25 @@ import kotlinx.serialization.json.Json
 /**
  * Rayl's anonymous usage data in Postgres. Events are kept for [RAW_RETENTION_DAYS] days; before
  * that, [maintain] folds each day into per-day counts and percentiles, which are kept.
+ *
+ * Nothing about a request bounds how much is stored, so two limits do. Events stop being stored
+ * once the three tables reach [maxStorageBytes], well short of the volume, and a day is folded
+ * into at most [maxRollupVersions] app versions and [maxRollupGroups] groups per kind of event,
+ * because the daily tables are never deleted (MOB-148).
  */
-class PostgresTelemetryStore(private val dataSource: DataSource) : TelemetryStore {
+class PostgresTelemetryStore(
+    private val dataSource: DataSource,
+    private val maxStorageBytes: Long = DEFAULT_MAX_STORAGE_BYTES,
+    private val maxRollupVersions: Int = DEFAULT_MAX_ROLLUP_VERSIONS,
+    private val maxRollupGroups: Int = DEFAULT_MAX_ROLLUP_GROUPS,
+    private val storageCheckIntervalMs: Long = 60_000L,
+    private val clock: () -> Long = System::currentTimeMillis,
+    private val log: (String) -> Unit = ::println
+) : TelemetryStore {
+    private val storageCheck = Mutex()
+    private var storageCheckedAtMs: Long? = null
+    private var storageFull = false
+
     suspend fun createTables() = withContext(Dispatchers.IO) {
         dataSource.connection.use { connection ->
             connection.createStatement().use { statement -> SCHEMA.forEach(statement::execute) }
@@ -24,6 +43,8 @@ class PostgresTelemetryStore(private val dataSource: DataSource) : TelemetryStor
 
     override suspend fun insert(rows: List<TelemetryRow>) {
         if (rows.isEmpty()) return
+        // Dropped, not refused: the app must not retry what this backend will not keep.
+        if (!roomForMore()) return
         withContext(Dispatchers.IO) {
             dataSource.connection.use { connection ->
                 connection.prepareStatement(INSERT).use { statement ->
@@ -45,6 +66,42 @@ class PostgresTelemetryStore(private val dataSource: DataSource) : TelemetryStor
     }
 
     /**
+     * False once the three tables have grown past [maxStorageBytes]. A size is a few catalogue
+     * lookups, not free, so it is read at most every [storageCheckIntervalMs] and the answer is
+     * reused in between. Both edges are logged, because nothing else would say that usage data
+     * stopped arriving.
+     */
+    private suspend fun roomForMore(): Boolean = storageCheck.withLock {
+        val now = clock()
+        val checkedAt = storageCheckedAtMs
+        if (checkedAt == null || now - checkedAt >= storageCheckIntervalMs) {
+            storageCheckedAtMs = now
+            val used = withContext(Dispatchers.IO) { usedBytes() }
+            val full = used >= maxStorageBytes
+            if (full != storageFull) {
+                log(
+                    if (full) {
+                        "Usage data is no longer stored: $used bytes of $maxStorageBytes"
+                    } else {
+                        "Usage data is stored again: $used bytes of $maxStorageBytes"
+                    }
+                )
+            }
+            storageFull = full
+        }
+        !storageFull
+    }
+
+    /** Reads the catalogue, so a table that does not exist yet counts as nothing. */
+    private fun usedBytes(): Long = dataSource.connection.use { connection ->
+        connection.prepareStatement(USED_BYTES).use { statement ->
+            statement.executeQuery().use { rows ->
+                if (rows.next()) rows.getLong(1) else 0L
+            }
+        }
+    }
+
+    /**
      * Folds the last [ROLLUP_DAYS] complete UTC days into the daily tables, then deletes events
      * older than [RAW_RETENTION_DAYS] days. Running it again changes nothing.
      */
@@ -58,6 +115,8 @@ class PostgresTelemetryStore(private val dataSource: DataSource) : TelemetryStor
                 connection.prepareStatement(sql).use { statement ->
                     statement.setTimestamp(1, from)
                     statement.setTimestamp(2, until)
+                    statement.setInt(3, maxRollupVersions)
+                    statement.setInt(4, maxRollupGroups)
                     statement.executeUpdate()
                 }
             }
@@ -72,6 +131,15 @@ class PostgresTelemetryStore(private val dataSource: DataSource) : TelemetryStor
         const val RAW_RETENTION_DAYS = 90L
         private const val ROLLUP_DAYS = 7L
         private const val SECONDS_PER_DAY = 86_400L
+
+        /** Two of the volume's five gigabytes, leaving the rest for feedback, WAL and vacuum. */
+        private const val DEFAULT_MAX_STORAGE_BYTES = 2L * 1024 * 1024 * 1024
+
+        /** Two platforms times the few versions ever in the wild at once, with room to spare. */
+        private const val DEFAULT_MAX_ROLLUP_VERSIONS = 20
+
+        /** A kind of event has at most a few dozen real dimension combinations in a day. */
+        private const val DEFAULT_MAX_ROLLUP_GROUPS = 500
         private val DIMENSIONS = MapSerializer(String.serializer(), String.serializer())
         private val MEASURES = MapSerializer(String.serializer(), Long.serializer())
 
@@ -143,31 +211,87 @@ class PostgresTelemetryStore(private val dataSource: DataSource) : TelemetryStor
             ) values (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb)
         """
 
-        // The device model stays out of the daily tables: they are kept, and it is the one
-        // free-form value.
-        private const val ROLL_UP_COUNTS = """
+        private const val USED_BYTES = """
+            select coalesce(sum(pg_total_relation_size(c.oid)), 0)
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = current_schema()
+                and c.relname in (
+                    'telemetry_events', 'telemetry_daily_counts', 'telemetry_daily_measures'
+                )
+        """
+
+        /**
+         * The window grouped as the daily tables hold it, with two caps, because those tables are
+         * never deleted: a day keeps the app versions that sent the most and folds the rest into
+         * `other`, and each kind of event keeps its commonest groups. Real traffic is far inside
+         * both; invented versions and sprayed dimension combinations are what grow without end.
+         * The order within a cap is fully determined, so folding a day again gives the same rows.
+         *
+         * The device model stays out of the daily tables: they are kept, and it is the one
+         * free-form value.
+         *
+         * Parameters: the window's start and end, then the two caps.
+         */
+        private const val FOLDED = """
+            with windowed as (
+                select (received_hour at time zone 'UTC')::date as day, name, platform,
+                    app_version, dimensions, measures
+                from telemetry_events
+                where received_hour >= ? and received_hour < ?
+            ),
+            named as (
+                select day, app_version from (
+                    select day, app_version,
+                        row_number() over (
+                            partition by day order by count(*) desc, app_version
+                        ) as place
+                    from windowed
+                    group by day, app_version
+                ) ranked
+                where place <= ?
+            ),
+            folded as (
+                select w.day, w.name, w.platform,
+                    case when n.app_version is null then 'other' else w.app_version end
+                        as app_version,
+                    w.dimensions, w.measures
+                from windowed w
+                left join named n on n.day = w.day and n.app_version = w.app_version
+            ),
+            grouped as (
+                select day, name, platform, app_version, dimensions, count(*) as events,
+                    row_number() over (
+                        partition by day, name
+                        order by count(*) desc, app_version, platform, dimensions
+                    ) as place
+                from folded
+                group by day, name, platform, app_version, dimensions
+            )
+        """
+
+        private const val ROLL_UP_COUNTS = FOLDED + """
             insert into telemetry_daily_counts (day, name, platform, app_version, dimensions, events)
-            select (received_hour at time zone 'UTC')::date, name, platform, app_version,
-                dimensions, count(*)
-            from telemetry_events
-            where received_hour >= ? and received_hour < ?
-            group by 1, 2, 3, 4, 5
+            select day, name, platform, app_version, dimensions, events
+            from grouped
+            where place <= ?
             on conflict (day, name, platform, app_version, dimensions)
             do update set events = excluded.events
         """
 
-        private const val ROLL_UP_MEASURES = """
+        private const val ROLL_UP_MEASURES = FOLDED + """
             insert into telemetry_daily_measures (
                 day, name, platform, app_version, dimensions, measure, samples, p50, p75, p90
             )
-            select (received_hour at time zone 'UTC')::date, name, platform, app_version,
-                dimensions, measure.key, count(*),
+            select f.day, f.name, f.platform, f.app_version, f.dimensions, measure.key, count(*),
                 percentile_cont(0.5) within group (order by measure.value::double precision),
                 percentile_cont(0.75) within group (order by measure.value::double precision),
                 percentile_cont(0.9) within group (order by measure.value::double precision)
-            from telemetry_events
-            cross join lateral jsonb_each_text(measures) as measure
-            where received_hour >= ? and received_hour < ?
+            from folded f
+            join grouped g on g.day = f.day and g.name = f.name and g.platform = f.platform
+                and g.app_version = f.app_version and g.dimensions = f.dimensions
+                and g.place <= ?
+            cross join lateral jsonb_each_text(f.measures) as measure
             group by 1, 2, 3, 4, 5, 6
             on conflict (day, name, platform, app_version, dimensions, measure)
             do update set samples = excluded.samples, p50 = excluded.p50, p75 = excluded.p75,
