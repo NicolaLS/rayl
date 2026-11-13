@@ -65,11 +65,14 @@ object FeedbackCatalog {
 
     /** The submission trimmed to what the backend stores, or null when it is not acceptable. */
     fun sanitize(submission: FeedbackSubmission): FeedbackSubmission? {
-        val message = submission.message.trim()
-        val contact = submission.contact?.trim()?.takeIf(String::isNotEmpty)
+        val message = submission.message.withoutNul().trim()
+        val contact = submission.contact?.withoutNul()?.trim()?.takeIf(String::isNotEmpty)
         if (submission.kind !in kinds || submission.platform !in platforms) return null
         if (message.isEmpty() || message.length > MAX_MESSAGE_LENGTH) return null
         if (contact != null && contact.length > MAX_CONTACT_LENGTH) return null
         return FeedbackSubmission(submission.kind, submission.platform, message, contact)
     }
+
+    /** Postgres text cannot hold U+0000, so a message with one could never be stored. */
+    private fun String.withoutNul() = replace("\u0000", "")
 }

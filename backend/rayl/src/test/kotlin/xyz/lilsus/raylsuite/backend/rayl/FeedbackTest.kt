@@ -61,6 +61,17 @@ class FeedbackTest {
     }
 
     @Test
+    fun aNulCharacterIsLeftOutBecausePostgresCannotStoreIt() = feedbackTest {
+        // Kept, the insert would fail on every retry and the message could never be sent (MOB-151).
+        val response = send(
+            """{"kind":"problem","platform":"android","message":"abc\u0000def","contact":"me\u0000@example.com"}"""
+        )
+        assertEquals(HttpStatusCode.NoContent, response.status)
+        assertEquals("abcdef", stored.single().message)
+        assertEquals("me@example.com", stored.single().contact)
+    }
+
+    @Test
     fun refusesWhatTheFormCouldNotHaveProduced() = feedbackTest {
         val tooLong = "x".repeat(FeedbackCatalog.MAX_MESSAGE_LENGTH + 1)
         listOf(
