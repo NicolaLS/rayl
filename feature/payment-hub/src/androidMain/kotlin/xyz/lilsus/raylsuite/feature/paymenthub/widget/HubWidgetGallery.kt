@@ -26,7 +26,10 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -153,23 +156,33 @@ private fun GallerySectionTitle(@StringRes title: Int) {
 /** The way out of the gallery for someone who did not find their widget. */
 @Composable
 private fun FeedbackPrompt(thanked: Boolean, onClick: () -> Unit) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+    // A card a step above the sheet, which is surfaceContainerLow itself, with a chevron that says
+    // it leads somewhere.
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large)
             .clickable(role = Role.Button, onClick = onClick)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(16.dp)
     ) {
-        Text(
-            stringResource(R.string.hub_feedback_prompt),
-            style = MaterialTheme.typography.titleMedium
-        )
-        Text(
-            stringResource(
-                if (thanked) R.string.hub_feedback_thanks else R.string.hub_feedback_prompt_body
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.hub_feedback_prompt),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                stringResource(
+                    if (thanked) R.string.hub_feedback_thanks else R.string.hub_feedback_prompt_body
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
