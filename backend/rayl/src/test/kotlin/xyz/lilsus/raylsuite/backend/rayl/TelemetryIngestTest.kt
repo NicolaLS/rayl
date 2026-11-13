@@ -3,7 +3,9 @@ package xyz.lilsus.raylsuite.backend.rayl
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlin.test.Test
@@ -25,7 +27,10 @@ class TelemetryIngestTest {
     }
 
     private suspend fun ApplicationTestBuilder.send(body: String): HttpResponse =
-        client.post(RaylApi.TELEMETRY_PATH) { setBody(body) }
+        client.post(RaylApi.TELEMETRY_PATH) {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
 
     private fun batch(events: String, deviceModel: String = "Pixel 8") =
         """{"platform":"android","appVersion":"1.2.0","osMajor":16,"deviceModel":"$deviceModel","events":[$events]}"""

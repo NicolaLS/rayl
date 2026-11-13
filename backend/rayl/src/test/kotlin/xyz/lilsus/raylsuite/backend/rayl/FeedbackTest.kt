@@ -4,7 +4,9 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlin.test.Test
@@ -28,6 +30,7 @@ class FeedbackTest {
         sender: String = "203.0.113.1"
     ): HttpResponse = client.post(RaylApi.FEEDBACK_PATH) {
         header(CLIENT_ADDRESS_HEADER, sender)
+        contentType(ContentType.Application.Json)
         setBody(body)
     }
 

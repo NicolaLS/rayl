@@ -3,7 +3,10 @@ package xyz.lilsus.raylsuite.backend.rayl
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.ByteArrayContent
+import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlin.test.Test
@@ -23,6 +26,7 @@ class ClientRateLimitTest {
     private suspend fun ApplicationTestBuilder.feedbackFrom(address: String?): HttpStatusCode =
         client.post(RaylApi.FEEDBACK_PATH) {
             address?.let { header(CLIENT_ADDRESS_HEADER, it) }
+            contentType(ContentType.Application.Json)
             setBody("""{"kind":"idea","platform":"ios","message":"hello"}""")
         }.status
 
@@ -63,6 +67,7 @@ class ClientRateLimitTest {
         repeat(FEEDBACK_PER_MINUTE * 2) {
             client.post(RaylApi.FEEDBACK_PATH) {
                 header(CLIENT_ADDRESS_HEADER, "203.0.113.7")
+                contentType(ContentType.Application.Json)
                 setBody("not json")
             }
         }
@@ -70,9 +75,41 @@ class ClientRateLimitTest {
     }
 
     @Test
+    fun whatABrowserSendsWithoutAskingIsRefusedBeforeAnyLimitCountsIt() = rateLimitTest {
+        // A web page can make its visitors' browsers send text, a form or an untyped body to any
+        // site without asking it first (MOB-149). Each visitor would be a sender of its own.
+        val unasked = listOf(
+            ContentType.parse("text/plain;charset=UTF-8"),
+            ContentType.Application.FormUrlEncoded,
+            null
+        )
+        val ownLimits = mapOf(
+            RaylApi.FEEDBACK_PATH to FEEDBACK_PER_CLIENT_MINUTE,
+            RaylApi.TELEMETRY_PATH to TELEMETRY_BATCHES_PER_CLIENT_MINUTE
+        )
+        for ((path, ownLimit) in ownLimits) {
+            for (type in unasked) {
+                // One more than the sender's own limit: a limiter that counted would answer 429.
+                repeat(ownLimit + 1) {
+                    val status = client.post(path) {
+                        header(CLIENT_ADDRESS_HEADER, "203.0.113.7")
+                        setBody(ByteArrayContent("{}".encodeToByteArray(), type))
+                    }.status
+                    assertEquals(HttpStatusCode.UnsupportedMediaType, status, "$path as $type")
+                }
+            }
+        }
+
+        repeat(FEEDBACK_PER_CLIENT_MINUTE) {
+            assertEquals(HttpStatusCode.NoContent, feedbackFrom("203.0.113.7"))
+        }
+    }
+
+    @Test
     fun usageDataIsLimitedPerSenderToo() = rateLimitTest {
         suspend fun batchFrom(address: String) = client.post(RaylApi.TELEMETRY_PATH) {
             header(CLIENT_ADDRESS_HEADER, address)
+            contentType(ContentType.Application.Json)
             setBody("{}")
         }.status
 

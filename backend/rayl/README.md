@@ -29,6 +29,10 @@ Usage data and feedback are limited per sender first (20 batches and 5 messages 
 over all senders (600 and 30 a minute). A sender over its own limit is refused before it can use
 up what the others share. Prices are not limited; they are served from memory.
 
+Both accept only `application/json`, and refuse anything else before the limits count it. A web
+page can make its visitors' browsers send text or a form to any site without asking, but not JSON,
+so it cannot turn them into senders.
+
 The sender is the address Railway's edge reports in `X-Real-IP`, with an IPv6 address cut to its
 /64. It is held in the limiter's memory for about a minute and is never logged or stored. The
 limiters live in the one running instance; with more than one replica each would count on its own.

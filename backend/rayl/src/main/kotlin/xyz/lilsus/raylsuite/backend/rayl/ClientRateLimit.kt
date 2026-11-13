@@ -1,9 +1,11 @@
 package xyz.lilsus.raylsuite.backend.rayl
 
+import io.ktor.http.ContentType
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.contentType
 import java.net.Inet6Address
 import java.net.InetAddress
 
@@ -24,6 +26,15 @@ internal fun Route.rateLimited(
     overall: RateLimitName,
     build: Route.() -> Unit
 ) = rateLimit(perClient) { rateLimit(overall, build) }
+
+/**
+ * Only JSON, which is what the app sends. A browser sends text or a form to any site without
+ * asking it first, so a web page could otherwise make each of its visitors a sender of its own.
+ * JSON it must ask about first, and nothing here says yes. Anything else is answered 415 before
+ * the rate limits count it.
+ */
+internal fun Route.jsonOnly(build: Route.() -> Unit) =
+    contentType(ContentType.Application.Json, build)
 
 /**
  * Tells senders apart for rate limiting and nothing else: the key lives in the limiter's memory

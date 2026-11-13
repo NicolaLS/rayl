@@ -52,41 +52,43 @@ private val feedbackJson = Json { ignoreUnknownKeys = true }
 internal fun Route.feedbackRoute(store: FeedbackStore?, nowSeconds: () -> Long) {
     rateLimited(perClient = FEEDBACK_CLIENT_RATE_LIMIT, overall = FEEDBACK_RATE_LIMIT) {
         route(RaylApi.FEEDBACK_PATH) {
-            install(RequestBodyLimit) { bodyLimit { FEEDBACK_MAX_BODY_BYTES } }
-            post {
-                val submission = try {
-                    feedbackJson.decodeFromString(
-                        FeedbackSubmission.serializer(),
-                        call.receiveText()
-                    )
-                } catch (_: SerializationException) {
-                    null
-                } catch (_: IllegalArgumentException) {
-                    null
-                }?.let(FeedbackCatalog::sanitize)
-                if (submission == null) {
-                    call.respond(HttpStatusCode.BadRequest)
-                    return@post
-                }
-                try {
-                    checkNotNull(store) { "no database" }.insert(
-                        FeedbackRow(
-                            nowSeconds(),
-                            submission.kind,
-                            submission.platform,
-                            submission.message,
-                            submission.contact
+            jsonOnly {
+                install(RequestBodyLimit) { bodyLimit { FEEDBACK_MAX_BODY_BYTES } }
+                post {
+                    val submission = try {
+                        feedbackJson.decodeFromString(
+                            FeedbackSubmission.serializer(),
+                            call.receiveText()
                         )
-                    )
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (failure: Exception) {
-                    // Nothing of the request is logged.
-                    println("Storing feedback failed: ${failure::class.simpleName}")
-                    call.respond(HttpStatusCode.ServiceUnavailable)
-                    return@post
+                    } catch (_: SerializationException) {
+                        null
+                    } catch (_: IllegalArgumentException) {
+                        null
+                    }?.let(FeedbackCatalog::sanitize)
+                    if (submission == null) {
+                        call.respond(HttpStatusCode.BadRequest)
+                        return@post
+                    }
+                    try {
+                        checkNotNull(store) { "no database" }.insert(
+                            FeedbackRow(
+                                nowSeconds(),
+                                submission.kind,
+                                submission.platform,
+                                submission.message,
+                                submission.contact
+                            )
+                        )
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (failure: Exception) {
+                        // Nothing of the request is logged.
+                        println("Storing feedback failed: ${failure::class.simpleName}")
+                        call.respond(HttpStatusCode.ServiceUnavailable)
+                        return@post
+                    }
+                    call.respond(HttpStatusCode.NoContent)
                 }
-                call.respond(HttpStatusCode.NoContent)
             }
         }
     }
