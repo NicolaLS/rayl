@@ -52,8 +52,11 @@ private fun SparkTabs(
     onWalletRemoved: () -> Unit
 ) {
     val tabState = runtime.tabState
-    // Back from adding a card reopens Settings, where it was started.
-    remember(runtime) { if (cards.reopensAddCard()) tabState.select(AppTab.Settings) }
+    // Back from adding a card reopens Settings, where it was started. Decided once per wallet,
+    // while composing, so the first frame already shows Settings.
+    remember(runtime) {
+        cards.reopensAddCard().also { if (it) tabState.select(AppTab.Settings) }
+    }
     val selectedTab by tabState.selectedTab.collectAsStateWithLifecycle()
 
     AppTabScaffold(

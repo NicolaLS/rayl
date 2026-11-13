@@ -77,8 +77,11 @@ import xyz.lilsus.raylsuite.feature.walletmanagement.WalletCardsSettings
 /** The Android tab shell, shared with the other providers. */
 @Composable
 internal fun RaylTabs(runtime: RaylRuntime, cards: WalletCardsHost) {
-    // Back from adding a card reopens Settings, where it was started.
-    remember(runtime) { if (cards.reopensAddCard()) runtime.tabState.select(AppTab.Settings) }
+    // Back from adding a card reopens Settings, where it was started. Decided once per wallet,
+    // while composing, so the first frame already shows Settings.
+    remember(runtime) {
+        cards.reopensAddCard().also { if (it) runtime.tabState.select(AppTab.Settings) }
+    }
     val selectedTab by runtime.tabState.selectedTab.collectAsStateWithLifecycle()
     AppTabScaffold(
         selectedTab = selectedTab,
