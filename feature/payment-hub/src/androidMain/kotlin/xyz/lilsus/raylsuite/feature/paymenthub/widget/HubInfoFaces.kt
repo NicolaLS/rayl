@@ -207,7 +207,8 @@ private fun FigureFace(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize()
             .then(
-                if (interactive && action != null) {
+                // A widget that asks to be touched and held to be set up does nothing on a tap.
+                if (interactive && action != null && content.hint == null) {
                     Modifier.clickable(role = Role.Button, onClickLabel = action) { onOpen(tile) }
                 } else {
                     Modifier

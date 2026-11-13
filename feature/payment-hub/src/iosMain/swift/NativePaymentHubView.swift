@@ -168,13 +168,7 @@ struct NativePaymentHubView: View {
     }
 
     private func open(_ tile: NativeHubTile) {
-        guard let info = tile.info else {
-            // A widget that was added but not set up yet opens its settings.
-            if tile.people.isEmpty, tile.kind == "contacts" || tile.kind == "shortcut" {
-                model.controller.editWidget(id: tile.id)
-            }
-            return
-        }
+        guard let info = tile.info else { return }
         switch info.action {
         case "convert":
             converting = HubConverterTarget(id: tile.id, info: info)
@@ -184,7 +178,8 @@ struct NativePaymentHubView: View {
         case "claro":
             model.controller.openClaro(id: tile.id)
         case "setup":
-            // Without a usable key or a number there is nothing to top up; the settings ask for it.
+            // A rejected ppq.ai key: its settings take another. A widget that asks to be touched
+            // and held to be set up never gets here, as it takes no tap.
             model.controller.editWidget(id: tile.id)
         default:
             break
@@ -1400,19 +1395,16 @@ private struct WidgetContent: View {
             .accessibilityHidden(true)
     }
 
-    private var needsSetup: Bool { tile.kind == "contacts" || tile.kind == "shortcut" }
-
+    /// A widget that was added but not set up yet asks to be touched and held, and a tap does
+    /// nothing: that is how the Hub is customised, so the widget teaches it.
     private var empty: some View {
-        HubTileAction(interactive: interactive && needsSetup, action: { open(tile) }) {
-            VStack(alignment: .leading, spacing: 8) {
-                header(tile.title) { EmptyView() }
-                hint(tile.emptyText)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .foregroundStyle(HubPalette.ink)
-            .contentShape(Rectangle())
+        VStack(alignment: .leading, spacing: 8) {
+            header(tile.title) { EmptyView() }
+            hint(tile.emptyText)
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .foregroundStyle(HubPalette.ink)
         .accessibilityElement(children: .combine)
     }
 
@@ -1420,7 +1412,9 @@ private struct WidgetContent: View {
     /// figure is about on top, the figure in the middle, and one caption on the bottom line. A
     /// chart takes the middle and moves the figure up, or stands beside it on a row.
     private func figure(_ info: NativeHubInfo) -> some View {
-        HubTileAction(interactive: interactive && info.action != "none", action: { open(tile) }) {
+        // A widget that asks to be touched and held to be set up does nothing on a tap.
+        let tappable = info.action != "none" && info.hint == nil
+        return HubTileAction(interactive: interactive && tappable, action: { open(tile) }) {
             VStack(alignment: .leading, spacing: 8) {
                 header(info.headline) {
                     if info.hint == nil { figureAction(info) }
@@ -1461,7 +1455,7 @@ private struct WidgetContent: View {
         .allowsHitTesting(interactive)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(info.accessibilityLabel)
-        .accessibilityAddTraits(info.action == "none" ? [] : .isButton)
+        .accessibilityAddTraits(tappable ? .isButton : [])
     }
 
     /// The figure in the middle of the room it has, and its caption on the bottom line.

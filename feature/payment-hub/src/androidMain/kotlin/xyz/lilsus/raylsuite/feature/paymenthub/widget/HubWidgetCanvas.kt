@@ -139,11 +139,8 @@ internal fun HubWidgetCanvas(
             HubWidgetKind.Rate, HubWidgetKind.Sats ->
                 convertingCode = tile.currencyCode ?: state.defaultFiatCode
 
-            // A widget that was added but not set up yet opens its settings.
-            HubWidgetKind.Contacts, HubWidgetKind.Shortcut ->
-                if (tile.people.isEmpty()) viewModel.editWidget(tile.id)
-
-            // Without a usable key there is nothing to top up; the widget's settings ask for one.
+            // Without a usable key there is nothing to top up. A widget without any key asks to
+            // be touched and held and takes no tap; one whose key was rejected opens its settings.
             HubWidgetKind.Ppq -> {
                 val account = state.ppqAccount(tile.id)
                 if (account.connected && account.problem != HubPpqProblem.InvalidKey) {
@@ -154,13 +151,9 @@ internal fun HubWidgetCanvas(
                 }
             }
 
-            // Before it knows a number there is nothing to shop for; the settings ask for one.
-            HubWidgetKind.Claro ->
-                if (tile.phone != null) {
-                    viewModel.openClaro(tile.id)
-                } else {
-                    viewModel.editWidget(tile.id)
-                }
+            // Before it knows a number there is nothing to shop for, and the widget asks to be
+            // touched and held instead of taking a tap.
+            HubWidgetKind.Claro -> if (tile.phone != null) viewModel.openClaro(tile.id)
 
             else -> Unit
         }

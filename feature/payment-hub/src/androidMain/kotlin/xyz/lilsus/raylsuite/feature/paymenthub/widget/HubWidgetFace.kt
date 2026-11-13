@@ -131,7 +131,7 @@ internal fun HubWidgetFace(
     Box(modifier.hubFace(hubFaceColors(), glow)) {
         when {
             tile.kind.showsInformation -> HubInfoFace(tile, state, preview, interactive, onOpen)
-            tile.people.isEmpty() && !preview -> EmptyFace(tile, interactive, onOpen)
+            tile.people.isEmpty() && !preview -> EmptyFace(tile)
             shortcut -> ShortcutFace(tile, onPay, interactive, preview)
             tile.variant.capacity == 1 -> SingleContactFace(tile, onPay, interactive)
             else -> ContactCollectionFace(tile, onPay, preview, interactive, compactPreview)
@@ -280,20 +280,12 @@ internal fun TileFigurePlaceholder(small: Boolean) {
 }
 
 @Composable
-private fun EmptyFace(tile: HubWidgetTile, interactive: Boolean, onOpen: (HubWidgetTile) -> Unit) {
-    // A widget that was added but not set up yet opens its settings.
-    val needsSetup = tile.kind == HubWidgetKind.Contacts || tile.kind == HubWidgetKind.Shortcut
+private fun EmptyFace(tile: HubWidgetTile) {
+    // A widget that was added but not set up yet asks to be touched and held, and a tap does
+    // nothing: that is how the Hub is customised, so the widget teaches it.
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxSize()
-            .then(
-                if (needsSetup && interactive) {
-                    Modifier.clickable(role = Role.Button) { onOpen(tile) }
-                } else {
-                    Modifier
-                }
-            )
-            .padding(14.dp)
+        modifier = Modifier.fillMaxSize().padding(14.dp)
     ) {
         TileHeader(tile.title?.takeIf(String::isNotBlank) ?: tile.kind.label())
         TileHint(
