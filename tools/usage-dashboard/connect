@@ -52,16 +52,18 @@ echo
 
 if [ ! -f .env ] || ! grep -q '^RAYL_DB_USER=grafana_reader$' .env || [ "${1:-}" = "--rotate" ]; then
   PASSWORD=$(openssl rand -hex 24)
-  railway variable list -p "$PROJECT" -e production -s Postgres --json |
-    python3 -c "
-import json, sys
+  # The database owner's credentials are held in this shell only. In a file, however briefly, an
+  # interrupted run could leave them behind for `git add` to pick up.
+  OWNER=$(
+    railway variable list -p "$PROJECT" -e production -s Postgres --json |
+      python3 -c "
+import json, shlex, sys
 v = json.load(sys.stdin)
-print(f\"export PGUSER='{v['PGUSER']}' PGPASSWORD='{v['PGPASSWORD']}' PGDATABASE='{v['PGDATABASE']}'\")
-" >.owner
-  # shellcheck disable=SC1091
+print(' '.join(f'{k}={shlex.quote(v[k])}' for k in ('PGUSER', 'PGPASSWORD', 'PGDATABASE')))
+"
+  )
   (
-    . ./.owner
-    rm -f .owner
+    eval "export $OWNER"
     "$PSQL" -h 127.0.0.1 -p "$PORT" -v ON_ERROR_STOP=1 -q <<SQL
 do \$\$ begin
   if not exists (select from pg_roles where rolname = 'grafana_reader') then
@@ -82,7 +84,6 @@ RAYL_DB_PASSWORD=$PASSWORD
 RAYL_DB_SSLMODE=disable
 ENV
   )
-  rm -f .owner
   echo "Created the read-only role and wrote .env."
 fi
 

@@ -10,6 +10,10 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # "This machine" includes every web page open in a browser on it. A page can point its own
+      # hostname at 127.0.0.1 and would then be an anonymous Admin; answering only as localhost
+      # (requests under any other name are redirected there) leaves it nothing to read.
+      GF_SERVER_ENFORCE_DOMAIN: "true"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/overview.json
