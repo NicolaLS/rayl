@@ -49,8 +49,13 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -95,7 +100,7 @@ internal fun HubWidgetGallery(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
-                    stringResource(R.string.hub_widget_gallery_body),
+                    struckThrough(stringResource(R.string.hub_widget_gallery_body)),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp)
@@ -151,6 +156,20 @@ private fun GallerySectionTitle(@StringRes title: Int) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 8.dp).semantics { heading() }
     )
+}
+
+/**
+ * [text] with each `~~words~~` crossed out, as Markdown writes it. The gallery's line crosses out
+ * "people" for "anything"; iOS reads the same mark as Markdown.
+ */
+private fun struckThrough(text: String): AnnotatedString = buildAnnotatedString {
+    text.split("~~").forEachIndexed { index, part ->
+        if (index % 2 == 1) {
+            withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { append(part) }
+        } else {
+            append(part)
+        }
+    }
 }
 
 /** The way out of the gallery for someone who did not find their widget. */

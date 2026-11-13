@@ -34,7 +34,7 @@
     <string name="hub_contact_delete_title">Delete contact?</string>
     <string name="hub_contact_delete_body">This deletes the saved contact and removes them from your Hub.</string>
     <string name="hub_widget_gallery_title">Add widget</string>
-    <string name="hub_widget_gallery_body">Make room for the people you pay.</string>
+    <string name="hub_widget_gallery_body">Make room for the ~~people~~ anything you pay.</string>
     <string name="hub_widget_contacts">Contacts</string>
     <string name="hub_widget_contacts_body">Your people, ready to pay. Choose the amount each time.</string>
     <string name="hub_widget_shortcut">Shortcut</string>

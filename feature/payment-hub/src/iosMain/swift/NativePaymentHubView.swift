@@ -654,7 +654,8 @@ private struct HubEditorSheet: View {
     private func gallery(_ state: NativePaymentHubSnapshot) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text(state.text.galleryBody)
+                // The line crosses out "people" for "anything", written as Markdown's ~~words~~.
+                Text((try? AttributedString(markdown: state.text.galleryBody)) ?? AttributedString(state.text.galleryBody))
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
                     .padding(.top, 8)

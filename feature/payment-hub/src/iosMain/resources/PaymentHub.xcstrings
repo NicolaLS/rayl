@@ -1158,19 +1158,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Make room for the people you pay."
+            "value": "Make room for the ~~people~~ anything you pay."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Platz für die Menschen, denen du Geld sendest."
+            "value": "Platz für ~~die Menschen~~ alles, was du bezahlst."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Un espacio para las personas a las que pagas."
+            "value": "Un espacio para ~~las personas~~ todo lo que pagas."
           }
         }
       }

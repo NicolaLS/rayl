@@ -34,7 +34,7 @@
     <string name="hub_contact_delete_title">¿Eliminar contacto?</string>
     <string name="hub_contact_delete_body">Se eliminará el contacto guardado y se quitará de tu Hub.</string>
     <string name="hub_widget_gallery_title">Añadir widget</string>
-    <string name="hub_widget_gallery_body">Un espacio para las personas a las que pagas.</string>
+    <string name="hub_widget_gallery_body">Un espacio para ~~las personas~~ todo lo que pagas.</string>
     <string name="hub_widget_contacts">Contactos</string>
     <string name="hub_widget_contacts_body">Tus contactos, listos para pagar. Elige el importe cada vez.</string>
     <string name="hub_widget_shortcut">Atajo</string>

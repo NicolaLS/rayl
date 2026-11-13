@@ -34,7 +34,7 @@
     <string name="hub_contact_delete_title">Kontakt löschen?</string>
     <string name="hub_contact_delete_body">Dadurch wird der gespeicherte Kontakt gelöscht und aus deinem Hub entfernt.</string>
     <string name="hub_widget_gallery_title">Widget hinzufügen</string>
-    <string name="hub_widget_gallery_body">Platz für die Menschen, denen du Geld sendest.</string>
+    <string name="hub_widget_gallery_body">Platz für ~~die Menschen~~ alles, was du bezahlst.</string>
     <string name="hub_widget_contacts">Kontakte</string>
     <string name="hub_widget_contacts_body">Deine Kontakte, direkt zum Bezahlen. Wähle den Betrag jedes Mal.</string>
     <string name="hub_widget_shortcut">Kurzbefehl</string>
