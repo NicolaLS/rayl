@@ -42,26 +42,38 @@ fi
 
 # --- database ---------------------------------------------------------------------------------
 tunnel_out="$(mktemp)"
+# The CLI tunnels through an ssh process that outlives it, so that one is stopped first.
+close_tunnel() {
+  [ -n "${tunnel_pid:-}" ] || return 0
+  pkill -P "$tunnel_pid" 2>/dev/null || true
+  kill "$tunnel_pid" 2>/dev/null || true
+  wait "$tunnel_pid" 2>/dev/null || true
+  tunnel_pid=""
+}
 cleanup() {
-  kill "${tunnel_pid:-}" 2>/dev/null || true
+  close_tunnel
   rm -f "$tunnel_out"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 1' INT TERM
 
-railway connect Postgres -p "$PROJECT" --tunnel-only --ssh --environment production \
-  > "$tunnel_out" 2>&1 &
-tunnel_pid=$!
-
+# The CLI sometimes gives up waiting for its own tunnel; a second try opens it.
 url=""
-i=0
-while [ "$i" -lt 20 ]; do
-  url="$(sed -n 's/^.*URL:[[:space:]]*\(.*\)/\1/p' "$tunnel_out" | head -1)"
-  [ -n "$url" ] && break
-  sleep 1
-  i=$((i + 1))
+attempt=0
+while [ -z "$url" ] && [ "$attempt" -lt 3 ]; do
+  attempt=$((attempt + 1))
+  railway connect Postgres -p "$PROJECT" --tunnel-only --ssh --environment production \
+    > "$tunnel_out" 2>&1 &
+  tunnel_pid=$!
+  while kill -0 "$tunnel_pid" 2>/dev/null; do
+    url="$(sed -n 's/^.*URL:[[:space:]]*\(.*\)/\1/p' "$tunnel_out" | head -1)"
+    [ -n "$url" ] && break
+    sleep 1
+  done
+  [ -n "$url" ] || close_tunnel
 done
 if [ -z "$url" ]; then
-  attn "database: the tunnel did not open, so nothing below was checked"
+  attn "database: the tunnel did not open in $attempt tries, so nothing below was checked"
   cat "$tunnel_out" >&2
   exit 1
 fi
