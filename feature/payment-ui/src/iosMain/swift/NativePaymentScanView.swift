@@ -633,12 +633,23 @@ private struct NativePaymentManualAmountView: View {
             NativePaymentRecipientView(sheet: sheet, centered: true)
 
             if let amount = sheet.manualReview?.amount {
-                Text(amount)
-                    .font(.system(size: 44, weight: .semibold, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.4)
-                    .multilineTextAlignment(.center)
-                    .accessibilityIdentifier("payment_manual_amount_review")
+                VStack(spacing: 8) {
+                    Text(amount)
+                        .font(.system(size: 44, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.4)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("payment_manual_amount_review")
+
+                    // The other currency: a fiat amount is reviewed together with its sats.
+                    if let equivalent = sheet.manualReview?.equivalent {
+                        Text(equivalent)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .accessibilityIdentifier("payment_manual_amount_review_equivalent")
+                    }
+                }
             }
 
             if let rangeMessage = sheet.rangeMessage {

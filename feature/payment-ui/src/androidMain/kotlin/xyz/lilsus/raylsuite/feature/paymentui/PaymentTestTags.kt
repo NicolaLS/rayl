@@ -18,6 +18,7 @@ object PaymentTestTags {
     const val MANUAL_AMOUNT_DISPLAY = "payment_manual_amount_display"
     const val MANUAL_AMOUNT_CONTINUE_BUTTON = "payment_manual_amount_continue_button"
     const val MANUAL_AMOUNT_REVIEW = "payment_manual_amount_review"
+    const val MANUAL_AMOUNT_REVIEW_EQUIVALENT = "payment_manual_amount_review_equivalent"
     const val MANUAL_AMOUNT_BACK_BUTTON = "payment_manual_amount_back_button"
     const val MANUAL_AMOUNT_CANCEL_BUTTON = "payment_manual_amount_cancel_button"
     const val MANUAL_AMOUNT_PAY_BUTTON = "payment_manual_amount_pay_button"

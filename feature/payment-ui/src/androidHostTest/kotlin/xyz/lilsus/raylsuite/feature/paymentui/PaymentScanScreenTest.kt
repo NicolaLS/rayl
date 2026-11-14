@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Application
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -145,6 +146,27 @@ class PaymentScanScreenTest {
         compose.onNodeWithTag(PaymentTestTags.MANUAL_AMOUNT_PAY_BUTTON).performClick()
 
         assertEquals(listOf<PaymentIntent>(PaymentIntent.ManualAmountSubmit), intents)
+    }
+
+    @Test
+    fun aFiatAmountIsReviewedTogetherWithItsSats() {
+        // The sats are what leaves the wallet, at a rate the backend chose (MOB-152). The review
+        // is the last look before paying, so it must not show the fiat amount alone.
+        show(
+            PaymentScreenState.EnterAmount(
+                ManualAmountUiState(
+                    amount = DisplayAmount(500, DisplayCurrency.Fiat("USD")),
+                    currency = DisplayCurrency.Fiat("USD"),
+                    alternativeCurrency = DisplayCurrency.Satoshi,
+                    equivalentAmount = sats(5_000)
+                )
+            )
+        )
+
+        compose.onNodeWithTag(PaymentTestTags.MANUAL_AMOUNT_CONTINUE_BUTTON).performClick()
+
+        compose.onNodeWithTag(PaymentTestTags.MANUAL_AMOUNT_REVIEW_EQUIVALENT)
+            .assertTextContains("5,000", substring = true)
     }
 
     @Test

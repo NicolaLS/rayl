@@ -74,7 +74,13 @@ data class NativeManualCurrencySwitch(val title: String, val equivalent: String?
 /** Currency marks around a figure the user is still typing, placed the way the locale does. */
 data class NativeAmountAffix(val prefix: String, val suffix: String)
 
-data class NativeManualAmountReview(val title: String, val amount: String?, val payTitle: String)
+/** [equivalent] is the amount in the other currency, so a fiat amount is reviewed with its sats. */
+data class NativeManualAmountReview(
+    val title: String,
+    val amount: String?,
+    val equivalent: String?,
+    val payTitle: String
+)
 
 /**
  * Converts provider-neutral payment presentation into values consumed by SwiftUI.
@@ -312,6 +318,7 @@ private suspend fun ManualAmountUiState.toNativeSheet(
             NativeStringResource(table = "PaymentUI", key = "confirm_payment_title")
         ),
         amount = amount?.let(formatter::format),
+        equivalent = equivalentAmount?.let { "≈ ${formatter.format(it)}" },
         payTitle = nativeString(NativeStringResource(table = "PaymentUI", key = "pay_button"))
     )
 )

@@ -361,6 +361,18 @@ private fun ManualAmountReviewContent(
                         .testTag(PaymentTestTags.MANUAL_AMOUNT_REVIEW)
                 )
             }
+            // The last look before paying shows the other currency too. A fiat amount is
+            // converted at a rate from the backend, and the sats are what leaves the wallet.
+            state.equivalentAmount?.let { equivalent ->
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "≈ ${formatter.format(equivalent)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag(PaymentTestTags.MANUAL_AMOUNT_REVIEW_EQUIVALENT)
+                )
+            }
             RangeFeedback(state.rangeStatus)
         }
     }
