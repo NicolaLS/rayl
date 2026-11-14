@@ -39,8 +39,6 @@ outside the Hub document and outside the external-wallet storage that
 [SPEC-wallet-lifecycle](../../../specs/SPEC-wallet-lifecycle.md) erases. A Claro
 widget keeps only the phone number it tops up, in the Hub document.
 
-A Claro purchase ends for the user with the wallet's payment. The Hub keeps the
-order in its document and, while it is on screen, asks Claro's payment provider
-whether it was paid and Claro whether it was delivered. What it learns goes only
-to the anonymous usage data described in [ARCH-rayl](../../../specs/ARCH-rayl.md),
-as counts; then the order is forgotten.
+A Claro purchase ends with the wallet's payment. Once the Hub has the invoice it
+keeps nothing of the order and asks neither Claro nor its payment provider what
+became of it.

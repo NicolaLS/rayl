@@ -209,29 +209,6 @@ class DefaultPaymentHubRepository(
         }
     }
 
-    override suspend fun saveClaroOrder(order: ClaroOrder) {
-        mutate { current ->
-            val others = current.claroOrders.filterNot { it.transactionId == order.transactionId }
-            // A replaced order keeps its place, so the oldest is still the first to be dropped.
-            val at = current.claroOrders.indexOfFirst { it.transactionId == order.transactionId }
-            current.copy(
-                claroOrders = if (at < 0) {
-                    others + order
-                } else {
-                    others.take(at) + order + others.drop(at)
-                }
-            )
-        }
-    }
-
-    override suspend fun removeClaroOrder(transactionId: String) {
-        mutate { current ->
-            current.copy(
-                claroOrders = current.claroOrders.filterNot { it.transactionId == transactionId }
-            )
-        }
-    }
-
     private fun PaymentHub.withContact(contact: HubContact): PaymentHub = copy(
         contacts = if (contacts.any { it.id == contact.id }) {
             contacts.map { if (it.id == contact.id) contact else it }
@@ -284,18 +261,7 @@ private data class HubRecord(
     val schemaVersion: Int = 1,
     val contacts: List<ContactRecord>,
     val actions: List<ActionRecord>,
-    val widgets: List<WidgetRecord>,
-    val claroOrders: List<ClaroOrderRecord> = emptyList()
-)
-
-@Serializable
-private data class ClaroOrderRecord(
-    val transactionId: String,
-    val checkout: String,
-    val phone: String,
-    val topUp: Boolean,
-    val orderedAt: Long,
-    val paid: Boolean = false
+    val widgets: List<WidgetRecord>
 )
 
 @Serializable
@@ -359,9 +325,6 @@ private fun PaymentHub.toRecord() = HubRecord(
             widget.currencyCode,
             widget.phone
         )
-    },
-    claroOrders = claroOrders.map {
-        ClaroOrderRecord(it.transactionId, it.checkout, it.phone, it.topUp, it.orderedAtMs, it.paid)
     }
 )
 
@@ -406,8 +369,5 @@ private fun HubRecord.toHub() = PaymentHub(
             record.currency,
             record.phone?.let(::claroPhone)
         )
-    },
-    claroOrders = claroOrders.map {
-        ClaroOrder(it.transactionId, it.checkout, it.phone, it.topUp, it.orderedAt, it.paid)
     }
 )

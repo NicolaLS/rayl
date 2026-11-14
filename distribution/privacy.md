@@ -1,6 +1,6 @@
 # Rayl Privacy Policy
 
-Last updated: November 12, 2026
+Last updated: November 14, 2026
 
 This policy covers **Rayl** for Android and iOS, maintained by **Bitcoin Coast**
 ("we" or "the maintainer"). For privacy questions or requests, contact
@@ -103,12 +103,9 @@ you use:
 - **PPQ.AI API key:** If you add a PPQ.AI widget to the Hub, the ppq.ai API key
   you enter is stored in encrypted app storage on Android or the Keychain on
   iOS. It is deleted when you remove the last PPQ.AI widget.
-- **Claro phone number and orders:** If you add a Claro widget to the Hub, the
-  phone number you enter is stored in local app storage with the widget and is
-  removed with it. After you order through it, Rayl also keeps Claro's
-  reference for the order there, for at most three days, until it has asked
-  Claro whether the order was paid and delivered. It does neither if you
-  turned anonymous usage data off.
+- **Claro phone number:** If you add a Claro widget to the Hub, the phone number
+  you enter is stored in local app storage with the widget and is removed with
+  it. Rayl keeps nothing about an order you place through it.
 - **Recent payments in Rayl:** Up to ten payment results shown in Rayl are kept
   in memory and are cleared when the app process ends or you change wallets.
   The wallet's own payment history is stored as described above.
@@ -171,10 +168,8 @@ under its own terms and privacy policy.
   sends the phone number you entered to Claro El Salvador to list its top-ups
   and packages, and together with the product you choose to request a Lightning
   invoice. Claro's payment provider, BTCPaths, issues that invoice, and Rayl
-  contacts it to fetch it. Afterwards, unless you turned anonymous usage data
-  off, Rayl asks BTCPaths whether the invoice was paid and Claro whether the
-  order was delivered. Both process the order
-  under their own terms and privacy policies.
+  contacts it once to fetch it. Both process the order under their own terms
+  and privacy policies.
 - **Lightning addresses and LNURL:** Paying a Lightning address or LNURL
   contacts the domain it names to request an invoice, including the amount and
   any comment you enter. Wallet credentials are never sent to these services.

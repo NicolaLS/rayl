@@ -28,10 +28,8 @@ import xyz.lilsus.raylsuite.feature.paymenthub.bills.HubBill
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.HubGridSpan
 import xyz.lilsus.raylsuite.feature.paymenthub.canvas.hubOrderFor
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroApi
-import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroDelivery
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroInvoice
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroLine
-import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroPayment
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroResult
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.claroPhone
 import xyz.lilsus.raylsuite.feature.paymenthub.create.cleanAmountInput
@@ -68,10 +66,7 @@ class WidgetHubViewModel(
     private val telemetry: TelemetryRecorder = Telemetry,
     /** Reports a fake door, once per installation and only while the user shares usage data. */
     private val fakeDoor: (TelemetryFakeDoor, TelemetryFakeDoorAction) -> Unit =
-        Telemetry::fakeDoor,
-    /** Whether the user shares usage data. Without it nobody would learn what an order became. */
-    private val sharesUsageData: () -> Boolean = { Telemetry.enabled.value },
-    private val clock: () -> Long = ::platformCurrentTimeMillis
+        Telemetry::fakeDoor
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutableState =
@@ -83,7 +78,6 @@ class WidgetHubViewModel(
     private var previewOrder: List<String>? = null
     private val ppqJobs = mutableMapOf<String, Job>()
     private var claroJob: Job? = null
-    private var claroOrdersJob: Job? = null
 
     /** The open shop's number as Claro accepted it; orders are placed for it. */
     private var claroLine: ClaroLine? = null
@@ -124,12 +118,11 @@ class WidgetHubViewModel(
     fun refreshLive() {
         refreshRates()
         refreshPpq()
-        followClaroOrders()
     }
 
     /**
      * Refreshes like [refreshLive], for someone who asked to: returns once every price and balance
-     * on the Hub has arrived or failed. Claro orders are followed in the background as usual.
+     * on the Hub has arrived or failed.
      */
     suspend fun refreshNow() {
         refreshLive()
@@ -590,18 +583,6 @@ class WidgetHubViewModel(
                 reportClaro(product.topUp, TelemetryHubPurchaseStep.OrderFailed)
                 updateClaro { it.copy(ordering = false, problem = HubClaroProblem.OrderFailed) }
             } else {
-                // Kept before the hand-over: the Hub may leave the screen for the payment.
-                if (sharesUsageData()) {
-                    keepClaroOrder(
-                        ClaroOrder(
-                            invoice.transactionId,
-                            invoice.checkout,
-                            line.phone,
-                            product.topUp,
-                            orderedAtMs = clock()
-                        )
-                    )
-                }
                 reportClaro(product.topUp, TelemetryHubPurchaseStep.Ordered)
                 claroLine = null
                 updateClaro { HubClaroShop() }
@@ -668,89 +649,6 @@ class WidgetHubViewModel(
                     it.ppq + (widgetId to transform(it.ppqAccount(widgetId)))
             )
         }
-    }
-
-    /**
-     * Asks, for every order whose outcome is not reported yet, whether it was paid and whether
-     * Claro delivered it, and reports what it learns to the usage data. Nothing of it is shown:
-     * the user's journey ends with the wallet's payment. It runs with [refreshLive], so an order
-     * is followed whenever the Hub is on screen, also after the app was closed in between. For
-     * someone who does not share usage data nothing is kept and nobody is asked.
-     */
-    private fun followClaroOrders() {
-        val api = claro ?: return
-        if (claroOrdersJob?.isActive == true) return
-        val orders = repository.hub.value.claroOrders
-        if (orders.isEmpty()) return
-        // Someone who stopped sharing usage data is not asked about, and no order is kept.
-        val follows = sharesUsageData()
-        claroOrdersJob = scope.launch {
-            try {
-                orders.forEach { order ->
-                    if (follows) {
-                        followClaroOrder(api, order)
-                    } else {
-                        repository.removeClaroOrder(order.transactionId)
-                    }
-                }
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                // The orders are still kept; the next refresh asks again.
-            }
-        }
-    }
-
-    /** An order that cannot be kept is paid for all the same; only its report is lost. */
-    private suspend fun keepClaroOrder(order: ClaroOrder) {
-        try {
-            repository.saveClaroOrder(order)
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (_: Exception) {
-        }
-    }
-
-    private suspend fun followClaroOrder(api: ClaroApi, order: ClaroOrder) {
-        val age = clock() - order.orderedAtMs
-        if (!order.paid) {
-            when (api.payment(order.checkout)) {
-                ClaroPayment.Paid -> {
-                    repository.saveClaroOrder(order.copy(paid = true))
-                    reportClaro(order.topUp, TelemetryHubPurchaseStep.Paid)
-                }
-
-                // The user did not pay after all: there is nothing to deliver.
-                ClaroPayment.Expired -> return repository.removeClaroOrder(order.transactionId)
-
-                ClaroPayment.Unknown -> {
-                    if (age >
-                        CLARO_FORGET_ORDER_MS
-                    ) {
-                        repository.removeClaroOrder(order.transactionId)
-                    }
-                    return
-                }
-            }
-        }
-        val step = when (api.delivery(order.phone, order.transactionId)) {
-            ClaroDelivery.Delivered -> TelemetryHubPurchaseStep.Delivered
-
-            // Claro needs a moment after the payment; only later is its silence a failure.
-            ClaroDelivery.NotConfirmed ->
-                if (age > CLARO_DELIVERY_WINDOW_MS) {
-                    TelemetryHubPurchaseStep.DeliveryFailed
-                } else {
-                    return
-                }
-
-            ClaroDelivery.NoAnswer -> {
-                if (age > CLARO_FORGET_ORDER_MS) repository.removeClaroOrder(order.transactionId)
-                return
-            }
-        }
-        repository.removeClaroOrder(order.transactionId)
-        reportClaro(order.topUp, step)
     }
 
     /** One step of a purchase, as a count: never the number, the product or the amount. */
@@ -1002,13 +900,3 @@ private const val SATS_PER_BITCOIN = 100_000_000.0
 
 /** How much above the wallet's own rate a Claro invoice may be before it is not paid. */
 private const val CLARO_RATE_TOLERANCE = 1.05
-
-/**
- * How long after ordering a paid order may stay unconfirmed before that counts as a failed
- * delivery. The invoice can be paid for about a quarter of an hour, and Claro then needs a
- * moment of its own.
- */
-private const val CLARO_DELIVERY_WINDOW_MS = 30 * 60_000L
-
-/** An order nobody could be asked about for this long is dropped, unreported. */
-private const val CLARO_FORGET_ORDER_MS = 3 * 24 * 60 * 60_000L

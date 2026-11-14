@@ -5,9 +5,10 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.plugins.HttpRequestRetry
+import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
+import io.ktor.http.headers
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -23,10 +24,17 @@ import kotlinx.serialization.json.jsonPrimitive
  * (~/projects/claro, docs/bitcoin-flow.md and docs/btcpaths-api.md). No test reaches either.
  */
 class ClaroApiTest {
-    private class Request(val path: String, val body: JsonObject?, val country: String?, val agent: String?)
+    private class Request(val path: String, val body: JsonObject?, val headers: Headers) {
+        val country get() = headers["country"]
+    }
 
     /** Claro and BTCPaths in one engine. A path in [answers] replaces the usual answer. */
-    private class Shop(private val answers: Map<String, Pair<HttpStatusCode, String>> = emptyMap(), retries: Boolean = false) {
+    private class Shop(answers: Map<String, Pair<HttpStatusCode, String>> = emptyMap(), retries: Boolean = false) {
+        val answers = answers.toMutableMap()
+
+        /** Sent along with whatever BTCPaths answers. */
+        var retryAfter: String? = null
+        var now = INVOICE_ISSUED_AT
         val requests = mutableListOf<Request>()
         val api = KtorClaroApi(
             client = HttpClient(
@@ -36,11 +44,19 @@ class ClaroApiTest {
                         path,
                         request.body.toByteArray().decodeToString().takeIf(String::isNotEmpty)
                             ?.let { Json.parseToJsonElement(it).jsonObject },
-                        request.headers["country"],
-                        request.headers[HttpHeaders.UserAgent]
+                        request.headers
                     )
-                    val (status, body) = answers[path] ?: (HttpStatusCode.OK to usual(path))
-                    respond(body, status, headersOf(HttpHeaders.ContentType, "application/json"))
+                    val (status, body) = this@Shop.answers[path] ?: (HttpStatusCode.OK to usual(path))
+                    respond(
+                        body,
+                        status,
+                        headers {
+                            append(HttpHeaders.ContentType, "application/json")
+                            retryAfter?.takeIf { path == CHECKOUT }?.let {
+                                append(HttpHeaders.RetryAfter, it)
+                            }
+                        }
+                    )
                 }
             ) {
                 // The app's client repeats failed requests; the order must not be one of them.
@@ -48,7 +64,8 @@ class ClaroApiTest {
             },
             claroUrl = "https://claro.test",
             checkoutUrl = "https://btcpaths.test",
-            nowSeconds = { INVOICE_ISSUED_AT }
+            nowSeconds = { now },
+            checkoutPause = ClaroCheckoutPause()
         )
 
         fun paths() = requests.map { it.path }
@@ -63,13 +80,10 @@ class ClaroApiTest {
 
             "/paymentsMce" -> """{"idTransaction":"$TRANSACTION","redirectUrl":"https://card.test"}"""
 
-            "/bitcoinPayment/check-provision" ->
-                """{"ok":true,"payment":{"ok":true,"data":{}},"transaction":{"ok":true,"data":{}}}"""
-
             "/bitcoinPayment" ->
                 """{"status":"SUCCESS","ok":true,"data":{"url":"https://if.btcpaths.com/$SLUG"}}"""
 
-            "/api/v1/checkouts?slug=$SLUG" -> checkout()
+            CHECKOUT -> checkout()
 
             else -> error("Unexpected request to $path")
         }
@@ -150,7 +164,7 @@ class ClaroApiTest {
 
         val invoice = shop.api.invoice(catalogue.line, pack)
 
-        assertEquals(ClaroResult.Ok(ClaroInvoice(INVOICE, 250_000, TRANSACTION, SLUG)), invoice)
+        assertEquals(ClaroResult.Ok(ClaroInvoice(INVOICE, 250_000)), invoice)
         val order = assertNotNull(shop.sent("/paymentsMce").body)
         assertNull(shop.sent("/paymentsMce").country)
         assertEquals(
@@ -178,20 +192,92 @@ class ClaroApiTest {
             shop.sent("/bitcoinPayment").body
         )
         assertEquals("SV", shop.sent("/bitcoinPayment").country)
-        // BTCPaths turns away a client that does not look like a browser.
-        assertEquals(true, shop.sent("/api/v1/checkouts?slug=$SLUG").agent?.startsWith("Mozilla/5.0"))
+        // One look at the checkout, as its own page takes, and nothing after it.
+        assertEquals(
+            listOf("/paymentsMce", "/bitcoinPayment", CHECKOUT),
+            shop.paths().drop(3)
+        )
+    }
+
+    @Test
+    fun everyRequestSaysWhoIsAskingAndNamesNoPageItCameFrom() = runTest {
+        val shop = Shop()
+        val catalogue = (shop.api.catalogue(PHONE) as ClaroResult.Ok).value
+        shop.api.invoice(catalogue.line, catalogue.products.first())
+
+        assertEquals(6, shop.requests.size)
+        for (request in shop.requests) {
+            val agent = assertNotNull(request.headers[HttpHeaders.UserAgent], request.path)
+            // The app by name, and where to reach its maker.
+            assertEquals(true, "Rayl" in agent && "rayl@nicolasusca.com" in agent, request.path)
+            // It did not come from a page of theirs.
+            assertNull(request.headers[HttpHeaders.Referrer], request.path)
+        }
+    }
+
+    @Test
+    fun afterBtcPathsTurnsTheAppAwayNothingIsOrderedForAWhile() = runTest {
+        // MOB-154: asked on, BTCPaths blocked the whole network the phones were on.
+        for (refusal in listOf(HttpStatusCode.Forbidden, HttpStatusCode.TooManyRequests)) {
+            val shop = Shop(mapOf(CHECKOUT to (refusal to "{}")))
+            val catalogue = (shop.api.catalogue(PHONE) as ClaroResult.Ok).value
+            val product = catalogue.products.first()
+            assertEquals(ClaroResult.Unavailable, shop.api.invoice(catalogue.line, product))
+            shop.answers.clear()
+            shop.requests.clear()
+
+            // Neither an order at Claro, which would be left without its invoice, nor a question.
+            shop.now += 14 * 60
+            assertEquals(ClaroResult.Unavailable, shop.api.invoice(catalogue.line, product))
+            assertEquals(emptyList(), shop.paths(), refusal.toString())
+            // Its catalogue is Claro's alone to give.
+            assertEquals(true, shop.api.catalogue(PHONE) is ClaroResult.Ok)
+            shop.requests.clear()
+
+            // A quarter of an hour on, an order is taken again. (The stand-in invoice has lapsed
+            // by then, so it is known by its requests.)
+            shop.now += 60
+            shop.api.invoice(catalogue.line, product)
+            assertEquals(listOf("/paymentsMce", "/bitcoinPayment", CHECKOUT), shop.paths())
+        }
+    }
+
+    @Test
+    fun btcPathsOwnWordOnHowLongToWaitIsKeptWithinAnHour() = runTest {
+        /** Seconds until an order is taken again after a refusal that came with [retryAfter]. */
+        suspend fun pause(retryAfter: String?): Long {
+            val shop = Shop(mapOf(CHECKOUT to (HttpStatusCode.TooManyRequests to "{}")))
+            shop.retryAfter = retryAfter
+            val catalogue = (shop.api.catalogue(PHONE) as ClaroResult.Ok).value
+            val product = catalogue.products.first()
+            shop.api.invoice(catalogue.line, product)
+            shop.answers.clear()
+            val refusedAt = shop.now
+            val steps = listOf(0L, 29, 30, 899, 900, 3599, 3600)
+            return steps.first { after ->
+                shop.requests.clear()
+                shop.now = refusedAt + after
+                shop.api.invoice(catalogue.line, product)
+                shop.requests.isNotEmpty()
+            }
+        }
+
+        assertEquals(30, pause("30"))
+        assertEquals(900, pause(null))
+        // A date, or nonsense, is no number of seconds.
+        assertEquals(900, pause("Sat, 14 Nov 2026 23:00:00 GMT"))
+        assertEquals(900, pause("-5"))
+        assertEquals(3600, pause("86400"))
     }
 
     @Test
     fun aTopUpIsOrderedByItsPriceAlone() = runTest {
-        val shop = Shop(
-            mapOf("/api/v1/checkouts?slug=$SLUG" to (HttpStatusCode.OK to checkout(usd = "5.00")))
-        )
+        val shop = Shop(mapOf(CHECKOUT to (HttpStatusCode.OK to checkout(usd = "5.00"))))
         val catalogue = (shop.api.catalogue(PHONE) as ClaroResult.Ok).value
 
         val invoice = shop.api.invoice(catalogue.line, catalogue.products.single { it.topUp })
 
-        assertEquals(ClaroResult.Ok(ClaroInvoice(INVOICE, 250_000, TRANSACTION, SLUG)), invoice)
+        assertEquals(ClaroResult.Ok(ClaroInvoice(INVOICE, 250_000)), invoice)
         val order = assertNotNull(shop.sent("/paymentsMce").body)
         assertEquals(
             json("""{"xmei":"","phoneNumber":"71234567","amount":"5","channel":1,"lineofbusiness":"1"}"""),
@@ -234,14 +320,8 @@ class ClaroApiTest {
     @Test
     fun aCheckoutInvoiceIsOnlyTakenWhenItIsTheOrderThatWasPlaced() {
         fun invoice(checkout: String = checkout(), phone: String = PHONE, priceCents: Long = 550, now: Long = INVOICE_ISSUED_AT) =
-            claroCheckoutInvoice(
-                json(checkout),
-                ClaroOrderReference(TRANSACTION, SLUG),
-                phone,
-                priceCents,
-                now
-            )
-        val taken = ClaroInvoice(INVOICE, 250_000, TRANSACTION, SLUG)
+            claroCheckoutInvoice(json(checkout), phone, priceCents, now)
+        val taken = ClaroInvoice(INVOICE, 250_000)
 
         assertEquals(taken, invoice())
         // JSON may write the same amounts differently.
@@ -267,47 +347,6 @@ class ClaroApiTest {
     }
 
     @Test
-    fun thePaymentIsReadFromTheCheckoutTheOrderWasGiven() = runTest {
-        suspend fun payment(status: HttpStatusCode, body: String) =
-            Shop(mapOf("/api/v1/checkouts?slug=$SLUG" to (status to body))).api.payment(SLUG)
-        val ok = HttpStatusCode.OK
-
-        assertEquals(ClaroPayment.Paid, payment(ok, checkout(status = "FINALIZED")))
-        assertEquals(ClaroPayment.Expired, payment(ok, checkout(status = "EXPIRED")))
-        // Still waiting for the payment, and no word from BTCPaths.
-        assertEquals(ClaroPayment.Unknown, payment(ok, checkout()))
-        assertEquals(ClaroPayment.Unknown, payment(HttpStatusCode.Forbidden, "{}"))
-    }
-
-    @Test
-    fun onlyClarosOwnConfirmationCountsAsDelivered() = runTest {
-        val shop = Shop()
-        assertEquals(ClaroDelivery.Delivered, shop.api.delivery(PHONE, TRANSACTION))
-        // What Claro's own shop asks once the payment is through.
-        val asked = shop.sent("/bitcoinPayment/check-provision")
-        assertEquals(json("""{"numero":"71234567","transaccionId":"$TRANSACTION"}"""), asked.body)
-        assertEquals("SV", asked.country)
-
-        suspend fun delivery(status: HttpStatusCode, body: String) = Shop(
-            mapOf("/bitcoinPayment/check-provision" to (status to body)),
-            retries = true
-        ).api.delivery(PHONE, TRANSACTION)
-        val ok = HttpStatusCode.OK
-        // Whatever Claro answers instead is not a delivery, however it is worded.
-        val unconfirmed =
-            """{"ok":false,"data":{"payment":{"ok":false},"transaction":{"ok":false}}}"""
-        assertEquals(ClaroDelivery.NotConfirmed, delivery(ok, unconfirmed))
-        assertEquals(ClaroDelivery.NotConfirmed, delivery(ok, """{"ok":"true"}"""))
-        assertEquals(ClaroDelivery.NotConfirmed, delivery(ok, """{"isDone":true}"""))
-        assertEquals(
-            ClaroDelivery.NotConfirmed,
-            delivery(HttpStatusCode.NotFound, """{"ok":true}""")
-        )
-        // Claro being down says nothing about the order.
-        assertEquals(ClaroDelivery.NoAnswer, delivery(HttpStatusCode.BadGateway, "<html>"))
-    }
-
-    @Test
     fun aNumberIsReadAsSalvadoransWriteIt() {
         for (written in listOf("71234567", "7123 4567", "7123-4567", "+503 7123 4567", "50371234567")) {
             assertEquals("71234567", claroPhone(written), written)
@@ -322,6 +361,7 @@ class ClaroApiTest {
         const val PHONE = "71234567"
         const val SLUG = "0123456789abcdef0123456789ABCDEF"
         const val TRANSACTION = "MCE503000123"
+        const val CHECKOUT = "/api/v1/checkouts?slug=$SLUG"
 
         /** BOLT11's own example: 2,500 µBTC, issued at [INVOICE_ISSUED_AT], valid for a minute. */
         const val INVOICE = "lnbc2500u1pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs" +

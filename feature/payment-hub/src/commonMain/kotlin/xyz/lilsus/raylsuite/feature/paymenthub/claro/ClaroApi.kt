@@ -59,44 +59,13 @@ data class ClaroProduct(
 data class ClaroCatalogue(val line: ClaroLine, val products: List<ClaroProduct>)
 
 /** An unpaid invoice Claro's payment provider issued for one order. */
-data class ClaroInvoice(
-    val bolt11: String,
-    val amountSats: Long,
-    /** Claro's own name for the order; its delivery is asked about by it. */
-    val transactionId: String,
-    /** The checkout at Claro's payment provider; the payment is asked about by it. */
-    val checkout: String
-)
-
-/** The two names one order goes by: Claro's, and its payment provider's. */
-internal data class ClaroOrderReference(val transactionId: String, val checkout: String)
-
-/** What Claro's payment provider says about a checkout. */
-enum class ClaroPayment {
-    Paid,
-
-    /** Closed without a payment. */
-    Expired,
-
-    /** Still open, or no answer. */
-    Unknown
-}
-
-/** What Claro says about an order that was paid. */
-enum class ClaroDelivery {
-    Delivered,
-
-    /** Claro answered, and did not confirm the delivery. */
-    NotConfirmed,
-
-    /** Offline, or Claro is not answering. */
-    NoAnswer
-}
+data class ClaroInvoice(val bolt11: String, val amountSats: Long)
 
 /**
  * Claro El Salvador's own web shop API (paquetes2) and its Lightning checkout at BTCPaths, called
  * straight from the phone. Neither needs an account. Nothing here pays: an order only exists to
- * get the invoice the wallet then pays.
+ * get the invoice the wallet then pays, and once it has the invoice the app asks neither of them
+ * anything more about the order.
  */
 interface ClaroApi {
     /** Checks [phone] with Claro and reads what it sells to that number. */
@@ -105,13 +74,19 @@ interface ClaroApi {
     /** Orders [product] for [line] and returns the invoice that pays for it. */
     suspend fun invoice(line: ClaroLine, product: ClaroProduct): ClaroResult<ClaroInvoice>
 
-    /** Whether the [checkout] of an order was paid. Reads only. */
-    suspend fun payment(checkout: String): ClaroPayment
-
-    /** Whether Claro delivered a paid order, which is what its own shop asks after a payment. */
-    suspend fun delivery(phone: String, transactionId: String): ClaroDelivery
-
     fun close() {}
+}
+
+/**
+ * How long BTCPaths is left alone after it turned this app away. Every shop the app opens while
+ * it runs shares one: a new shop must not ask where the last one was just refused.
+ */
+class ClaroCheckoutPause {
+    internal var untilSeconds = 0L
+
+    internal companion object {
+        val shared = ClaroCheckoutPause()
+    }
 }
 
 /** The terms of Claro's web shop, which sells and delivers what this client orders. */
@@ -132,7 +107,8 @@ class KtorClaroApi(
     client: HttpClient = createHttpClient(),
     private val claroUrl: String = "https://api.paquetes2.miclaro.com.sv",
     private val checkoutUrl: String = "https://pl.btcpaths.com",
-    private val nowSeconds: () -> Long = { platformCurrentTimeMillis() / 1000 }
+    private val nowSeconds: () -> Long = { platformCurrentTimeMillis() / 1000 },
+    private val checkoutPause: ClaroCheckoutPause = ClaroCheckoutPause.shared
 ) : ClaroApi {
     // An answer is only ever taken from the host that was asked.
     private val client = client.config { followRedirects = false }
@@ -190,6 +166,8 @@ class KtorClaroApi(
         line: ClaroLine,
         product: ClaroProduct
     ): ClaroResult<ClaroInvoice> {
+        // An order placed now would be left at Claro without the invoice that pays for it.
+        if (nowSeconds() < checkoutPause.untilSeconds) return ClaroResult.Unavailable
         val item = product.item
         val price = item["price"].text() ?: return ClaroResult.Unavailable
         // The web shop starts every purchase as a card order and only then switches it to bitcoin.
@@ -229,47 +207,22 @@ class KtorClaroApi(
         val slug = claroCheckoutSlug(handoff.at("data", "url").text())
             ?: return ClaroResult.Unavailable
 
-        val checkout = send("$checkoutUrl/api/v1/checkouts?slug=$slug", browser = true)
-            ?.takeIf { it.ok }?.body as? JsonObject
+        val reply = send("$checkoutUrl/api/v1/checkouts?slug=$slug")
+        if (reply?.status == 403 || reply?.status == 429) {
+            // BTCPaths refuses or limits this app: it is not asked again for a while.
+            checkoutPause.untilSeconds = nowSeconds() +
+                (reply.retryAfterSeconds ?: CHECKOUT_PAUSE_SECONDS).coerceAtMost(MAX_PAUSE_SECONDS)
+        }
+        val checkout = reply?.takeIf { it.ok }?.body as? JsonObject
             ?: return ClaroResult.Unavailable
-        val order = ClaroOrderReference(transaction.text().orEmpty(), slug)
-        return claroCheckoutInvoice(checkout, order, line.phone, product.priceCents, nowSeconds())
+        return claroCheckoutInvoice(checkout, line.phone, product.priceCents, nowSeconds())
             ?.let { ClaroResult.Ok(it) }
             ?: ClaroResult.Unavailable
     }
 
-    override suspend fun payment(checkout: String): ClaroPayment {
-        val status = send("$checkoutUrl/api/v1/checkouts?slug=$checkout", browser = true)
-            ?.takeIf { it.ok }?.body.at("status").text()?.uppercase()
-        return when (status) {
-            "FINALIZED" -> ClaroPayment.Paid
-            "EXPIRED" -> ClaroPayment.Expired
-            else -> ClaroPayment.Unknown
-        }
-    }
-
-    override suspend fun delivery(phone: String, transactionId: String): ClaroDelivery {
-        val reply = send(
-            "$claroUrl/bitcoinPayment/check-provision",
-            buildJsonObject {
-                put("numero", phone)
-                put("transaccionId", transactionId)
-            },
-            country = true
-        )
-        return when {
-            reply == null || reply.status >= 500 -> ClaroDelivery.NoAnswer
-
-            reply.ok && reply.body.at("ok") == JsonPrimitive(true) -> ClaroDelivery.Delivered
-
-            // Whatever else Claro says, it is not a confirmation.
-            else -> ClaroDelivery.NotConfirmed
-        }
-    }
-
     override fun close() = client.close()
 
-    private class Reply(val status: Int, val body: JsonElement?) {
+    private class Reply(val status: Int, val body: JsonElement?, val retryAfterSeconds: Long?) {
         val ok get() = status in 200..299
     }
 
@@ -277,19 +230,14 @@ class KtorClaroApi(
     private suspend fun send(
         url: String,
         body: JsonObject? = null,
-        country: Boolean = false,
-        browser: Boolean = false
+        country: Boolean = false
     ): Reply? = try {
         val response = client.request(url) {
             method = if (body == null) HttpMethod.Get else HttpMethod.Post
             retry { noRetry() }
+            header(HttpHeaders.Accept, "application/json")
+            header(HttpHeaders.UserAgent, USER_AGENT)
             if (country) header("country", "SV")
-            if (browser) {
-                // BTCPaths answers 403 to a client that does not look like its own checkout page.
-                header(HttpHeaders.Accept, "application/json")
-                header(HttpHeaders.Referrer, "$checkoutUrl/")
-                header(HttpHeaders.UserAgent, "Mozilla/5.0 (Rayl)")
-            }
             if (body != null) {
                 contentType(ContentType.Application.Json)
                 setBody(body.toString())
@@ -297,7 +245,8 @@ class KtorClaroApi(
         }
         Reply(
             response.status.value,
-            runCatching { Json.parseToJsonElement(response.bodyAsText()) }.getOrNull()
+            runCatching { Json.parseToJsonElement(response.bodyAsText()) }.getOrNull(),
+            response.headers[HttpHeaders.RetryAfter]?.trim()?.toLongOrNull()?.takeIf { it >= 0 }
         )
     } catch (cancellation: CancellationException) {
         throw cancellation
@@ -390,7 +339,6 @@ internal fun claroCheckoutSlug(url: String?): String? = CHECKOUT_URL.matchEntire
  */
 internal fun claroCheckoutInvoice(
     checkout: JsonObject,
-    order: ClaroOrderReference,
     phone: String,
     priceCents: Long,
     nowSeconds: Long
@@ -419,7 +367,7 @@ internal fun claroCheckoutInvoice(
         nowSeconds + remaining
     )
     if (expiresAt - nowSeconds <= MIN_SECONDS_TO_PAY) return null
-    return ClaroInvoice(bolt11, (msat + 999) / 1000, order.transactionId, order.checkout)
+    return ClaroInvoice(bolt11, (msat + 999) / 1000)
 }
 
 /**
@@ -467,6 +415,17 @@ private val CHECKOUT_URL = Regex(
     """https://if\.btcpaths\.com/([a-fA-F0-9]{32})/?""" +
         """|https://pl\.btcpaths\.com/(?:api/v1/checkouts/?)?\?slug=([a-fA-F0-9]{32})"""
 )
+
+/**
+ * Who is asking, sent to Claro and to BTCPaths with every request, so that either can tell this
+ * app's requests apart and reach its maker. Neither has agreed to this client. BTCPaths answered
+ * 403 to a client that sent an HTTP library's default name.
+ */
+private const val USER_AGENT = "Mozilla/5.0 (Rayl; +mailto:rayl@nicolasusca.com)"
+
+/** How long BTCPaths is left alone when it does not say for how long itself. */
+private const val CHECKOUT_PAUSE_SECONDS = 15 * 60L
+private const val MAX_PAUSE_SECONDS = 60 * 60L
 
 /** Top-ups (recargas); the other groups are packages and promotions. */
 private const val TOP_UP_TYPE = "R"

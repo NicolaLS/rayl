@@ -14,10 +14,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroApi
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroCatalogue
-import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroDelivery
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroInvoice
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroLine
-import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroPayment
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroProduct
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.ClaroResult
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
@@ -33,23 +31,8 @@ class ClaroWidgetTest {
 
         /** What Claro answers an order with, once it answers. */
         var invoice = CompletableDeferred<ClaroResult<ClaroInvoice>>(ClaroResult.Ok(invoice()))
-        var payment = ClaroPayment.Unknown
-        var delivery = ClaroDelivery.NotConfirmed
         val asked = mutableListOf<String>()
         val orders = mutableListOf<Pair<String, String>>()
-
-        /** Every question about an order: `payment` with its checkout, `delivery` with its name. */
-        val followed = mutableListOf<String>()
-
-        override suspend fun payment(checkout: String): ClaroPayment {
-            followed += "payment $checkout"
-            return payment
-        }
-
-        override suspend fun delivery(phone: String, transactionId: String): ClaroDelivery {
-            followed += "delivery $phone $transactionId"
-            return delivery
-        }
 
         override suspend fun catalogue(phone: String): ClaroResult<ClaroCatalogue> {
             asked += phone
@@ -65,8 +48,6 @@ class ClaroWidgetTest {
     private class Hub(scope: TestScope, val settings: MapSettings = MapSettings()) {
         /** The wallet's own bitcoin price; at this one the USD 5 top-up is worth 5,000 sats. */
         var usdPerBitcoin: Double? = 100_000.0
-        var nowMs = 1_800_000_000_000
-        var sharesUsageData = true
         val api = FakeClaro()
 
         /** What reached the usage data, as `product step`. */
@@ -89,9 +70,7 @@ class ClaroWidgetTest {
                 assertEquals("hub_purchase", event.name)
                 assertEquals("claro", event.dimensions["service"])
                 reported += event.dimensions["product"] + " " + event.dimensions["step"]
-            },
-            sharesUsageData = { sharesUsageData },
-            clock = { nowMs }
+            }
         )
         val state get() = vm.state.value
         val paid = mutableListOf<String>()
@@ -285,154 +264,53 @@ class ClaroWidgetTest {
         hub.close()
     }
 
-    /** Buys [product] through the shop of a new widget. */
-    private suspend fun TestScope.buy(hub: Hub, product: ClaroProduct = TOP_UP) {
+    @Test
+    fun onceTheWalletHasTheInvoiceNobodyIsAskedAboutTheOrder() = runTest {
+        val hub = Hub(this)
         val widget = hub.placeWidget()
         advanceUntilIdle()
         hub.vm.openClaro(widget)
         advanceUntilIdle()
-        hub.vm.buyClaro(product.id)
+        hub.vm.buyClaro(PACK.id)
         advanceUntilIdle()
-    }
-
-    private fun TestScope.refresh(hub: Hub, afterMinutes: Int = 1) {
-        hub.nowMs += afterMinutes * 60_000L
-        hub.vm.refreshLive()
-        advanceUntilIdle()
-    }
-
-    @Test
-    fun aPurchaseIsFollowedToItsDeliveryAndReportedWithoutShowingAnything() = runTest {
-        val hub = Hub(this)
-        buy(hub, PACK)
-        assertEquals(listOf("package ordered"), hub.reported)
-
-        // The wallet is still paying.
-        refresh(hub)
-        assertEquals(listOf("payment $CHECKOUT"), hub.api.followed)
-        assertEquals(listOf("package ordered"), hub.reported)
-
-        // Paid; Claro needs a moment to deliver.
-        hub.api.payment = ClaroPayment.Paid
-        refresh(hub)
-        assertEquals(listOf("package ordered", "package paid"), hub.reported)
-        assertEquals(
-            listOf("payment $CHECKOUT", "payment $CHECKOUT", "delivery $PHONE $TRANSACTION"),
-            hub.api.followed
-        )
-
-        // A payment is reported once, however often its delivery is asked about.
-        hub.api.followed.clear()
-        refresh(hub)
-        assertEquals(listOf("delivery $PHONE $TRANSACTION"), hub.api.followed)
-        assertEquals(listOf("package ordered", "package paid"), hub.reported)
-
-        hub.api.delivery = ClaroDelivery.Delivered
-        refresh(hub)
-        assertEquals(listOf("package ordered", "package paid", "package delivered"), hub.reported)
-
-        // Its story is told: nobody is asked about it again, and the user saw none of it.
-        hub.api.followed.clear()
-        refresh(hub)
-        assertEquals(emptyList(), hub.api.followed)
-        assertEquals(HubClaroShop(), hub.state.claro)
-        assertEquals(emptyList(), DefaultPaymentHubRepository(hub.settings).hub.value.claroOrders)
-        hub.close()
-    }
-
-    @Test
-    fun anOrderIsStillFollowedAfterTheAppWasClosed() = runTest {
-        val before = Hub(this)
-        buy(before)
-        before.close()
-
-        val after = Hub(this, before.settings)
-        after.api.payment = ClaroPayment.Paid
-        after.api.delivery = ClaroDelivery.Delivered
-        refresh(after, afterMinutes = 600)
-
-        assertEquals(listOf("top_up paid", "top_up delivered"), after.reported)
-        assertEquals(
-            listOf("payment $CHECKOUT", "delivery $PHONE $TRANSACTION"),
-            after.api.followed
-        )
-        after.close()
-    }
-
-    @Test
-    fun nothingIsKeptOrAskedForSomeoneWhoDoesNotShareUsageData() = runTest {
-        val hub = Hub(this)
-        hub.sharesUsageData = false
-        buy(hub)
         assertEquals(listOf("lnbc1claro"), hub.paid)
-        assertEquals(emptyList(), hub.repository.hub.value.claroOrders)
 
-        // Turned off after ordering: the order that was kept goes, unasked.
-        hub.sharesUsageData = true
-        hub.api.invoice = CompletableDeferred(ClaroResult.Ok(invoice("lnbc1second")))
-        buy(hub)
-        assertEquals(1, hub.repository.hub.value.claroOrders.size)
-        hub.sharesUsageData = false
-        hub.api.payment = ClaroPayment.Paid
-        refresh(hub)
-
-        assertEquals(emptyList(), hub.api.followed)
-        assertEquals(emptyList(), hub.repository.hub.value.claroOrders)
-        hub.close()
-    }
-
-    @Test
-    fun aPaidOrderClaroDoesNotConfirmInTimeIsAFailedDelivery() = runTest {
-        val hub = Hub(this)
-        buy(hub)
-        hub.api.payment = ClaroPayment.Paid
-
-        refresh(hub, afterMinutes = 29)
-        assertEquals(listOf("top_up ordered", "top_up paid"), hub.reported)
-
-        // Claro being unreachable is not Claro failing to deliver.
-        hub.api.delivery = ClaroDelivery.NoAnswer
-        refresh(hub, afterMinutes = 5)
-        assertEquals(listOf("top_up ordered", "top_up paid"), hub.reported)
-
-        hub.api.delivery = ClaroDelivery.NotConfirmed
-        refresh(hub)
-        assertEquals(
-            listOf("top_up ordered", "top_up paid", "top_up delivery_failed"),
-            hub.reported
-        )
-
-        hub.api.followed.clear()
-        refresh(hub)
-        assertEquals(emptyList(), hub.api.followed)
-        hub.close()
-    }
-
-    @Test
-    fun anOrderThatWasNeverPaidIsDroppedWithoutAReport() = runTest {
-        // The checkout closed unpaid; and nobody could say for days what became of it.
-        val endings = listOf(ClaroPayment.Expired to 20, ClaroPayment.Unknown to 3 * 24 * 60 + 1)
-        for ((payment, minutes) in endings) {
-            val hub = Hub(this)
-            buy(hub)
-            hub.api.payment = payment
-
-            refresh(hub, afterMinutes = minutes)
-            hub.api.followed.clear()
-            refresh(hub)
-
-            assertEquals(emptyList(), hub.api.followed, payment.name)
-            assertEquals(listOf("top_up ordered"), hub.reported, payment.name)
-            hub.close()
+        // The Hub refreshes about once a minute, and again whenever it comes back (MOB-154).
+        repeat(3) {
+            hub.vm.refreshLive()
+            advanceUntilIdle()
         }
+
+        assertEquals(listOf(PHONE), hub.api.asked)
+        assertEquals(listOf(PHONE to PACK.id), hub.api.orders)
+        assertEquals(listOf("package ordered"), hub.reported)
+        hub.close()
+    }
+
+    @Test
+    fun ordersAnEarlierBuildKeptAreDroppedAndTheWidgetStays() = runTest {
+        // Builds before MOB-154 kept an order, with its number, to ask about it later.
+        val stored = """{"contacts":[],"actions":[],"widgets":[{"id":"widget:1",""" +
+            """"definitionId":"local.claro","kind":"Claro","variantId":"single","columns":1,""" +
+            """"rows":1,"capacity":1,"phone":"$PHONE"}],"claroOrders":[{"transactionId":"MCE1",""" +
+            """"checkout":"0123456789abcdef0123456789abcdef","phone":"$PHONE","topUp":true,""" +
+            """"orderedAt":1800000000000}]}"""
+        val settings = MapSettings("paymentHub.widgets.document" to stored)
+        val hub = Hub(this, settings)
+        advanceUntilIdle()
+
+        assertEquals(PHONE, hub.state.widgets.single().phone)
+        // The first change to the Hub writes the document anew, without them.
+        hub.placeWidget()
+        assertEquals(false, "claroOrders" in settings.getString("paymentHub.widgets.document", ""))
+        assertEquals(2, DefaultPaymentHubRepository(settings).hub.value.widgets.size)
+        hub.close()
     }
 
     private companion object {
         const val PHONE = "71234567"
-        const val TRANSACTION = "MCEPRD503000000000001"
-        const val CHECKOUT = "0123456789abcdef0123456789abcdef"
 
-        fun invoice(bolt11: String = "lnbc1claro", sats: Long = 5_000) = ClaroInvoice(bolt11, sats, TRANSACTION, CHECKOUT)
+        fun invoice(bolt11: String = "lnbc1claro", sats: Long = 5_000) = ClaroInvoice(bolt11, sats)
         val TOP_UP = ClaroProduct("R:R5:", "Recarga $5", "Saldo de $5", 500, true, JsonObject(emptyMap()))
         val PACK = ClaroProduct("P:INT:9002", "Internet 7 días", "6 GB", 550, false, JsonObject(emptyMap()))
     }

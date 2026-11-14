@@ -22,10 +22,6 @@ interface PaymentHubRepository {
     suspend fun arrangeWidgets(ids: List<String>)
     suspend fun saveContactAndWidget(address: LightningAddress, title: String): HubContact
     suspend fun recordSuccessfulPayment(id: HubItemId, paidAtMs: Long)
-
-    /** Keeps [order], replacing what was kept under its transaction. */
-    suspend fun saveClaroOrder(order: ClaroOrder)
-    suspend fun removeClaroOrder(transactionId: String)
 }
 
 data class HubWidgetDraft(
