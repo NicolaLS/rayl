@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.payment.BitcoinPriceProvider
 import xyz.lilsus.raylsuite.core.payment.LnurlPayClient
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubService
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentError
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentOutcome
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentSource
@@ -100,10 +101,13 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
             // An invoice a Hub widget obtained from its service is admitted like a scanned one,
             // but Auto Pay never pays it: one tap in a widget is not a scan.
             paymentHub.invoiceRequests.collect { invoice ->
-                startAttempt(TelemetryPaymentSource.Hub)
+                startAttempt(TelemetryPaymentSource.Hub, invoice.service)
                 launchOperation {
                     handleAdmissionResult(
-                        admission.handlePaymentInput(rawInput = invoice, isFromHubWidget = true)
+                        admission.handlePaymentInput(
+                            rawInput = invoice.bolt11,
+                            isFromHubWidget = true
+                        )
                     )
                 }
             }
@@ -209,8 +213,8 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
     }
 
     /** Admission ignores input while something else is on screen; so does usage data. */
-    private fun startAttempt(source: TelemetryPaymentSource) {
-        if (presentation.uiState.value == PaymentUiState.Active) telemetry.started(source)
+    private fun startAttempt(source: TelemetryPaymentSource, service: TelemetryHubService? = null) {
+        if (presentation.uiState.value == PaymentUiState.Active) telemetry.started(source, service)
     }
 
     private suspend fun handleAdmissionResult(result: AdmissionResult) {

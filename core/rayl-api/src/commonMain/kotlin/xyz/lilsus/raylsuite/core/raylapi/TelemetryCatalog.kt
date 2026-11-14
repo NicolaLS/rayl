@@ -190,7 +190,8 @@ enum class TelemetryFakeDoorAction(override val wire: String) : TelemetryValue {
 
 /** A service a Hub widget buys from. */
 enum class TelemetryHubService(override val wire: String) : TelemetryValue {
-    Claro("claro")
+    Claro("claro"),
+    Ppq("ppq")
 }
 
 /** The kind of thing bought, never which one or for how much. */
@@ -200,8 +201,8 @@ enum class TelemetryHubProduct(override val wire: String) : TelemetryValue {
 }
 
 /**
- * How far a purchase got. Each step is an event of its own, sent when the app learns of it, so a
- * delivered purchase was reported as [Ordered], [Paid] and [Delivered].
+ * How far a purchase got. Each step is an event of its own. Whether the wallet then paid is the
+ * `payment` event's, with its `service`.
  */
 enum class TelemetryHubPurchaseStep(override val wire: String) : TelemetryValue {
     /** The service gave no invoice the wallet could be handed. */
@@ -210,13 +211,13 @@ enum class TelemetryHubPurchaseStep(override val wire: String) : TelemetryValue 
     /** The service's invoice was handed to the wallet. */
     Ordered("ordered"),
 
-    /** The service received the payment. */
+    /** The service received the payment. Sent by 1.3.0 and earlier only (MOB-154). */
     Paid("paid"),
 
-    /** The service confirmed that it delivered what was paid for. */
+    /** The service confirmed the delivery. Sent by 1.3.0 and earlier only (MOB-154). */
     Delivered("delivered"),
 
-    /** Paid, and the service did not confirm delivery in time. */
+    /** Paid, and not confirmed in time. Sent by 1.3.0 and earlier only (MOB-154). */
     DeliveryFailed("delivery_failed")
 }
 
@@ -284,6 +285,8 @@ object TelemetryCatalog {
         dimensions = mapOf(
             WALLET to TelemetryWallet.entries,
             "source" to TelemetryPaymentSource.entries,
+            // The service whose invoice a Hub widget handed over; absent for every other payment.
+            "service" to TelemetryHubService.entries,
             "confirmation" to TelemetryPaymentConfirmation.entries,
             "outcome" to TelemetryPaymentOutcome.entries,
             "error" to TelemetryPaymentError.entries,

@@ -666,7 +666,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "Ordered: Claro's invoice was handed to the wallet. Paid: Claro's payment provider received the payment. Delivered: Claro confirmed it. The app asks quietly whenever the Hub is on screen, so a step can be counted hours after it happened.",
+      "description": "Ordered: Claro's invoice was handed to the wallet. Paid: the wallet paid it. Whether Claro then delivered is not known: the app asks Claro nothing after the hand-over (MOB-154).",
       "gridPos": {
         "h": 8,
         "w": 10,
@@ -683,7 +683,7 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select step, purchases from (\n  select case dimensions->>'step'\n      when 'ordered' then '1 Ordered' when 'paid' then '2 Paid' when 'delivered' then '3 Delivered' end as step,\n    count(*) as purchases\n  from telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) and dimensions->>'step' in ('ordered', 'paid', 'delivered') group by 1\n) steps order by 1"
+          "rawSql": "select step, purchases from (\n  select '1 Ordered' as step, count(*) as purchases from telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) and dimensions->>'step' = 'ordered'\n  union all\n  select '2 Paid', count(*) from telemetry_events where name = 'payment' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) and dimensions->>'outcome' = 'paid'\n) steps order by 1"
         }
       ],
       "fieldConfig": {
@@ -713,13 +713,13 @@
     },
     {
       "type": "stat",
-      "title": "Bought",
+      "title": "Paid",
       "id": 17,
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "Purchases Claro was paid for: top-ups and packages together.",
+      "description": "Claro invoices the wallet paid: top-ups and packages together.",
       "gridPos": {
         "h": 4,
         "w": 3,
@@ -736,7 +736,7 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select count(*) filter (where dimensions->>'step' = 'paid') from telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+          "rawSql": "select count(*) from telemetry_events where name = 'payment' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) and dimensions->>'outcome' = 'paid'"
         }
       ],
       "fieldConfig": {
@@ -759,13 +759,13 @@
     },
     {
       "type": "stat",
-      "title": "Delivered",
+      "title": "Not paid",
       "id": 18,
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "Paid purchases Claro confirmed as delivered.",
+      "description": "The user saw the amount and closed the confirmation.",
       "gridPos": {
         "h": 4,
         "w": 3,
@@ -782,7 +782,7 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select count(*) filter (where dimensions->>'step' = 'delivered') from telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+          "rawSql": "select count(*) from telemetry_events where name = 'payment' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) and dimensions->>'outcome' = 'dismissed'"
         }
       ],
       "fieldConfig": {
@@ -805,13 +805,13 @@
     },
     {
       "type": "stat",
-      "title": "Delivery failed",
+      "title": "Payment failed",
       "id": 19,
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "Paid, and Claro had not confirmed the delivery half an hour after the order. Anything but Claro's confirmation counts.",
+      "description": "The wallet could not pay the invoice, refused it before paying, or does not know whether it went through.",
       "gridPos": {
         "h": 4,
         "w": 3,
@@ -828,53 +828,7 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select count(*) filter (where dimensions->>'step' = 'delivery_failed') from telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "value"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Not confirmed yet",
-      "id": 20,
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "rayl-usage-data"
-      },
-      "description": "Paid minus delivered minus failed: the app has not been able to ask Claro yet, or the Hub was not opened again. Worked out, not reported.",
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 19,
-        "y": 31
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "rayl-usage-data"
-          },
-          "format": "table",
-          "rawQuery": true,
-          "editorMode": "code",
-          "rawSql": "select greatest(count(*) filter (where dimensions->>'step' = 'paid') - count(*) filter (where dimensions->>'step' = 'delivered') - count(*) filter (where dimensions->>'step' = 'delivery_failed'), 0) from telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring})"
+          "rawSql": "select count(*) from telemetry_events where name = 'payment' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) and dimensions->>'outcome' in ('failed', 'rejected', 'unknown')"
         }
       ],
       "fieldConfig": {
@@ -903,11 +857,11 @@
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "Someone pressed pay and got no invoice: Claro or its payment provider failed, or the invoice was more than 5% above the price at the wallet's own rate.",
+      "description": "Someone pressed pay and got no invoice: Claro or its payment provider failed, or the invoice was more than 5% above the price at the wallet's own rate. Also while the app leaves BTCPaths alone after it refused the app.",
       "gridPos": {
         "h": 4,
-        "w": 2,
-        "x": 22,
+        "w": 5,
+        "x": 19,
         "y": 31
       },
       "targets": [
@@ -949,7 +903,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "The same counts by what was bought. Which package and for how much is never reported.",
+      "description": "Orders by what was bought. Which package and for how much is never reported; whether it was paid is not split by product.",
       "gridPos": {
         "h": 4,
         "w": 14,
@@ -966,7 +920,7 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select dimensions->>'product' as product,\n  count(*) filter (where dimensions->>'step' = 'ordered') as \"ordered\",\n  count(*) filter (where dimensions->>'step' = 'paid') as \"bought\",\n  count(*) filter (where dimensions->>'step' = 'delivered') as \"delivered\",\n  count(*) filter (where dimensions->>'step' = 'delivery_failed') as \"delivery failed\",\n  round(100.0 * count(*) filter (where dimensions->>'step' = 'delivered') / nullif(count(*) filter (where dimensions->>'step' = 'paid'), 0), 1) as \"delivered %\"\nfrom telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 3 desc"
+          "rawSql": "select dimensions->>'product' as product,\n  count(*) filter (where dimensions->>'step' = 'ordered') as \"ordered\",\n  count(*) filter (where dimensions->>'step' = 'order_failed') as \"could not order\"\nfrom telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) group by 1 order by 2 desc"
         }
       ],
       "fieldConfig": {
@@ -983,7 +937,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "rayl-usage-data"
       },
-      "description": "By the day the app reported the step, which can be later than the day it happened.",
+      "description": "Ordered and paid, by the day the app reported them.",
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -1000,7 +954,7 @@
           "format": "time_series",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select date_trunc('day', received_hour) as time,\n  case dimensions->>'step' when 'paid' then 'bought' when 'delivered' then 'delivered' when 'delivery_failed' then 'delivery failed' end as metric,\n  count(*) as value\nfrom telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) and dimensions->>'step' in ('paid', 'delivered', 'delivery_failed') group by 1, 2 order by 1"
+          "rawSql": "select date_trunc('day', received_hour) as time, 'ordered' as metric, count(*) as value\nfrom telemetry_events where name = 'hub_purchase' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) and dimensions->>'step' = 'ordered' group by 1\nunion all\nselect date_trunc('day', received_hour), 'paid', count(*)\nfrom telemetry_events where name = 'payment' and dimensions->>'service' = 'claro' and $__timeFilter(received_hour) and platform in (${platform:sqlstring}) and dimensions->>'outcome' = 'paid' group by 1\norder by 1"
         }
       ],
       "fieldConfig": {

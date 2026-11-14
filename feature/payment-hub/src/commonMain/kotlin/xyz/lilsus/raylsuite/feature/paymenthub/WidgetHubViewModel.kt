@@ -526,7 +526,7 @@ class WidgetHubViewModel(
                     }
                 }
             }
-            (result as? PpqResult.Ok)?.let { host.payInvoice(it.value) }
+            (result as? PpqResult.Ok)?.let { host.payInvoice(it.value, TelemetryHubService.Ppq) }
         }
     }
 
@@ -586,7 +586,7 @@ class WidgetHubViewModel(
                 reportClaro(product.topUp, TelemetryHubPurchaseStep.Ordered)
                 claroLine = null
                 updateClaro { HubClaroShop() }
-                host.payInvoice(invoice.bolt11)
+                host.payInvoice(invoice.bolt11, TelemetryHubService.Claro)
             }
         }
     }

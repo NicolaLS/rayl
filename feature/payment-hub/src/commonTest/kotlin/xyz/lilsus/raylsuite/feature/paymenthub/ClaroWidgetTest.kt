@@ -76,7 +76,7 @@ class ClaroWidgetTest {
         val paid = mutableListOf<String>()
 
         // Collected in the foreground: runTest does not run to idle for background work alone.
-        val paying = scope.launch(dispatcher) { host.invoiceRequests.collect { paid += it } }
+        val paying = scope.launch(dispatcher) { host.invoiceRequests.collect { paid += it.bolt11 } }
 
         suspend fun placeWidget(phone: String? = PHONE): String = checkNotNull(
             repository.saveWidget(

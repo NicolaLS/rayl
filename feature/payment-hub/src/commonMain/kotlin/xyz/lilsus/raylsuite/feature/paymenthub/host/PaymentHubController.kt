@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.core.model.LightningAddress
 import xyz.lilsus.raylsuite.core.payment.BitcoinPriceHistoryProvider
 import xyz.lilsus.raylsuite.core.payment.BitcoinPriceProvider
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubService
 import xyz.lilsus.raylsuite.feature.paymenthub.DirectTargetAmountRule
 import xyz.lilsus.raylsuite.feature.paymenthub.HubItemId
 import xyz.lilsus.raylsuite.feature.paymenthub.PaymentHubRepository
@@ -40,10 +41,10 @@ class PaymentHubController(
     val paymentRequests: SharedFlow<DirectTargetPaymentIntent> =
         mutablePaymentRequests.asSharedFlow()
 
-    private val mutableInvoiceRequests = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private val mutableInvoiceRequests = MutableSharedFlow<HubInvoice>(extraBufferCapacity = 1)
 
     /** BOLT11 invoices to pay like a scanned invoice, but always confirmed: Auto Pay skips them. */
-    val invoiceRequests: SharedFlow<String> = mutableInvoiceRequests.asSharedFlow()
+    val invoiceRequests: SharedFlow<HubInvoice> = mutableInvoiceRequests.asSharedFlow()
 
     private val hub get() = repository.hub.value
     private var saving = false
@@ -70,10 +71,10 @@ class PaymentHubController(
         }
     }
 
-    /** Hands an invoice a widget obtained from its service to the wallet's payment flow. */
-    fun payInvoice(invoice: String) {
+    /** Hands an invoice a widget obtained from [service] to the wallet's payment flow. */
+    fun payInvoice(invoice: String, service: TelemetryHubService) {
         mutableState.update { it.copy(scannerRequested = false) }
-        mutableInvoiceRequests.tryEmit(invoice)
+        mutableInvoiceRequests.tryEmit(HubInvoice(invoice, service))
     }
 
     /** Reports a terminal successful wallet payment that was started from [targetId]. */
@@ -169,3 +170,6 @@ data class DirectTargetPaymentIntent(
     val amountRule: DirectTargetAmountRule,
     val comment: String?
 )
+
+/** A BOLT11 invoice a Hub widget obtained, and the service that issued it. */
+data class HubInvoice(val bolt11: String, val service: TelemetryHubService)

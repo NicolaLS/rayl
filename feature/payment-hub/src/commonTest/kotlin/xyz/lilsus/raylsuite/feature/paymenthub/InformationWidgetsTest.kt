@@ -398,7 +398,7 @@ class InformationWidgetsTest {
         val second = hub.addPpq("sk-other")
         val invoices = mutableListOf<String>()
         // Collected in the foreground: runTest does not run to idle for background work alone.
-        val collecting = launch(hub.dispatcher) { hub.host.invoiceRequests.collect { invoices += it } }
+        val collecting = launch(hub.dispatcher) { hub.host.invoiceRequests.collect { invoices += it.bolt11 } }
 
         hub.vm.topUpPpq(second, "25")
         assertEquals(true, hub.state.ppqAccount(second).toppingUp)
@@ -419,7 +419,7 @@ class InformationWidgetsTest {
         val hub = Hub(this)
         val id = hub.addPpq("sk-good")
         val invoices = mutableListOf<String>()
-        val collecting = launch(hub.dispatcher) { hub.host.invoiceRequests.collect { invoices += it } }
+        val collecting = launch(hub.dispatcher) { hub.host.invoiceRequests.collect { invoices += it.bolt11 } }
         advanceUntilIdle()
 
         for (amount in listOf("", "0.09", "1000.01", "abc")) {

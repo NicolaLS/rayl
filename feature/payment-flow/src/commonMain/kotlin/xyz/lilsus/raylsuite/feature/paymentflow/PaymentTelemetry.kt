@@ -1,6 +1,7 @@
 package xyz.lilsus.raylsuite.feature.paymentflow
 
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryCatalog
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubService
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryOnboardingStep
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentConfirmation
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentError
@@ -16,7 +17,8 @@ import xyz.lilsus.raylsuite.core.telemetry.TracePoint
 
 /**
  * Follows one payment attempt through the shared flow and reports it as one `payment` event:
- * where it came from, how it was confirmed, how it ended, and how long the machine stages took.
+ * where it came from (for a Hub widget's invoice, also the service that issued it), how it was
+ * confirmed, how it ended, and how long the machine stages took.
  * It is handed stages and categories only, never an amount, an invoice or a recipient.
  *
  * The defaults read the process-wide clock and state; tests replace them.
@@ -36,10 +38,11 @@ class PaymentTelemetry(
 ) {
     private var attempt: Attempt? = null
 
-    internal fun started(source: TelemetryPaymentSource) {
+    internal fun started(source: TelemetryPaymentSource, service: TelemetryHubService? = null) {
         val scanned = source == TelemetryPaymentSource.Scan
         attempt = Attempt(
             source = source,
+            service = service,
             qrMs = if (scanned) latestQrMs() else null,
             cameraMs = if (scanned) latestCameraFrameMs() else null
         )
@@ -111,14 +114,15 @@ class PaymentTelemetry(
         recorder.record(
             telemetryEvent(
                 TelemetryCatalog.payment,
-                dimensions = mapOf(
+                dimensions = listOfNotNull(
                     TelemetryCatalog.WALLET to wallet(),
                     "source" to attempt.source,
+                    attempt.service?.let { "service" to it },
                     "confirmation" to attempt.confirmation,
                     "outcome" to outcome,
                     "error" to error,
                     "first_in_launch" to if (first) TelemetryYesNo.Yes else TelemetryYesNo.No
-                ),
+                ).toMap(),
                 measures = mapOf(
                     "qr_to_admitted_ms" to
                         attempt.admittedMs.takeIf { admittedByMachine }.since(attempt.qrMs),
@@ -144,6 +148,7 @@ class PaymentTelemetry(
 
     private class Attempt(
         val source: TelemetryPaymentSource,
+        val service: TelemetryHubService?,
         val qrMs: Long?,
         /** When the scanner that read the code got its first frame. */
         val cameraMs: Long?

@@ -33,6 +33,7 @@ import xyz.lilsus.raylsuite.core.payment.LnurlPayMetadata
 import xyz.lilsus.raylsuite.core.payment.LnurlPayParams
 import xyz.lilsus.raylsuite.core.payment.LnurlResult
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryEvent
+import xyz.lilsus.raylsuite.core.raylapi.TelemetryHubService
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryPaymentError
 import xyz.lilsus.raylsuite.core.raylapi.TelemetryWallet
 import xyz.lilsus.raylsuite.core.ui.platform.HapticFeedbackManager
@@ -469,7 +470,7 @@ class PaymentFlowCoordinatorTest {
         // A Claro or ppq.ai invoice is paid only after the user has seen its amount in sats:
         // Auto Pay is for scans, not for one tap in a widget. Usage data counts it as started
         // from the Hub.
-        hub.payInvoice(invoice(sats = 500).write())
+        hub.payInvoice(invoice(sats = 500).write(), TelemetryHubService.Claro)
         testScheduler.advanceUntilIdle()
 
         assertIs<PaymentUiState.Confirm>(coordinator.uiState.value)
@@ -480,6 +481,10 @@ class PaymentFlowCoordinatorTest {
         assertEquals(1, settlement.settled.size)
         assertIs<PaymentUiState.Success>(coordinator.uiState.value)
         assertEquals("hub", events.single().dimensions["source"])
+        // Which service's invoice was paid: the only word on it, since the app asks the service
+        // nothing after the hand-over (MOB-154).
+        assertEquals("claro", events.single().dimensions["service"])
+        assertEquals("paid", events.single().dimensions["outcome"])
     }
 
     private class Flow(val test: TestScope) {
