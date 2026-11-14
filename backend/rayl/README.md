@@ -42,9 +42,11 @@ limiters live in the one running instance; with more than one replica each would
 A request says nothing about how much it stores, so two limits bound that instead. A batch holds
 at most 100 events, what one app buffers in a process, which is about 60 kB stored; at the limit
 over all senders that is still more a minute than the 90-day expiry removes, so events stop being
-stored once the three usage-data tables reach 2 GB of the volume's 5 GB. Requests are still
+stored once the three usage-data tables reach 3 GB of the volume's 5 GB. Requests are still
 answered 204: an app must not retry what this backend will not keep. The rest of the volume is
-left for feedback, WAL and vacuum.
+not spare. A Postgres whose volume is full cannot even delete, because a delete writes WAL first:
+in a test it crashed on the cleanup and stayed down. The 2 GB keep it able to clean up, and keep
+feedback working. `tools/daily/daily.sh` says how full it is.
 
 The per-day figures are never deleted, so a day is folded into at most the 20 app versions that
 sent the most, the rest together as `other`, and the 500 commonest groups per kind of event. Real

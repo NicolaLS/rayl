@@ -132,8 +132,12 @@ class PostgresTelemetryStore(
         private const val ROLLUP_DAYS = 7L
         private const val SECONDS_PER_DAY = 86_400L
 
-        /** Two of the volume's five gigabytes, leaving the rest for feedback, WAL and vacuum. */
-        private const val DEFAULT_MAX_STORAGE_BYTES = 2L * 1024 * 1024 * 1024
+        /**
+         * Three of the volume's five gigabytes. The rest is not spare: a Postgres whose volume
+         * is full cannot even delete, because a delete writes WAL first, so it has to stay free
+         * for WAL, vacuum and feedback.
+         */
+        private const val DEFAULT_MAX_STORAGE_BYTES = 3L * 1024 * 1024 * 1024
 
         /** Two platforms times the few versions ever in the wild at once, with room to spare. */
         private const val DEFAULT_MAX_ROLLUP_VERSIONS = 20
