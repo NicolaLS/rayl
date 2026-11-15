@@ -1,0 +1,46 @@
+# Rayl on Zapstore (https://zapstore.dev). Zapstore publishes every stable GitHub release
+# (tag vX.Y.Z, not marked pre-release) under the developer's verified Nostr key. The release
+# body becomes the release notes. Read by `zsp`; unknown fields are errors.
+repository: https://github.com/NicolaLS/rayl
+release_filter: '^v[0-9]+\.[0-9]+\.[0-9]+$'
+match: '^rayl-[0-9]+\.[0-9]+\.[0-9]+\.apk$'
+
+name: Rayl
+summary: A calmer, faster way to pay with Bitcoin.
+description: |
+  Rayl is a Bitcoin wallet built around paying. Pay Lightning invoices, send to contacts, and
+  keep your everyday payments close at hand, without the clutter.
+
+  ## Ready to pay
+
+  Open Rayl and point your phone toward an invoice. Scanning starts automatically, with the
+  camera preview hidden to keep the screen clear. There is no scan button to find or camera
+  screen to open.
+
+  ## Confirmation, your way
+
+  Choose an amount below which invoices are paid automatically, without a confirmation tap.
+  Larger payments ask for your approval. Prefer to approve every payment? Keep confirmation on.
+
+  ## A Hub that feels like yours
+
+  Build your personal payment space with contact widgets, preset-amount shortcuts, and smart
+  widgets for favorites and recents. Add people or businesses by Lightning address, or import
+  your contacts from Blink.
+
+  ## A wallet that is yours
+
+  Rayl comes with its own self-custodial wallet, secured by a passkey. There is no recovery
+  phrase to write down and no Rayl account: your passkey is your backup, so keep it safe. Add
+  funds from any Lightning wallet.
+
+  Already have a wallet? Connect Blink, a Nostr Wallet Connect (NWC) wallet, or a Spark wallet
+  instead, and pay with it the same way.
+
+  Rayl is free to use and adds no payment fees. Wallet or network fees may still apply.
+license: MIT
+tags: [bitcoin, lightning, wallet, payments]
+icon: ./distribution/store-listing/icon.png
+supported_nips: ["47"]
+# The listing comes from this file only; GitHub's repository metadata is not Rayl's store text.
+metadata_sources: []

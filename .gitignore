@@ -33,6 +33,8 @@ dist/
 *.keystore
 *.p12
 *.mobileprovision
+# zsp (Zapstore) reads its Nostr signer, SIGN_WITH, from here.
+.env
 
 # Local Firebase configuration is never part of a release by file presence alone.
 app/androidApp/**/google-services.json
