@@ -57,11 +57,12 @@ internal class PaymentPresentationPhase(private val currencyManager: PaymentCurr
             )
     }
 
+    /** Shows [error] on its own result screen, which the user dismisses; no toast repeats it. */
     fun presentError(error: PaymentUiError) {
         mutableUiState.value = PaymentUiState.Error(error)
-        emitErrorEvent(error)
     }
 
+    /** Toasts [error] for a minor failure that should not stop the user, such as a missing quote. */
     fun emitErrorEvent(error: PaymentUiError) {
         mutableEvents.tryEmit(PaymentEvent.ShowError(error))
     }

@@ -14,6 +14,7 @@ import fr.acinq.lightning.utils.msat
 import fr.acinq.lightning.utils.toByteVector32
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -144,6 +145,20 @@ class PaymentFlowCoordinatorTest {
 
         assertEquals(PaymentEvent.ShowToast(PaymentToastMessage.NotLightning), shown.await())
         assertEquals(PaymentUiState.Active, coordinator.uiState.value)
+    }
+
+    @Test
+    fun anErrorWithItsOwnScreenIsNotAlsoToasted() = flowTest {
+        // The error screen already says it; a toast repeating it on top looked broken.
+        val shown = test.backgroundScope.async { coordinator.events.first() }
+        testScheduler.advanceUntilIdle()
+        settlement.outcome = SettlementOutcome.Unknown(PaymentUiError.NetworkUnavailable)
+
+        scan(invoice(sats = 100))
+
+        testScheduler.runCurrent() // advanceUntilIdle leaves background collectors behind
+        assertEquals(PaymentUiState.Error(PaymentUiError.NetworkUnavailable), coordinator.uiState.value)
+        assertFalse(shown.isCompleted)
     }
 
     @Test
