@@ -16,6 +16,7 @@ enum class PaymentUiTextKey(override val key: String) : LocalizedTextKey {
     ToastBitcoinAddress("toast_bitcoin_address"),
     ToastBolt12NotSupported("toast_bolt12_not_supported"),
     ToastLnurlRequestNotSupported("toast_lnurl_request_not_supported"),
+    ToastNotLightning("toast_not_lightning"),
     TransactionFee("transaction_fee"),
     TransactionStatusAlreadyPaid("transaction_status_already_paid"),
     TransactionStatusFailure("transaction_status_failure"),

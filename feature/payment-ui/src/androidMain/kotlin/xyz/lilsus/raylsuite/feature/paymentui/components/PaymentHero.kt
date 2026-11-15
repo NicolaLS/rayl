@@ -12,7 +12,8 @@ import xyz.lilsus.raylsuite.feature.paymentui.R
 fun PaymentHero(
     phase: RaylHeroPhase,
     modifier: Modifier = Modifier,
-    receiptPreimage: String? = null
+    receiptPreimage: String? = null,
+    rejections: Int = 0
 ) {
     val qrContent =
         receiptPreimage
@@ -29,6 +30,7 @@ fun PaymentHero(
     RaylHero(
         phase = phase,
         modifier = modifier,
-        qrContent = qrContent
+        qrContent = qrContent,
+        rejections = rejections
     )
 }

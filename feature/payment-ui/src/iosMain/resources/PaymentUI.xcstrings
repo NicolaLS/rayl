@@ -1404,6 +1404,29 @@
         }
       }
     },
+    "toast_not_lightning" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Code ist keine Lightning-Rechnung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This code is not a Lightning invoice."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este código no es una factura Lightning."
+          }
+        }
+      }
+    },
     "view_session_transactions" : {
       "extractionState" : "stale",
       "localizations" : {

@@ -258,8 +258,11 @@ internal class PaymentAdmissionPhase(
             is LightningInputParser.FailureReason.InvalidInvoice ->
                 presentation.presentError(PaymentUiError.InvalidInvoice(reason.reason))
 
-            LightningInputParser.FailureReason.Empty,
-            LightningInputParser.FailureReason.Unrecognized -> Unit
+            // A scanner without a viewfinder must answer every code it reads, or it looks broken.
+            LightningInputParser.FailureReason.Unrecognized ->
+                presentation.showToast(PaymentToastMessage.NotLightning)
+
+            LightningInputParser.FailureReason.Empty -> Unit
         }
     }
 

@@ -41,12 +41,22 @@ internal class RaylHeroAnimationState(
         List(arcs.size) { Animatable(Offset(0f, 0f), Offset.VectorConverter) }
     private val bitOpacityAnims = List(RaylHeroGeometry.DATA_BIT_COUNT) { Animatable(1f) }
 
+    // The rejection nudge is added on top of the phase, so neither ever interrupts the other.
+    private val nudgeAnim = Animatable(0f)
+    private val nudgeShakeAnim = Animatable(0f)
+    private val nudgedArcOffsets = arcs.map { spec ->
+        Offset(
+            stepTowardCenter(spec.x, spec.length, RaylHeroGeometry.ARC_COMPRESSION_FRACTION),
+            stepTowardCenter(spec.y, spec.length, RaylHeroGeometry.ARC_COMPRESSION_FRACTION)
+        )
+    }
+
     val color: Color
         get() = colorAnim.value
     val clusterScale: Float
         get() = clusterScaleAnim.value
     val clusterShakeX: Float
-        get() = clusterShakeAnim.value
+        get() = clusterShakeAnim.value + nudgeShakeAnim.value
     val rotation: Float
         get() = rotationAnim.value
     val boltScale: Float
@@ -56,7 +66,8 @@ internal class RaylHeroAnimationState(
 
     fun squareOffset(index: Int): Offset = squareOffsetAnims[index].value
 
-    fun arcOffset(index: Int): Offset = arcOffsetAnims[index].value
+    fun arcOffset(index: Int): Offset =
+        arcOffsetAnims[index].value + nudgedArcOffsets[index] * nudgeAnim.value
 
     fun bitOpacity(index: Int): Float = bitOpacityAnims[index].value
 
@@ -74,6 +85,35 @@ internal class RaylHeroAnimationState(
             RaylHeroPhase.Processing -> animateToLoading()
             RaylHeroPhase.Succeeded -> animateToResult(isSuccess = true)
             RaylHeroPhase.Failed -> animateToResult(isSuccess = false)
+        }
+    }
+
+    /** An input was turned away: the corners close in on the code, then let go with a shake. */
+    suspend fun nudge() = coroutineScope {
+        launch {
+            nudgeAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = keyframes {
+                    durationMillis = NUDGE_DURATION_MS
+                    0f at 0 using EaseInOutCubic
+                    1f at 150
+                    1f at 250 using EaseInOutCubic
+                }
+            )
+        }
+        launch {
+            nudgeShakeAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = keyframes {
+                    durationMillis = NUDGE_DURATION_MS
+                    0f at 200
+                    -6f at 250
+                    6f at 300
+                    -4f at 350
+                    4f at 400
+                    0f at 500
+                }
+            )
         }
     }
 
@@ -367,6 +407,8 @@ internal class RaylHeroAnimationState(
         }
     }
 }
+
+private const val NUDGE_DURATION_MS = 600
 
 private fun stepTowardCenter(value: Float, size: Float, step: Float): Float {
     val center = value + size / 2f

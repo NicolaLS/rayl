@@ -5,6 +5,8 @@ import xyz.lilsus.raylsuite.core.ui.resources.LocalizedText
 fun PaymentToastMessage.localizedText(): LocalizedText = LocalizedText(textKey())
 
 internal fun PaymentToastMessage.textKey(): PaymentUiTextKey = when (this) {
+    PaymentToastMessage.NotLightning -> PaymentUiTextKey.ToastNotLightning
+
     PaymentToastMessage.BitcoinAddressNotSupported ->
         PaymentUiTextKey.ToastBitcoinAddress
 

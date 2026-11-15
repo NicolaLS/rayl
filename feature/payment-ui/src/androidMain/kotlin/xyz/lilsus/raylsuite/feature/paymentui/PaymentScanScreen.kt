@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -65,7 +66,7 @@ import xyz.lilsus.raylsuite.feature.paymentui.components.ResultLayout
 @Composable
 fun PaymentScanScreen(
     state: PaymentFlowState,
-    messageEvents: Flow<String>,
+    messageEvents: Flow<PaymentMessage>,
     appTitle: String,
     savePrompt: HubSavePrompt?,
     onIntent: (PaymentIntent) -> Unit,
@@ -137,8 +138,12 @@ fun PaymentScanScreen(
         }
     }
 
+    var inputRejections by remember { mutableIntStateOf(0) }
     LaunchedEffect(messageEvents) {
-        messageEvents.collectLatest(snackbarHostState::showSnackbar)
+        messageEvents.collectLatest { message ->
+            if (message.rejectsInput) inputRejections++
+            snackbarHostState.showSnackbar(message.text)
+        }
     }
 
     LaunchedEffect(state.transactionDetailNavigationTarget) {
@@ -260,7 +265,8 @@ fun PaymentScanScreen(
         ) {
             PaymentHero(
                 modifier = Modifier.fillMaxWidth().fillMaxHeight(0.5f),
-                phase = state.payment.toHeroPhase()
+                phase = state.payment.toHeroPhase(),
+                rejections = inputRejections
             )
             Crossfade(targetState = contentState) { current ->
                 when {

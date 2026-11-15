@@ -64,6 +64,8 @@ private final class NativePaymentScanModel: ObservableObject {
     @Published private(set) var snapshot: NativePaymentScanSnapshot?
     @Published var message: String?
     @Published private(set) var recentSnapshot: NativePaymentRecentSnapshot?
+    /// Inputs turned away so far; the hero answers each one.
+    @Published private(set) var inputRejections = 0
 
     var recentTransactionId: String? { recentSnapshot?.selectedDetail?.id }
 
@@ -84,8 +86,9 @@ private final class NativePaymentScanModel: ObservableObject {
         })
         cancels.append(controller.observeMessages { [weak self] message in
             guard let self else { return }
+            if message.rejectsInput { inputRejections += 1 }
             messageDismissTask?.cancel()
-            self.message = message
+            self.message = message.text
             messageDismissTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(3))
                 guard !Task.isCancelled else { return }
@@ -269,7 +272,7 @@ struct NativePaymentScanView: View {
     private func scanContent(_ snapshot: NativePaymentScanSnapshot) -> some View {
         GeometryReader { proxy in
             VStack(spacing: 0) {
-                RaylHeroView(phase: snapshot.heroPhase)
+                RaylHeroView(phase: snapshot.heroPhase, rejections: model.inputRejections)
                     .frame(height: proxy.size.height * 0.5)
                     .allowsHitTesting(false)
 

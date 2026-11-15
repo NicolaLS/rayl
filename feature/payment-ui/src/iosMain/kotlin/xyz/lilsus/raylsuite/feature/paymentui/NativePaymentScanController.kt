@@ -30,7 +30,7 @@ class NativePaymentScanController(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val scanner = createNativeQrScannerController()
     private val snapshot = MutableStateFlow<NativePaymentScanSnapshot?>(null)
-    private val messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    private val messages = MutableSharedFlow<PaymentMessage>(extraBufferCapacity = 8)
 
     private var input: NativePaymentScanInput? = null
     private var screenActive = false
@@ -48,7 +48,7 @@ class NativePaymentScanController(
         return { job.cancel() }
     }
 
-    fun observeMessages(onMessage: (String) -> Unit): () -> Unit {
+    fun observeMessages(onMessage: (PaymentMessage) -> Unit): () -> Unit {
         val job = scope.launch { messages.collect(onMessage) }
         return { job.cancel() }
     }
@@ -91,7 +91,7 @@ class NativePaymentScanController(
         reconcileScanner()
     }
 
-    fun emitMessage(message: String) {
+    fun emitMessage(message: PaymentMessage) {
         messages.tryEmit(message)
     }
 

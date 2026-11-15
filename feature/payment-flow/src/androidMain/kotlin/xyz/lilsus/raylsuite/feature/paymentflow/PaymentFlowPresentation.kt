@@ -16,6 +16,7 @@ import xyz.lilsus.raylsuite.core.ui.resources.LocalizedTextKey
 import xyz.lilsus.raylsuite.core.ui.resources.resolve
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentFlowState
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentLoadingKind
+import xyz.lilsus.raylsuite.feature.paymentui.PaymentMessage
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentScreenState
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentSessionItem
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentSessionTransaction
@@ -69,15 +70,18 @@ fun rememberPaymentFlowState(
 fun rememberPaymentMessages(
     coordinator: PaymentFlowCoordinator<*>,
     providerStrings: ProviderStringResource
-): Flow<String> {
+): Flow<PaymentMessage> {
     val context = LocalContext.current
     return remember(coordinator, context, providerStrings) {
         coordinator.events.map { event ->
             when (event) {
                 is PaymentEvent.ShowError ->
-                    event.error.toLocalizedText().resolveText(context, providerStrings)
+                    PaymentMessage(
+                        event.error.toLocalizedText().resolveText(context, providerStrings)
+                    )
 
-                is PaymentEvent.ShowToast -> event.message.localizedMessage(context)
+                is PaymentEvent.ShowToast ->
+                    PaymentMessage(event.message.localizedMessage(context), rejectsInput = true)
             }
         }
     }

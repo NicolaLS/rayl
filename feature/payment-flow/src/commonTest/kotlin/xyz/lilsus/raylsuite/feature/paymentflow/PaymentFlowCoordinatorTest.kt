@@ -20,6 +20,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -47,6 +49,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubIntent
 import xyz.lilsus.raylsuite.feature.paymentsettings.DefaultPaymentPreferencesRepository
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
+import xyz.lilsus.raylsuite.feature.paymentui.PaymentToastMessage
 import xyz.lilsus.raylsuite.feature.paymentui.amount.ManualAmountKey
 
 /**
@@ -129,6 +132,18 @@ class PaymentFlowCoordinatorTest {
         assertNull(assertNotNull(recorded.receipt).fee)
         assertNull(assertNotNull(recorded.receipt).feeSats)
         assertNull(assertIs<PaymentUiState.Success>(recorded.toDetailUiState()).feePaid)
+    }
+
+    @Test
+    fun aCodeThatIsNotLightningIsAnsweredAndScanningGoesOn() = flowTest {
+        // The scanner has no viewfinder, so a code it ignored in silence looked like a dead camera.
+        val shown = test.backgroundScope.async { coordinator.events.first() }
+        testScheduler.advanceUntilIdle()
+
+        dispatch(PaymentIntent.QrCodeScanned("https://example.com/menu"))
+
+        assertEquals(PaymentEvent.ShowToast(PaymentToastMessage.NotLightning), shown.await())
+        assertEquals(PaymentUiState.Active, coordinator.uiState.value)
     }
 
     @Test

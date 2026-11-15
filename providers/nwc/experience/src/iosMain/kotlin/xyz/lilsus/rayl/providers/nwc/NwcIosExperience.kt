@@ -25,6 +25,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.NativePaymentHubController
 import xyz.lilsus.raylsuite.feature.paymentui.NativePaymentRecentController
 import xyz.lilsus.raylsuite.feature.paymentui.NativePaymentScanController
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentIntent
+import xyz.lilsus.raylsuite.feature.paymentui.PaymentMessage
 import xyz.lilsus.raylsuite.feature.paymentui.localizedMessage
 import xyz.lilsus.raylsuite.feature.settings.NativeSettingsController
 import xyz.lilsus.raylsuite.feature.settings.nativeSettingsAppVersionName
@@ -298,8 +299,11 @@ class NwcIosExperience(
             runtime.paymentCoordinator.events.collect { event ->
                 val message =
                     when (event) {
-                        is PaymentEvent.ShowError -> paymentErrorMessage(event.error)
-                        is PaymentEvent.ShowToast -> event.message.localizedMessage()
+                        is PaymentEvent.ShowError ->
+                            PaymentMessage(paymentErrorMessage(event.error))
+
+                        is PaymentEvent.ShowToast ->
+                            PaymentMessage(event.message.localizedMessage(), rejectsInput = true)
                     }
                 controller.emitMessage(message)
             }

@@ -14,7 +14,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubIntent
 @Composable
 fun PaymentScanFlow(
     state: PaymentFlowState,
-    messageEvents: Flow<String>,
+    messageEvents: Flow<PaymentMessage>,
     appTitle: String,
     savePrompt: HubSavePrompt?,
     isSubmitting: Boolean,

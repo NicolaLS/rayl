@@ -11,11 +11,15 @@ import UIKit
 /// from whatever was on screen at that instant.
 struct RaylHeroView: View {
     let phase: String
+    /// Inputs turned away while the hero shows; each new one plays a short nudge, because the
+    /// scanner has no viewfinder to show that it saw the code.
+    var rejections = 0
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var phaseStart = Date()
     @State private var fromFrame = HeroFrame()
     @State private var fromTint: HeroTint?
+    @State private var nudgeStart: Date?
 
     var body: some View {
         animation
@@ -28,6 +32,9 @@ struct RaylHeroView: View {
                 )
                 fromTint = tint(toward: targetTint(for: previous), elapsed: elapsed)
                 phaseStart = Date()
+            }
+            .onChange(of: rejections) { _, _ in
+                nudgeStart = Date()
             }
     }
 
@@ -42,11 +49,7 @@ struct RaylHeroView: View {
             // Capture one complete frame during the view update. The drawing callback should
             // consume values, not read live SwiftUI state when Canvas chooses to redraw.
             let elapsed = timeline.date.timeIntervalSince(phaseStart)
-            let frame = heroFrame(
-                phase: HeroPhase(phase),
-                elapsed: elapsed,
-                from: fromFrame
-            )
+            let frame = frame(at: timeline.date, elapsed: elapsed)
             let frameTint = tint(toward: target, elapsed: elapsed)
 
             Canvas(opaque: true) { context, size in
@@ -70,6 +73,14 @@ struct RaylHeroView: View {
                 )
             }
         }
+    }
+
+    private func frame(at date: Date, elapsed: Double) -> HeroFrame {
+        let frame = heroFrame(phase: HeroPhase(phase), elapsed: elapsed, from: fromFrame)
+        // Added after the phase frame and kept out of `fromFrame`, so a phase change never
+        // captures half a nudge and the nudge never interrupts the phase.
+        guard let nudgeStart else { return frame }
+        return nudged(frame, elapsed: date.timeIntervalSince(nudgeStart))
     }
 
     private func targetTint(for phaseValue: String) -> HeroTint {
@@ -565,6 +576,32 @@ private func resultFrame(elapsed: Double, from: HeroFrame, isError: Bool) -> Her
     return frame
 }
 
+/// An input was turned away: the corners close in on the code, then let go with a shake.
+private func nudged(_ frame: HeroFrame, elapsed: Double) -> HeroFrame {
+    guard elapsed >= 0, elapsed < 0.6 else { return frame }
+    var frame = frame
+    let closing = CGFloat(
+        elapsed <= 0.15
+            ? easeInOutCubic(elapsed / 0.15)
+            : 1 - easeInOutCubic((elapsed - 0.25) / 0.35)
+    )
+    for index in heroGeometry.arcs.indices {
+        let arc = heroGeometry.arcs[index]
+        frame.arcOffsets[index].width +=
+            stepTowardCenter(arc.x, arc.cornerLength, heroGeometry.arcCompressionFraction)
+            * closing
+        frame.arcOffsets[index].height +=
+            stepTowardCenter(arc.y, arc.cornerLength, heroGeometry.arcCompressionFraction)
+            * closing
+    }
+    frame.shakeX += keyframe(
+        elapsed,
+        [(0, 0), (0.2, 0), (0.25, -6), (0.3, 6), (0.35, -4), (0.4, 4), (0.5, 0)],
+        eased: false
+    )
+    return frame
+}
+
 // MARK: - Interpolation
 
 private func easeInOutCubic(_ value: Double) -> Double {
@@ -687,10 +724,11 @@ private struct HeroPhasePreview: View {
     ]
 
     @State private var phase = "ready"
+    @State private var rejections = 0
 
     var body: some View {
         VStack(spacing: 24) {
-            RaylHeroView(phase: phase)
+            RaylHeroView(phase: phase, rejections: rejections)
                 .frame(height: 360)
 
             Picker("Phase", selection: $phase) {
@@ -699,6 +737,8 @@ private struct HeroPhasePreview: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            Button("Reject input") { rejections += 1 }
 
             Spacer()
         }

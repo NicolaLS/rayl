@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -29,11 +30,16 @@ import io.github.alexzhirkevich.qrose.options.solid
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import xyz.lilsus.raylsuite.core.ui.R
 
+/**
+ * [rejections] counts inputs turned away while the hero shows; each new one plays a short nudge,
+ * because the scanner has no viewfinder to show that it saw the code.
+ */
 @Composable
 fun RaylHero(
     phase: RaylHeroPhase,
     modifier: Modifier = Modifier,
-    qrContent: RaylHeroQrContent? = null
+    qrContent: RaylHeroQrContent? = null,
+    rejections: Int = 0
 ) {
     val color = when (phase) {
         RaylHeroPhase.Ready -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -57,6 +63,12 @@ fun RaylHero(
 
     LaunchedEffect(color) {
         animationState.animateColor(color)
+    }
+
+    // Only rejections that arrive while the hero is on screen; not the count it was shown with.
+    val shownRejections = remember { rejections }
+    LaunchedEffect(rejections) {
+        if (rejections != shownRejections) animationState.nudge()
     }
 
     BoxWithConstraints(modifier = modifier) {
