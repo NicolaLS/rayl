@@ -35,7 +35,8 @@ anything not yet sent.
   hit, and how long each step took; how long the camera needed to start and
   read a code; which onboarding steps were completed; that a setting was
   changed (not its value); that a top-up or package was ordered through a Hub
-  widget and whether it was paid and delivered (not the phone number, the
+  widget, and for a payment whose invoice came from a Hub widget, which
+  service it was for, such as Claro or PPQ.AI (not the phone number, the
   product, or the price); that something the Hub offers before it can do it,
   such as paying a particular company's bill, was shown or tapped, once per
   installation; that the question to turn usage data off was shown, which is
