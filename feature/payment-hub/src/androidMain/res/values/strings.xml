@@ -69,6 +69,8 @@
     <string name="hub_widget_shortcut_amount">Preset amount</string>
     <string name="hub_widget_recents_hint">Updates automatically after successful payments.</string>
     <string name="hub_widget_needs_setup">Not set up yet. Touch and hold to edit.</string>
+    <string name="hub_widget_off_title">Unavailable</string>
+    <string name="hub_widget_off_body">Turned off for now. Touch and hold to remove it.</string>
     <string name="hub_widget_select_variant">Choose a layout</string>
     <string name="hub_widget_unavailable">Temporarily unavailable</string>
     <string name="hub_widget_select_contacts_error">Choose at least one contact.</string>

@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -121,7 +122,7 @@ internal fun HubWidgetFace(
     onOpen: (HubWidgetTile) -> Unit = {}
 ) {
     val shortcut = tile.kind == HubWidgetKind.Shortcut
-    val glow = when (tile.kind) {
+    val glow = when (if (tile.disabled) null else tile.kind) {
         HubWidgetKind.Sats -> BitcoinOrange
         HubWidgetKind.Ppq -> PpqEmber
         HubWidgetKind.Claro -> ClaroRed
@@ -129,6 +130,7 @@ internal fun HubWidgetFace(
     }
     Box(modifier.hubFace(hubFaceColors(), glow)) {
         when {
+            tile.disabled -> DisabledFace()
             tile.kind.showsInformation -> HubInfoFace(tile, state, preview, interactive, onOpen)
             tile.people.isEmpty() && !preview -> EmptyFace(tile)
             shortcut -> ShortcutFace(tile, onPay, interactive, preview)
@@ -267,6 +269,29 @@ internal fun TileFigurePlaceholder(small: Boolean) {
             Modifier.size(width = 104.dp, height = 30.dp)
                 .background(hubFaceColors().chip, RoundedCornerShape(9.dp))
         )
+    }
+}
+
+/**
+ * A widget whose kind was turned off remotely: neither its service's name nor its mark, a plain
+ * symbol instead, and how to get rid of it. A tap does nothing.
+ */
+@Composable
+private fun DisabledFace() {
+    val face = hubFaceColors()
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxSize().padding(14.dp)
+    ) {
+        TileHeader(stringResource(R.string.hub_widget_off_title)) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(26.dp).background(face.chip, CircleShape)
+            ) {
+                Icon(Icons.Filled.Block, null, tint = face.quiet, modifier = Modifier.size(16.dp))
+            }
+        }
+        TileHint(stringResource(R.string.hub_widget_off_body), small = false)
     }
 }
 

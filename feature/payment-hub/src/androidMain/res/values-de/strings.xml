@@ -69,6 +69,8 @@
     <string name="hub_widget_shortcut_amount">Voreingestellter Betrag</string>
     <string name="hub_widget_recents_hint">Aktualisiert sich automatisch nach erfolgreichen Zahlungen.</string>
     <string name="hub_widget_needs_setup">Noch nicht eingerichtet. Gedrückt halten zum Bearbeiten.</string>
+    <string name="hub_widget_off_title">Nicht verfügbar</string>
+    <string name="hub_widget_off_body">Vorerst ausgeschaltet. Gedrückt halten zum Entfernen.</string>
     <string name="hub_widget_select_variant">Layout wählen</string>
     <string name="hub_widget_unavailable">Vorübergehend nicht verfügbar</string>
     <string name="hub_widget_select_contacts_error">Wähle mindestens einen Kontakt.</string>

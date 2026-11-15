@@ -155,7 +155,8 @@ under its own terms and privacy policy.
   wallet service process them under their own terms.
 - **Rayl backend:** Rayl requests aggregated Bitcoin exchange rates from the
   Rayl backend to show amounts in your display currency, and the last day of
-  prices for the Hub's exchange rate widget. It also sends the backend the
+  prices for the Hub's exchange rate widget, and asks it which Hub widgets are
+  turned off for now. It also sends the backend the
   anonymous usage data described above unless you turned that off, and the
   feedback described above when you send it. These
   requests contain no wallet credentials, contacts, payment history, or user

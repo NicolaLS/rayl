@@ -14,6 +14,19 @@ import xyz.lilsus.raylsuite.core.raylapi.RaylApi
 
 class RaylServerTest {
     @Test
+    fun saysWhichHubWidgetsAreTurnedOff() = testApplication {
+        val off = disabledHubWidgets(" local.claro, ,local.ppq,local.claro ")
+        assertEquals(listOf("local.claro", "local.ppq"), off)
+        assertEquals(emptyList(), disabledHubWidgets(null))
+        application { raylModule(disabledHubWidgets = off) { null } }
+
+        val response = client.get(RaylApi.HUB_WIDGETS_PATH)
+        assertEquals(HttpStatusCode.OK, response.status)
+        // The shape the app parses: a list under "disabled".
+        assertEquals("""{"disabled":["local.claro","local.ppq"]}""", response.bodyAsText())
+    }
+
+    @Test
     fun servesCachedPrices() = testApplication {
         val prices = BitcoinPrices(asOf = 1_790_705_710, prices = mapOf("USD" to 83_428.0))
         application { raylModule { prices } }

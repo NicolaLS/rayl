@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.core.raylapi.BitcoinPriceHistory
 import xyz.lilsus.raylsuite.core.raylapi.BitcoinPrices
+import xyz.lilsus.raylsuite.core.raylapi.HubWidgetSwitches
 import xyz.lilsus.raylsuite.core.raylapi.RaylApi
 import xyz.lilsus.raylsuite.core.raylapi.RaylApiError
 
@@ -38,7 +39,8 @@ internal const val TELEMETRY_BATCHES_PER_CLIENT_MINUTE = 20
 
 /**
  * Railway sets `PORT`; the container image sets `HOST=0.0.0.0`. `DATABASE_URL` names the Postgres
- * database for usage data; without it, batches are accepted and dropped.
+ * database for usage data; without it, batches are accepted and dropped. `DISABLED_HUB_WIDGETS`
+ * lists the Hub widget definitions the app turns off, comma-separated (`local.claro,local.ppq`).
  */
 fun main() {
     val host = System.getenv("HOST") ?: "127.0.0.1"
@@ -58,10 +60,13 @@ fun main() {
             "DATABASE_URL is not set: usage data is accepted and dropped, feedback is refused"
         )
     }
+    val disabledWidgets = disabledHubWidgets(System.getenv("DISABLED_HUB_WIDGETS"))
+    if (disabledWidgets.isNotEmpty()) println("Hub widgets turned off: $disabledWidgets")
     embeddedServer(CIO, host = host, port = port) {
         raylModule(
             telemetry,
             feedback = feedback,
+            disabledHubWidgets = disabledWidgets,
             bitcoinPriceHistory = history::history,
             bitcoinPrices = board::current
         )
@@ -105,6 +110,7 @@ fun Application.raylModule(
     nowSeconds: () -> Long = { System.currentTimeMillis() / 1_000 },
     feedback: FeedbackStore? = null,
     bitcoinPriceHistory: suspend (String) -> BitcoinPriceHistory? = { null },
+    disabledHubWidgets: List<String> = emptyList(),
     bitcoinPrices: () -> BitcoinPrices?
 ) {
     install(ContentNegotiation) { json() }
@@ -156,6 +162,15 @@ fun Application.raylModule(
                 call.respond(history)
             }
         }
+        get(RaylApi.HUB_WIDGETS_PATH) {
+            // Apps ask every few minutes at most; a turned-off widget reaches them within that.
+            call.response.header(HttpHeaders.CacheControl, "public, max-age=60")
+            call.respond(HubWidgetSwitches(disabledHubWidgets))
+        }
         get("/health") { call.respondText("ok") }
     }
 }
+
+/** The widget definition ids in [setting], as `DISABLED_HUB_WIDGETS` writes them. */
+internal fun disabledHubWidgets(setting: String?): List<String> =
+    setting.orEmpty().split(',').map(String::trim).filter(String::isNotEmpty).distinct()

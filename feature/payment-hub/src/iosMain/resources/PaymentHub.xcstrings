@@ -1,6 +1,22 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "hub_widget_off_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Nicht verfügbar" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Unavailable" } },
+        "es": { "stringUnit": { "state": "translated", "value": "No disponible" } }
+      }
+    },
+    "hub_widget_off_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Vorerst ausgeschaltet. Gedrückt halten zum Entfernen." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Turned off for now. Touch and hold to remove it." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Desactivado por ahora. Mantén pulsado para quitarlo." } }
+      }
+    },
     "hub_edit_hub": {
       "extractionState": "manual",
       "localizations": {

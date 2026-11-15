@@ -514,8 +514,11 @@ struct NativePaymentHubView: View {
             }
         }
         Section {
-            Button(state.text.editWidget, systemImage: "info.circle") {
-                model.controller.editWidget(id: tile.id)
+            // A widget that was turned off can only be removed, or moved out of the way.
+            if tile.kind != "disabled" {
+                Button(state.text.editWidget, systemImage: "info.circle") {
+                    model.controller.editWidget(id: tile.id)
+                }
             }
             Button(state.text.editHub, systemImage: "square.grid.2x2") {
                 model.controller.setArranging(value: true)
@@ -1343,6 +1346,14 @@ private struct WidgetContent: View {
         HStack(spacing: 7) {
             if let mark = HubPalette.mark(tile.kind) {
                 HubMarkDisc(mark: mark, size: 26)
+            } else if tile.kind == "disabled" {
+                // A widget that was turned off shows a plain symbol, not its service's mark.
+                Image(systemName: "nosign")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(HubPalette.ink.opacity(0.8))
+                    .frame(width: 26, height: 26)
+                    .background(HubPalette.ink.opacity(0.1), in: Circle())
+                    .accessibilityHidden(true)
             }
             Text(title)
                 .font(.footnote.weight(.semibold))

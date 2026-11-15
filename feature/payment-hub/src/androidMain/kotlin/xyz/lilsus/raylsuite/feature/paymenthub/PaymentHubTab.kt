@@ -46,6 +46,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationEventHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.delay
+import xyz.lilsus.raylsuite.core.settings.createAppSettings
 import xyz.lilsus.raylsuite.core.settings.createSecureSettings
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
 import xyz.lilsus.raylsuite.feature.paymenthub.claro.KtorClaroApi
@@ -53,6 +54,8 @@ import xyz.lilsus.raylsuite.feature.paymenthub.feedback.KtorHubFeedbackApi
 import xyz.lilsus.raylsuite.feature.paymenthub.host.PaymentHubController
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.HubPpqService
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.createHubPpqService
+import xyz.lilsus.raylsuite.feature.paymenthub.switches.HubWidgetKillSwitch
+import xyz.lilsus.raylsuite.feature.paymenthub.switches.KtorHubSwitchesApi
 import xyz.lilsus.raylsuite.feature.paymenthub.widget.HubWidgetCanvas
 import xyz.lilsus.raylsuite.feature.paymenthub.widget.HubWidgetEditorScreen
 import xyz.lilsus.raylsuite.feature.paymenthub.widget.HubWidgetGallery
@@ -78,7 +81,11 @@ fun PaymentHubTab(
                 createSecureSettings(context, HubPpqService.STORAGE_NAME)
             ),
             claro = KtorClaroApi(),
-            feedbackApi = KtorHubFeedbackApi(platform = "android")
+            feedbackApi = KtorHubFeedbackApi(platform = "android"),
+            killSwitch = HubWidgetKillSwitch(
+                KtorHubSwitchesApi(),
+                createAppSettings(context, HubWidgetKillSwitch.STORAGE_NAME)
+            )
         )
     }
     DisposableEffect(viewModel) {

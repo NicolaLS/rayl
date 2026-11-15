@@ -134,7 +134,8 @@ internal fun HubWidgetCanvas(
     var convertingCode by remember { mutableStateOf<String?>(null) }
     var toppingUpId by remember { mutableStateOf<String?>(null) }
     val open: (HubWidgetTile) -> Unit = { tile ->
-        when (tile.kind) {
+        // A widget that was turned off opens nothing.
+        when (tile.kind.takeUnless { tile.disabled }) {
             // Both bitcoin widgets open the same converter, in the widget's own currency.
             HubWidgetKind.Rate, HubWidgetKind.Sats ->
                 convertingCode = tile.currencyCode ?: state.defaultFiatCode
@@ -639,12 +640,14 @@ private fun WidgetCanvasTile(
             }
             .semantics {
                 customActions = buildList {
-                    add(
-                        CustomAccessibilityAction(edit) {
-                            viewModel.editWidget(tile.id)
-                            true
-                        }
-                    )
+                    if (!tile.disabled) {
+                        add(
+                            CustomAccessibilityAction(edit) {
+                                viewModel.editWidget(tile.id)
+                                true
+                            }
+                        )
+                    }
                     add(
                         CustomAccessibilityAction(remove) {
                             viewModel.removeWidget(tile.id)
@@ -743,7 +746,8 @@ private fun WidgetMenu(
         offset = DpOffset(0.dp, 8.dp),
         shape = RoundedCornerShape(20.dp)
     ) {
-        if (variants.size > 1) {
+        // A widget that was turned off can only be removed, or moved out of the way.
+        if (variants.size > 1 && !tile.disabled) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -759,11 +763,13 @@ private fun WidgetMenu(
             }
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
         }
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.hub_widget_edit)) },
-            leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
-            onClick = onEdit
-        )
+        if (!tile.disabled) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.hub_widget_edit)) },
+                leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+                onClick = onEdit
+            )
+        }
         DropdownMenuItem(
             text = { Text(stringResource(R.string.hub_edit_hub)) },
             leadingIcon = { Icon(Icons.Outlined.GridView, contentDescription = null) },

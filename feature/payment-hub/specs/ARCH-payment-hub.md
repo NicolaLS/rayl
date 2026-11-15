@@ -39,6 +39,11 @@ outside the Hub document and outside the external-wallet storage that
 [SPEC-wallet-lifecycle](../../../specs/SPEC-wallet-lifecycle.md) erases. A Claro
 widget keeps only the phone number it tops up, in the Hub document.
 
+Any kind of widget can be turned off remotely: the Rayl backend lists the
+widget definitions that are off, and the Hub keeps its last answer. A kind that
+is off leaves the gallery, and a placed widget of it shows neither its
+service's name nor its mark, contacts nobody, and can only be removed.
+
 A Claro purchase ends with the wallet's payment. Once the Hub has the invoice it
 keeps nothing of the order and asks neither Claro nor its payment provider what
 became of it.

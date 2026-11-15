@@ -48,6 +48,7 @@ import xyz.lilsus.raylsuite.feature.paymenthub.live.HubPpqTopUpError
 import xyz.lilsus.raylsuite.feature.paymenthub.live.HubRate
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.HubPpqService
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.PpqResult
+import xyz.lilsus.raylsuite.feature.paymenthub.switches.HubWidgetKillSwitch
 
 /** Shared widget presentation state. Native platforms own sheets, controls, gestures and copy. */
 class WidgetHubViewModel(
@@ -66,7 +67,10 @@ class WidgetHubViewModel(
     private val telemetry: TelemetryRecorder = Telemetry,
     /** Reports a fake door, once per installation and only while the user shares usage data. */
     private val fakeDoor: (TelemetryFakeDoor, TelemetryFakeDoorAction) -> Unit =
-        Telemetry::fakeDoor
+        Telemetry::fakeDoor,
+    /** Null where widgets cannot be turned off remotely; every widget then stays on. */
+    private val killSwitch: HubWidgetKillSwitch? = null,
+    private val clock: () -> Long = ::platformCurrentTimeMillis
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutableState =
@@ -82,7 +86,35 @@ class WidgetHubViewModel(
     /** The open shop's number as Claro accepted it; orders are placed for it. */
     private var claroLine: ClaroLine? = null
 
+    /** Widget definitions turned off remotely: out of the gallery, and off where placed. */
+    private val disabled get() = killSwitch?.disabled?.value.orEmpty()
+
     init {
+        killSwitch?.let { switch ->
+            scope.launch {
+                var previouslyOff: Set<String>? = null
+                switch.disabled.collect { off ->
+                    if (mutableState.value.claro.widgetId?.let(::isOff) == true) closeClaro()
+                    mutableState.update { state ->
+                        state.copy(
+                            gallery = LocalHubWidgets.definitions.filter { it.id !in off },
+                            // An editor or a layout choice for what was just turned off closes.
+                            screen = if (state.editor?.definitionId in off) {
+                                HubWidgetScreen.Hub
+                            } else {
+                                state.screen
+                            },
+                            editor = state.editor?.takeUnless { it.definitionId in off }
+                        )
+                    }
+                    rebuildTiles()
+                    // A PPQ.AI widget turned on again needs its balance now, not in a minute.
+                    val before = previouslyOff
+                    if (before != null && (before - off).isNotEmpty()) refreshPpq()
+                    previouslyOff = off
+                }
+            }
+        }
         scope.launch {
             repository.hub.collect { hub ->
                 val editor = mutableState.value.editor
@@ -118,7 +150,12 @@ class WidgetHubViewModel(
     fun refreshLive() {
         refreshRates()
         refreshPpq()
+        killSwitch?.let { switch -> scope.launch { switch.refresh(clock()) } }
     }
+
+    /** Whether [widgetId] is a placed widget of a definition that was turned off. */
+    private fun isOff(widgetId: String): Boolean =
+        repository.hub.value.widget(widgetId)?.definitionId?.let { it in disabled } == true
 
     /**
      * Refreshes like [refreshLive], for someone who asked to: returns once every price and balance
@@ -358,6 +395,7 @@ class WidgetHubViewModel(
     }
 
     fun editWidget(id: String) {
+        if (isOff(id)) return
         val editor = editorFor(id) ?: return
         mutableState.update {
             it.copy(screen = HubWidgetScreen.Configure, query = "", error = null, editor = editor)
@@ -372,8 +410,8 @@ class WidgetHubViewModel(
     fun resizeWidget(id: String, variantId: String) {
         if (mutableState.value.busy) return
         val widget = repository.hub.value.widget(id) ?: return
-        if (widget.variant.id == variantId) return
-        val variant = mutableState.value.gallery.firstOrNull { it.id == widget.definitionId }
+        if (widget.variant.id == variantId || isOff(id)) return
+        val variant = LocalHubWidgets.definitions.firstOrNull { it.id == widget.definitionId }
             ?.variants?.firstOrNull { it.id == variantId }
             ?: return fail(HubWidgetError.Unavailable)
         mutate {
@@ -385,7 +423,7 @@ class WidgetHubViewModel(
     private fun editorFor(id: String): HubWidgetEditor? {
         val hub = repository.hub.value
         val widget = hub.widget(id) ?: return null
-        val definition = mutableState.value.gallery.firstOrNull { it.id == widget.definitionId }
+        val definition = LocalHubWidgets.definitions.firstOrNull { it.id == widget.definitionId }
         if (definition == null) {
             fail(HubWidgetError.Unavailable)
             return null
@@ -483,7 +521,9 @@ class WidgetHubViewModel(
      */
     fun topUpPpq(widgetId: String, amountInput: String) {
         val service = ppq ?: return
-        if (mutableState.value.ppqAccount(widgetId).toppingUp || mutableState.value.arranging) {
+        if (mutableState.value.ppqAccount(widgetId).toppingUp || mutableState.value.arranging ||
+            isOff(widgetId)
+        ) {
             return
         }
         val cents = amountInput.parseMinorAmount(2)
@@ -537,7 +577,7 @@ class WidgetHubViewModel(
         val api = claro ?: return
         val phone = repository.hub.value.widget(widgetId)
             ?.takeIf { it.kind == HubWidgetKind.Claro }?.phone
-        if (phone == null || mutableState.value.arranging) return
+        if (phone == null || mutableState.value.arranging || isOff(widgetId)) return
         claroJob?.cancel()
         claroLine = null
         updateClaro { HubClaroShop(widgetId, phone, loading = true) }
@@ -574,7 +614,7 @@ class WidgetHubViewModel(
         val line = claroLine ?: return
         val shop = mutableState.value.claro
         val product = shop.products.firstOrNull { it.id == productId }
-        if (product == null || shop.ordering) return
+        if (product == null || shop.ordering || shop.widgetId?.let(::isOff) == true) return
         updateClaro { it.copy(ordering = true, problem = null) }
         claroJob = scope.launch {
             val invoice = (api.invoice(line, product) as? ClaroResult.Ok)?.value
@@ -723,7 +763,10 @@ class WidgetHubViewModel(
 
     private fun refreshPpq() {
         val service = ppq ?: return
-        val widgets = repository.hub.value.widgets.filter { it.kind == HubWidgetKind.Ppq }
+        // A turned-off widget asks its service nothing.
+        val widgets = repository.hub.value.widgets.filter {
+            it.kind == HubWidgetKind.Ppq && it.definitionId !in disabled
+        }
         // A widget deleted elsewhere takes its account with it.
         mutableState.update { state ->
             state.copy(
@@ -866,10 +909,11 @@ class WidgetHubViewModel(
                 widget.kind,
                 widget.variant,
                 widget.title
-                    ?: mutableState.value.gallery.firstOrNull {
+                    ?: LocalHubWidgets.definitions.firstOrNull {
                         it.id == widget.definitionId
                     }?.title,
                 currencyCode = widget.currencyCode,
+                disabled = widget.definitionId in disabled,
                 phone = widget.phone,
                 people = targets.mapNotNull { target ->
                     hub.contact(target.contactId)?.let { contact ->

@@ -16,7 +16,18 @@ object RaylApi {
 
     /** Accepts a [FeedbackSubmission]. */
     const val FEEDBACK_PATH = "/v1/feedback"
+
+    /** Answers with [HubWidgetSwitches]. */
+    const val HUB_WIDGETS_PATH = "/v1/hub/widgets"
 }
+
+/**
+ * The Hub widgets the developer turned off, by widget definition id (`local.claro`). The app
+ * hides them from the gallery and shows a placed one as turned off, without its service's name or
+ * mark, until it is turned on again.
+ */
+@Serializable
+data class HubWidgetSwitches(val disabled: List<String> = emptyList())
 
 /**
  * Bitcoin's price in each fiat currency the backend has a fresh quote for, keyed by upper-case

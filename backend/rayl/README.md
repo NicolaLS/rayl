@@ -14,6 +14,15 @@ the backend drops the rest, stores no address or identifier, and cuts the arriva
 hour. Events go to the Postgres database named by `DATABASE_URL` (without it they are accepted
 and dropped). They are deleted after 90 days; per-day counts and percentiles are kept.
 
+`GET /v1/hub/widgets` says which Hub widgets are turned off, from the `DISABLED_HUB_WIDGETS`
+variable: widget definition ids, comma-separated, for example `local.claro` or
+`local.claro,local.ppq`. The app hides them from the gallery and shows a placed one as
+"Unavailable", without its service's name or mark, until it is turned on again. Apps ask at most
+every five minutes while the Hub is on screen and keep the last answer, so it also holds offline.
+To turn a widget off or on, set the variable on Railway; that redeploys the service, and apps pick
+it up within about five minutes after that. The ids are in `LocalHubWidgets` in
+`feature/payment-hub`.
+
 Testers can send feedback from the Hub's "Add widget" screen to `POST /v1/feedback`: a kind
 (widget request, idea, problem, other), the platform, free text and an optional contact the tester
 typed. Nothing else comes with it, not even the app version. It goes to the `feedback` table in

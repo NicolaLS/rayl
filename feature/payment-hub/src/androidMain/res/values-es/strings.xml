@@ -69,6 +69,8 @@
     <string name="hub_widget_shortcut_amount">Importe predefinido</string>
     <string name="hub_widget_recents_hint">Se actualiza automáticamente después de pagos completados.</string>
     <string name="hub_widget_needs_setup">Sin configurar. Mantén pulsado para editar.</string>
+    <string name="hub_widget_off_title">No disponible</string>
+    <string name="hub_widget_off_body">Desactivado por ahora. Mantén pulsado para quitarlo.</string>
     <string name="hub_widget_select_variant">Elegir diseño</string>
     <string name="hub_widget_unavailable">No disponible temporalmente</string>
     <string name="hub_widget_select_contacts_error">Elige al menos un contacto.</string>

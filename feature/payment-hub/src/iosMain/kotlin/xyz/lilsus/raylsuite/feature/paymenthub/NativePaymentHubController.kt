@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
 import xyz.lilsus.raylsuite.core.model.DisplayAmount
+import xyz.lilsus.raylsuite.core.settings.createAppSettings
 import xyz.lilsus.raylsuite.core.settings.createSecureSettings
 import xyz.lilsus.raylsuite.core.ui.format.currentAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.resources.NativeStringResource
@@ -40,6 +41,8 @@ import xyz.lilsus.raylsuite.feature.paymenthub.live.priceLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.live.satsLabel
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.HubPpqService
 import xyz.lilsus.raylsuite.feature.paymenthub.ppq.createHubPpqService
+import xyz.lilsus.raylsuite.feature.paymenthub.switches.HubWidgetKillSwitch
+import xyz.lilsus.raylsuite.feature.paymenthub.switches.KtorHubSwitchesApi
 
 /** Localized values and explicit intents for the native SwiftUI widget hub. */
 class NativePaymentHubController(
@@ -57,7 +60,8 @@ class NativePaymentHubController(
         defaultCurrencyCode = { currencyCode },
         ppq = createHubPpqService(createSecureSettings(HubPpqService.STORAGE_NAME)),
         claro = KtorClaroApi(),
-        feedbackApi = KtorHubFeedbackApi(platform = "ios")
+        feedbackApi = KtorHubFeedbackApi(platform = "ios"),
+        killSwitch = HubWidgetKillSwitch(KtorHubSwitchesApi(), createAppSettings())
     )
     private val snapshot = MutableStateFlow<NativePaymentHubSnapshot?>(null)
 
@@ -597,7 +601,24 @@ class NativePaymentHubController(
         )
 
     private fun HubWidgetTile.toNative(state: WidgetHubState): NativeHubTile {
-        val definitions = state.gallery
+        // Turned off remotely: no service name, mark or glow, no layouts, and no tap.
+        if (disabled) {
+            return NativeHubTile(
+                id = id,
+                kind = "disabled",
+                title = localized("hub_widget_off_title"),
+                customTitle = null,
+                variantId = variant.id,
+                column = 0,
+                row = 0,
+                columns = variant.columns,
+                rows = variant.rows,
+                people = emptyList(),
+                sizes = emptyList(),
+                emptyText = localized("hub_widget_off_body")
+            )
+        }
+        val definitions = LocalHubWidgets.definitions
         return NativeHubTile(
             id = id,
             kind = kind.name.lowercase(),

@@ -72,7 +72,12 @@ data class HubWidgetTile(
     val title: String?,
     val people: List<HubWidgetPerson> = emptyList(),
     val currencyCode: String? = null,
-    val phone: String? = null
+    val phone: String? = null,
+    /**
+     * Its kind of widget was turned off remotely. It then shows neither its service's name nor
+     * its mark, does nothing when tapped, and can only be removed.
+     */
+    val disabled: Boolean = false
 )
 
 data class HubWidgetEditor(
