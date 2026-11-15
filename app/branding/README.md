@@ -47,6 +47,19 @@ exporting.
 Platform references: [Apple app icons](https://developer.apple.com/design/human-interface-guidelines/app-icons)
 and [Android adaptive icons](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive).
 
+## Social media banners
+
+`social/` holds profile banners for X and Nostr, made from `rails.svg`. The rails are
+seen from afar with "Rayl" and "Pay anything." beside them, so the banner continues
+the avatar instead of repeating the icon. `rayl-banner` is the default: its dim rails
+seem to come from behind the avatar. `rayl-banner-bold` has brighter rails. Each comes
+at 1500 × 500 (3:1) and 3000 × 1000; the text sits in the vertical middle so a wider
+crop such as Ditto's keeps it. `preview-profile.png` shows both under a Nostr-style
+profile avatar.
+
+Regenerate them with `export-banners.py`, using the same tools and command as the
+icons. The text is set in SF Pro from macOS.
+
 ## Other wallets' icons
 
 "Use another wallet" shows each external wallet's own mark, 176 px PNGs trimmed from the
