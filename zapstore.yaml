@@ -34,6 +34,12 @@ description: |
 license: MIT
 tags: [bitcoin, lightning, wallet, payments]
 icon: ./distribution/store-listing/icon.png
+images:
+  - ./distribution/store-listing/screenshots/android/01-calmer-faster-way-to-pay.jpg
+  - ./distribution/store-listing/screenshots/android/02-open-point-pay.jpg
+  - ./distribution/store-listing/screenshots/android/03-small-payments-no-extra-taps.jpg
+  - ./distribution/store-listing/screenshots/android/04-build-your-payment-hub.jpg
+  - ./distribution/store-listing/screenshots/android/05-your-payments-your-space.jpg
 supported_nips: ["47"]
 # The listing comes from this file only; GitHub's repository metadata is not Rayl's store text.
 metadata_sources: []
