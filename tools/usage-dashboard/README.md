@@ -19,7 +19,7 @@ There are five dashboards in `dashboards/`, linked to each other at the top of e
 
 - **Overview**: is Rayl healthy? Each headline number next to the same number for the period before.
 - **Speed**: every step of the payment path, version by version, typical and slowest 10%.
-- **Camera**: Android and iPhone separately, including which code reader wins on iPhone.
+- **Camera**: Android and iPhone separately, by phone model and day by day.
 - **Wallets**: all wallets side by side, then one wallet in detail (pick it at the top).
 - **Product**: onboarding, how people pay, fake doors, settings, sharing of usage data, and
   Claro purchases (ordered, and whether the wallet paid; delivery is not known).

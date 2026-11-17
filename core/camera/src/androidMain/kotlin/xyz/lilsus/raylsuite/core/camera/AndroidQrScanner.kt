@@ -35,7 +35,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
-import xyz.lilsus.raylsuite.core.raylapi.TelemetryScanDecoder
 import xyz.lilsus.raylsuite.core.telemetry.RaylTrace
 import xyz.lilsus.raylsuite.core.telemetry.TraceInterval
 import xyz.lilsus.raylsuite.core.telemetry.TracePoint
@@ -188,7 +187,7 @@ private class AndroidQrScannerController(
                         onQrCodesObserved = { values ->
                             val arrived = qrPresenceGate.observe(values)
                             if (arrived.isNotEmpty()) {
-                                scanTelemetry.qrDetected(TelemetryScanDecoder.MlKit)
+                                scanTelemetry.qrDetected()
                                 mainExecutor.execute {
                                     if (isCurrentGeneration(generation)) {
                                         onQrCodesScanned?.invoke(arrived)
