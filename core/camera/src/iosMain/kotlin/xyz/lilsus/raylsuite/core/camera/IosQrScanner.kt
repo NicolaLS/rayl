@@ -5,7 +5,10 @@
 
 package xyz.lilsus.raylsuite.core.camera
 
+import kotlin.concurrent.AtomicInt
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.round
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.autoreleasepool
@@ -40,17 +43,29 @@ import platform.AVFoundation.AVFrameRateRange
 import platform.AVFoundation.AVMediaTypeVideo
 import platform.AVFoundation.AVMetadataMachineReadableCodeObject
 import platform.AVFoundation.AVMetadataObjectTypeQRCode
+import platform.AVFoundation.ISO
+import platform.AVFoundation.activeMaxExposureDuration
+import platform.AVFoundation.adjustingFocus
 import platform.AVFoundation.authorizationStatusForMediaType
 import platform.AVFoundation.deviceType
+import platform.AVFoundation.exposureDuration
 import platform.AVFoundation.exposureMode
+import platform.AVFoundation.exposureTargetBias
+import platform.AVFoundation.exposureTargetOffset
 import platform.AVFoundation.focusMode
 import platform.AVFoundation.isExposureModeSupported
 import platform.AVFoundation.isFocusModeSupported
+import platform.AVFoundation.lensPosition
 import platform.AVFoundation.maxAvailableVideoZoomFactor
+import platform.AVFoundation.maxExposureTargetBias
 import platform.AVFoundation.minAvailableVideoZoomFactor
+import platform.AVFoundation.minExposureTargetBias
+import platform.AVFoundation.setExposureTargetBias
 import platform.AVFoundation.videoZoomFactor
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
+import platform.CoreMedia.CMTimeCompare
+import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMVideoFormatDescriptionGetDimensions
 import platform.CoreVideo.CVPixelBufferGetHeight
@@ -103,11 +118,9 @@ private class IosQrScannerController : QrScannerController {
     private val metadataDelegate = MetadataDelegate(
         isActive = { started },
         onMetadataObjects = { metadataObjects ->
-            observeQrCode(
-                TelemetryScanDecoder.AvFoundation,
-                selectPreferredMetadataValue(metadataObjects),
-                atMs = RaylTrace.nowMs()
-            )
+            val value = selectPreferredMetadataValue(metadataObjects)
+            diagnostics.metadataCallback(read = value != null)
+            observeQrCode(TelemetryScanDecoder.AvFoundation, value, atMs = RaylTrace.nowMs())
         }
     )
 
@@ -121,8 +134,10 @@ private class IosQrScannerController : QrScannerController {
         isActive = { started },
         onFrameAnalyzed = { durationMs, width, height ->
             scanTelemetry.frameAnalyzed(durationMs, width, height)
+            diagnostics.visionAnalyzed(durationMs)
         },
         onValue = { value, atMs ->
+            diagnostics.visionResult(read = value != null, nowMs = atMs, device = device)
             dispatch_async(sessionQueue) {
                 observeQrCode(TelemetryScanDecoder.Vision, value, atMs)
             }
@@ -141,6 +156,19 @@ private class IosQrScannerController : QrScannerController {
     private val scanTelemetry = ScanTelemetry()
     private val race = DecoderRace(scanTelemetry)
     private var racing = false
+    private val diagnostics = ScanDiagnostics()
+
+    /** The camera in use, whose exposure is read and set while it runs. */
+    private var device: AVCaptureDevice? = null
+
+    /** When the running scanner was started; session queue only. */
+    private var startedAtMs = 0L
+
+    /**
+     * The exposure setting in use; session queue only. It outlives a restart: the room is the
+     * same one a few seconds later.
+     */
+    private var exposureSetting = config.exposure?.start
 
     /** Set while a stopped scanner keeps the camera on for the runner-up; session queue only. */
     private var drainingGeneration: Long? = null
@@ -163,15 +191,18 @@ private class IosQrScannerController : QrScannerController {
         val currentGeneration = generation
         scanTelemetry.sessionStarted()
         val startTrace = RaylTrace.begin(TraceSpan.CameraStartToReady)
+        val startCalledMs = RaylTrace.nowMs()
         dispatch_async(sessionQueue) {
             try {
                 if (generation != currentGeneration) return@dispatch_async
+                startedAtMs = startCalledMs
                 // A stop that was still waiting for the runner-up is overtaken by this start.
                 drainingGeneration = null
                 qrPresenceGate.reset()
                 race.reset()
                 started = true
                 ensureSessionRunning()
+                fitExposureToLight(currentGeneration)
             } finally {
                 startTrace?.end()
             }
@@ -237,11 +268,40 @@ private class IosQrScannerController : QrScannerController {
         }
     }
 
+    /**
+     * On the session queue: while the scanner started as [forGeneration] runs, keeps the exposure
+     * setting at what the [ExposurePolicy] wants for the light the camera reports.
+     */
+    private fun fitExposureToLight(forGeneration: Long) {
+        val policy = config.exposure ?: return
+        dispatch_after(
+            dispatch_time(DISPATCH_TIME_NOW, EXPOSURE_CHECK_MS * NSEC_PER_MSEC.toLong()),
+            sessionQueue
+        ) {
+            if (!started || generation != forGeneration) return@dispatch_after
+            val device = device
+            val current = exposureSetting
+            if (device != null && current != null && session.running) {
+                val wanted = policy.settingFor(
+                    current = current,
+                    exposureMs = CMTimeGetSeconds(device.exposureDuration) * 1_000,
+                    iso = device.ISO.toDouble(),
+                    evFromTarget = device.exposureTargetOffset.toDouble()
+                )
+                if (wanted !== current) {
+                    setExposure(device, wanted)?.let { exposureSetting = it }
+                }
+            }
+            fitExposureToLight(forGeneration)
+        }
+    }
+
     private fun configureSession(): Boolean {
         val configurationTrace = RaylTrace.begin(TraceSpan.CameraConfigureSession)
         try {
             val selection = selectScannerCamera(config) ?: return false
             val device = selection.device
+            this.device = device
             val input = createDeviceInput(device) ?: return false
             val metadataOutput = AVCaptureMetadataOutput()
 
@@ -253,7 +313,10 @@ private class IosQrScannerController : QrScannerController {
                     target = selection.formatTarget,
                     captureFps = config.captureFps
                 )
-                appliedFormat?.let { scanTelemetry.frameSize(it.width, it.height) }
+                appliedFormat?.let {
+                    scanTelemetry.frameSize(it.width, it.height)
+                    RaylTrace.debug("scanner: capture format ${it.width}x${it.height}")
+                }
                 val sessionPreset = if (appliedFormat != null) {
                     AVCaptureSessionPresetInputPriority
                 } else {
@@ -273,7 +336,7 @@ private class IosQrScannerController : QrScannerController {
                 if (availableTypes.none { it == AVMetadataObjectTypeQRCode }) return false
                 metadataOutput.metadataObjectTypes = listOf(AVMetadataObjectTypeQRCode)
                 racing = config.raceVision && addVisionOutput()
-                applyFixedCameraControls(device)
+                exposureSetting = applyFixedCameraControls(device, exposureSetting)
                 true
             } finally {
                 session.commitConfiguration()
@@ -336,6 +399,12 @@ private class IosQrScannerController : QrScannerController {
             return
         }
         if (emittedValue == null) return
+        if (RaylTrace.debugLog) {
+            RaylTrace.debug(
+                "scanner: ${decoder.wire} read a code ${atMs - startedAtMs} ms after start; " +
+                    device?.diagnosticState()
+            )
+        }
         val callback = onQrCodeScanned ?: return
         val currentGeneration = generation
         dispatch_async(dispatch_get_main_queue()) {
@@ -373,6 +442,84 @@ private class IosQrScannerController : QrScannerController {
         lifecycleObserver?.let(NSNotificationCenter.defaultCenter::removeObserver)
         lifecycleObserver = null
     }
+}
+
+/**
+ * Debug builds: about once a second, in how many frames each reader decoded a code and what the
+ * camera's focus and exposure were, under `RaylTiming`. It tells a code in view that is not being
+ * read from one that is, which no timing does.
+ */
+private class ScanDiagnostics {
+    private val metadataCallbacks = AtomicInt(0)
+    private val metadataReads = AtomicInt(0)
+
+    // Vision queue only.
+    private var frames = 0
+    private var reads = 0
+    private var analysisMs = 0L
+    private var durationOfLastFrameMs = 0L
+    private var windowStartedMs = 0L
+
+    fun metadataCallback(read: Boolean) {
+        if (!RaylTrace.debugLog) return
+        metadataCallbacks.incrementAndGet()
+        if (read) metadataReads.incrementAndGet()
+    }
+
+    fun visionAnalyzed(durationMs: Long) {
+        analysisMs += durationMs
+        durationOfLastFrameMs = durationMs
+    }
+
+    fun visionResult(read: Boolean, nowMs: Long, device: AVCaptureDevice?) {
+        if (!RaylTrace.debugLog) return
+        if (nowMs - windowStartedMs > 2 * WINDOW_MS) {
+            // The scanner was off in between: these frames start a new window.
+            frames = 0
+            reads = 0
+            analysisMs = durationOfLastFrameMs
+            metadataReads.getAndSet(0)
+            metadataCallbacks.getAndSet(0)
+            windowStartedMs = nowMs
+        }
+        frames += 1
+        if (read) reads += 1
+        if (nowMs - windowStartedMs < WINDOW_MS) return
+        RaylTrace.debug(
+            "scanner: Vision read $reads of $frames frames (${analysisMs / frames} ms each), " +
+                "metadata read ${metadataReads.getAndSet(0)} of " +
+                "${metadataCallbacks.getAndSet(0)} callbacks; ${device?.diagnosticState()}"
+        )
+        frames = 0
+        reads = 0
+        analysisMs = 0L
+        windowStartedMs = nowMs
+    }
+
+    private companion object {
+        const val WINDOW_MS = 1_000L
+    }
+}
+
+private fun AVCaptureDevice.diagnosticState(): String {
+    val exposureMs = (CMTimeGetSeconds(exposureDuration) * 1_000).rounded(decimals = 1)
+    val limitMs = (CMTimeGetSeconds(activeMaxExposureDuration) * 1_000).rounded(decimals = 1)
+    return "lens ${lensPosition.toDouble().rounded(decimals = 2)}" +
+        "${if (adjustingFocus) " (focusing)" else ""}, " +
+        "exposure $exposureMs ms (limit $limitMs) ISO ${ISO.toDouble().rounded(decimals = 0)}, " +
+        "${exposureTargetOffset.toDouble().rounded(decimals = 1)} EV from target " +
+        "(bias ${exposureTargetBias.toDouble().rounded(decimals = 1)})"
+}
+
+/**
+ * For the debug log. The camera reports a value it does not have just now as not-a-number,
+ * which cannot be rounded.
+ */
+private fun Double.rounded(decimals: Int): String {
+    if (!isFinite()) return "?"
+    val scale = 10.0.pow(decimals)
+    val rounded = round(this * scale) / scale
+    return if (decimals == 0) rounded.toLong().toString() else rounded.toString()
 }
 
 /**
@@ -593,9 +740,16 @@ private fun applyCaptureFormat(
     }
 }
 
-private fun applyFixedCameraControls(device: AVCaptureDevice) = memScoped {
+/**
+ * After the capture format is set: a new format puts the exposure limit back to its default.
+ * Returns [exposure] as the camera took it.
+ */
+private fun applyFixedCameraControls(
+    device: AVCaptureDevice,
+    exposure: ExposurePolicy.Setting?
+): ExposurePolicy.Setting? = memScoped {
     val error = alloc<ObjCObjectVar<NSError?>>()
-    if (!device.lockForConfiguration(error.ptr)) return@memScoped
+    if (!device.lockForConfiguration(error.ptr)) return@memScoped exposure
     try {
         device.videoZoomFactor = 1.0.coerceIn(
             device.minAvailableVideoZoomFactor,
@@ -607,8 +761,53 @@ private fun applyFixedCameraControls(device: AVCaptureDevice) = memScoped {
         if (device.isExposureModeSupported(AVCaptureExposureModeContinuousAutoExposure)) {
             device.exposureMode = AVCaptureExposureModeContinuousAutoExposure
         }
+        exposure?.let { applyExposure(device, it) }
     } finally {
         device.unlockForConfiguration()
+    }
+}
+
+/** [setting] as the camera took it, or null when the camera could not be configured just now. */
+private fun setExposure(
+    device: AVCaptureDevice,
+    setting: ExposurePolicy.Setting
+): ExposurePolicy.Setting? = memScoped {
+    val error = alloc<ObjCObjectVar<NSError?>>()
+    if (!device.lockForConfiguration(error.ptr)) return@memScoped null
+    try {
+        applyExposure(device, setting)
+    } finally {
+        device.unlockForConfiguration()
+    }
+}
+
+/**
+ * Tells auto-exposure what an [ExposurePolicy] decided and returns it as the camera took it: a
+ * camera aims only so far from its usual brightness. The device must be locked for configuration.
+ */
+private fun applyExposure(
+    device: AVCaptureDevice,
+    setting: ExposurePolicy.Setting
+): ExposurePolicy.Setting {
+    val format = device.activeFormat
+    val wanted = CMTimeMake(value = (setting.limitMs * 1_000).toLong(), timescale = 1_000_000)
+    // A limit outside what the format can do throws, and so does a bias outside the camera's.
+    device.activeMaxExposureDuration = when {
+        CMTimeCompare(wanted, format.minExposureDuration) < 0 -> format.minExposureDuration
+        CMTimeCompare(wanted, format.maxExposureDuration) > 0 -> format.maxExposureDuration
+        else -> wanted
+    }
+    val biasEv = setting.biasEv.coerceIn(
+        device.minExposureTargetBias.toDouble(),
+        device.maxExposureTargetBias.toDouble()
+    )
+    device.setExposureTargetBias(biasEv.toFloat(), completionHandler = null)
+    return if (biasEv ==
+        setting.biasEv
+    ) {
+        setting
+    } else {
+        ExposurePolicy.Setting(setting.limitMs, biasEv)
     }
 }
 
@@ -617,15 +816,21 @@ private const val MAXIMUM_ASPECT_DELTA = 0.08
 /** How long a stopped scanner keeps the camera on for the slower reader. */
 private const val RUNNER_UP_GRACE_MS = 500L
 
+/** How often the exposure setting is fitted to the light. */
+private const val EXPOSURE_CHECK_MS = 250L
+
 /**
  * The scanner settings a [CameraVariant] stands for on iOS: the capture rate, the format wanted
  * from a camera with an ultra-wide lens, the one wanted from a wide-angle-only camera, and
  * whether Vision reads the frames next to AVFoundation's metadata reader. With [raceVision] the
  * first of the two to decode a code hands it on, and usage data learns which one it was.
+ * [exposure] keeps frames short and clean rather than bright; null leaves exposure to the
+ * camera, which in dim light exposes for a whole frame's time and blurs a moving code.
  */
 internal class IosCameraConfig(
     val raceVision: Boolean,
     val captureFps: Double,
+    val exposure: ExposurePolicy?,
     val fourThreeTarget: CaptureFormatTarget,
     val wideFallbackTarget: CaptureFormatTarget
 )
@@ -634,11 +839,18 @@ internal fun CameraVariant.iosCameraConfig(): IosCameraConfig = when (this) {
     CameraVariant.Control -> IosCameraConfig(
         raceVision = true,
         captureFps = 30.0,
+        // 2 ms at ISO 1000 is about the right exposure for a phone or till screen, which is
+        // where codes nearly always are, and a hand-held code moves by less than a module in
+        // that time. White paper in ordinary room light still comes out light grey. A printed
+        // code in a dim room is given up for it: it comes out too dark to read from afar.
+        exposure = ExposurePolicy(shortestMs = 1.0, longestMs = 2.0, isoCeiling = 1_000.0),
+        // The ultra-wide lens spreads its frame over about 106 degrees, so how far away a code
+        // can be read depends on the frame's pixels: 12 MP reaches about twice as far as 3 MP.
         fourThreeTarget = CaptureFormatTarget(
             targetAspectRatio = 4.0 / 3.0,
-            preferredPixels = 1920 * 1440,
+            preferredPixels = 4032 * 3024,
             minimumPixels = 1440 * 1080,
-            maximumPixels = 2304 * 1728
+            maximumPixels = 4032 * 3024
         ),
         wideFallbackTarget = CaptureFormatTarget(
             targetAspectRatio = 16.0 / 9.0,
