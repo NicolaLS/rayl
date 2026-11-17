@@ -92,6 +92,20 @@ class DecoderRaceTest {
     }
 
     @Test
+    fun aStoppedScannerOnlyTimesTheRunnerUp() {
+        assertEquals(listOf("lnbc1"), race.observe(Vision, listOf("lnbc1"), at(1_000)))
+        // Vision loses the code and reads it again while the stopped scanner waits.
+        repeat(3) { race.observeRunnerUp(Vision, nothing, at(1_100)) }
+        race.observeRunnerUp(Vision, listOf("lnbc1"), at(1_200))
+        assertEquals(emptyList(), recorded)
+
+        race.observeRunnerUp(AvFoundation, listOf("lnbc1"), at(1_300))
+
+        assertEquals("vision", recorded.single().dimensions["decoder"])
+        assertEquals(300L, recorded.single().measures["runner_up_lag_ms"])
+    }
+
+    @Test
     fun aRestartedScannerStartsANewRace() {
         assertEquals(listOf("lnbc1"), race.observe(Vision, listOf("lnbc1"), at(1_000)))
 

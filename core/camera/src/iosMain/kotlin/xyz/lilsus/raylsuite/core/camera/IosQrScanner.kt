@@ -133,7 +133,10 @@ private class IosQrScannerController : QrScannerController {
     )
     private val visionDelegate = VisionDelegate(
         isActive = { started },
-        onFrame = { lastFrameAtMs.value = RaylTrace.nowMs() },
+        onFrame = {
+            lastFrameAtMs.value = RaylTrace.nowMs()
+            scanTelemetry.firstFrame()
+        },
         onFrameAnalyzed = { durationMs, width, height ->
             scanTelemetry.frameAnalyzed(durationMs, width, height)
             diagnostics.visionAnalyzed(durationMs)
@@ -265,8 +268,8 @@ private class IosQrScannerController : QrScannerController {
             return
         }
         if (!session.running && started) {
-            // Blocks until the session delivers frames; AVFoundation decodes them itself, so this
-            // is the closest there is to a first frame.
+            // Blocks until the session runs. Its first frame comes some hundred milliseconds
+            // later, and the wait for one starts here.
             session.startRunning()
             lastFrameAtMs.value = RaylTrace.nowMs()
         }
@@ -274,7 +277,9 @@ private class IosQrScannerController : QrScannerController {
         // never went off, so it is ready at once.
         if (session.running && started) {
             scanTelemetry.ready()
-            scanTelemetry.firstFrame()
+            // Vision reports the first frame it is given. The metadata reader gets its frames
+            // unseen, so alone the session running is the closest there is to a first frame.
+            if (!racing) scanTelemetry.firstFrame()
         }
     }
 
@@ -428,17 +433,20 @@ private class IosQrScannerController : QrScannerController {
 
     /** On the session queue. */
     private fun observeQrCode(decoder: TelemetryScanDecoder, values: List<String>, atMs: Long) {
+        // Vision finishes a frame it was reading when the scanner stopped.
+        if (!started) return
+        if (drainingGeneration != null) {
+            // Stopped and only waiting for the runner-up: close as soon as the race is decided.
+            race.observeRunnerUp(decoder, values, atMs)
+            if (!scanTelemetry.raceUndecided) finishStop()
+            return
+        }
         val arrived = if (racing) {
             race.observe(decoder, values, atMs)
         } else {
             qrPresenceGate.observe(values).also {
                 if (it.isNotEmpty()) scanTelemetry.qrDetected(decoder)
             }
-        }
-        if (drainingGeneration != null) {
-            // Stopped and only waiting for the runner-up: close as soon as the race is decided.
-            if (!scanTelemetry.raceUndecided) finishStop()
-            return
         }
         if (arrived.isEmpty()) return
         if (RaylTrace.debugLog) {

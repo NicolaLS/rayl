@@ -23,7 +23,23 @@ internal class DecoderRace(private val telemetry: ScanTelemetry) {
      * What [decoder] read at [atMs]: the codes in its frame, most prominent first. Returns the
      * ones to hand on, in that order.
      */
-    fun observe(decoder: TelemetryScanDecoder, values: List<String>, atMs: Long): List<String> {
+    fun observe(decoder: TelemetryScanDecoder, values: List<String>, atMs: Long): List<String> =
+        observe(decoder, values, atMs, handOn = true)
+
+    /**
+     * The same for a scanner that has stopped and hands nothing on any more: [decoder] can only
+     * still finish as the runner-up.
+     */
+    fun observeRunnerUp(decoder: TelemetryScanDecoder, values: List<String>, atMs: Long) {
+        observe(decoder, values, atMs, handOn = false)
+    }
+
+    private fun observe(
+        decoder: TelemetryScanDecoder,
+        values: List<String>,
+        atMs: Long,
+        handOn: Boolean
+    ): List<String> {
         val arrived = gates.getOrPut(decoder) { QrPresenceGate() }.observe(values)
         val handedOn = arrived.filter { value ->
             val first = firstReads[value]
@@ -33,8 +49,8 @@ internal class DecoderRace(private val telemetry: ScanTelemetry) {
                 telemetry.runnerUpDetected(lagMs = atMs - first.atMs)
                 false
             } else {
-                firstReads[value] = FirstRead(decoder, atMs)
-                true
+                if (handOn) firstReads[value] = FirstRead(decoder, atMs)
+                handOn
             }
         }
         if (handedOn.isNotEmpty()) telemetry.qrDetected(decoder, racing = true)
