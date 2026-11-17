@@ -6,12 +6,15 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import android.util.Range
 import android.util.Size
 import androidx.annotation.OptIn
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.SessionConfig
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -201,10 +204,12 @@ private class AndroidQrScannerController(
                     if (!isCurrentGeneration(generation)) return@addListener
 
                     provider.unbindAll()
-                    val camera = provider.bindToLifecycle(
-                        lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        analysis
+                    val camera = bindAnalysis(
+                        provider = provider,
+                        analysis = analysis,
+                        frameRate = config.fixedFrameRateUpTo?.let { maxFps ->
+                            shortExposureFrameRate(provider, analysis, maxFps)
+                        }
                     )
                     camera.cameraInfo.zoomState.value?.minZoomRatio?.let {
                         camera.cameraControl.setZoomRatio(it)
@@ -226,6 +231,52 @@ private class AndroidQrScannerController(
                 }
             },
             ContextCompat.getMainExecutor(context)
+        )
+    }
+
+    /**
+     * The frame rate that keeps exposures shortest for [analysis], of those the back camera
+     * guarantees for it; null when it names none. See [pickShortExposureFrameRate].
+     */
+    private fun shortExposureFrameRate(
+        provider: ProcessCameraProvider,
+        analysis: ImageAnalysis,
+        maxFps: Int
+    ): Range<Int>? = try {
+        val supported = provider.getCameraInfo(CameraSelector.DEFAULT_BACK_CAMERA)
+            .getSupportedFrameRateRanges(SessionConfig(analysis))
+        pickShortExposureFrameRate(supported.map { it.lower..it.upper }, maxFps)
+            ?.let { Range(it.first, it.last) }
+    } catch (failure: RuntimeException) {
+        Log.w(TAG, "Could not read the camera's frame rates", failure)
+        null
+    }
+
+    /** Binds [analysis] at [frameRate], or at the camera's own rate when it refuses that one. */
+    private fun bindAnalysis(
+        provider: ProcessCameraProvider,
+        analysis: ImageAnalysis,
+        frameRate: Range<Int>?
+    ): Camera {
+        if (frameRate != null) {
+            try {
+                val camera = provider.bindToLifecycle(
+                    lifecycleOwner,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    SessionConfig.Builder(listOf(analysis)).setFrameRateRange(frameRate).build()
+                )
+                Log.d(TAG, "Scanning at $frameRate frames per second")
+                return camera
+            } catch (failure: RuntimeException) {
+                // A scanner with the camera's default exposure is better than none.
+                Log.w(TAG, "Camera refused $frameRate frames per second", failure)
+                provider.unbindAll()
+            }
+        }
+        return provider.bindToLifecycle(
+            lifecycleOwner,
+            CameraSelector.DEFAULT_BACK_CAMERA,
+            analysis
         )
     }
 
@@ -251,13 +302,21 @@ private class AndroidQrScannerController(
     )
 }
 
-/** The scanner settings a [CameraVariant] stands for on Android. */
-internal class AndroidCameraConfig(val analysisResolution: Size)
+/**
+ * The scanner settings a [CameraVariant] stands for on Android. With [fixedFrameRateUpTo] the
+ * camera runs at the highest frame rate up to it that it can hold in any light, which is what
+ * limits how long a frame is exposed (see [pickShortExposureFrameRate]); null leaves the camera
+ * free to slow down in dim light.
+ */
+internal class AndroidCameraConfig(val analysisResolution: Size, val fixedFrameRateUpTo: Int?)
 
 internal fun CameraVariant.androidCameraConfig(): AndroidCameraConfig = when (this) {
     // ML Kit recommends around 1920x1080, which is 16:9. Nothing is shown to the user, so the
     // most common native sensor aspect ratio, 4:3, is preferred.
-    CameraVariant.Control -> AndroidCameraConfig(analysisResolution = Size(1920, 1440))
+    CameraVariant.Control -> AndroidCameraConfig(
+        analysisResolution = Size(1920, 1440),
+        fixedFrameRateUpTo = 60
+    )
 }
 
 private class DroppingExecutor : Executor {
