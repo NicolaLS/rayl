@@ -129,7 +129,9 @@ fun App(
             return@RaylSuiteTheme
         }
         CompositionLocalProvider(LocalWalletCardIcons provides walletCardIcons) {
-            key(paying, session) {
+            // The card's id, not the card: a wallet reporting its identity updates the card, and
+            // remounting then would restart the wallet that just connected (MOB-161).
+            key(paying?.id, session) {
                 when (val card = paying) {
                     null -> if (appOnboardingStep != AppOnboardingStep.Complete) {
                         AppOnboarding(appOnboarding, settings)
