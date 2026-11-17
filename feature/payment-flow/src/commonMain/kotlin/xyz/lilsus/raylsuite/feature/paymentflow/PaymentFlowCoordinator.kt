@@ -172,9 +172,7 @@ class PaymentFlowCoordinator<P : SettleablePayment>(
             is PaymentIntent.QrCodeScanned -> {
                 startAttempt(TelemetryPaymentSource.Scan)
                 launchOperation {
-                    handleAdmissionResult(
-                        admission.handlePaymentInput(rawInput = intent.rawValue)
-                    )
+                    handleAdmissionResult(admission.handleScannedCodes(intent.rawValues))
                 }
             }
 

@@ -118,9 +118,9 @@ private class IosQrScannerController : QrScannerController {
     private val metadataDelegate = MetadataDelegate(
         isActive = { started },
         onMetadataObjects = { metadataObjects ->
-            val value = selectPreferredMetadataValue(metadataObjects)
-            diagnostics.metadataCallback(read = value != null)
-            observeQrCode(TelemetryScanDecoder.AvFoundation, value, atMs = RaylTrace.nowMs())
+            val values = rankMetadataValues(metadataObjects)
+            diagnostics.metadataCallback(read = values.isNotEmpty())
+            observeQrCode(TelemetryScanDecoder.AvFoundation, values, atMs = RaylTrace.nowMs())
         }
     )
 
@@ -136,15 +136,15 @@ private class IosQrScannerController : QrScannerController {
             scanTelemetry.frameAnalyzed(durationMs, width, height)
             diagnostics.visionAnalyzed(durationMs)
         },
-        onValue = { value, atMs ->
-            diagnostics.visionResult(read = value != null, nowMs = atMs, device = device)
+        onValues = { values, atMs ->
+            diagnostics.visionResult(read = values.isNotEmpty(), nowMs = atMs, device = device)
             dispatch_async(sessionQueue) {
-                observeQrCode(TelemetryScanDecoder.Vision, value, atMs)
+                observeQrCode(TelemetryScanDecoder.Vision, values, atMs)
             }
         }
     )
 
-    private var onQrCodeScanned: ((String) -> Unit)? = null
+    private var onQrCodesScanned: ((List<String>) -> Unit)? = null
     private var onScannerUnavailable: (() -> Unit)? = null
     private var lifecycleObserver: NSObjectProtocol? = null
     private var started = false
@@ -174,7 +174,7 @@ private class IosQrScannerController : QrScannerController {
     private var drainingGeneration: Long? = null
 
     override fun start(
-        onQrCodeScanned: (String) -> Unit,
+        onQrCodesScanned: (List<String>) -> Unit,
         onCameraPermissionMissing: () -> Unit,
         onScannerUnavailable: () -> Unit
     ): Boolean {
@@ -182,7 +182,7 @@ private class IosQrScannerController : QrScannerController {
             onCameraPermissionMissing()
             return false
         }
-        this.onQrCodeScanned = onQrCodeScanned
+        this.onQrCodesScanned = onQrCodesScanned
         this.onScannerUnavailable = onScannerUnavailable
         ensureLifecycleObserver()
         if (hasStartedOnce) RaylTrace.mark(TracePoint.CameraRestart)
@@ -213,7 +213,7 @@ private class IosQrScannerController : QrScannerController {
     override fun stop() {
         generation += 1
         removeLifecycleObserver()
-        onQrCodeScanned = null
+        onQrCodesScanned = null
         onScannerUnavailable = null
         val stoppedGeneration = generation
         dispatch_async(sessionQueue) {
@@ -387,28 +387,30 @@ private class IosQrScannerController : QrScannerController {
     }
 
     /** On the session queue. */
-    private fun observeQrCode(decoder: TelemetryScanDecoder, value: String?, atMs: Long) {
-        val emittedValue = if (racing) {
-            race.observe(decoder, value, atMs)
+    private fun observeQrCode(decoder: TelemetryScanDecoder, values: List<String>, atMs: Long) {
+        val arrived = if (racing) {
+            race.observe(decoder, values, atMs)
         } else {
-            qrPresenceGate.observe(value)?.also { scanTelemetry.qrDetected(decoder) }
+            qrPresenceGate.observe(values).also {
+                if (it.isNotEmpty()) scanTelemetry.qrDetected(decoder)
+            }
         }
         if (drainingGeneration != null) {
             // Stopped and only waiting for the runner-up: close as soon as the race is decided.
             if (!scanTelemetry.raceUndecided) finishStop()
             return
         }
-        if (emittedValue == null) return
+        if (arrived.isEmpty()) return
         if (RaylTrace.debugLog) {
             RaylTrace.debug(
                 "scanner: ${decoder.wire} read a code ${atMs - startedAtMs} ms after start; " +
                     device?.diagnosticState()
             )
         }
-        val callback = onQrCodeScanned ?: return
+        val callback = onQrCodesScanned ?: return
         val currentGeneration = generation
         dispatch_async(dispatch_get_main_queue()) {
-            if (started && generation == currentGeneration) callback(emittedValue)
+            if (started && generation == currentGeneration) callback(arrived)
         }
     }
 
@@ -524,12 +526,12 @@ private fun Double.rounded(decimals: Int): String {
 
 /**
  * Reads QR codes from the camera's frames with Apple's Vision framework, one frame at a time.
- * It reports every frame's result, also "no code", like the metadata reader does.
+ * It reports every frame's result, also "no code"; the metadata reader reports only codes.
  */
 private class VisionDelegate(
     private val isActive: () -> Boolean,
     private val onFrameAnalyzed: (durationMs: Long, width: Int, height: Int) -> Unit,
-    private val onValue: (value: String?, atMs: Long) -> Unit
+    private val onValues: (values: List<String>, atMs: Long) -> Unit
 ) : NSObject(),
     AVCaptureVideoDataOutputSampleBufferDelegateProtocol {
     private val request = VNDetectBarcodesRequest().apply {
@@ -579,7 +581,7 @@ private class VisionDelegate(
                 )
             }
         }
-        onValue(pickPreferredQrValue(candidates, frameWidth = 1f, frameHeight = 1f), now)
+        onValues(rankQrValues(candidates, frameWidth = 1f, frameHeight = 1f), now)
     }
 }
 
@@ -597,7 +599,7 @@ private class MetadataDelegate(
     }
 }
 
-private fun selectPreferredMetadataValue(metadataObjects: List<*>): String? {
+private fun rankMetadataValues(metadataObjects: List<*>): List<String> {
     val candidates = metadataObjects.mapNotNull { objectCandidate ->
         val code = objectCandidate as? AVMetadataMachineReadableCodeObject ?: return@mapNotNull null
         val value = code.stringValue?.trim()?.takeIf(String::isNotEmpty) ?: return@mapNotNull null
@@ -615,7 +617,7 @@ private fun selectPreferredMetadataValue(metadataObjects: List<*>): String? {
             )
         }
     }
-    return pickPreferredQrValue(candidates, frameWidth = 1f, frameHeight = 1f)
+    return rankQrValues(candidates, frameWidth = 1f, frameHeight = 1f)
 }
 
 private data class ScannerCameraSelection(

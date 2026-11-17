@@ -121,9 +121,9 @@ fun PaymentScanScreen(
         if (scannerStarted) return true
         scannerStarted =
             scannerController.start(
-                onQrCodeScanned = { rawValue ->
+                onQrCodesScanned = { rawValues ->
                     scannerAutoRestartAttempts = 0
-                    onIntent(PaymentIntent.QrCodeScanned(rawValue))
+                    onIntent(PaymentIntent.QrCodeScanned(rawValues))
                 },
                 onCameraPermissionMissing = ::requestCameraPermissionAfterScannerFailure,
                 onScannerUnavailable = ::handleScannerUnavailable

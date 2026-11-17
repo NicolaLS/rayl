@@ -14,7 +14,7 @@ class CameraBenchmarkActivity : AppCompatActivity() {
             val scannerController = rememberQrScannerController()
 
             DisposableEffect(scannerController) {
-                scannerController.start(onQrCodeScanned = {})
+                scannerController.start(onQrCodesScanned = {})
                 onDispose(scannerController::stop)
             }
         }

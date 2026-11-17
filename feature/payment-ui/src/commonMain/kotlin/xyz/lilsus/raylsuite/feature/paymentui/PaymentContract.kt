@@ -22,7 +22,13 @@ sealed interface PaymentToastMessage {
 data class PaymentMessage(val text: String, val rejectsInput: Boolean = false)
 
 sealed interface PaymentIntent {
-    data class QrCodeScanned(val rawValue: String) : PaymentIntent
+    /**
+     * The codes the scanner saw come into view together, most prominent first. The first one
+     * that can be paid is the payment: an invoice counts, the larger menu link beside it not.
+     */
+    data class QrCodeScanned(val rawValues: List<String>) : PaymentIntent {
+        constructor(rawValue: String) : this(listOf(rawValue))
+    }
 
     /** Raw text typed or pasted into a lens. It uses the app's ordinary parser, never a saved target. */
     data class RawInputSubmitted(val rawValue: String) : PaymentIntent

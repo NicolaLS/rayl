@@ -40,7 +40,35 @@ internal class PaymentAdmissionPhase(
     ): AdmissionResult {
         if (presentation.uiState.value != PaymentUiState.Active) return AdmissionResult.Presented
         preparation.manualEntryContext = null
-        return when (val result = inputParser.parse(rawInput)) {
+        return admit(inputParser.parse(rawInput), isFromHubWidget)
+    }
+
+    /**
+     * The codes a scanner saw together, most prominent first. The first one that is a payment
+     * request is the payment, wherever it stands: a table shows a menu link next to its invoice,
+     * and the larger of the two must not win. With none, the most prominent is answered as if
+     * it had been scanned alone.
+     */
+    suspend fun handleScannedCodes(rawInputs: List<String>): AdmissionResult {
+        if (presentation.uiState.value != PaymentUiState.Active) return AdmissionResult.Presented
+        preparation.manualEntryContext = null
+        var mostProminent: LightningInputParser.ParseResult? = null
+        for (rawInput in rawInputs) {
+            val result = inputParser.parse(rawInput)
+            if (result is LightningInputParser.ParseResult.Success) {
+                return admit(result, isFromHubWidget = false)
+            }
+            if (mostProminent == null) mostProminent = result
+        }
+        return mostProminent?.let { admit(it, isFromHubWidget = false) }
+            ?: AdmissionResult.Presented
+    }
+
+    private suspend fun admit(
+        result: LightningInputParser.ParseResult,
+        isFromHubWidget: Boolean
+    ): AdmissionResult {
+        return when (result) {
             is LightningInputParser.ParseResult.Failure -> {
                 handleParseFailure(result.reason)
                 AdmissionResult.Presented

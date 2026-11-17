@@ -20,10 +20,10 @@ class TestQrInputTest {
         TestQrInput.install("lnbcrt1invoice")
         val reads = mutableListOf<String>()
 
-        TestQrInput.scannerOrNull(schedule)!!.start(onQrCodeScanned = { reads += it })
+        TestQrInput.scannerOrNull(schedule)!!.start(onQrCodesScanned = { reads += it })
         assertEquals(emptyList(), reads, "Read during start()")
         runScheduled()
-        TestQrInput.scannerOrNull(schedule)!!.start(onQrCodeScanned = { reads += it })
+        TestQrInput.scannerOrNull(schedule)!!.start(onQrCodesScanned = { reads += it })
         runScheduled()
 
         assertEquals(listOf("lnbcrt1invoice"), reads)
@@ -36,11 +36,11 @@ class TestQrInputTest {
         val reads = mutableListOf<String>()
 
         TestQrInput.scannerOrNull(schedule)!!.apply {
-            start(onQrCodeScanned = { reads += it })
+            start(onQrCodesScanned = { reads += it })
             stop()
         }
         runScheduled()
-        TestQrInput.scannerOrNull(schedule)!!.start(onQrCodeScanned = { reads += it })
+        TestQrInput.scannerOrNull(schedule)!!.start(onQrCodesScanned = { reads += it })
         runScheduled()
 
         assertEquals(listOf("lnbcrt1invoice"), reads)
@@ -50,7 +50,7 @@ class TestQrInputTest {
     fun withoutAValueTheFakeCameraReadsNothing() {
         TestQrInput.install(null)
 
-        TestQrInput.scannerOrNull(schedule)!!.start(onQrCodeScanned = { error("Read $it") })
+        TestQrInput.scannerOrNull(schedule)!!.start(onQrCodesScanned = { error("Read $it") })
 
         assertTrue(scheduled.isEmpty())
     }

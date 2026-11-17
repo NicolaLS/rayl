@@ -67,7 +67,7 @@ fun AddNwcWalletScreen(
         scannerUnavailable = false
         if (screenResumed && cameraAuthorization == CameraAuthorizationState.AUTHORIZED) {
             scanner.start(
-                onQrCodeScanned = { currentOnQrCodeScanned(it) },
+                onQrCodesScanned = { currentOnQrCodeScanned(it.first()) },
                 onCameraPermissionMissing = { currentOnCameraPermissionAction() },
                 onScannerUnavailable = { scannerUnavailable = true }
             )

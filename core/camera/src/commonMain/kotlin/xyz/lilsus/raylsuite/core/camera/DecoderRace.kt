@@ -12,34 +12,41 @@ import xyz.lilsus.raylsuite.core.raylapi.TelemetryScanDecoder
  */
 internal class DecoderRace(private val telemetry: ScanTelemetry) {
     private val gates = mutableMapOf<TelemetryScanDecoder, QrPresenceGate>()
-    private var winner: Emission? = null
+    private val firstReads = mutableMapOf<String, FirstRead>()
 
     fun reset() {
         gates.clear()
-        winner = null
+        firstReads.clear()
     }
 
     /**
-     * What [decoder] saw at [atMs]: a code's value, or null for none. Returns the value when it
-     * should be handed on.
+     * What [decoder] read at [atMs]: the codes in its frame, most prominent first. Returns the
+     * ones to hand on, in that order.
      */
-    fun observe(decoder: TelemetryScanDecoder, value: String?, atMs: Long): String? {
-        val emitted = gates.getOrPut(decoder) { QrPresenceGate() }.observe(value) ?: return null
-        val first = winner
-        if (first != null &&
-            first.decoder != decoder &&
-            first.value == emitted &&
-            atMs - first.atMs < SAME_CODE_WINDOW_MS
-        ) {
-            telemetry.runnerUpDetected(lagMs = atMs - first.atMs)
-            return null
+    fun observe(decoder: TelemetryScanDecoder, values: List<String>, atMs: Long): List<String> {
+        val arrived = gates.getOrPut(decoder) { QrPresenceGate() }.observe(values)
+        val handedOn = arrived.filter { value ->
+            val first = firstReads[value]
+            if (first != null && first.awaitsRunnerUp(decoder, atMs)) {
+                // Once: the next time either reader finds this code, it is a new scan.
+                first.runnerUpSeen = true
+                telemetry.runnerUpDetected(lagMs = atMs - first.atMs)
+                false
+            } else {
+                firstReads[value] = FirstRead(decoder, atMs)
+                true
+            }
         }
-        winner = Emission(emitted, decoder, atMs)
-        telemetry.qrDetected(decoder, racing = true)
-        return emitted
+        if (handedOn.isNotEmpty()) telemetry.qrDetected(decoder, racing = true)
+        return handedOn
     }
 
-    private class Emission(val value: String, val decoder: TelemetryScanDecoder, val atMs: Long)
+    private class FirstRead(val decoder: TelemetryScanDecoder, val atMs: Long) {
+        var runnerUpSeen = false
+
+        fun awaitsRunnerUp(other: TelemetryScanDecoder, atMs: Long): Boolean =
+            !runnerUpSeen && other != decoder && atMs - this.atMs < SAME_CODE_WINDOW_MS
+    }
 
     private companion object {
         /** Later than this, the same code from the other reader is a new scan, not the runner-up. */

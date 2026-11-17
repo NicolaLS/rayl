@@ -354,9 +354,9 @@ class NwcNativeOnboardingController internal constructor(private val runtime: Nw
         scannerUnavailable = false
         scannerStarted =
             scanner.start(
-                onQrCodeScanned = {
+                onQrCodesScanned = {
                     clipboard.discard()
-                    addWallet.handleScannedValue(it)
+                    addWallet.handleScannedValue(it.first())
                 },
                 onCameraPermissionMissing = {
                     scannerStarted = false

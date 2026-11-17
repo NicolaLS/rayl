@@ -71,7 +71,7 @@ private class AndroidQrScannerController(
     private var imageAnalysis: ImageAnalysis? = null
     private var analyzer: QrCodeAnalyzer? = null
     private var analysisExecutor: DroppingExecutor? = null
-    private var onQrCodeScanned: ((String) -> Unit)? = null
+    private var onQrCodesScanned: ((List<String>) -> Unit)? = null
     private var onCameraPermissionMissing: (() -> Unit)? = null
     private var onScannerUnavailable: (() -> Unit)? = null
     private val isBound = AtomicBoolean(false)
@@ -83,11 +83,11 @@ private class AndroidQrScannerController(
     private val scanTelemetry = ScanTelemetry()
 
     override fun start(
-        onQrCodeScanned: (String) -> Unit,
+        onQrCodesScanned: (List<String>) -> Unit,
         onCameraPermissionMissing: () -> Unit,
         onScannerUnavailable: () -> Unit
     ): Boolean {
-        this.onQrCodeScanned = onQrCodeScanned
+        this.onQrCodesScanned = onQrCodesScanned
         this.onCameraPermissionMissing = onCameraPermissionMissing
         this.onScannerUnavailable = onScannerUnavailable
         if (!isCameraPermissionGranted(context)) {
@@ -126,7 +126,7 @@ private class AndroidQrScannerController(
             analysisExecutor?.shutdownAfterDelay()
             analysisExecutor = null
             cameraProvider = null
-            onQrCodeScanned = null
+            onQrCodesScanned = null
             onCameraPermissionMissing = null
             onScannerUnavailable = null
             isBound.set(false)
@@ -160,12 +160,13 @@ private class AndroidQrScannerController(
                     if (!isCurrentGeneration(generation)) return@addListener
                     val analyzer = analyzer ?: QrCodeAnalyzer(
                         barcodeScanner = newBarcodeScanner(),
-                        onQrCodeObserved = { value ->
-                            qrPresenceGate.observe(value)?.let { emittedValue ->
+                        onQrCodesObserved = { values ->
+                            val arrived = qrPresenceGate.observe(values)
+                            if (arrived.isNotEmpty()) {
                                 scanTelemetry.qrDetected(TelemetryScanDecoder.MlKit)
                                 mainExecutor.execute {
                                     if (isCurrentGeneration(generation)) {
-                                        onQrCodeScanned?.invoke(emittedValue)
+                                        onQrCodesScanned?.invoke(arrived)
                                     }
                                 }
                             }
@@ -352,7 +353,7 @@ private class DroppingExecutor : Executor {
 
 private class QrCodeAnalyzer(
     private val barcodeScanner: BarcodeScanner,
-    private val onQrCodeObserved: (String?) -> Unit,
+    private val onQrCodesObserved: (List<String>) -> Unit,
     private val onFirstFrame: () -> Unit,
     private val onFrameAnalyzed: (durationMs: Long, width: Int, height: Int) -> Unit
 ) : ImageAnalysis.Analyzer {
@@ -408,12 +409,13 @@ private class QrCodeAnalyzer(
                         } else {
                             image.height.toFloat()
                         }
-                        val value = selectPreferredBarcodeValue(
-                            barcodes = task.result.orEmpty(),
-                            frameWidth = frameWidth,
-                            frameHeight = frameHeight
+                        onQrCodesObserved(
+                            rankBarcodeValues(
+                                barcodes = task.result.orEmpty(),
+                                frameWidth = frameWidth,
+                                frameHeight = frameHeight
+                            )
                         )
-                        onQrCodeObserved(value)
                     } finally {
                         analysisTrace?.end()
                         closeImage()
@@ -433,36 +435,26 @@ private class QrCodeAnalyzer(
     }
 }
 
-private fun selectPreferredBarcodeValue(
+private fun rankBarcodeValues(
     barcodes: List<Barcode>,
     frameWidth: Float,
     frameHeight: Float
-): String? {
-    if (barcodes.isEmpty()) return null
-    if (barcodes.size == 1) {
-        return barcodes.first().rawValue?.takeIf { it.isNotBlank() }
-    }
-
-    val candidates = ArrayList<QrDetectionCandidate>(barcodes.size)
-    var firstValue: String? = null
-    for (barcode in barcodes) {
-        val value = barcode.rawValue?.takeIf { it.isNotBlank() } ?: continue
-        if (firstValue == null) firstValue = value
-        val bounds = barcode.boundingBox ?: continue
-        candidates.add(
-            QrDetectionCandidate(
-                value = value,
-                left = bounds.left.toFloat(),
-                top = bounds.top.toFloat(),
-                right = bounds.right.toFloat(),
-                bottom = bounds.bottom.toFloat()
-            )
+): List<String> = rankQrValues(
+    candidates = barcodes.mapNotNull { barcode ->
+        val value = barcode.rawValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+        // A code without a place in the frame ranks last.
+        val bounds = barcode.boundingBox
+        QrDetectionCandidate(
+            value = value,
+            left = bounds?.left?.toFloat() ?: 0f,
+            top = bounds?.top?.toFloat() ?: 0f,
+            right = bounds?.right?.toFloat() ?: 0f,
+            bottom = bounds?.bottom?.toFloat() ?: 0f
         )
-    }
-
-    if (candidates.isEmpty()) return firstValue
-    return pickPreferredQrValue(candidates, frameWidth, frameHeight)
-}
+    },
+    frameWidth = frameWidth,
+    frameHeight = frameHeight
+)
 
 private fun isCameraPermissionGranted(context: Context): Boolean =
     ContextCompat.checkSelfPermission(

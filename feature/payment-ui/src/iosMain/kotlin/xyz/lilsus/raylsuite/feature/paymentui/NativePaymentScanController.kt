@@ -239,7 +239,7 @@ class NativePaymentScanController(
         if (scannerStarted) return
         scannerStarted =
             scanner.start(
-                onQrCodeScanned = {
+                onQrCodesScanned = {
                     scannerRestartAttempts = 0
                     onPaymentIntent(PaymentIntent.QrCodeScanned(it))
                 },

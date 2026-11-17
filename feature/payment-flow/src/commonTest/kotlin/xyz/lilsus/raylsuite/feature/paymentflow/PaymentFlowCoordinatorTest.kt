@@ -148,6 +148,43 @@ class PaymentFlowCoordinatorTest {
     }
 
     @Test
+    fun anInvoiceBesideALargerCodeThatIsNotLightningIsTheOnePaid() = flowTest {
+        // A table stand shows a menu link next to the invoice. The scanner hands on both, the
+        // larger first; it used to hand on only the larger, and the invoice was never read.
+        val shown = test.backgroundScope.async { coordinator.events.first() }
+        testScheduler.advanceUntilIdle()
+
+        dispatch(
+            PaymentIntent.QrCodeScanned(
+                listOf("https://example.com/menu", invoice(sats = 100).write())
+            )
+        )
+
+        testScheduler.runCurrent()
+        assertIs<PaymentUiState.Success>(coordinator.uiState.value)
+        // The menu link is not answered: the user scanned the invoice.
+        assertFalse(shown.isCompleted)
+    }
+
+    @Test
+    fun withNoCodeToPayTheMostProminentOneIsAnswered() = flowTest {
+        val shown = test.backgroundScope.async { coordinator.events.first() }
+        testScheduler.advanceUntilIdle()
+
+        dispatch(
+            PaymentIntent.QrCodeScanned(
+                listOf("bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq", "https://example.com/menu")
+            )
+        )
+
+        assertEquals(
+            PaymentEvent.ShowToast(PaymentToastMessage.BitcoinAddressNotSupported),
+            shown.await()
+        )
+        assertEquals(PaymentUiState.Active, coordinator.uiState.value)
+    }
+
+    @Test
     fun anErrorWithItsOwnScreenIsNotAlsoToasted() = flowTest {
         // The error screen already says it; a toast repeating it on top looked broken.
         val shown = test.backgroundScope.async { coordinator.events.first() }

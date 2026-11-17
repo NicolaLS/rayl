@@ -34,7 +34,7 @@ object TestQrInput {
         private var delivery: Cancel? = null
 
         override fun start(
-            onQrCodeScanned: (String) -> Unit,
+            onQrCodesScanned: (List<String>) -> Unit,
             onCameraPermissionMissing: () -> Unit,
             onScannerUnavailable: () -> Unit
         ): Boolean {
@@ -44,7 +44,7 @@ object TestQrInput {
                     delivery = null
                     pending?.let { value ->
                         pending = null
-                        onQrCodeScanned(value)
+                        onQrCodesScanned(listOf(value))
                     }
                 }
             }

@@ -1,8 +1,8 @@
 package xyz.lilsus.raylsuite.core.camera
 
 import kotlin.math.abs
-import kotlin.math.min
 
+/** A code read in one frame and where it was, in the frame's own units. */
 internal data class QrDetectionCandidate(
     val value: String,
     val left: Float,
@@ -11,55 +11,44 @@ internal data class QrDetectionCandidate(
     val bottom: Float
 )
 
-internal fun pickPreferredQrValue(
+/**
+ * The values of one frame's codes, most prominent first: the larger code, and of two the same
+ * size the one nearer the centre. All of them are handed on, because only whoever the scanner
+ * works for knows which one it wants: the invoice, not the larger menu link beside it.
+ */
+internal fun rankQrValues(
     candidates: List<QrDetectionCandidate>,
     frameWidth: Float,
     frameHeight: Float
-): String? {
-    if (candidates.isEmpty()) return null
-    if (candidates.size == 1) {
-        return candidates[0].value.takeIf { it.isNotBlank() }
-    }
+): List<String> {
+    if (candidates.isEmpty()) return emptyList()
+    if (candidates.size == 1) return listOfNotNull(candidates[0].value.takeIf { it.isNotBlank() })
 
-    val safeWidth = frameWidth.takeIf { it > 0f } ?: 1f
-    val safeHeight = frameHeight.takeIf { it > 0f } ?: 1f
-    val invWidth = 1f / safeWidth
-    val invHeight = 1f / safeHeight
-
-    var bestValue: String? = null
-    var bestArea = Float.NEGATIVE_INFINITY
-    var bestCenterDistanceSquared = Float.POSITIVE_INFINITY
-
-    for (candidate in candidates) {
-        if (candidate.value.isBlank()) continue
-
-        val left = min(candidate.left, candidate.right)
-        val right = if (candidate.right >= candidate.left) candidate.right else candidate.left
-        val top = min(candidate.top, candidate.bottom)
-        val bottom = if (candidate.bottom >= candidate.top) candidate.bottom else candidate.top
-
-        val width = (right - left).coerceAtLeast(0f)
-        val height = (bottom - top).coerceAtLeast(0f)
-        val normalizedArea = (width * invWidth) * (height * invHeight)
-
-        val normalizedCenterX = ((left + right) * 0.5f) * invWidth
-        val normalizedCenterY = ((top + bottom) * 0.5f) * invHeight
-        val dx = normalizedCenterX - 0.5f
-        val dy = normalizedCenterY - 0.5f
-        val centerDistanceSquared = (dx * dx) + (dy * dy)
-
-        val largerByArea = normalizedArea > bestArea + AREA_EPSILON
-        val tiedArea = abs(normalizedArea - bestArea) <= AREA_EPSILON
-        val closerToCenter = centerDistanceSquared < bestCenterDistanceSquared
-
-        if (largerByArea || (tiedArea && closerToCenter)) {
-            bestValue = candidate.value
-            bestArea = normalizedArea
-            bestCenterDistanceSquared = centerDistanceSquared
+    val width = frameWidth.takeIf { it > 0f } ?: 1f
+    val height = frameHeight.takeIf { it > 0f } ?: 1f
+    return candidates
+        .filter { it.value.isNotBlank() }
+        .map { candidate ->
+            val dx = (candidate.left + candidate.right) * 0.5f / width - 0.5f
+            val dy = (candidate.top + candidate.bottom) * 0.5f / height - 0.5f
+            Ranked(
+                value = candidate.value,
+                area = abs(candidate.right - candidate.left) / width *
+                    (abs(candidate.bottom - candidate.top) / height),
+                centerDistanceSquared = dx * dx + dy * dy
+            )
         }
-    }
-
-    return bestValue
+        .sortedWith { a, b ->
+            if (abs(a.area - b.area) > AREA_EPSILON) {
+                b.area.compareTo(a.area)
+            } else {
+                a.centerDistanceSquared.compareTo(b.centerDistanceSquared)
+            }
+        }
+        .map(Ranked::value)
+        .distinct()
 }
+
+private class Ranked(val value: String, val area: Float, val centerDistanceSquared: Float)
 
 private const val AREA_EPSILON = 1e-6f

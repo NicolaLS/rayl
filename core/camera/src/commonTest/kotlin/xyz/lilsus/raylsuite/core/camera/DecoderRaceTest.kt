@@ -19,6 +19,7 @@ class DecoderRaceTest {
         afterScan = {}
     ).also { it.sessionStarted() }
     private val race = DecoderRace(telemetry)
+    private val nothing = emptyList<String>()
 
     private fun at(ms: Long): Long {
         now = ms
@@ -27,13 +28,13 @@ class DecoderRaceTest {
 
     @Test
     fun theFirstReaderHandsTheCodeOnAndTheOtherIsOnlyTimed() {
-        assertNull(race.observe(AvFoundation, null, at(900)))
+        assertEquals(nothing, race.observe(AvFoundation, nothing, at(900)))
 
-        assertEquals("lnbc1", race.observe(Vision, "lnbc1", at(1_000)))
+        assertEquals(listOf("lnbc1"), race.observe(Vision, listOf("lnbc1"), at(1_000)))
         // Nothing is reported until the race is decided.
         assertEquals(emptyList(), recorded)
         // Handing it on again would start the payment twice.
-        assertNull(race.observe(AvFoundation, "lnbc1", at(1_040)))
+        assertEquals(nothing, race.observe(AvFoundation, listOf("lnbc1"), at(1_040)))
 
         assertEquals("vision", recorded.single().dimensions["decoder"])
         assertEquals("decoded", recorded.single().dimensions["runner_up"])
@@ -42,8 +43,8 @@ class DecoderRaceTest {
 
     @Test
     fun aReaderThatNeverDecodesTheCodeIsReportedAsMissedWithHowLongItHad() {
-        assertEquals("lnbc1", race.observe(AvFoundation, "lnbc1", at(1_000)))
-        assertNull(race.observe(Vision, null, at(1_100)))
+        assertEquals(listOf("lnbc1"), race.observe(AvFoundation, listOf("lnbc1"), at(1_000)))
+        assertEquals(nothing, race.observe(Vision, nothing, at(1_100)))
 
         now = 1_700
         telemetry.sessionEnded()
@@ -59,30 +60,44 @@ class DecoderRaceTest {
 
     @Test
     fun anotherCodeOrTheSameCodeMuchLaterIsAScanOfItsOwn() {
-        assertEquals("lnbc1", race.observe(Vision, "lnbc1", at(1_000)))
+        assertEquals(listOf("lnbc1"), race.observe(Vision, listOf("lnbc1"), at(1_000)))
 
         // A different code in view of the other reader is not the runner-up of the first.
-        assertEquals("lnbc2", race.observe(AvFoundation, "lnbc2", at(1_050)))
+        assertEquals(listOf("lnbc2"), race.observe(AvFoundation, listOf("lnbc2"), at(1_050)))
         // Long after the first reader, the same code is a new scan, not a late runner-up.
-        assertEquals("lnbc1", race.observe(AvFoundation, "lnbc1", at(20_000)))
+        assertEquals(listOf("lnbc1"), race.observe(AvFoundation, listOf("lnbc1"), at(20_000)))
     }
 
     @Test
     fun aReaderThatLostTheCodeAndFindsItAgainHandsItOnLikeASingleReaderWould() {
-        assertEquals("lnbc1", race.observe(Vision, "lnbc1", at(1_000)))
-        assertNull(race.observe(Vision, "lnbc1", at(1_030)))
-        repeat(3) { assertNull(race.observe(Vision, null, at(1_100))) }
+        assertEquals(listOf("lnbc1"), race.observe(Vision, listOf("lnbc1"), at(1_000)))
+        assertEquals(nothing, race.observe(Vision, listOf("lnbc1"), at(1_030)))
+        repeat(3) { assertEquals(nothing, race.observe(Vision, nothing, at(1_100))) }
 
-        assertEquals("lnbc1", race.observe(Vision, "lnbc1", at(1_500)))
+        assertEquals(listOf("lnbc1"), race.observe(Vision, listOf("lnbc1"), at(1_500)))
+    }
+
+    @Test
+    fun onceTheRunnerUpIsTimedTheCodeIsANewScanForWhoeverFindsItNext() {
+        assertEquals(listOf("menu"), race.observe(AvFoundation, listOf("menu"), at(1_000)))
+        assertEquals(nothing, race.observe(Vision, listOf("menu"), at(1_040)))
+        // Both lose the code; Vision, the runner-up of before, is the first to find it again.
+        repeat(3) {
+            race.observe(AvFoundation, nothing, at(2_000))
+            race.observe(Vision, nothing, at(2_000))
+        }
+
+        assertEquals(listOf("menu"), race.observe(Vision, listOf("menu"), at(3_000)))
+        assertEquals(nothing, race.observe(AvFoundation, listOf("menu"), at(3_050)))
     }
 
     @Test
     fun aRestartedScannerStartsANewRace() {
-        assertEquals("lnbc1", race.observe(Vision, "lnbc1", at(1_000)))
+        assertEquals(listOf("lnbc1"), race.observe(Vision, listOf("lnbc1"), at(1_000)))
 
         race.reset()
 
         // Not the runner-up of a race from before the restart.
-        assertEquals("lnbc1", race.observe(AvFoundation, "lnbc1", at(1_200)))
+        assertEquals(listOf("lnbc1"), race.observe(AvFoundation, listOf("lnbc1"), at(1_200)))
     }
 }

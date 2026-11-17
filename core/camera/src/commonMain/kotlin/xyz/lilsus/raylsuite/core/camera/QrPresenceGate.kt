@@ -1,10 +1,16 @@
 package xyz.lilsus.raylsuite.core.camera
 
+/**
+ * Hands a code on once for as long as it stays in view. A reader sees the same code in frame
+ * after frame; it counts as gone, and as new when it shows again, only after
+ * [absentObservationsToRearm] observations without it, because a reader also misses a code that
+ * is still there now and then.
+ */
 internal class QrPresenceGate(
     private val absentObservationsToRearm: Int = DEFAULT_ABSENT_OBSERVATIONS_TO_REARM
 ) {
-    private var blockedValue: String? = null
-    private var absentObservations = 0
+    /** The codes in view, with how many observations in a row each has been missing. */
+    private val missed = mutableMapOf<String, Int>()
 
     init {
         require(absentObservationsToRearm > 0) {
@@ -12,27 +18,23 @@ internal class QrPresenceGate(
         }
     }
 
-    fun observe(value: String?): String? {
-        if (value == null) {
-            if (blockedValue != null) {
-                absentObservations++
-                if (absentObservations >= absentObservationsToRearm) {
-                    blockedValue = null
-                    absentObservations = 0
-                }
-            }
-            return null
+    /** [values] are the codes read now. Returns those that just came into view, in that order. */
+    fun observe(values: List<String>): List<String> {
+        val entries = missed.entries.iterator()
+        while (entries.hasNext()) {
+            val entry = entries.next()
+            if (entry.key in values) continue
+            entry.setValue(entry.value + 1)
+            if (entry.value >= absentObservationsToRearm) entries.remove()
         }
 
-        absentObservations = 0
-        if (value == blockedValue) return null
-        blockedValue = value
-        return value
+        val arrived = values.filter { it !in missed }.distinct()
+        values.forEach { missed[it] = 0 }
+        return arrived
     }
 
     fun reset() {
-        blockedValue = null
-        absentObservations = 0
+        missed.clear()
     }
 
     private companion object {
