@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
@@ -42,6 +43,18 @@ import xyz.lilsus.raylsuite.core.telemetry.TraceSpan
 
 private const val TAG = "QrScanner"
 private const val ANALYSIS_EXECUTOR_SHUTDOWN_DELAY_MILLIS = 2_000L
+
+/** How often a running scanner is checked for frames. */
+private const val FRAME_WATCH_INTERVAL_MILLIS = 1_000L
+
+/**
+ * Without a frame for this long the camera counts as stalled. A slow phone takes a second or two
+ * to open its camera.
+ */
+private const val FRAME_STALL_MILLIS = 4_000L
+
+/** A camera that stalls again right after being bound anew is reported as unavailable. */
+private const val MAX_STALL_REBINDS = 1
 
 @Composable
 fun rememberQrScannerController(): QrScannerController {
@@ -81,6 +94,14 @@ private class AndroidQrScannerController(
     private var startToFirstFrameTrace: TraceInterval? = null
     private val config = CameraVariant.current.androidCameraConfig()
     private val scanTelemetry = ScanTelemetry()
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** When the camera last delivered a frame; written on the analysis thread. */
+    @Volatile
+    private var lastFrameAtMs = 0L
+
+    /** How often in a row the camera was bound anew because it delivered no frames. */
+    private var stallRebinds = 0
 
     init {
         // The reader loads while the camera opens, not on the first frame.
@@ -103,6 +124,7 @@ private class AndroidQrScannerController(
             if (hasStartedOnce) RaylTrace.mark(TracePoint.CameraRestart)
             hasStartedOnce = true
             bindGeneration += 1
+            stallRebinds = 0
             scanTelemetry.sessionStarted()
             startToReadyTrace = RaylTrace.begin(TraceSpan.CameraStartToReady)
             startToFirstFrameTrace = RaylTrace.begin(TraceSpan.CameraStartToFirstFrame)
@@ -175,12 +197,16 @@ private class AndroidQrScannerController(
                             }
                         },
                         onFirstFrame = {
+                            lastFrameAtMs = SystemClock.elapsedRealtime()
                             if (isCurrentGeneration(generation)) {
                                 startToFirstFrameTrace?.end()
                                 scanTelemetry.firstFrame()
                             }
                         },
-                        onFrameAnalyzed = scanTelemetry::frameAnalyzed
+                        onFrameAnalyzed = { durationMs, width, height ->
+                            lastFrameAtMs = SystemClock.elapsedRealtime()
+                            scanTelemetry.frameAnalyzed(durationMs, width, height)
+                        }
                     ).also {
                         analyzer = it
                     }
@@ -220,6 +246,8 @@ private class AndroidQrScannerController(
                     }
                     startToReadyTrace?.end()
                     scanTelemetry.ready()
+                    lastFrameAtMs = SystemClock.elapsedRealtime()
+                    watchFrames(generation)
                 } catch (failure: Throwable) {
                     if (!isCurrentGeneration(generation)) return@addListener
                     if (
@@ -235,6 +263,58 @@ private class AndroidQrScannerController(
                 }
             },
             ContextCompat.getMainExecutor(context)
+        )
+    }
+
+    /**
+     * Nothing on screen shows this scanner's picture, so a camera that stopped delivering frames
+     * looks exactly like one with no code in view. While the scanner bound as [generation] runs,
+     * a camera without frames is bound anew, and one that stays without them is reported as
+     * unavailable so the screen can say so.
+     */
+    private fun watchFrames(generation: Long) {
+        mainHandler.postDelayed(
+            {
+                if (!isCurrentGeneration(generation)) return@postDelayed
+                val now = SystemClock.elapsedRealtime()
+                val screenStarted =
+                    lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                when {
+                    // CameraX closes the camera with the screen; the wait starts over with it.
+                    !screenStarted -> lastFrameAtMs = now
+
+                    now - lastFrameAtMs < FRAME_STALL_MILLIS -> stallRebinds = 0
+
+                    stallRebinds >= MAX_STALL_REBINDS -> {
+                        Log.e(TAG, "Camera delivers no frames after being bound anew")
+                        reportScannerUnavailable()
+                        return@postDelayed
+                    }
+
+                    else -> {
+                        Log.w(TAG, "Camera delivers no frames; binding it anew")
+                        stallRebinds += 1
+                        rebind()
+                        return@postDelayed
+                    }
+                }
+                watchFrames(generation)
+            },
+            FRAME_WATCH_INTERVAL_MILLIS
+        )
+    }
+
+    /** Closes the camera and binds it again for the running scanner. */
+    private fun rebind() {
+        bindGeneration += 1
+        cameraProvider?.unbindAll()
+        imageAnalysis?.clearAnalyzer()
+        imageAnalysis = null
+        analyzer = null
+        bindCamera(
+            generation = bindGeneration,
+            startToReadyTrace = null,
+            startToFirstFrameTrace = null
         )
     }
 

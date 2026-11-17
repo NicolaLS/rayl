@@ -6,6 +6,7 @@
 package xyz.lilsus.raylsuite.core.camera
 
 import kotlin.concurrent.AtomicInt
+import kotlin.concurrent.AtomicLong
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.round
@@ -132,6 +133,7 @@ private class IosQrScannerController : QrScannerController {
     )
     private val visionDelegate = VisionDelegate(
         isActive = { started },
+        onFrame = { lastFrameAtMs.value = RaylTrace.nowMs() },
         onFrameAnalyzed = { durationMs, width, height ->
             scanTelemetry.frameAnalyzed(durationMs, width, height)
             diagnostics.visionAnalyzed(durationMs)
@@ -143,6 +145,12 @@ private class IosQrScannerController : QrScannerController {
             }
         }
     )
+
+    /** When the camera last delivered a frame to Vision, or was last started. */
+    private val lastFrameAtMs = AtomicLong(0L)
+
+    /** How often in a row the camera was restarted for delivering no frames; session queue only. */
+    private var stallRestarts = 0
 
     private var onQrCodesScanned: ((List<String>) -> Unit)? = null
     private var onScannerUnavailable: (() -> Unit)? = null
@@ -201,8 +209,9 @@ private class IosQrScannerController : QrScannerController {
                 qrPresenceGate.reset()
                 race.reset()
                 started = true
+                stallRestarts = 0
                 ensureSessionRunning()
-                fitExposureToLight(currentGeneration)
+                watchCamera(currentGeneration)
             } finally {
                 startTrace?.end()
             }
@@ -259,6 +268,7 @@ private class IosQrScannerController : QrScannerController {
             // Blocks until the session delivers frames; AVFoundation decodes them itself, so this
             // is the closest there is to a first frame.
             session.startRunning()
+            lastFrameAtMs.value = RaylTrace.nowMs()
         }
         // Also when a start overtook a stop that was still waiting for the runner-up: the camera
         // never went off, so it is ready at once.
@@ -269,31 +279,61 @@ private class IosQrScannerController : QrScannerController {
     }
 
     /**
-     * On the session queue: while the scanner started as [forGeneration] runs, keeps the exposure
-     * setting at what the [ExposurePolicy] wants for the light the camera reports.
+     * On the session queue, every [CAMERA_CHECK_MS] while the scanner started as [forGeneration]
+     * runs: restarts a camera that delivers no frames and fits the exposure to the light.
      */
-    private fun fitExposureToLight(forGeneration: Long) {
-        val policy = config.exposure ?: return
+    private fun watchCamera(forGeneration: Long) {
         dispatch_after(
-            dispatch_time(DISPATCH_TIME_NOW, EXPOSURE_CHECK_MS * NSEC_PER_MSEC.toLong()),
+            dispatch_time(DISPATCH_TIME_NOW, CAMERA_CHECK_MS * NSEC_PER_MSEC.toLong()),
             sessionQueue
         ) {
             if (!started || generation != forGeneration) return@dispatch_after
-            val device = device
-            val current = exposureSetting
-            if (device != null && current != null && session.running) {
-                val wanted = policy.settingFor(
-                    current = current,
-                    exposureMs = CMTimeGetSeconds(device.exposureDuration) * 1_000,
-                    iso = device.ISO.toDouble(),
-                    evFromTarget = device.exposureTargetOffset.toDouble()
-                )
-                if (wanted !== current) {
-                    setExposure(device, wanted)?.let { exposureSetting = it }
-                }
-            }
-            fitExposureToLight(forGeneration)
+            if (!recoverStalledCamera()) return@dispatch_after
+            fitExposureToLight()
+            watchCamera(forGeneration)
         }
+    }
+
+    /**
+     * Nothing on screen shows this scanner's picture, so a camera that stopped delivering frames,
+     * after an interruption or an error of the capture session, looks exactly like one with no
+     * code in view. Such a camera is restarted, and one that stays without frames is reported as
+     * unavailable so the screen can say so. False when the scanner was given up on.
+     */
+    private fun recoverStalledCamera(): Boolean {
+        // Only the frames Vision is given can be seen arriving.
+        if (!racing) return true
+        if (RaylTrace.nowMs() - lastFrameAtMs.value < FRAME_STALL_MS) {
+            stallRestarts = 0
+            return true
+        }
+        if (stallRestarts >= MAX_STALL_RESTARTS) {
+            RaylTrace.debug("scanner: still no frames after a restart, giving up")
+            reportScannerUnavailable()
+            return false
+        }
+        RaylTrace.debug("scanner: no frames, restarting the camera")
+        stallRestarts += 1
+        if (session.running) session.stopRunning()
+        teardownSession()
+        configured = false
+        ensureSessionRunning()
+        return started
+    }
+
+    /** Keeps the exposure setting at what the [ExposurePolicy] wants for the light reported. */
+    private fun fitExposureToLight() {
+        val policy = config.exposure ?: return
+        val device = device ?: return
+        val current = exposureSetting ?: return
+        if (!session.running) return
+        val wanted = policy.settingFor(
+            current = current,
+            exposureMs = CMTimeGetSeconds(device.exposureDuration) * 1_000,
+            iso = device.ISO.toDouble(),
+            evFromTarget = device.exposureTargetOffset.toDouble()
+        )
+        if (wanted !== current) setExposure(device, wanted)?.let { exposureSetting = it }
     }
 
     private fun configureSession(): Boolean {
@@ -530,6 +570,7 @@ private fun Double.rounded(decimals: Int): String {
  */
 private class VisionDelegate(
     private val isActive: () -> Boolean,
+    private val onFrame: () -> Unit,
     private val onFrameAnalyzed: (durationMs: Long, width: Int, height: Int) -> Unit,
     private val onValues: (values: List<String>, atMs: Long) -> Unit
 ) : NSObject(),
@@ -549,6 +590,7 @@ private class VisionDelegate(
         fromConnection: AVCaptureConnection
     ) {
         if (!isActive()) return
+        onFrame()
         val pixelBuffer = CMSampleBufferGetImageBuffer(didOutputSampleBuffer) ?: return
         val startedMs = RaylTrace.nowMs()
         val performed = autoreleasepool {
@@ -818,8 +860,14 @@ private const val MAXIMUM_ASPECT_DELTA = 0.08
 /** How long a stopped scanner keeps the camera on for the slower reader. */
 private const val RUNNER_UP_GRACE_MS = 500L
 
-/** How often the exposure setting is fitted to the light. */
-private const val EXPOSURE_CHECK_MS = 250L
+/** How often a running scanner's camera is checked for frames and its exposure for the light. */
+private const val CAMERA_CHECK_MS = 250L
+
+/** Without a frame for this long the camera counts as stalled; its first comes within a second. */
+private const val FRAME_STALL_MS = 3_000L
+
+/** A camera that stalls again right after a restart is reported as unavailable. */
+private const val MAX_STALL_RESTARTS = 1
 
 /**
  * The scanner settings a [CameraVariant] stands for on iOS: the capture rate, the format wanted
