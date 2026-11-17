@@ -2,6 +2,7 @@ package xyz.lilsus.raylsuite.core.camera
 
 import android.Manifest
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -24,7 +25,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -82,6 +82,11 @@ private class AndroidQrScannerController(
     private val config = CameraVariant.current.androidCameraConfig()
     private val scanTelemetry = ScanTelemetry()
 
+    init {
+        // The reader loads while the camera opens, not on the first frame.
+        QrReader.warmUp()
+    }
+
     override fun start(
         onQrCodesScanned: (List<String>) -> Unit,
         onCameraPermissionMissing: () -> Unit,
@@ -121,7 +126,6 @@ private class AndroidQrScannerController(
             cameraProvider?.unbindAll()
             imageAnalysis?.clearAnalyzer()
             imageAnalysis = null
-            analyzer?.close()
             analyzer = null
             analysisExecutor?.shutdownAfterDelay()
             analysisExecutor = null
@@ -159,7 +163,6 @@ private class AndroidQrScannerController(
 
                     if (!isCurrentGeneration(generation)) return@addListener
                     val analyzer = analyzer ?: QrCodeAnalyzer(
-                        barcodeScanner = newBarcodeScanner(),
                         onQrCodesObserved = { values ->
                             val arrived = qrPresenceGate.observe(values)
                             if (arrived.isNotEmpty()) {
@@ -295,12 +298,41 @@ private class AndroidQrScannerController(
         stop()
         callback?.invoke()
     }
+}
 
-    private fun newBarcodeScanner(): BarcodeScanner = BarcodeScanning.getClient(
-        BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-            .build()
-    )
+/**
+ * ML Kit's QR reader, one for the process. It loads its model when it reads its first image,
+ * which takes longer than reading a frame, and unloads it when closed; a reader per scanner start
+ * paid that on the first frame after every payment.
+ */
+private object QrReader {
+    val scanner by lazy {
+        BarcodeScanning.getClient(
+            BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build()
+        )
+    }
+    private val warmedUp = AtomicBoolean(false)
+
+    /** Loads the model by reading an empty image, off the caller's thread; once per process. */
+    fun warmUp() {
+        if (!warmedUp.compareAndSet(false, true)) return
+        try {
+            val blank = Bitmap.createBitmap(
+                WARM_UP_IMAGE_SIZE,
+                WARM_UP_IMAGE_SIZE,
+                Bitmap.Config.ARGB_8888
+            )
+            scanner.process(InputImage.fromBitmap(blank, 0))
+                .addOnFailureListener { Log.w(TAG, "QR reader warm-up failed", it) }
+        } catch (failure: RuntimeException) {
+            // The first frame loads the model then, as it always did.
+            Log.w(TAG, "QR reader warm-up failed", failure)
+        }
+    }
+
+    private const val WARM_UP_IMAGE_SIZE = 64
 }
 
 /**
@@ -352,16 +384,11 @@ private class DroppingExecutor : Executor {
 }
 
 private class QrCodeAnalyzer(
-    private val barcodeScanner: BarcodeScanner,
     private val onQrCodesObserved: (List<String>) -> Unit,
     private val onFirstFrame: () -> Unit,
     private val onFrameAnalyzed: (durationMs: Long, width: Int, height: Int) -> Unit
 ) : ImageAnalysis.Analyzer {
     private val firstFrameReported = AtomicBoolean(false)
-
-    fun close() {
-        barcodeScanner.close()
-    }
 
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
@@ -386,7 +413,7 @@ private class QrCodeAnalyzer(
             analysisTrace = RaylTrace.begin(TraceSpan.CameraFrameAnalysis)
             val analysisStartedMs = SystemClock.elapsedRealtime()
             val input = InputImage.fromMediaImage(mediaImage, image.imageInfo.rotationDegrees)
-            barcodeScanner.process(input)
+            QrReader.scanner.process(input)
                 .addOnCompleteListener(DirectExecutor) { task ->
                     try {
                         onFrameAnalyzed(
