@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Modifier
 import xyz.lilsus.raylsuite.core.ui.orientation.CompactWindowOrientationPolicy
+import xyz.lilsus.raylsuite.core.ui.platform.enableTestTagsAsResourceId
 
 open class MainActivity : AppCompatActivity() {
     private val orientationPolicy = CompactWindowOrientationPolicy(this)
@@ -21,12 +24,16 @@ open class MainActivity : AppCompatActivity() {
 
         val configuration = androidRaylConfiguration()
         setContent {
-            App(
-                sparkEnvironment = configuration.environment,
-                raylPasskeys = configuration.passkeys,
-                debugTools = BuildConfig.DEBUG,
-                breezApiKey = configuration.breezApiKey
-            )
+            // Test tags become resource IDs for every screen in this window, so UI automation
+            // (Maestro) finds them; dialogs and sheets are separate windows and opt in themselves.
+            Box(Modifier.enableTestTagsAsResourceId()) {
+                App(
+                    sparkEnvironment = configuration.environment,
+                    raylPasskeys = configuration.passkeys,
+                    debugTools = BuildConfig.DEBUG,
+                    breezApiKey = configuration.breezApiKey
+                )
+            }
         }
 
         orientationPolicy.startListening()
