@@ -13,6 +13,10 @@ tags:
       platform: Android
     commands:
       - tapOn: "Settings"
+      # Below the wallet rows; off screen on small screens such as CI's emulator.
+      - scrollUntilVisible:
+          element: "Language"
+          direction: DOWN
       - tapOn: "Language"
       - tapOn: "Deutsch"
 - runScript:
