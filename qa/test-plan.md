@@ -463,7 +463,7 @@ Rules:
 |---|---|---|---|
 | **PR gate** | Push or PR to `main` or `release/*` (`ci.yml`, `ios.yml`) | ktlint, Android Lint (every module and the app; errors fail, `lint.xml`), module dependencies, localisations, Breez pins, all host tests (unit, platform unit and screen tests on Robolectric, component, contract, golden tests of 1.1's stored data), backend tests, `iosSimulatorArm64Test`, Android debug build and the release-like E2E build (R8, no secrets), iOS simulator build | Must pass to merge |
 | **Nightly** | Schedule, and pushes to `release/*` (`nightly.yml`) | Wallet integration tests against Breez regtest and the local NWC and Blink stacks (§6.9); Maestro flows on an Android emulator against the local stacks; Android device tests on API 24 and 34; iOS Keychain flows on a simulator (the signed E2E app is the Keychain host). The NWC and Blink Maestro flows on iOS run locally before releases: macOS runners have no Docker for the stacks | Failures reach QA by GitHub e-mail; never blocks `main` retroactively |
-| **Performance** | Weekly, release tag, or PR label | `perfCheck` (macrobenchmark), extended with the staple-path stages | Release gate; alerts on relative regression |
+| **Performance** | Manual only since 2026-11-18: on GitHub's runner its emulator stops answering adb (`performance.yml` lists the usual triggers: weekly, release tag, PR label) | `perfCheck` (macrobenchmark), extended with the staple-path stages | Release gate; alerts on relative regression |
 | **Release** | Release branch (1.1 onwards) | PR gate plus nightly on the release branch; release-build smoke | Exit criteria in §9 |
 
 CI runs on push and PR again (PJ-01, resolved). The PR gate locally:

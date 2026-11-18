@@ -6,15 +6,12 @@ permissions:
 env:
   JAVA_VERSION: '21'
 
+# Disabled 2026-11-18, manual runs only: it has never finished since 2026-09-14. On GitHub's
+# runner the API 35 emulator stops answering adb before anything is measured. To enable it
+# again, fix that and restore the triggers: a weekly schedule ('23 8 * * 1'), pushes of
+# 'rayl-v*' tags, and pull requests labeled 'performance'.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '23 8 * * 1'
-  push:
-    tags:
-      - 'rayl-v*'
-  pull_request:
-    types: [labeled]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
