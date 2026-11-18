@@ -13,8 +13,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import xyz.lilsus.rayl.tools.regtest.bank.LeafOptimizationWatch
 import xyz.lilsus.rayl.tools.regtest.bank.PaymentRecord
 import xyz.lilsus.rayl.tools.regtest.bank.PaymentRecord.Companion.received
 import xyz.lilsus.rayl.tools.regtest.bank.PaymentRecord.Companion.sent
@@ -117,8 +119,10 @@ class PocketWalletIntegrationTest {
     @Test
     fun aReinstalledAppFindsItsFundsWithTheSameKeyAndPays() = runBlocking<Unit> {
         // PR-09: after a reinstall or on a new phone, the passkey gives the same key and the SDK
-        // starts with empty storage; the funds must be found again.
-        fund(300)
+        // starts with empty storage; the funds must be found again. Reinstalled within seconds of
+        // receiving, the new session sees them short for minutes, until Breez's reorganization
+        // recovers (MOB-114); this test covers a reinstall after it ended.
+        fund(300, awaitReorganization = true)
         pocket.disconnect()
         storage.deleteRecursively()
 
@@ -138,8 +142,22 @@ class PocketWalletIntegrationTest {
         storageDirectory = { storage.apply { mkdirs() }.absolutePath }
     )
 
-    /** Funds the pocket through its own invoice, as "add funds" does. */
-    private suspend fun fund(sats: Long): PocketEvent.Received = coroutineScope {
+    /**
+     * Funds the pocket through its own invoice, as "add funds" does. With [awaitReorganization] it
+     * returns only once Breez finished reorganizing the funds (see [LeafOptimizationWatch]); other
+     * tests pay right away, as a user can.
+     */
+    private suspend fun fund(
+        sats: Long,
+        awaitReorganization: Boolean = false
+    ): PocketEvent.Received = coroutineScope {
+        val watch = LeafOptimizationWatch()
+        val watching = launch(start = CoroutineStart.UNDISPATCHED) {
+            pocket.events.filterIsInstance<PocketEvent.Reorganizing>().collect {
+                if (it.running) watch.started() else watch.ended()
+            }
+        }
+        val mark = watch.mark()
         val invoice = pocket.createInvoice(sats, "Rayl integration test")
         val received = async(start = CoroutineStart.UNDISPATCHED) {
             withTimeout(60_000) {
@@ -149,7 +167,10 @@ class PocketWalletIntegrationTest {
             }
         }
         bank.pay(invoice)
-        received.await()
+        received.await().also {
+            if (awaitReorganization) watch.awaitEndedSince(mark)
+            watching.cancel()
+        }
     }
 
     /** The outcome if paid, otherwise the problem, whether refused while quoting or sending. */

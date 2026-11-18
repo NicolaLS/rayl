@@ -1,5 +1,6 @@
 package xyz.lilsus.rayl.providers.rayl.integration.pocket
 
+import breez_sdk_spark.AutoOptimizationEvent
 import breez_sdk_spark.BreezSdk
 import breez_sdk_spark.ConnectRequest
 import breez_sdk_spark.EventListener
@@ -276,6 +277,18 @@ private class BreezPocketWallet private constructor(
                                 PocketEvent.Received(it, event.payment.amount.longValue())
                             )
                         }
+                    }
+                    if (event is SdkEvent.AutoOptimization) {
+                        val running = when (event.optimizationEvent) {
+                            is AutoOptimizationEvent.Started,
+                            is AutoOptimizationEvent.RoundCompleted -> true
+
+                            is AutoOptimizationEvent.Completed,
+                            is AutoOptimizationEvent.Skipped,
+                            is AutoOptimizationEvent.Failed,
+                            is AutoOptimizationEvent.Cancelled -> false
+                        }
+                        mutableEvents.emit(PocketEvent.Reorganizing(running))
                     }
                     mutableEvents.emit(PocketEvent.Changed)
                 }

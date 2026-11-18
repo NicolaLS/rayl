@@ -30,6 +30,13 @@ internal sealed interface PocketEvent {
     data object Changed : PocketEvent
 
     data class Received(val invoice: String, val amountSats: Long) : PocketEvent
+
+    /**
+     * Breez started (`running`) or ended reorganizing the wallet's funds, which it does after every
+     * payment. Meanwhile another session on the wallet sees the balance short (MOB-114). The app
+     * doesn't use it; the wallet integration tests wait for it before a reinstall.
+     */
+    data class Reorganizing(val running: Boolean) : PocketEvent
 }
 
 /** What paying from the pocket needs, so payment features stay independent of its lifecycle. */

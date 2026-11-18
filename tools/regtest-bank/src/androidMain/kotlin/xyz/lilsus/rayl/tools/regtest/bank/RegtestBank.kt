@@ -71,11 +71,16 @@ class RegtestBank private constructor(private val sdk: BreezSdk) {
         }
     }
 
-    /** Sends [sats] to [wallet] and waits until its balance shows them. */
-    suspend fun fund(wallet: BreezSdk, sats: Long) {
+    /**
+     * Pays [sats] into [wallet] and returns once it has them and Breez finished reorganizing
+     * them, so another session on the wallet sees them all (see [LeafOptimizationWatch]).
+     */
+    suspend fun fund(wallet: BreezSdk, sats: Long) = wallet.watchingLeafOptimization { watch ->
+        val mark = watch.mark()
         val start = wallet.balanceSats()
         pay(wallet.invoice(sats, expirySecs = null))
         awaitBalance(wallet) { it >= start + sats }
+        watch.awaitEndedSince(mark)
     }
 
     /**
