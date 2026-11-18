@@ -72,6 +72,9 @@ internal data class RaylCard(
     }
 }
 
+/** A wallet the host mounts: [card] (`null` means the pocket) as the session [session]. */
+internal data class WalletMount(val card: RaylCard?, val session: Long)
+
 /**
  * Owns which wallets the user has and which one pays: the pocket, always present and never
  * removable, or one of the cards. Exactly one wallet is mounted at a time. A card being added is
@@ -92,8 +95,22 @@ internal class RaylCards(
         storedPayingId(settings)?.let { id -> mutableCards.value.firstOrNull { it.id == id } }
     )
 
-    /** The mounted card, maybe still in setup; `null` means the pocket. */
+    /**
+     * The mounted card, maybe still in setup; `null` means the pocket. It follows every update of
+     * the card, so never mount a wallet from it: see [mount].
+     */
     val paying: StateFlow<RaylCard?> = mutablePaying.asStateFlow()
+
+    // Retained through Android rotation, but never restored from an abandoned process/session.
+    private val mutableMount = MutableStateFlow(WalletMount(mutablePaying.value, Random.nextLong()))
+
+    /**
+     * The wallet to mount. It changes only when a wallet must mount as a new session, never when
+     * the mounted card is updated (added, identified, renamed): remounting then would restart a
+     * wallet that is connecting, and a card being added would start its setup over (MOB-161).
+     */
+    val mount: StateFlow<WalletMount> = mutableMount.asStateFlow()
+    val sessionId: Long get() = mutableMount.value.session
 
     /** The card being added, from this process or an abandoned earlier one. */
     private var setup: RaylCard? = settings.getStringOrNull(SETUP_KEY)?.let(::decodeCard)
@@ -120,13 +137,6 @@ internal class RaylCards(
     var startMode = WalletStartMode.Restore
         private set
 
-    // Retained through Android rotation, but never restored from an abandoned process/session.
-    private val mutableSession = MutableStateFlow(Random.nextLong())
-
-    /** Changes whenever a wallet must mount as a new session. */
-    val session: StateFlow<Long> = mutableSession.asStateFlow()
-    val sessionId: Long get() = mutableSession.value
-
     private val preparationMutex = Mutex()
     private val mutablePreparation = MutableStateFlow(WalletPreparation.Cleaning)
     val preparation: StateFlow<WalletPreparation> = mutablePreparation.asStateFlow()
@@ -140,6 +150,7 @@ internal class RaylCards(
             if (legacy != null) {
                 mutableCards.value = listOf(legacy)
                 mutablePaying.value = legacy
+                mutableMount.value = mutableMount.value.copy(card = legacy)
             }
             persistCards()
             persistPaying()
@@ -327,7 +338,7 @@ internal class RaylCards(
 
     /** Mounts a new session of the paying wallet, e.g. after it closed for nothing. */
     fun restart() {
-        mutableSession.value = Random.nextLong()
+        mutableMount.value = WalletMount(mutablePaying.value, Random.nextLong())
     }
 
     private fun mount(card: RaylCard?, mode: WalletStartMode) {
@@ -335,8 +346,8 @@ internal class RaylCards(
         addedThisSession = null
         reopenAdd = false
         if (card?.id != setup?.id) setupIdentity = null
-        mutableSession.value = Random.nextLong()
         mutablePaying.value = card
+        mutableMount.value = WalletMount(card, Random.nextLong())
         Telemetry.wallet = card?.wallet.telemetryWallet()
     }
 

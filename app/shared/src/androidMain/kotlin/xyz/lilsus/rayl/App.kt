@@ -78,7 +78,7 @@ fun App(
         },
         onDispose = {}
     )
-    val paying by registry.paying.collectAsStateWithLifecycle()
+    val mount by registry.mount.collectAsStateWithLifecycle()
     val notice by registry.notice.collectAsStateWithLifecycle()
     LaunchedEffect(notice) {
         val shown = notice as? RaylCardNotice.AlreadyAdded ?: return@LaunchedEffect
@@ -92,10 +92,9 @@ fun App(
         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         registry.dismissNotice()
     }
-    val session by registry.session.collectAsStateWithLifecycle()
     val preparation by registry.preparation.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    LaunchedEffect(registry, paying) {
+    LaunchedEffect(registry, mount) {
         registry.prepare({ clearSavedCard(context, it) })
     }
     val appOnboarding = rememberRetainedInstance(
@@ -104,7 +103,7 @@ fun App(
         onDispose = {}
     )
     val appOnboardingStep by appOnboarding.step.collectAsStateWithLifecycle()
-    val theme = remember(paying, session) { DefaultThemePreferences(settings) }
+    val theme = remember(mount) { DefaultThemePreferences(settings) }
     val preference by theme.preference.collectAsStateWithLifecycle(
         initialValue = ThemePreference.System
     )
@@ -129,10 +128,9 @@ fun App(
             return@RaylSuiteTheme
         }
         CompositionLocalProvider(LocalWalletCardIcons provides walletCardIcons) {
-            // The card's id, not the card: a wallet reporting its identity updates the card, and
-            // remounting then would restart the wallet that just connected (MOB-161).
-            key(paying?.id, session) {
-                when (val card = paying) {
+            // Only a new mount restarts the wallet, never an update of its card: see RaylCards.mount.
+            key(mount) {
+                when (val card = mount.card) {
                     null -> if (appOnboardingStep != AppOnboardingStep.Complete) {
                         AppOnboarding(appOnboarding, settings)
                     } else {

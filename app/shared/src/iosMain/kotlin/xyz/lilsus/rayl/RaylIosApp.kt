@@ -84,8 +84,8 @@ object RaylIosApp {
     private var nwc: NwcIosExperience? = null
     private var spark: SparkIosExperience? = null
 
-    /** The paying card (`null`: the pocket) and session the mounted experience belongs to. */
-    private var mounted: Pair<RaylCard?, Long>? = null
+    /** The mount the mounted experience belongs to. */
+    private var mounted: WalletMount? = null
 
     /** What to do once the Spark session closed: cancel its setup, or apply a card change. */
     private var afterSparkClose: (() -> Unit)? = null
@@ -135,11 +135,9 @@ object RaylIosApp {
     fun observe(onChange: (RaylSnapshot) -> Unit): () -> Unit {
         val job = scope.launch {
             combine(
-                combine(
-                    registry.paying,
-                    registry.session,
-                    registry.preparation
-                ) { paying, session, preparation -> Triple(paying, session, preparation) },
+                combine(registry.mount, registry.preparation) { mount, preparation ->
+                    mount to preparation
+                },
                 appOnboarding.step.map { it == AppOnboardingStep.Complete },
                 experienceState,
                 combine(language.preference, registry.notice) { _, notice -> notice }
@@ -149,7 +147,8 @@ object RaylIosApp {
                     experience,
                     notice
                 ->
-                val (paying, session, preparation) = registryState
+                val (mount, preparation) = registryState
+                val paying = mount.card
                 val ready = preparation == WalletPreparation.Ready
                 val keys =
                     listOf(
@@ -161,10 +160,11 @@ object RaylIosApp {
                         listOf("session_close_failed", "session_close_retry").associateWith {
                             nativeString(NativeStringResource("SparkExperience", "spark_$it"))
                         }
-                // Another card, or a new session of the same one, never reuses an experience.
-                if (ready && mounted != (paying to session)) {
+                // Another card, or a new session of the same one, never reuses an experience; an
+                // update of the mounted card keeps it (RaylCards.mount).
+                if (ready && mounted != mount) {
                     unmount()
-                    mounted = paying to session
+                    mounted = mount
                 }
                 // SwiftUI may render this snapshot after removal has cleared the live selection.
                 // Keep its experience with it; rendering must never resolve a different session.

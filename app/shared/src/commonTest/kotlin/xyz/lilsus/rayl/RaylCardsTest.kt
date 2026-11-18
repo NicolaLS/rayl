@@ -137,6 +137,61 @@ class RaylCardsTest {
     }
 
     @Test
+    fun aCardBeingAddedStaysMountedWhileItsWalletConnectsAndIdentifies() = runTest {
+        // MOB-161: the hosts remounted the wallet on any change of its card. An NWC or Spark wallet
+        // being added reports its identity, so it restarted its setup and was never added.
+        val wallets = listOf(
+            // NWC knows its identity before it reports the connection, Spark only after.
+            Triple(ExternalWallet.Nwc, "nwc:wallet", true),
+            Triple(ExternalWallet.Spark, "spark:wallet", false),
+            Triple(ExternalWallet.Blink, null, false)
+        )
+        wallets.forEach { (wallet, identity, identifiesFirst) ->
+            val cards = ready(RaylCards(MapSettings()))
+            cards.add(wallet)
+            val mount = cards.mount.value
+
+            if (identifiesFirst) identity?.let(cards::identified)
+            cards.connected(mount.card!!)
+            if (!identifiesFirst) identity?.let(cards::identified)
+
+            assertEquals(mount, cards.mount.value, wallet.name)
+            assertEquals(listOf(mount.card.id), cards.cards.value.map { it.id }, wallet.name)
+            assertEquals(identity, cards.paying.value?.identity, wallet.name)
+        }
+    }
+
+    @Test
+    fun updatingThePayingCardKeepsItsWalletMounted() = runTest {
+        val settings = MapSettings()
+        ready(RaylCards(settings)).addConnected(ExternalWallet.Spark)
+        // The next launch, e.g. after updating from 1.1, whose cards had no identity yet.
+        val cards = ready(RaylCards(settings))
+        val mount = cards.mount.value
+
+        cards.identified("spark:wallet")
+        cards.rename(mount.card!!.id, "Savings")
+
+        assertEquals(mount, cards.mount.value)
+        assertEquals("Savings", cards.paying.value?.name)
+        assertEquals("spark:wallet", cards.paying.value?.identity)
+    }
+
+    @Test
+    fun aCardTurnedBackMountsTheWalletThatWasAddedBefore() = runTest {
+        val cards = ready(RaylCards(MapSettings()))
+        val first = cards.addConnected(ExternalWallet.Nwc, identity = "nwc:wallet")
+        cards.add(ExternalWallet.Nwc)
+        val inSetup = cards.mount.value
+
+        cards.identified("nwc:wallet")
+        cards.connected(inSetup.card!!)
+
+        assertEquals(first.id, cards.mount.value.card?.id)
+        assertNotEquals(inSetup.session, cards.mount.value.session)
+    }
+
+    @Test
     fun theWalletThatPaysIsRestoredOnTheNextLaunch() = runTest {
         val settings = MapSettings()
         val cards = ready(RaylCards(settings))

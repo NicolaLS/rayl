@@ -29,12 +29,13 @@ maestro test -e APP_ID=com.nicolasusca.rayl.e2e e2e/flows        # all flows (co
 | `blink/insufficient-balance` | An empty wallet: a clear message, nothing paid |
 | `wallet/back-to-rayl` | S9: back to Rayl's wallet, also after a restart; the NWC credentials are gone |
 | `settings/language-german` | S10: German texts and amount format through a payment |
+| `spark/add-card` | Adding a Spark card pays with it, also after a restart (MOB-161); needs the internet, no funds |
 | `spark/corrupt-credential` | iOS Keychain: an unreadable Spark phrase is explained; removal asks, then starts over |
 | `spark/orphan-credential` | iOS Keychain: a leftover Spark phrase is never restored by itself |
 | `disruption/killed-during-payment` | The app killed while Blink's payment is held: not stuck after reopening, not paid twice on a rescan |
 
-The two `spark/` flows seed the iOS Keychain (`sparkFixture` launch argument, iosAppE2E only) and
-do nothing on Android. On iOS (simulator signing is needed: unsigned apps can't use the
+`spark/corrupt-credential` and `spark/orphan-credential` seed the iOS Keychain (`sparkFixture`
+launch argument, iosAppE2E only) and do nothing on Android. On iOS (simulator signing is needed: unsigned apps can't use the
 Keychain):
 
 ```sh

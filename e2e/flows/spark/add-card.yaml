@@ -1,0 +1,56 @@
+# MOB-161: adding a Spark card pays with it, also after a restart. The wallet reports who it is
+# while it connects; that must never restart its setup.
+# The phrase opens an empty Spark wallet made for this flow, which never funds it.
+appId: ${APP_ID}
+tags:
+  - spark
+---
+- runFlow: ../common/onboard.yaml
+- tapOn: "Settings"
+- tapOn:
+    id: "settings_wallets"
+- tapOn: "Add a card"
+- tapOn: "Spark"
+# Word by word, as a user types it: Next moves to the following field on both platforms,
+# and Done on the last one closes the keyboard.
+- tapOn: "Word 1"
+- inputText: "silent"
+- pressKey: Enter
+- inputText: "acquire"
+- pressKey: Enter
+- inputText: "outside"
+- pressKey: Enter
+- inputText: "culture"
+- pressKey: Enter
+- inputText: "eternal"
+- pressKey: Enter
+- inputText: "say"
+- pressKey: Enter
+- inputText: "cattle"
+- pressKey: Enter
+- inputText: "badge"
+- pressKey: Enter
+- inputText: "morning"
+- pressKey: Enter
+- inputText: "humor"
+- pressKey: Enter
+- inputText: "daring"
+- pressKey: Enter
+- inputText: "shuffle"
+- pressKey: Enter
+- tapOn: "Connect"
+- runFlow: ../common/accept-risk.yaml
+- extendedWaitUntil:
+    visible: "Point the camera.*"
+    timeout: 60000
+- tapOn: "Settings"
+# Settings names the paying wallet at its top: Spark pays now.
+- assertVisible: "Spark"
+- stopApp
+- launchApp
+- tapOn: "Settings"
+- assertVisible: "Spark"
+- tapOn:
+    id: "settings_wallets"
+- assertVisible: "Rayl"
+- assertVisible: "Spark"
