@@ -5,6 +5,12 @@
         <activity
             android:name=".CameraBenchmarkActivity"
             android:exported="true" />
+        <activity
+            android:name=".BenchmarkSeedActivity"
+            android:exported="true" />
+        <activity
+            android:name=".BenchmarkScanActivity"
+            android:exported="true" />
 
         <profileable android:shell="true" />
     </application>

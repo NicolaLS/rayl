@@ -111,6 +111,11 @@ dependencies {
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.core.ktx)
     "benchmarkImplementation"(project(":core:camera"))
+    "benchmarkImplementation"(project(":core:model"))
+    "benchmarkImplementation"(project(":core:settings"))
+    "benchmarkImplementation"(project(":feature:payment-hub"))
+    "benchmarkImplementation"(libs.bitcoin.kmp)
+    "benchmarkImplementation"(libs.lightning.kmp.core)
     "e2eImplementation"(project(":core:camera"))
     "e2eImplementation"(project(":providers:blink:integration:blink"))
 }
