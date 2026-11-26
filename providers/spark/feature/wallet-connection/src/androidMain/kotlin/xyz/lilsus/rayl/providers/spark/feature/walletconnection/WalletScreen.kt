@@ -172,9 +172,13 @@ private fun RecoveryPhraseInput(
         state.words.indices.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { index ->
+                    val word = state.words[index]
                     WordField(
                         index = index,
-                        state = state,
+                        word = word,
+                        suffix = state.completionSuffix(index),
+                        isWrong = state.isWordWrong(index),
+                        isComplete = state.isWordComplete(index),
                         dispatch = dispatch,
                         enabled = enabled,
                         isLast = index == state.words.lastIndex,
@@ -198,7 +202,10 @@ private fun RecoveryPhraseInput(
 @Composable
 private fun WordField(
     index: Int,
-    state: WalletUiState,
+    word: String,
+    suffix: String,
+    isWrong: Boolean,
+    isComplete: Boolean,
     dispatch: (WalletAction) -> Unit,
     enabled: Boolean,
     isLast: Boolean,
@@ -207,8 +214,6 @@ private fun WordField(
 ) {
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
-    val word = state.words[index]
-    val suffix = state.completionSuffix(index)
     val label = stringResource(R.string.spark_wallet_word_label, index + 1)
     OutlinedTextField(
         value = word,
@@ -233,8 +238,7 @@ private fun WordField(
         } else {
             null
         },
-        isError = state.isWordWrong(index) ||
-            (!focused && word.isNotEmpty() && !state.isWordComplete(index)),
+        isError = isWrong || (!focused && word.isNotEmpty() && !isComplete),
         keyboardOptions = KeyboardOptions(
             // No suggestions or learning: a password keyboard, without masking.
             keyboardType = KeyboardType.Password,

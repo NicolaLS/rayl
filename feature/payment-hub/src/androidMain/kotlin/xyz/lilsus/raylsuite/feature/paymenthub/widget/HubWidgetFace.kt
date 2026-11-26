@@ -29,10 +29,11 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -160,18 +161,23 @@ internal fun Modifier.hubFace(face: HubFaceColors, glow: Color?): Modifier = thi
     )
     .clip(HubTileShape)
     .background(Brush.verticalGradient(listOf(face.top, face.bottom)))
-    .drawBehind {
-        // A trace of the widget's own colour, so a row of them is not one slab.
+    .then(
         if (glow != null) {
-            drawRect(
-                Brush.radialGradient(
+            Modifier.drawWithCache {
+                val glowBrush = Brush.radialGradient(
                     listOf(glow.copy(alpha = face.glowAlpha), glow.copy(alpha = 0f)),
                     center = Offset(size.width, 0f),
                     radius = 190.dp.toPx()
                 )
-            )
+                onDrawBehind {
+                    // A trace of the widget's own colour, so a row of them is not one slab.
+                    drawRect(glowBrush)
+                }
+            }
+        } else {
+            Modifier
         }
-    }
+    )
 
 /** A small tile centres what it shows; a wide one keeps it on the leading edge. */
 internal val HubWidgetTile.small: Boolean get() = variant.columns == 1
@@ -513,6 +519,16 @@ private fun Modifier.payAction(
     return clickable(role = Role.Button, onClickLabel = payLabel) { onPay(person.actionId) }
 }
 
+private val INITIALS_WHITESPACE_REGEX = Regex("\\s+")
+
+// Four quiet relatives of the tile's navy: enough to tell people apart, never louder than a figure.
+private val AVATAR_BRUSHES = listOf(
+    Brush.verticalGradient(listOf(Color(0xFF6BB0BC), Color(0xFF4D8E9C))),
+    Brush.verticalGradient(listOf(Color(0xFF948EDC), Color(0xFF746DC0))),
+    Brush.verticalGradient(listOf(Color(0xFF76A0DA), Color(0xFF557CBB))),
+    Brush.verticalGradient(listOf(Color(0xFFCF93A8), Color(0xFFAE6F89)))
+)
+
 @Composable
 internal fun ContactAvatar(
     title: String?,
@@ -520,24 +536,18 @@ internal fun ContactAvatar(
     size: Dp = 40.dp,
     seed: Int = 0
 ) {
-    val initials = title?.trim()?.split(Regex("\\s+"))?.filter(String::isNotEmpty)
-        ?.take(2)?.joinToString("") {
-            it.substring(0, it.offsetByCodePoints(0, 1)).uppercase()
-        }.orEmpty()
-    // Four quiet relatives of the tile's navy: enough to tell people apart, never louder than a
-    // figure.
-    val colors = listOf(
-        Color(0xFF6BB0BC) to Color(0xFF4D8E9C),
-        Color(0xFF948EDC) to Color(0xFF746DC0),
-        Color(0xFF76A0DA) to Color(0xFF557CBB),
-        Color(0xFFCF93A8) to Color(0xFFAE6F89)
-    )
+    val initials = remember(title) {
+        title?.trim()?.split(INITIALS_WHITESPACE_REGEX)?.filter(String::isNotEmpty)
+            ?.take(2)?.joinToString("") {
+                it.substring(0, it.offsetByCodePoints(0, 1)).uppercase()
+            }.orEmpty()
+    }
     val colorIndex = if (initials.isEmpty()) seed else initials.sumOf { it.code }
-    val color = colors[colorIndex.mod(colors.size)]
+    val brush = AVATAR_BRUSHES[colorIndex.mod(AVATAR_BRUSHES.size)]
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier.size(size)
-            .background(Brush.verticalGradient(listOf(color.first, color.second)), CircleShape)
+            .background(brush, CircleShape)
             .clearAndSetSemantics {}
     ) {
         if (initials.isBlank()) {

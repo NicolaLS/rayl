@@ -132,6 +132,30 @@ private fun SettingsOverview(
         themePreferences.preference.collectAsStateWithLifecycle(ThemePreference.System)
     val usageDataEnabled by Telemetry.enabled.collectAsStateWithLifecycle()
 
+    val actions = remember(onCurrency, languages, themes, payments) {
+        SettingsActions(
+            onCurrency = onCurrency,
+            onLanguageSelected = languages::selectOption,
+            onThemeSelected = { id ->
+                themes.selectTheme(
+                    when (id) {
+                        THEME_LIGHT -> ThemePreference.Light
+                        THEME_DARK -> ThemePreference.Dark
+                        else -> ThemePreference.System
+                    }
+                )
+            },
+            onConfirmationModeSelected = payments::selectConfirmationMode,
+            onThresholdChanged = payments::updateConfirmationThreshold,
+            onOfferToSaveNewTargetsChanged = payments::setOfferToSaveNewTargets,
+            onVibrateOnScanChanged = payments::setVibrateOnScan,
+            onVibrateOnPaymentChanged = payments::setVibrateOnPayment,
+            onUsageDataChanged = Telemetry::setEnabled,
+            onUsageDataAsked = Telemetry::usageDataAsked,
+            onUsageDataKeptOn = Telemetry::usageDataKeptOn
+        )
+    }
+
     SettingsScreen(
         onBack = onBack,
         payment = payment,
@@ -152,27 +176,7 @@ private fun SettingsOverview(
             ThemePreference.Dark -> THEME_DARK
         },
         usageDataEnabled = usageDataEnabled,
-        actions = SettingsActions(
-            onCurrency = onCurrency,
-            onLanguageSelected = languages::selectOption,
-            onThemeSelected = { id ->
-                themes.selectTheme(
-                    when (id) {
-                        THEME_LIGHT -> ThemePreference.Light
-                        THEME_DARK -> ThemePreference.Dark
-                        else -> ThemePreference.System
-                    }
-                )
-            },
-            onConfirmationModeSelected = payments::selectConfirmationMode,
-            onThresholdChanged = payments::updateConfirmationThreshold,
-            onOfferToSaveNewTargetsChanged = payments::setOfferToSaveNewTargets,
-            onVibrateOnScanChanged = payments::setVibrateOnScan,
-            onVibrateOnPaymentChanged = payments::setVibrateOnPayment,
-            onUsageDataChanged = Telemetry::setEnabled,
-            onUsageDataAsked = Telemetry::usageDataAsked,
-            onUsageDataKeptOn = Telemetry::usageDataKeptOn
-        ),
+        actions = actions,
         legalLinks = legalLinks,
         modifier = modifier,
         overviewTopContent = overviewTopContent

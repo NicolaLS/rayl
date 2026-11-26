@@ -72,20 +72,17 @@ internal fun BlinkTabContent(
     cards: WalletCardsHost,
     onRemoveWallet: () -> Unit
 ) {
-    val coordinator = runtime.paymentCoordinator
-    val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
-    val tabState = runtime.tabState
-    val selectedTransactionId by tabState.selectedTransactionId.collectAsStateWithLifecycle()
-    val flowState = rememberPaymentFlowState(coordinator, ::blinkPaymentStringResource)
-    val messages = rememberPaymentMessages(coordinator, ::blinkPaymentStringResource)
-    val hubState by runtime.paymentHub.state.collectAsStateWithLifecycle()
-    val currencyCode by runtime.currencyPreferences.code.collectAsStateWithLifecycle(
-        CurrencyCatalog.DEFAULT_CODE
-    )
-    val receiptFeeInformation = stringResource(BlinkUiR.string.receipt_fee_blink_hint)
-
     when (tab) {
-        AppTab.Scan ->
+        AppTab.Scan -> {
+            val coordinator = runtime.paymentCoordinator
+            val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
+            val tabState = runtime.tabState
+            val selectedTransactionId by
+                tabState.selectedTransactionId.collectAsStateWithLifecycle()
+            val flowState = rememberPaymentFlowState(coordinator, ::blinkPaymentStringResource)
+            val messages = rememberPaymentMessages(coordinator, ::blinkPaymentStringResource)
+            val hubState by runtime.paymentHub.state.collectAsStateWithLifecycle()
+            val receiptFeeInformation = stringResource(BlinkUiR.string.receipt_fee_blink_hint)
             PaymentScanFlow(
                 state = flowState,
                 messageEvents = messages,
@@ -98,8 +95,14 @@ internal fun BlinkTabContent(
                 onIntent = coordinator::dispatch,
                 onHubIntent = runtime.paymentHub::dispatch
             )
+        }
 
-        AppTab.Hub -> BlinkHubTab(runtime = runtime, currencyCode = currencyCode)
+        AppTab.Hub -> {
+            val currencyCode by runtime.currencyPreferences.code.collectAsStateWithLifecycle(
+                CurrencyCatalog.DEFAULT_CODE
+            )
+            BlinkHubTab(runtime = runtime, currencyCode = currencyCode)
+        }
 
         AppTab.Settings ->
             BlinkSettingsTab(

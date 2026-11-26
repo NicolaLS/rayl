@@ -1,7 +1,6 @@
 package xyz.lilsus.raylsuite.feature.paymenthub.widget
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,9 +22,11 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CurrencyBitcoin
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.toRect
 import androidx.compose.ui.graphics.BlendMode
@@ -71,7 +72,8 @@ private const val CLARO_NAME = "Claro"
 private const val CLARO_SAMPLE_PHONE = "71234567"
 
 /** Everything a figure face shows, worked out per widget kind. */
-private class FigureContent(
+@Immutable
+private data class FigureContent(
     val headline: String,
     val value: String?,
     val caption: String,
@@ -317,48 +319,57 @@ internal fun ServiceMark(@DrawableRes mark: Int, size: Dp = 26.dp) {
 @Composable
 private fun HubSparkline(points: List<Float>, modifier: Modifier, fadeIn: Boolean = false) {
     val ink = hubFaceColors().ink
-    Canvas(modifier) {
-        val stroke = 2.dp.toPx()
-        // Room for the stroke above and below.
-        val top = stroke
-        val drop = size.height - top - stroke
-        val step = size.width / (points.size - 1)
-        fun at(index: Int) = Offset(step * index, top + (1f - points[index]) * drop)
-        val line = Path().apply {
-            moveTo(at(0).x, at(0).y)
-            for (index in 1 until points.size) {
-                val from = at(index - 1)
-                val to = at(index)
-                val middle = (from.x + to.x) / 2
-                cubicTo(middle, from.y, middle, to.y, to.x, to.y)
+    Spacer(
+        modifier.drawWithCache {
+            val stroke = 2.dp.toPx()
+            // Room for the stroke above and below.
+            val top = stroke
+            val drop = size.height - top - stroke
+            val step = size.width / (points.size - 1)
+            fun at(index: Int) = Offset(step * index, top + (1f - points[index]) * drop)
+            val line = Path().apply {
+                moveTo(at(0).x, at(0).y)
+                for (index in 1 until points.size) {
+                    val from = at(index - 1)
+                    val to = at(index)
+                    val middle = (from.x + to.x) / 2
+                    cubicTo(middle, from.y, middle, to.y, to.x, to.y)
+                }
             }
-        }
-        val area = Path().apply {
-            addPath(line)
-            lineTo(size.width, size.height)
-            lineTo(0f, size.height)
-            close()
-        }
-        val fill = Brush.verticalGradient(listOf(ink.copy(alpha = 0.14f), ink.copy(alpha = 0f)))
-        if (fadeIn) {
-            // The fill alone goes into a layer, where its leading edge is masked away.
-            drawContext.canvas.saveLayer(size.toRect(), Paint())
-            drawPath(area, fill)
-            drawRect(
+            val area = Path().apply {
+                addPath(line)
+                lineTo(size.width, size.height)
+                lineTo(0f, size.height)
+                close()
+            }
+            val fill = Brush.verticalGradient(listOf(ink.copy(alpha = 0.14f), ink.copy(alpha = 0f)))
+            val fadeMask = if (fadeIn) {
                 Brush.horizontalGradient(
                     listOf(Color.Transparent, Color.Black),
                     endX = 32.dp.toPx()
-                ),
-                blendMode = BlendMode.DstIn
+                )
+            } else {
+                null
+            }
+            val layerPaint = if (fadeIn) Paint() else null
+            val lineColor = ink.copy(alpha = 0.92f)
+            val lineStyle = Stroke(
+                width = stroke,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
             )
-            drawContext.canvas.restore()
-        } else {
-            drawPath(area, fill)
+            onDrawBehind {
+                if (fadeMask != null && layerPaint != null) {
+                    // The fill alone goes into a layer, where its leading edge is masked away.
+                    drawContext.canvas.saveLayer(size.toRect(), layerPaint)
+                    drawPath(area, fill)
+                    drawRect(fadeMask, blendMode = BlendMode.DstIn)
+                    drawContext.canvas.restore()
+                } else {
+                    drawPath(area, fill)
+                }
+                drawPath(line, lineColor, style = lineStyle)
+            }
         }
-        drawPath(
-            line,
-            ink.copy(alpha = 0.92f),
-            style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
-    }
+    )
 }

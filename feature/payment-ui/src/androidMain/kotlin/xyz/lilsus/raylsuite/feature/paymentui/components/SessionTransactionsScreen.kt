@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import xyz.lilsus.raylsuite.core.ui.components.AppFadingLazyColumn
 import xyz.lilsus.raylsuite.core.ui.components.AppListRow
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
+import xyz.lilsus.raylsuite.core.ui.format.AmountFormatter
 import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
 import xyz.lilsus.raylsuite.core.ui.platform.formatTimeHHmm
 import xyz.lilsus.raylsuite.feature.paymentui.PaymentSessionTransaction
@@ -73,6 +74,7 @@ fun SessionTransactionsScreen(
             )
         } else {
             val containerColor = MaterialTheme.colorScheme.background
+            val formatter = rememberAmountFormatter()
             AppFadingLazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -86,6 +88,7 @@ fun SessionTransactionsScreen(
                 items(transactions, key = { it.id }) { transaction ->
                     SessionTransactionRow(
                         transaction = transaction,
+                        formatter = formatter,
                         onClick = { onTransactionSelected(transaction.id) }
                     )
                 }
@@ -111,8 +114,11 @@ private fun EmptyTransactionsContent(message: String, modifier: Modifier = Modif
 }
 
 @Composable
-private fun SessionTransactionRow(transaction: PaymentSessionTransaction, onClick: () -> Unit) {
-    val formatter = rememberAmountFormatter()
+private fun SessionTransactionRow(
+    transaction: PaymentSessionTransaction,
+    formatter: AmountFormatter,
+    onClick: () -> Unit
+) {
     val amount = formatter.format(transaction.amount)
     val time = remember(transaction.createdAtMs) { formatTimeHHmm(transaction.createdAtMs) }
     val status = transaction.presentation()

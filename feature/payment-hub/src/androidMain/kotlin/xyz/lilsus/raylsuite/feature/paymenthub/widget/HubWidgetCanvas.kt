@@ -613,8 +613,9 @@ private fun WidgetCanvasTile(
     val moveDown = stringResource(R.string.hub_action_move_down)
     val arranging = state.arranging
     // Lifted while its menu is open or while it is carried; settled a little smaller while
-    // arranging, so the "−" sits clear of its corner.
-    val scale by animateFloatAsState(
+    // arranging, so the "−" sits clear of its corner. Read inside graphicsLayer to avoid
+    // recomposing the tile on every animation frame.
+    val scaleState = animateFloatAsState(
         when {
             dragging -> 1.05f
             menuOpen -> 1.03f
@@ -624,7 +625,7 @@ private fun WidgetCanvasTile(
         spring(stiffness = Spring.StiffnessMediumLow),
         label = "tile scale"
     )
-    val lift by animateDpAsState(
+    val liftState = animateDpAsState(
         if (dragging || menuOpen) 12.dp else 0.dp,
         spring(stiffness = Spring.StiffnessMediumLow),
         label = "tile lift"
@@ -632,9 +633,10 @@ private fun WidgetCanvasTile(
     Box(
         modifier = modifier
             .graphicsLayer {
+                val scale = scaleState.value
                 scaleX = scale
                 scaleY = scale
-                shadowElevation = lift.toPx()
+                shadowElevation = liftState.value.toPx()
                 shape = HubTileShape
                 clip = false
             }

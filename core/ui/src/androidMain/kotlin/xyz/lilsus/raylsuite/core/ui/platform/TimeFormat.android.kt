@@ -4,5 +4,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-actual fun formatTimeHHmm(epochMillis: Long): String =
-    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(epochMillis))
+private val cachedFormatter = object : ThreadLocal<Pair<Locale, SimpleDateFormat>>() {}
+
+actual fun formatTimeHHmm(epochMillis: Long): String {
+    val locale = Locale.getDefault()
+    val cached = cachedFormatter.get()
+    val formatter = if (cached != null && cached.first == locale) {
+        cached.second
+    } else {
+        SimpleDateFormat("HH:mm", locale).also { cachedFormatter.set(locale to it) }
+    }
+    return formatter.format(Date(epochMillis))
+}

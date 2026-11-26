@@ -75,19 +75,16 @@ private fun NwcTabs(runtime: NwcRuntime, cards: WalletCardsHost) {
 /** One tab's content, with no tab bar of its own. */
 @Composable
 internal fun NwcTabContent(runtime: NwcRuntime, tab: AppTab, cards: WalletCardsHost) {
-    val coordinator = runtime.paymentCoordinator
-    val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
-    val tabState = runtime.tabState
-    val selectedTransactionId by tabState.selectedTransactionId.collectAsStateWithLifecycle()
-    val flowState = rememberPaymentFlowState(coordinator, ::nwcPaymentStringResource)
-    val messages = rememberPaymentMessages(coordinator, ::nwcPaymentStringResource)
-    val hubState by runtime.paymentHub.state.collectAsStateWithLifecycle()
-    val currencyCode by runtime.currencyPreferences.code.collectAsStateWithLifecycle(
-        CurrencyCatalog.DEFAULT_CODE
-    )
-
     when (tab) {
-        AppTab.Scan ->
+        AppTab.Scan -> {
+            val coordinator = runtime.paymentCoordinator
+            val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
+            val tabState = runtime.tabState
+            val selectedTransactionId by
+                tabState.selectedTransactionId.collectAsStateWithLifecycle()
+            val flowState = rememberPaymentFlowState(coordinator, ::nwcPaymentStringResource)
+            val messages = rememberPaymentMessages(coordinator, ::nwcPaymentStringResource)
+            val hubState by runtime.paymentHub.state.collectAsStateWithLifecycle()
             PaymentScanFlow(
                 state = flowState,
                 messageEvents = messages,
@@ -99,13 +96,18 @@ internal fun NwcTabContent(runtime: NwcRuntime, tab: AppTab, cards: WalletCardsH
                 onIntent = coordinator::dispatch,
                 onHubIntent = runtime.paymentHub::dispatch
             )
+        }
 
-        AppTab.Hub ->
+        AppTab.Hub -> {
+            val currencyCode by runtime.currencyPreferences.code.collectAsStateWithLifecycle(
+                CurrencyCatalog.DEFAULT_CODE
+            )
             PaymentHubTab(
                 repository = runtime.paymentHubRepository,
                 controller = runtime.paymentHub,
                 preferredCurrencyCode = { currencyCode }
             )
+        }
 
         AppTab.Settings ->
             NwcSettingsTab(runtime = runtime, cards = cards)

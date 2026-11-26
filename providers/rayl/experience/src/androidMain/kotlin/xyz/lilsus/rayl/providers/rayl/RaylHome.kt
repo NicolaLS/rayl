@@ -95,35 +95,38 @@ internal fun RaylTabs(runtime: RaylRuntime, cards: WalletCardsHost) {
 
 @Composable
 private fun RaylTabContent(runtime: RaylRuntime, cards: WalletCardsHost, tab: AppTab) {
-    val coordinator = runtime.paymentCoordinator
-    val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
-    val selectedTransactionId by runtime.tabState.selectedTransactionId
-        .collectAsStateWithLifecycle()
-    val flowState = rememberPaymentFlowState(coordinator, ::raylPaymentStringResource)
-    val messages = rememberPaymentMessages(coordinator, ::raylPaymentStringResource)
-    val hubState by runtime.paymentHub.state.collectAsStateWithLifecycle()
-    val currencyCode by runtime.currencyPreferences.code.collectAsStateWithLifecycle(
-        CurrencyCatalog.DEFAULT_CODE
-    )
-
     when (tab) {
-        AppTab.Scan -> PaymentScanFlow(
-            state = flowState,
-            messageEvents = messages,
-            appTitle = runtime.configuration.appName,
-            savePrompt = hubState.savePrompt,
-            isSubmitting = isSubmitting,
-            selectedTransactionId = selectedTransactionId,
-            onSelectTransaction = runtime.tabState::selectTransaction,
-            onIntent = coordinator::dispatch,
-            onHubIntent = runtime.paymentHub::dispatch
-        )
+        AppTab.Scan -> {
+            val coordinator = runtime.paymentCoordinator
+            val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
+            val selectedTransactionId by runtime.tabState.selectedTransactionId
+                .collectAsStateWithLifecycle()
+            val flowState = rememberPaymentFlowState(coordinator, ::raylPaymentStringResource)
+            val messages = rememberPaymentMessages(coordinator, ::raylPaymentStringResource)
+            val hubState by runtime.paymentHub.state.collectAsStateWithLifecycle()
+            PaymentScanFlow(
+                state = flowState,
+                messageEvents = messages,
+                appTitle = runtime.configuration.appName,
+                savePrompt = hubState.savePrompt,
+                isSubmitting = isSubmitting,
+                selectedTransactionId = selectedTransactionId,
+                onSelectTransaction = runtime.tabState::selectTransaction,
+                onIntent = coordinator::dispatch,
+                onHubIntent = runtime.paymentHub::dispatch
+            )
+        }
 
-        AppTab.Hub -> PaymentHubTab(
-            repository = runtime.paymentHubRepository,
-            controller = runtime.paymentHub,
-            preferredCurrencyCode = { currencyCode }
-        )
+        AppTab.Hub -> {
+            val currencyCode by runtime.currencyPreferences.code.collectAsStateWithLifecycle(
+                CurrencyCatalog.DEFAULT_CODE
+            )
+            PaymentHubTab(
+                repository = runtime.paymentHubRepository,
+                controller = runtime.paymentHub,
+                preferredCurrencyCode = { currencyCode }
+            )
+        }
 
         AppTab.Settings -> RaylSettingsTab(runtime, cards)
     }

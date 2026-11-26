@@ -86,19 +86,16 @@ internal fun SparkTabContent(
     onLeave: (WalletCardChange) -> Unit,
     onWalletRemoved: () -> Unit
 ) {
-    val coordinator = runtime.paymentCoordinator
-    val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
-    val tabState = runtime.tabState
-    val selectedTransactionId by tabState.selectedTransactionId.collectAsStateWithLifecycle()
-    val flowState = rememberPaymentFlowState(coordinator, ::sparkPaymentStringResource)
-    val messages = rememberPaymentMessages(coordinator, ::sparkPaymentStringResource)
-    val hubState by runtime.paymentHub.state.collectAsStateWithLifecycle()
-    val currencyCode by runtime.currencyPreferences.code.collectAsStateWithLifecycle(
-        CurrencyCatalog.DEFAULT_CODE
-    )
-
     when (tab) {
-        AppTab.Scan ->
+        AppTab.Scan -> {
+            val coordinator = runtime.paymentCoordinator
+            val isSubmitting by coordinator.isSubmitting.collectAsStateWithLifecycle()
+            val tabState = runtime.tabState
+            val selectedTransactionId by
+                tabState.selectedTransactionId.collectAsStateWithLifecycle()
+            val flowState = rememberPaymentFlowState(coordinator, ::sparkPaymentStringResource)
+            val messages = rememberPaymentMessages(coordinator, ::sparkPaymentStringResource)
+            val hubState by runtime.paymentHub.state.collectAsStateWithLifecycle()
             PaymentScanFlow(
                 state = flowState,
                 messageEvents = messages,
@@ -110,13 +107,18 @@ internal fun SparkTabContent(
                 onIntent = coordinator::dispatch,
                 onHubIntent = runtime.paymentHub::dispatch
             )
+        }
 
-        AppTab.Hub ->
+        AppTab.Hub -> {
+            val currencyCode by runtime.currencyPreferences.code.collectAsStateWithLifecycle(
+                CurrencyCatalog.DEFAULT_CODE
+            )
             PaymentHubTab(
                 repository = runtime.paymentHubRepository,
                 controller = runtime.paymentHub,
                 preferredCurrencyCode = { currencyCode }
             )
+        }
 
         AppTab.Settings ->
             SparkSettingsTab(

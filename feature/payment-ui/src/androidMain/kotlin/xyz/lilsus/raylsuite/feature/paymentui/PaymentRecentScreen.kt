@@ -3,6 +3,7 @@ package xyz.lilsus.raylsuite.feature.paymentui
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigationevent.NavigationEventInfo
@@ -43,11 +44,14 @@ fun PaymentRecentScreen(
     )
 
     if (detail == null) {
+        val transactions = remember(state.sessionItems) {
+            state.sessionItems.map(PaymentSessionItem::transaction)
+        }
         SessionTransactionsScreen(
             modifier = modifier.fillMaxSize(),
             title = stringResource(R.string.session_transactions_title),
             emptyMessage = stringResource(R.string.session_transactions_empty),
-            transactions = state.sessionItems.map(PaymentSessionItem::transaction),
+            transactions = transactions,
             onBack = onBack,
             onTransactionSelected = onSelectTransaction
         )
