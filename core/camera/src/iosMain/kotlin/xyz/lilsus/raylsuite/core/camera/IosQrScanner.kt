@@ -502,6 +502,7 @@ private class VisionDelegate(
     private val request = VNDetectBarcodesRequest().apply {
         symbologies = listOf(VNBarcodeSymbologyQR)
     }
+    private val requests = listOf(request)
 
     // One handler for every frame. A handler made per frame keeps its frame's buffer alive until
     // Kotlin's garbage collector gets to it; the camera has only a few buffers, so it stopped
@@ -520,7 +521,7 @@ private class VisionDelegate(
         val performed = autoreleasepool {
             memScoped {
                 val error = alloc<ObjCObjectVar<NSError?>>()
-                handler.performRequests(listOf(request), pixelBuffer, error.ptr)
+                handler.performRequests(requests, pixelBuffer, error.ptr)
             }
         }
         val now = RaylTrace.nowMs()
@@ -530,7 +531,12 @@ private class VisionDelegate(
             CVPixelBufferGetHeight(pixelBuffer).toInt()
         )
         if (!performed) return
-        val candidates = request.results.orEmpty().mapNotNull { result ->
+        val results = request.results
+        if (results.isNullOrEmpty()) {
+            onValues(emptyList(), now)
+            return
+        }
+        val candidates = results.mapNotNull { result ->
             val code = result as? VNBarcodeObservation ?: return@mapNotNull null
             val value = code.payloadStringValue?.trim()?.takeIf(String::isNotEmpty)
                 ?: return@mapNotNull null

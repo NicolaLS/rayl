@@ -1,5 +1,7 @@
 package xyz.lilsus.raylsuite.feature.paymentflow
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import xyz.lilsus.raylsuite.core.model.DisplayAmount
@@ -30,18 +32,6 @@ internal class PaymentConfirmationPhase<P : SettleablePayment>(
             return ConfirmationResult.Presented
         }
         presentation.showLoading(LoadingKind.Resolving)
-        val prepared =
-            when (val preparation = settlement.prepare(request)) {
-                is SettlementPreparation.Ready -> preparation
-
-                is SettlementPreparation.Unavailable -> {
-                    presentation.presentError(preparation.error)
-                    return ConfirmationResult.Presented
-                }
-
-                SettlementPreparation.AlreadyPaid -> return ConfirmationResult.AlreadyPaid(request)
-            }
-        currentCoroutineContext().ensureActive()
         val requiresConfirmation = !request.isManualEntry &&
             amountMsats != null &&
             (
@@ -52,17 +42,52 @@ internal class PaymentConfirmationPhase<P : SettleablePayment>(
                         isPresetTarget = request.targetContext?.isPreset == true
                     )
                 )
-        if (!requiresConfirmation) return ConfirmationResult.Execute(prepared.payment)
+        // When confirmation needs a fresh fiat display, fetch the exchange rate alongside wallet
+        // preparation instead of waiting for preparation to finish first.
+        val preparedAndDisplay = coroutineScope {
+            val displayDeferred = if (requiresConfirmation && request.paymentQuote == null) {
+                async { confirmationAmount(amountMsats ?: 0L, null) }
+            } else {
+                null
+            }
+            val preparation = try {
+                settlement.prepare(request)
+            } catch (error: Throwable) {
+                displayDeferred?.cancel()
+                throw error
+            }
+            when (preparation) {
+                is SettlementPreparation.Ready -> {
+                    currentCoroutineContext().ensureActive()
+                    if (!requiresConfirmation) {
+                        displayDeferred?.cancel()
+                        return@coroutineScope ConfirmationResult.Execute(preparation.payment)
+                    }
+                    val display = displayDeferred?.await()
+                        ?: confirmationAmount(amountMsats ?: 0L, request.paymentQuote)
+                    currentCoroutineContext().ensureActive()
+                    awaitingConfirmation = AwaitingConfirmation(preparation.payment, request)
+                    presentation.showConfirmation(
+                        amount = display,
+                        lnurlPayDisplay = request.lnurlPayDisplay,
+                        fundingSource = preparation.fundingSource
+                    )
+                    ConfirmationResult.Presented
+                }
 
-        val display = confirmationAmount(amountMsats ?: 0L, request.paymentQuote)
-        currentCoroutineContext().ensureActive()
-        awaitingConfirmation = AwaitingConfirmation(prepared.payment, request)
-        presentation.showConfirmation(
-            amount = display,
-            lnurlPayDisplay = request.lnurlPayDisplay,
-            fundingSource = prepared.fundingSource
-        )
-        return ConfirmationResult.Presented
+                is SettlementPreparation.Unavailable -> {
+                    displayDeferred?.cancel()
+                    presentation.presentError(preparation.error)
+                    ConfirmationResult.Presented
+                }
+
+                SettlementPreparation.AlreadyPaid -> {
+                    displayDeferred?.cancel()
+                    ConfirmationResult.AlreadyPaid(request)
+                }
+            }
+        }
+        return preparedAndDisplay
     }
 
     fun submit(): ConfirmationResult<P> {

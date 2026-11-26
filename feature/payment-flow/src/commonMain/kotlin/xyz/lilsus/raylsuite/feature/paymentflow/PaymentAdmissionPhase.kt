@@ -1,6 +1,8 @@
 package xyz.lilsus.raylsuite.feature.paymentflow
 
 import fr.acinq.lightning.payment.Bolt11Invoice
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
@@ -123,27 +125,43 @@ internal class PaymentAdmissionPhase(
                 comment = intent.comment
             )
         } else {
-            val paymentQuote = currencyManager.quoteStoredAmount(preset)
-            currentCoroutineContext().ensureActive()
-            if (paymentQuote == null) {
-                val info = CurrencyCatalog.infoFor(preset.normalizedCurrencyCode)
-                presentation.presentError(
-                    if (info.currency is DisplayCurrency.Fiat) {
-                        PaymentUiError.ExchangeRateUnavailable(info.code)
-                    } else {
-                        PaymentUiError.InvalidInvoice(
-                            "Preset amount could not be converted"
+            // Quote the preset amount and fetch LNURL pay params in parallel to save a round-trip.
+            coroutineScope {
+                val quoteDeferred = async { currencyManager.quoteStoredAmount(preset) }
+                val paramsDeferred = async { lnurlPayClient.fetchPayParams(intent.address) }
+                val paymentQuote = quoteDeferred.await()
+                currentCoroutineContext().ensureActive()
+                if (paymentQuote == null) {
+                    paramsDeferred.cancel()
+                    val info = CurrencyCatalog.infoFor(preset.normalizedCurrencyCode)
+                    presentation.presentError(
+                        if (info.currency is DisplayCurrency.Fiat) {
+                            PaymentUiError.ExchangeRateUnavailable(info.code)
+                        } else {
+                            PaymentUiError.InvalidInvoice(
+                                "Preset amount could not be converted"
+                            )
+                        }
+                    )
+                    return@coroutineScope AdmissionResult.Presented
+                }
+                notifyScanSuccess()
+                val paramsResult = paramsDeferred.await()
+                currentCoroutineContext().ensureActive()
+                when (paramsResult) {
+                    is LnurlResult.Success ->
+                        handleLnurlParams(
+                            params = paramsResult.data,
+                            targetContext = context,
+                            presetQuote = paymentQuote,
+                            targetComment = intent.comment
                         )
+
+                    is LnurlResult.Error -> {
+                        presentation.presentError(paramsResult.error.toPaymentUiError())
+                        AdmissionResult.Presented
                     }
-                )
-                AdmissionResult.Presented
-            } else {
-                resolveTargetPayment(
-                    address = intent.address,
-                    context = context,
-                    paymentQuote = paymentQuote,
-                    comment = intent.comment
-                )
+                }
             }
         }
     }
@@ -419,14 +437,6 @@ internal class PaymentAdmissionPhase(
                     }
             )
 
-        if (
-            inputInfo.currency is DisplayCurrency.Fiat &&
-            inputInfo.code.equals(currencyState.info.code, ignoreCase = true)
-        ) {
-            currencyManager.ensureExchangeRateIfNeeded(inputInfo)
-            currentCoroutineContext().ensureActive()
-        }
-
         presetQuote?.let { paymentQuote ->
             val roundedAmount = paymentQuote.amountMsats
             if (
@@ -455,6 +465,14 @@ internal class PaymentAdmissionPhase(
                 isManualEntry = false,
                 paymentQuote = null
             )
+        }
+
+        if (
+            inputInfo.currency is DisplayCurrency.Fiat &&
+            inputInfo.code.equals(currencyState.info.code, ignoreCase = true)
+        ) {
+            currencyManager.ensureExchangeRateIfNeeded(inputInfo)
+            currentCoroutineContext().ensureActive()
         }
 
         preparation.manualEntryContext = ManualEntryContext.Lnurl(session, inputInfo)

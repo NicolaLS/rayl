@@ -174,6 +174,9 @@ class LightningInputParser(
         if (value.startsWith(BITCOIN_PREFIX, ignoreCase = true)) {
             return PaymentInputParseAttempt.Rejected(FailureReason.BitcoinAddress)
         }
+        if (!looksLikeBitcoinAddress(value)) {
+            return PaymentInputParseAttempt.NoMatch
+        }
         val isAddress =
             SUPPORTED_BITCOIN_CHAINS.any { chain ->
                 Bitcoin.addressToPublicKeyScript(chain.chainHash, value).isRight
@@ -183,6 +186,22 @@ class LightningInputParser(
         } else {
             PaymentInputParseAttempt.NoMatch
         }
+    }
+
+    private fun looksLikeBitcoinAddress(value: String): Boolean {
+        if (value.length !in BITCOIN_ADDRESS_MIN_LENGTH..BITCOIN_ADDRESS_MAX_LENGTH) return false
+        val first = value[0]
+        val hasKnownPrefix =
+            first == '1' ||
+                first == '3' ||
+                first == '2' ||
+                first == 'm' ||
+                first == 'n' ||
+                value.startsWith("bc1", ignoreCase = true) ||
+                value.startsWith("tb1", ignoreCase = true) ||
+                value.startsWith("bcrt1", ignoreCase = true)
+        if (!hasKnownPrefix) return false
+        return value.none { it.isWhitespace() || it == ':' || it == '/' || it == '?' }
     }
 
     private fun looksLikeBolt11(value: String): Boolean =
@@ -216,6 +235,8 @@ class LightningInputParser(
         const val LIGHTNING_PREFIX = "lightning:"
         const val BITCOIN_PREFIX = "bitcoin:"
         const val BOLT12_OFFER_PREFIX = "lno1"
+        const val BITCOIN_ADDRESS_MIN_LENGTH = 25
+        const val BITCOIN_ADDRESS_MAX_LENGTH = 90
 
         val BOLT11_PREFIXES = listOf("lnbcrt", "lntbs", "lnbc", "lntb")
         val UNSUPPORTED_LNURL_PREFIXES = listOf("lnurlw://", "lnurlc://", "keyauth://")

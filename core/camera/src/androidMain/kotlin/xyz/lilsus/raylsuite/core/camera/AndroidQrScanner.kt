@@ -545,22 +545,25 @@ private fun rankBarcodeValues(
     barcodes: List<Barcode>,
     frameWidth: Float,
     frameHeight: Float
-): List<String> = rankQrValues(
-    candidates = barcodes.mapNotNull { barcode ->
-        val value = barcode.rawValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-        // A code without a place in the frame ranks last.
-        val bounds = barcode.boundingBox
-        QrDetectionCandidate(
-            value = value,
-            left = bounds?.left?.toFloat() ?: 0f,
-            top = bounds?.top?.toFloat() ?: 0f,
-            right = bounds?.right?.toFloat() ?: 0f,
-            bottom = bounds?.bottom?.toFloat() ?: 0f
-        )
-    },
-    frameWidth = frameWidth,
-    frameHeight = frameHeight
-)
+): List<String> {
+    if (barcodes.isEmpty()) return emptyList()
+    return rankQrValues(
+        candidates = barcodes.mapNotNull { barcode ->
+            val value = barcode.rawValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            // A code without a place in the frame ranks last.
+            val bounds = barcode.boundingBox
+            QrDetectionCandidate(
+                value = value,
+                left = bounds?.left?.toFloat() ?: 0f,
+                top = bounds?.top?.toFloat() ?: 0f,
+                right = bounds?.right?.toFloat() ?: 0f,
+                bottom = bounds?.bottom?.toFloat() ?: 0f
+            )
+        },
+        frameWidth = frameWidth,
+        frameHeight = frameHeight
+    )
+}
 
 private fun isCameraPermissionGranted(context: Context): Boolean =
     ContextCompat.checkSelfPermission(
