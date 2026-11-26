@@ -59,35 +59,40 @@ private final class NativeShellModel: ObservableObject {
 
     private let adapter: NativeShellAdapter
     private var cancels: [() -> Void] = []
-    // Each screen is built exactly once. Rebuilding a type-erased tab body on selection change
-    // gives SwiftUI no stable identity for it, which tears down the tab's navigation stack and
-    // hosted view controllers mid-transition.
-    private let tabViews: [String: AnyView]
-    private let onboardingView: AnyView
+    // Each screen is built at most once, on first visit, so cold launch never initializes
+    // offscreen tabs (Hub, Settings) or onboarding controllers, while keeping stable view identity
+    // across tab switches.
+    private var tabViews: [String: AnyView] = [:]
+    private var loadedTabs: Set<String> = []
+    private var onboardingView: AnyView?
 
     init(adapter: NativeShellAdapter) {
         self.adapter = adapter
         let visibleTabs = AppShellTab.allCases
         tabs = visibleTabs
-        tabViews = Dictionary(
-            uniqueKeysWithValues: visibleTabs.map { tab in
-                switch tab {
-                case .scan: return (tab.id, adapter.nativeScanView())
-                case .hub: return (tab.id, adapter.nativeHubView())
-                case .settings: return (tab.id, adapter.nativeSettingsView())
-                }
-            }
-        )
-        onboardingView = adapter.nativeOnboardingView()
-        stage = adapter.initialStage()
+        let initialStage = adapter.initialStage()
+        stage = initialStage
         let initialTab = adapter.initialSelectedTab()
-        selectedTab = tabs.contains { $0.id == initialTab } ? initialTab : AppShellTab.scan.id
+        let resolvedTab = tabs.contains { $0.id == initialTab } ? initialTab : AppShellTab.scan.id
+        selectedTab = resolvedTab
+        if initialStage == .tabs {
+            loadedTabs.insert(resolvedTab)
+        }
 
         cancels.append(adapter.observeStage(NativeShellObserver { [weak self] stage in
-            self?.stage = stage
+            guard let self else { return }
+            if stage == .tabs {
+                loadedTabs.insert(selectedTab)
+            }
+            if stage != .onboarding {
+                onboardingView = nil
+            }
+            self.stage = stage
         }))
         cancels.append(adapter.observeSelectedTab(NativeShellObserver { [weak self] tab in
-            guard let self, selectedTab != tab else { return }
+            guard let self else { return }
+            loadedTabs.insert(tab)
+            guard selectedTab != tab else { return }
             selectedTab = tab
         }))
         cancels.append(adapter.observeTheme(NativeShellObserver { [weak self] value in
@@ -103,6 +108,7 @@ private final class NativeShellModel: ObservableObject {
     }
 
     func selectTab(_ tab: String) {
+        loadedTabs.insert(tab)
         adapter.selectTab(tab)
     }
 
@@ -114,12 +120,31 @@ private final class NativeShellModel: ObservableObject {
         tabs.allSatisfy { tabTitles[$0.id] != nil }
     }
 
+    func isLoaded(_ tab: AppShellTab) -> Bool {
+        loadedTabs.contains(tab.id) || selectedTab == tab.id
+    }
+
     func view(for tab: AppShellTab) -> AnyView {
-        tabViews[tab.id] ?? AnyView(ProgressView())
+        if let existing = tabViews[tab.id] {
+            return existing
+        }
+        let created: AnyView
+        switch tab {
+        case .scan: created = adapter.nativeScanView()
+        case .hub: created = adapter.nativeHubView()
+        case .settings: created = adapter.nativeSettingsView()
+        }
+        tabViews[tab.id] = created
+        return created
     }
 
     func nativeOnboardingView() -> AnyView {
-        onboardingView
+        if let existing = onboardingView {
+            return existing
+        }
+        let created = adapter.nativeOnboardingView()
+        onboardingView = created
+        return created
     }
 
     private static func colorScheme(_ value: String) -> ColorScheme? {
@@ -151,15 +176,21 @@ struct NativeAppShell: View {
                             // No whole-screen `privacySensitive()`. Redacting a whole tab means any
                             // active privacy redaction blanks the entire screen; apply it to the
                             // individual sensitive value instead.
-                            model.view(for: tab)
-                                .environment(
-                                    \.appShellTabIsSelected,
-                                    model.selectedTab == tab.id
-                                )
-                                .tabItem {
-                                    Label(model.title(tab), systemImage: tab.symbol)
+                            Group {
+                                if model.isLoaded(tab) {
+                                    model.view(for: tab)
+                                } else {
+                                    Color.clear
                                 }
-                                .tag(tab.id)
+                            }
+                            .environment(
+                                \.appShellTabIsSelected,
+                                model.selectedTab == tab.id
+                            )
+                            .tabItem {
+                                Label(model.title(tab), systemImage: tab.symbol)
+                            }
+                            .tag(tab.id)
                         }
                     }
                 } else {

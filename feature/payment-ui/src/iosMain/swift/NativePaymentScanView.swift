@@ -810,17 +810,42 @@ private struct NativePaymentRecipientView: View {
 
     @ViewBuilder
     private func avatar(size: CGFloat) -> some View {
-        if let encoded = sheet.recipientImageBase64,
-            let data = Data(base64Encoded: encoded),
-            let image = UIImage(data: data)
-        {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(width: size, height: size)
-                .clipShape(.rect(cornerRadius: size / 4))
-                .accessibilityHidden(true)
+        if let encoded = sheet.recipientImageBase64 {
+            CachedBase64AvatarView(encoded: encoded, size: size)
         }
+    }
+}
+
+private struct CachedBase64AvatarView: View {
+    let encoded: String
+    let size: CGFloat
+    @State private var image: UIImage?
+
+    init(encoded: String, size: CGFloat) {
+        self.encoded = encoded
+        self.size = size
+        _image = State(initialValue: Self.decode(encoded))
+    }
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size, height: size)
+                    .clipShape(.rect(cornerRadius: size / 4))
+                    .accessibilityHidden(true)
+            }
+        }
+        .onChange(of: encoded) { _, newValue in
+            image = Self.decode(newValue)
+        }
+    }
+
+    private static func decode(_ encoded: String) -> UIImage? {
+        guard let data = Data(base64Encoded: encoded) else { return nil }
+        return UIImage(data: data)
     }
 }
 

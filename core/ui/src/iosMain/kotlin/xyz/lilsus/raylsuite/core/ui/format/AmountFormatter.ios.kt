@@ -1,5 +1,6 @@
 package xyz.lilsus.raylsuite.core.ui.format
 
+import kotlin.concurrent.Volatile
 import platform.Foundation.NSDecimalNumber
 import platform.Foundation.NSLocale
 import platform.Foundation.NSNumber
@@ -9,8 +10,15 @@ import platform.Foundation.NSNumberFormatterDecimalStyle
 import xyz.lilsus.raylsuite.core.model.DisplayAmount
 import xyz.lilsus.raylsuite.core.model.DisplayCurrency
 
-internal actual fun createAmountFormatter(locale: AppLocale): AmountFormatter =
-    IosAmountFormatter(locale)
+@Volatile
+private var cachedFormatter: Pair<String, IosAmountFormatter>? = null
+
+internal actual fun createAmountFormatter(locale: AppLocale): AmountFormatter {
+    cachedFormatter?.let { (tag, formatter) ->
+        if (tag == locale.languageTag) return formatter
+    }
+    return IosAmountFormatter(locale).also { cachedFormatter = locale.languageTag to it }
+}
 
 private class IosAmountFormatter(locale: AppLocale) : AmountFormatter {
     private val nsLocale = NSLocale(localeIdentifier = locale.languageTag)

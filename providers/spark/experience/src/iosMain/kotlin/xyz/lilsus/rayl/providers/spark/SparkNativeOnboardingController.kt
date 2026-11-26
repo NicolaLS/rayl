@@ -13,14 +13,18 @@ import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialProblemKind
 import xyz.lilsus.rayl.providers.spark.application.wallet.RecoveryPhraseWords
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccess
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
+import xyz.lilsus.rayl.providers.spark.feature.onboarding.NativeSparkOnboardingText
 import xyz.lilsus.rayl.providers.spark.feature.onboarding.nativeSparkOnboardingText
+import xyz.lilsus.rayl.providers.spark.feature.walletconnection.NativeSparkWalletConnectionText
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletAction
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletMessage
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.WalletViewModel
 import xyz.lilsus.rayl.providers.spark.feature.walletconnection.nativeSparkWalletConnectionText
 import xyz.lilsus.raylsuite.core.ui.NativeCredentialText
+import xyz.lilsus.raylsuite.core.ui.format.currentAppLocale
 import xyz.lilsus.raylsuite.core.ui.nativeCredentialText
 import xyz.lilsus.raylsuite.core.ui.platform.CredentialClipboard
+import xyz.lilsus.raylsuite.feature.onboarding.NativeOnboardingText
 import xyz.lilsus.raylsuite.feature.onboarding.OnboardingViewModel
 import xyz.lilsus.raylsuite.feature.onboarding.nativeOnboardingText
 
@@ -99,6 +103,7 @@ class SparkNativeOnboardingController internal constructor(
         }
     private var resetRequested = false
     private var wasConnected = walletAccess.state.value == WalletAccessState.Connected
+    private var cachedOnboardingCopy: SparkOnboardingCopy? = null
 
     init {
         scope.launch {
@@ -226,16 +231,25 @@ class SparkNativeOnboardingController internal constructor(
         }
         wasConnected = connected
 
-        val common = nativeOnboardingText()
-        val spark = nativeSparkOnboardingText(appName)
-        val walletText = nativeSparkWalletConnectionText(appName)
+        val cachedLocale = currentAppLocale().languageTag
+        val copy = cachedOnboardingCopy?.takeIf { it.localeTag == cachedLocale }
+            ?: SparkOnboardingCopy(
+                localeTag = cachedLocale,
+                common = nativeOnboardingText(),
+                spark = nativeSparkOnboardingText(appName),
+                walletText = nativeSparkWalletConnectionText(appName),
+                credentialText = nativeCredentialText()
+            ).also { cachedOnboardingCopy = it }
+        val common = copy.common
+        val spark = copy.spark
+        val walletText = copy.walletText
         val step = effectiveStep(walletState.access)
         val recovery = recoveryCopy(walletState.access, walletText)
 
         snapshot.value =
             SparkNativeOnboardingSnapshot(
                 step = step,
-                credentialText = nativeCredentialText(),
+                credentialText = copy.credentialText,
                 privacyPolicyUrl = privacyPolicyUrl,
                 termsUrl = termsUrl,
                 canCancel = canCancelSetup(),
@@ -340,12 +354,18 @@ private fun recoveryCopy(
     else -> null
 }
 
-private fun WalletMessage.message(
-    text: xyz.lilsus.rayl.providers.spark.feature.walletconnection.NativeSparkWalletConnectionText
-): String = when (this) {
+private fun WalletMessage.message(text: NativeSparkWalletConnectionText): String = when (this) {
     WalletMessage.ALREADY_CONFIGURED -> text.errorAlreadyConfigured
     WalletMessage.INVALID_MNEMONIC -> text.errorInvalidMnemonic
     WalletMessage.CONNECTION_FAILED -> text.errorConnection
     WalletMessage.CREDENTIAL_STORE_FAILED -> text.errorStorage
     WalletMessage.RESET_REQUIRED -> text.errorReset
 }
+
+private data class SparkOnboardingCopy(
+    val localeTag: String,
+    val common: NativeOnboardingText,
+    val spark: NativeSparkOnboardingText,
+    val walletText: NativeSparkWalletConnectionText,
+    val credentialText: NativeCredentialText
+)

@@ -64,11 +64,15 @@ class NativePaymentHubController(
         killSwitch = HubWidgetKillSwitch(KtorHubSwitchesApi(), createAppSettings())
     )
     private val snapshot = MutableStateFlow<NativePaymentHubSnapshot?>(null)
+    private var cachedCopy: NativePaymentHubCopy? = null
+    private var cachedBills: List<NativeHubBill>? = null
 
     init {
         scope.launch { viewModel.state.collect { publish() } }
         scope.launch {
             languageChanges.collect {
+                cachedCopy = null
+                cachedBills = null
                 publish()
             }
         }
@@ -217,8 +221,14 @@ class NativePaymentHubController(
 
     private fun publish() {
         val state = viewModel.state.value
-        val copy = loadCopy()
-        val definitions = state.gallery.map { it.toNative(state) }
+        val copy = cachedCopy ?: loadCopy().also { cachedCopy = it }
+        val bills = cachedBills ?: HubBill.entries.map { it.toNative() }.also { cachedBills = it }
+        val needsGallery = state.screen != HubWidgetScreen.Hub || state.editor != null
+        val definitions = if (needsGallery) {
+            state.gallery.map { it.toNative(state) }
+        } else {
+            emptyList()
+        }
         val placements = packHubGrid(state.widgets, canvasColumns) {
             HubGridSpan(it.variant.columns, it.variant.rows)
         }
@@ -237,7 +247,7 @@ class NativePaymentHubController(
                 arranging = state.arranging
             ),
             gallery = definitions,
-            bills = HubBill.entries.map { it.toNative() },
+            bills = bills,
             selectedDefinition = definitions.firstOrNull { it.id == state.editor?.definitionId },
             editor = state.editor?.let { editor ->
                 val variant = state.selectedVariant ?: return@let null
@@ -1038,7 +1048,9 @@ private const val CLARO_SAMPLE_PHONE = "71234567"
 
 private fun HubContact.toNative() = NativeHubContact(id, title, address.full, title.initials())
 
-private fun String.initials(): String = trim().split(Regex("\\s+"))
+private val HUB_INITIALS_WHITESPACE_REGEX = Regex("\\s+")
+
+private fun String.initials(): String = trim().split(HUB_INITIALS_WHITESPACE_REGEX)
     .filter { it.isNotEmpty() }.take(2).joinToString("") { it.take(1).uppercase() }
 
 private fun HubWidgetKind.titleKey(): String = "hub_widget_${name.lowercase()}"

@@ -16,14 +16,42 @@ struct RaylHeroView: View {
     var rejections = 0
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.appShellTabIsSelected) private var isTabSelected
     @State private var phaseStart = Date()
     @State private var fromFrame = HeroFrame()
     @State private var fromTint: HeroTint?
     @State private var nudgeStart: Date?
+    @State private var settled = false
+
+    private var heroPhase: HeroPhase { HeroPhase(phase) }
+
+    /// Only Ready and Processing animate indefinitely; finite phases stop ticking once settled.
+    private var isTimelinePaused: Bool {
+        if !isTabSelected || scenePhase != .active { return true }
+        switch heroPhase {
+        case .ready, .processing: return false
+        case .acknowledged, .succeeded, .failed: return settled
+        }
+    }
 
     var body: some View {
         animation
+            .task(id: "\(phase)-\(rejections)") {
+                settled = false
+                switch heroPhase {
+                case .ready, .processing:
+                    return
+                case .acknowledged, .succeeded, .failed:
+                    // Longest finite phase (result pop + settle + color cross-fade) finishes within 1.1s.
+                    try? await Task.sleep(for: .milliseconds(1_150))
+                    if !Task.isCancelled {
+                        settled = true
+                    }
+                }
+            }
             .onChange(of: phase) { previous, _ in
+                settled = false
                 let elapsed = Date().timeIntervalSince(phaseStart)
                 fromFrame = heroFrame(
                     phase: HeroPhase(previous),
@@ -34,6 +62,7 @@ struct RaylHeroView: View {
                 phaseStart = Date()
             }
             .onChange(of: rejections) { _, _ in
+                settled = false
                 nudgeStart = Date()
             }
     }
@@ -45,7 +74,7 @@ struct RaylHeroView: View {
         // Resolve the shared palette when the phase or environment changes, not on every tick.
         let target = targetTint(for: phase)
         let background = Color(uiColor: .systemBackground)
-        return TimelineView(.animation) { timeline in
+        return TimelineView(.animation(paused: isTimelinePaused)) { timeline in
             // Capture one complete frame during the view update. The drawing callback should
             // consume values, not read live SwiftUI state when Canvas chooses to redraw.
             let elapsed = timeline.date.timeIntervalSince(phaseStart)
@@ -648,13 +677,21 @@ private func keyframe(_ time: Double, _ points: [(Double, Double)], eased: Bool)
 // MARK: - Receipt
 
 struct NativePaymentPreimageQrCode: View {
+    private static let ciContext = CIContext()
+
     let data: String
+    @State private var image: UIImage?
+
+    init(data: String) {
+        self.data = data
+        _image = State(initialValue: Self.qrImage(from: data))
+    }
 
     var body: some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
             .fill(Color.white)
             .overlay {
-                if let image = qrImage(from: data) {
+                if let image {
                     Image(uiImage: image)
                         .interpolation(.none)
                         .resizable()
@@ -662,15 +699,18 @@ struct NativePaymentPreimageQrCode: View {
                         .padding(16)
                 }
             }
+            .onChange(of: data) { _, newValue in
+                image = Self.qrImage(from: newValue)
+            }
     }
 
-    private func qrImage(from value: String) -> UIImage? {
+    private static func qrImage(from value: String) -> UIImage? {
         guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
         filter.setValue(Data(value.utf8), forKey: "inputMessage")
         filter.setValue("M", forKey: "inputCorrectionLevel")
         guard let output = filter.outputImage else { return nil }
         let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
-        guard let cgImage = CIContext().createCGImage(scaled, from: scaled.extent) else {
+        guard let cgImage = ciContext.createCGImage(scaled, from: scaled.extent) else {
             return nil
         }
         return UIImage(cgImage: cgImage)

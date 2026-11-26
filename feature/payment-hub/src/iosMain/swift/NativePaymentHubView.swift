@@ -119,6 +119,7 @@ struct NativePaymentHubView: View {
     @State private var converting: HubConverterTarget?
     @State private var toppingUp: HubPpqTarget?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.appShellTabIsSelected) private var isTabSelected
     init(controller: NativePaymentHubController) {
         _model = StateObject(wrappedValue: NativePaymentHubModel(controller: controller))
     }
@@ -148,10 +149,10 @@ struct NativePaymentHubView: View {
         .sheet(isPresented: claroPresented) {
             HubClaroSheet(model: model)
         }
-        .task(id: scenePhase) {
+        .task(id: scenePhase == .active && isTabSelected) {
             // Prices and balances are fetched while the Hub is on screen and the app is in
             // front, and again when either comes back.
-            guard scenePhase == .active else { return }
+            guard scenePhase == .active && isTabSelected else { return }
             while !Task.isCancelled {
                 model.controller.refreshLive()
                 try? await Task.sleep(for: .seconds(60))

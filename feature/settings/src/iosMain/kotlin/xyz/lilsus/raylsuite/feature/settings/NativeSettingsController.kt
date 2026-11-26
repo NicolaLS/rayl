@@ -110,6 +110,8 @@ class NativeSettingsController(
         )
 
     fun observe(onChange: (NativeSettingsSnapshot) -> Unit): () -> Unit {
+        var cachedLanguageCode: String? = null
+        var cachedResources: NativeSettingsResources? = null
         val job =
             scope.launch {
                 combine(
@@ -119,7 +121,16 @@ class NativeSettingsController(
                     payment.uiState,
                     Telemetry.enabled
                 ) { themeState, languageState, currencyState, paymentState, usageDataEnabled ->
-                    val resources = loadResources(legalLinks, appVersionName)
+                    val resources = if (
+                        cachedResources != null && cachedLanguageCode == languageState.selectedCode
+                    ) {
+                        cachedResources!!
+                    } else {
+                        loadResources(legalLinks, appVersionName).also {
+                            cachedLanguageCode = languageState.selectedCode
+                            cachedResources = it
+                        }
+                    }
                     NativeSettingsSnapshot(
                         text = resources.text,
                         themeOptions = resources.themeOptions,

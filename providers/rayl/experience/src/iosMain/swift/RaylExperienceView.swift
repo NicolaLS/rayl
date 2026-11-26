@@ -521,16 +521,29 @@ private struct RaylFundingSheet: View {
 }
 
 private struct RaylQRCode: View {
+    private static let ciContext = CIContext()
+
     let value: String
+    @State private var image: UIImage?
+
+    init(value: String) {
+        self.value = value
+        _image = State(initialValue: Self.render(value))
+    }
 
     var body: some View {
-        if let image = Self.render(value) {
-            Image(uiImage: image)
-                .interpolation(.none)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 240, height: 240)
-                .accessibilityHidden(true)
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 240, height: 240)
+                    .accessibilityHidden(true)
+            }
+        }
+        .onChange(of: value) { _, newValue in
+            image = Self.render(newValue)
         }
     }
 
@@ -539,7 +552,7 @@ private struct RaylQRCode: View {
         filter.message = Data(value.utf8)
         filter.correctionLevel = "M"
         guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 10, y: 10)),
-              let image = CIContext().createCGImage(output, from: output.extent)
+              let image = ciContext.createCGImage(output, from: output.extent)
         else { return nil }
         return UIImage(cgImage: image)
     }
