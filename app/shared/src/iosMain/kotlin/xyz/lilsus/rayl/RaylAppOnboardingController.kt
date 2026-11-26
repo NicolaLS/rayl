@@ -86,6 +86,12 @@ class RaylAppOnboardingController internal constructor(
 
     fun back() = onboarding.back()
 
+    fun clear() {
+        model?.clear()
+        model = null
+        scope.coroutineContext[Job]?.cancel()
+    }
+
     private suspend fun snapshot(
         step: AppOnboardingStep,
         state: OnboardingUiState

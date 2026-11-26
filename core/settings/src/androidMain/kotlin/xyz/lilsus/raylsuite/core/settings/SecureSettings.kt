@@ -43,13 +43,20 @@ private class EncryptedStringSettings(
     private val delegate: Settings,
     private val keyAlias: String
 ) : SecureStringStore {
+    @Volatile
+    private var cachedKey: SecretKey? = null
+
     override fun putString(key: String, value: String) {
-        delegate.putString(key, encrypt(value, keyAlias))
+        delegate.putString(key, encrypt(value, secretKey()))
     }
 
     override fun getStringOrNull(key: String): String? {
         val encrypted = delegate.getStringOrNull(key) ?: return null
-        return runCatching { decrypt(encrypted, keyAlias) }.getOrNull()
+        return runCatching { decrypt(encrypted, secretKey()) }.getOrElse {
+            // Re-fetch once in case the cached key reference became stale.
+            cachedKey = null
+            runCatching { decrypt(encrypted, secretKey()) }.getOrNull()
+        }
     }
 
     override fun remove(key: String) {
@@ -59,18 +66,21 @@ private class EncryptedStringSettings(
     override fun clear() {
         delegate.clear()
     }
+
+    private fun secretKey(): SecretKey =
+        cachedKey ?: getOrCreateSecretKey(keyAlias).also { cachedKey = it }
 }
 
-private fun encrypt(value: String, keyAlias: String): String {
+private fun encrypt(value: String, secretKey: SecretKey): String {
     val cipher =
         Cipher.getInstance(TRANSFORMATION).apply {
-            init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey(keyAlias))
+            init(Cipher.ENCRYPT_MODE, secretKey)
         }
     val combined = cipher.iv + cipher.doFinal(value.encodeToByteArray())
     return Base64.encodeToString(combined, Base64.NO_WRAP)
 }
 
-private fun decrypt(encoded: String, keyAlias: String): String {
+private fun decrypt(encoded: String, secretKey: SecretKey): String {
     val combined = Base64.decode(encoded, Base64.NO_WRAP)
     require(combined.size > GCM_IV_SIZE_BYTES) { "Invalid encrypted value" }
 
@@ -79,7 +89,7 @@ private fun decrypt(encoded: String, keyAlias: String): String {
     val ciphertext = combined.copyOfRange(GCM_IV_SIZE_BYTES, combined.size)
     cipher.init(
         Cipher.DECRYPT_MODE,
-        getOrCreateSecretKey(keyAlias),
+        secretKey,
         GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
     )
     return cipher.doFinal(ciphertext).decodeToString()

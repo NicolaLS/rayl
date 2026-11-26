@@ -74,9 +74,7 @@ object RaylIosApp {
     /** The pocket's network, known once [configureSpark] ran. */
     private var pocketEnvironment: RaylEnvironment? = null
     private val appOnboarding = RaylAppOnboarding(appSettings)
-    private val onboardingController by lazy {
-        RaylAppOnboardingController(appOnboarding, appSettings, language.preference)
-    }
+    private var onboardingController: RaylAppOnboardingController? = null
     private val language = createLanguageRepository()
     private val experienceState = MutableStateFlow(RaylExperienceState())
     private var rayl: RaylIosExperience? = null
@@ -166,6 +164,10 @@ object RaylIosApp {
                     unmount()
                     mounted = mount
                 }
+                if (welcome && onboardingController != null) {
+                    onboardingController?.clear()
+                    onboardingController = null
+                }
                 // SwiftUI may render this snapshot after removal has cleared the live selection.
                 // Keep its experience with it; rendering must never resolve a different session.
                 val raylExperience =
@@ -234,6 +236,9 @@ object RaylIosApp {
     }
 
     fun onboardingController(): RaylAppOnboardingController = onboardingController
+        ?: RaylAppOnboardingController(appOnboarding, appSettings, language.preference).also {
+            onboardingController = it
+        }
 
     fun dismissNotice() = registry.dismissNotice()
 

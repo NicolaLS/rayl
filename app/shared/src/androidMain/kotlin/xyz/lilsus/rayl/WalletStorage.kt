@@ -9,7 +9,7 @@ import xyz.lilsus.rayl.providers.spark.clearSavedSparkWallet
 
 /** Erases one card's storage. The pocket is never cleared here. See SPEC-wallet-lifecycle. */
 internal suspend fun clearSavedCard(context: Context, card: RaylCard): Boolean =
-    withContext(Dispatchers.Default) {
+    withContext(Dispatchers.IO) {
         when (card.wallet) {
             ExternalWallet.Blink -> clearSavedBlinkWallet(context, card.blinkConfiguration())
 
