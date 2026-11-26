@@ -30,22 +30,53 @@ import xyz.lilsus.raylsuite.core.payment.LnurlPayMetadata
 import xyz.lilsus.raylsuite.core.payment.LnurlPayParams
 import xyz.lilsus.raylsuite.core.payment.LnurlResult
 
-class KtorLnurlPayClient(
+class KtorLnurlPayClient private constructor(
     private val networkConnectivity: NetworkConnectivity,
-    private val client: HttpClient = createHttpClient(),
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
-    private val json: Json = Json { ignoreUnknownKeys = true },
-    private val resolveHostAddresses: suspend (String) -> List<ByteArray> = ::resolveLnurlHost
+    clientFactory: () -> HttpClient,
+    private val dispatcher: CoroutineDispatcher,
+    private val json: Json,
+    private val resolveHostAddresses: suspend (String) -> List<ByteArray>
 ) : LnurlPayClient {
-    private val lnurlClient = client.config {
-        followRedirects = false
-        expectSuccess = false
-        install(HttpRequestRetry) { maxRetries = 0 }
+    constructor(
+        networkConnectivity: NetworkConnectivity,
+        client: HttpClient,
+        dispatcher: CoroutineDispatcher = Dispatchers.Default,
+        json: Json = Json { ignoreUnknownKeys = true },
+        resolveHostAddresses: suspend (String) -> List<ByteArray> = ::resolveLnurlHost
+    ) : this(
+        networkConnectivity = networkConnectivity,
+        clientFactory = { client },
+        dispatcher = dispatcher,
+        json = json,
+        resolveHostAddresses = resolveHostAddresses
+    )
+
+    constructor(
+        networkConnectivity: NetworkConnectivity,
+        dispatcher: CoroutineDispatcher = Dispatchers.Default,
+        json: Json = Json { ignoreUnknownKeys = true },
+        resolveHostAddresses: suspend (String) -> List<ByteArray> = ::resolveLnurlHost
+    ) : this(
+        networkConnectivity = networkConnectivity,
+        clientFactory = ::createHttpClient,
+        dispatcher = dispatcher,
+        json = json,
+        resolveHostAddresses = resolveHostAddresses
+    )
+
+    private val baseClientDelegate = lazy(clientFactory)
+    private val lnurlClientDelegate = lazy {
+        baseClientDelegate.value.config {
+            followRedirects = false
+            expectSuccess = false
+            install(HttpRequestRetry) { maxRetries = 0 }
+        }
     }
+    private val lnurlClient: HttpClient by lnurlClientDelegate
 
     fun close() {
-        lnurlClient.close()
-        client.close()
+        if (lnurlClientDelegate.isInitialized()) lnurlClientDelegate.value.close()
+        if (baseClientDelegate.isInitialized()) baseClientDelegate.value.close()
     }
 
     override suspend fun fetchPayParams(endpoint: String): LnurlResult<LnurlPayParams> =
@@ -130,15 +161,24 @@ class KtorLnurlPayClient(
         ) {
             fail("LNURL service returned an unsuccessful response")
         }
-        if ((response.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0) >
-            MAX_RESPONSE_BYTES
-        ) {
+        val contentLength = response.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0L
+        if (contentLength > MAX_RESPONSE_BYTES) {
             fail("LNURL response is too large")
         }
         val channel = response.bodyAsChannel()
-        val bytes = ByteArray(MAX_RESPONSE_BYTES + 1)
+        val initialCapacity = if (contentLength in 1..MAX_RESPONSE_BYTES) {
+            (contentLength.toInt() + 1).coerceAtLeast(INITIAL_RESPONSE_BUFFER_BYTES)
+        } else {
+            INITIAL_RESPONSE_BUFFER_BYTES
+        }
+        var bytes = ByteArray(initialCapacity.coerceAtMost(MAX_RESPONSE_BYTES + 1))
         var size = 0
-        while (size < bytes.size) {
+        while (true) {
+            if (size == bytes.size) {
+                if (bytes.size > MAX_RESPONSE_BYTES) break
+                val nextSize = (bytes.size * 2).coerceAtMost(MAX_RESPONSE_BYTES + 1)
+                bytes = bytes.copyOf(nextSize)
+            }
             val count = channel.readAvailable(bytes, size, bytes.size - size)
             if (count < 0) break
             size += count
@@ -155,7 +195,14 @@ class KtorLnurlPayClient(
         val element = parseObject(raw)
         if (element["tag"].stringValue() != "payRequest") fail("LNURL tag is not payRequest")
         val callback = element["callback"].stringValue() ?: fail("LNURL pay callback missing")
-        requirePublicDestination(callback)
+        val callbackUrl =
+            parseLnurlDestination(callback) ?: fail("LNURL requires a public HTTPS destination")
+        if (!callbackUrl.host.equals(domain, ignoreCase = true)) {
+            val addresses = resolveHostAddresses(callbackUrl.host)
+            if (addresses.isEmpty() || addresses.any { !isPublicLnurlAddress(it) }) {
+                fail("LNURL destination does not resolve to public addresses")
+            }
+        }
         val maxSendable =
             element["maxSendable"].integerValue() ?: fail("LNURL maxSendable must be an integer")
         val minSendable =
@@ -284,6 +331,7 @@ class KtorLnurlPayClient(
 
 private class LnurlProtocolException(message: String) : Exception(message)
 
+private const val INITIAL_RESPONSE_BUFFER_BYTES = 4 * 1024
 private const val MAX_RESPONSE_BYTES = 256 * 1024
 private const val MAX_JSON_DEPTH = 32
 private val METADATA_TYPES =

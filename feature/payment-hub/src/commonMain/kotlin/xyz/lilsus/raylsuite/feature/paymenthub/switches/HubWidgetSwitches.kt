@@ -24,7 +24,12 @@ class KtorHubSwitchesApi(
     private val baseUrl: String = RaylApi.BASE_URL,
     client: () -> HttpClient = ::createHttpClient
 ) : HubSwitchesApi {
-    private val client by lazy(client)
+    private val clientDelegate = lazy(client)
+    private val client by clientDelegate
+
+    fun close() {
+        if (clientDelegate.isInitialized()) client.close()
+    }
 
     override suspend fun disabledWidgets(): Set<String>? = try {
         val response = client.get(baseUrl + RaylApi.HUB_WIDGETS_PATH)
@@ -68,6 +73,10 @@ class HubWidgetKillSwitch(
         val answer = api.disabledWidgets() ?: return
         settings.putString(KEY, answer.sorted().joinToString(","))
         mutableDisabled.value = answer
+    }
+
+    fun close() {
+        (api as? KtorHubSwitchesApi)?.close()
     }
 
     companion object {

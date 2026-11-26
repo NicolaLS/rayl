@@ -17,13 +17,29 @@ import xyz.lilsus.raylsuite.core.raylapi.BitcoinPrices
 import xyz.lilsus.raylsuite.core.raylapi.RaylApi
 
 /** Reads bitcoin prices from the Rayl backend, which aggregates several public sources. */
-class RaylBitcoinPriceProvider(
-    private val client: HttpClient = createHttpClient(),
-    private val baseUrl: String = RaylApi.BASE_URL,
-    private val clock: () -> Long = ::platformCurrentTimeMillis
+class RaylBitcoinPriceProvider private constructor(
+    private val baseUrl: String,
+    private val clock: () -> Long,
+    clientFactory: () -> HttpClient
 ) : BitcoinPriceProvider,
     BitcoinPriceHistoryProvider {
-    fun close() = client.close()
+    constructor(
+        client: HttpClient,
+        baseUrl: String = RaylApi.BASE_URL,
+        clock: () -> Long = ::platformCurrentTimeMillis
+    ) : this(baseUrl = baseUrl, clock = clock, clientFactory = { client })
+
+    constructor(
+        baseUrl: String = RaylApi.BASE_URL,
+        clock: () -> Long = ::platformCurrentTimeMillis
+    ) : this(baseUrl = baseUrl, clock = clock, clientFactory = ::createHttpClient)
+
+    private val clientDelegate = lazy(clientFactory)
+    private val client: HttpClient by clientDelegate
+
+    fun close() {
+        if (clientDelegate.isInitialized()) client.close()
+    }
 
     private val cacheMutex = Mutex()
     private var cached: CachedPrices? = null

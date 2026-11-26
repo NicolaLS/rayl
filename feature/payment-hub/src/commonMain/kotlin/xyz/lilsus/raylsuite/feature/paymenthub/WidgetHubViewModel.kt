@@ -678,6 +678,7 @@ class WidgetHubViewModel(
         ppq?.close()
         claro?.close()
         feedbackApi?.close()
+        killSwitch?.close()
     }
 
     /** Changes the account of [widgetId], unless its widget is gone by now. */
