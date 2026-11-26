@@ -100,7 +100,7 @@ class RaylPocket internal constructor(
     override suspend fun pay(quote: PocketQuote): PocketPayOutcome {
         val current = wallet
             ?: return PocketPayOutcome.Failed(PocketPaymentProblem.Other, "Pocket is not connected")
-        return current.pay(quote).also { refreshBalance(current) }
+        return current.pay(quote).also { scope.launch { refreshBalance(current) } }
     }
 
     /**
@@ -203,15 +203,17 @@ class RaylPocket internal constructor(
             }
             RaylTrace.mark(TracePoint.WalletReady)
             mutableStatus.value = PocketStatus.Ready
-            scope.launch { refreshBalance(connected) }
             scope.launch {
-                mutableIdentity.value = try {
-                    connected.identityPubkey()
+                try {
+                    val (balance, identity) = connected.balanceAndIdentity()
+                    if (wallet === connected) {
+                        mutableBalance.value = balance
+                        mutableIdentity.value = identity
+                    }
                 } catch (error: CancellationException) {
                     throw error
                 } catch (_: Exception) {
-                    // Only telling an already added wallet apart needs it.
-                    null
+                    // Keep the last known balance/identity; the next wallet event refreshes balance.
                 }
             }
         }

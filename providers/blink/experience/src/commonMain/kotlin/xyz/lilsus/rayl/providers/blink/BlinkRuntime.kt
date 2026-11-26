@@ -9,6 +9,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.blink.feature.blinkcontacts.BlinkContactsImporter
 import xyz.lilsus.rayl.providers.blink.feature.payment.BlinkPaymentSettlement
@@ -157,13 +159,14 @@ internal class BlinkRuntime(
             }
         }
         scope.launch {
-            // Once connected, after every payment, and when another funding wallet is chosen.
+            // Once connected, after every recorded payment, and when another funding wallet is chosen.
             combine(
                 blinkWallet.connection,
                 blinkWallet.selectedFundingWallet,
-                paymentCoordinator.isSubmitting
-            ) { connection, _, submitting -> connection != null && !submitting }
-                .collect { if (it) balance.refresh() }
+                paymentCoordinator.sessionTransactions.map { it.firstOrNull()?.id }
+            ) { connection, fundingWallet, latestTransactionId ->
+                if (connection != null) fundingWallet to latestTransactionId else null
+            }.distinctUntilChanged().collect { if (it != null) balance.refresh() }
         }
         scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.

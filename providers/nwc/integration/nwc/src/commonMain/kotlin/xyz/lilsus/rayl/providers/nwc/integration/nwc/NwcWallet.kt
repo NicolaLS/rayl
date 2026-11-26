@@ -139,13 +139,13 @@ class NwcWallet internal constructor(
     private val clientMutex = Mutex()
     private var client: NwcClient? = null
     private var closingClient: NwcClient? = null
+    private var cachedCredentials: NwcCredentials? =
+        if (startMode == WalletStartMode.Restore) credentialStore.read() else null
+    private var cachedUri: NwcConnectionUri? =
+        cachedCredentials?.connectionUri?.let(NwcConnectionUri::parse)
     private val mutableConnection = MutableStateFlow(
-        if (startMode ==
-            WalletStartMode.Restore
-        ) {
-            credentialStore.read()?.toConnection()
-        } else {
-            null
+        cachedCredentials?.let { credentials ->
+            cachedUri?.toConnection(credentials.alias, credentials.metadata)
         }
     )
     private var isInForeground = true
@@ -195,10 +195,14 @@ class NwcWallet internal constructor(
             val newClient = createClient(uri, discovery.metadata)
             try {
                 credentialStore.save(credentials)
+                cachedCredentials = credentials
+                cachedUri = uri
                 client = newClient
                 mutableConnection.value = connectedWallet
             } catch (error: Throwable) {
                 try {
+                    cachedCredentials = null
+                    cachedUri = null
                     credentialStore.clear()
                 } finally {
                     newClient.close()
@@ -212,6 +216,8 @@ class NwcWallet internal constructor(
     suspend fun disconnect() {
         clientMutex.withLock {
             releaseClientLocked()
+            cachedCredentials = null
+            cachedUri = null
             credentialStore.clear()
             mutableConnection.value = null
         }
@@ -309,6 +315,8 @@ class NwcWallet internal constructor(
 
     suspend fun close() {
         closed = true
+        cachedCredentials = null
+        cachedUri = null
         releaseClient()
         if (ownsHttpClient) httpClient.close()
     }
@@ -335,8 +343,12 @@ class NwcWallet internal constructor(
         if (closed || connection.value == null) return@withLock null
         finishClosingClient()
         client?.let { return@withLock it }
-        val credentials = credentialStore.read() ?: return@withLock null
-        val uri = NwcConnectionUri.parse(credentials.connectionUri) ?: return@withLock null
+        val credentials = cachedCredentials
+            ?: credentialStore.read()?.also { cachedCredentials = it }
+            ?: return@withLock null
+        val uri = cachedUri
+            ?: NwcConnectionUri.parse(credentials.connectionUri)?.also { cachedUri = it }
+            ?: return@withLock null
         createClient(uri, credentials.metadata).also {
             client = it
         }
@@ -421,16 +433,16 @@ fun createNwcWallet(
 
 fun isValidNwcConnectionUri(value: String): Boolean = NwcConnectionUri.isValid(value.trim())
 
-private fun NwcCredentials.toConnection(): NwcWalletConnection? {
-    val uri = NwcConnectionUri.parse(connectionUri) ?: return null
-    return NwcWalletConnection(
-        alias = alias,
-        walletPublicKey = uri.walletPubkey.hex,
-        relayUrls = uri.relays,
-        lightningAddress = uri.lud16,
-        metadata = metadata
-    )
-}
+private fun NwcConnectionUri.toConnection(
+    alias: String?,
+    metadata: NwcWalletMetadata
+): NwcWalletConnection = NwcWalletConnection(
+    alias = alias,
+    walletPublicKey = walletPubkey.hex,
+    relayUrls = relays,
+    lightningAddress = lud16,
+    metadata = metadata
+)
 
 private fun WalletDiscovery.toWalletDiscovery(): NwcWalletDiscovery = NwcWalletDiscovery(
     connectionUri = uri.raw,

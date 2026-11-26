@@ -72,7 +72,7 @@ class BlinkWallet internal constructor(
     startMode: WalletStartMode = WalletStartMode.Restore
 ) : BlinkPayments {
     private var closed = false
-    private val initialCredentials = if (startMode ==
+    private var cachedCredentials = if (startMode ==
         WalletStartMode.Restore
     ) {
         credentialStore.read()
@@ -81,10 +81,10 @@ class BlinkWallet internal constructor(
     }
     private val mutableConnection =
         MutableStateFlow(
-            initialCredentials?.let { BlinkWalletConnection }
+            cachedCredentials?.let { BlinkWalletConnection }
         )
     private val mutableSelectedFundingWallet =
-        MutableStateFlow(initialCredentials?.selectedFundingWallet)
+        MutableStateFlow(cachedCredentials?.selectedFundingWallet)
 
     val connection: StateFlow<BlinkWalletConnection?> = mutableConnection.asStateFlow()
     val selectedFundingWallet: StateFlow<BlinkFundingWallet?> =
@@ -119,6 +119,7 @@ class BlinkWallet internal constructor(
         currentCoroutineContext().ensureActive()
         check(!closed) { "Blink connection was closed" }
         credentialStore.save(credentials)
+        cachedCredentials = credentials
 
         mutableSelectedFundingWallet.value = defaultWallet
         mutableConnection.value = BlinkWalletConnection
@@ -127,11 +128,13 @@ class BlinkWallet internal constructor(
     fun close() {
         if (closed) return
         closed = true
+        cachedCredentials = null
         apiClient.close()
     }
 
     fun disconnect() {
         credentialStore.clear()
+        cachedCredentials = null
         mutableSelectedFundingWallet.value = null
         mutableConnection.value = null
     }
@@ -150,18 +153,18 @@ class BlinkWallet internal constructor(
         val selectedWallet = credentials.selectedFundingWallet?.let { selection ->
             wallets.firstOrNull { wallet -> wallet == selection }
         }
-        credentialStore.save(
-            credentials.copy(selectedFundingWallet = selectedWallet)
-        )
+        val updated = credentials.copy(selectedFundingWallet = selectedWallet)
+        credentialStore.save(updated)
+        cachedCredentials = updated
         mutableSelectedFundingWallet.value = selectedWallet
         return wallets
     }
 
     fun selectFundingWallet(wallet: BlinkFundingWallet) {
         val credentials = requireCredentials()
-        credentialStore.save(
-            credentials.copy(selectedFundingWallet = wallet)
-        )
+        val updated = credentials.copy(selectedFundingWallet = wallet)
+        credentialStore.save(updated)
+        cachedCredentials = updated
         mutableSelectedFundingWallet.value = wallet
     }
 
@@ -175,7 +178,7 @@ class BlinkWallet internal constructor(
      */
     suspend fun fundingWalletBalance(): Pair<Long, BlinkWalletCurrency>? {
         if (connection.value == null) return null
-        val credentials = credentialStore.read() ?: return null
+        val credentials = currentCredentials() ?: return null
         val wallet = credentials.selectedFundingWallet ?: return null
         return apiClient.fetchWalletBalance(credentials.apiKey, wallet.id) to wallet.currency
     }
@@ -190,7 +193,7 @@ class BlinkWallet internal constructor(
             return BlinkPaymentOutcome.DefinitiveFailure(BlinkApiError.NetworkUnavailable)
         }
 
-        val credentials = if (connection.value != null) credentialStore.read() else null
+        val credentials = if (connection.value != null) currentCredentials() else null
         if (credentials == null) {
             return BlinkPaymentOutcome.DefinitiveFailure(
                 BlinkApiError.MissingWalletConnection
@@ -282,6 +285,9 @@ class BlinkWallet internal constructor(
         }
     }
 
+    private fun currentCredentials(): BlinkCredentials? =
+        cachedCredentials ?: credentialStore.read()?.also { cachedCredentials = it }
+
     private fun requireCredentials(): BlinkCredentials {
         check(!closed) { "Blink connection was closed" }
         if (connection.value ==
@@ -289,7 +295,7 @@ class BlinkWallet internal constructor(
         ) {
             throw BlinkConnectionException(BlinkConnectionError.MissingConnection)
         }
-        return credentialStore.read()
+        return currentCredentials()
             ?: throw BlinkConnectionException(BlinkConnectionError.MissingConnection)
     }
 }

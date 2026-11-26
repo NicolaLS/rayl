@@ -5,6 +5,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.nwc.feature.onboarding.NwcConnectionDraft
 import xyz.lilsus.rayl.providers.nwc.feature.payment.NwcPaymentSettlement
@@ -70,6 +73,10 @@ internal class NwcRuntime(
     private var closed = false
     val canAcceptWalletInput: Boolean get() = !closed && !mutableRemovalPending.value
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // Keep Nostr relay framing, JSON parsing, and Schnorr/NIP-44 crypto off the main thread.
+    private val nwcScope =
+        CoroutineScope(SupervisorJob(scope.coroutineContext[Job]) + Dispatchers.Default)
     private val networkConnectivity by lazy { createNetworkConnectivity() }
     private val appLifecycle by lazy { createAppLifecycleObserver() }
     private val runtimeStarted = !mutableRemovalPending.value
@@ -96,7 +103,7 @@ internal class NwcRuntime(
         createNwcWallet(
             secureSettings = secureSettings,
             startMode = startMode,
-            scope = scope,
+            scope = nwcScope,
             isNetworkAvailable = networkConnectivity::isNetworkAvailable
         )
     }
@@ -115,12 +122,14 @@ internal class NwcRuntime(
         )
     }
 
-    val onboardingViewModel =
+    private val onboardingViewModelDelegate = lazy {
         OnboardingViewModel(
             paymentPreferences = paymentPreferences,
             currencyPreferences = currencyPreferences,
             bitcoinPriceProvider = bitcoinPriceProvider
         )
+    }
+    val onboardingViewModel by onboardingViewModelDelegate
 
     /** Shown in Settings; NWC cards are funded in their own wallet apps. */
     val balance = WalletBalance(scope) {
@@ -133,13 +142,13 @@ internal class NwcRuntime(
                 appLifecycle.isInForeground.collectLatest(nwcWallet::onAppForegroundChanged)
             }
             scope.launch {
-                // Once connected, and after every payment.
-                combine(nwcWallet.connection, paymentCoordinator.isSubmitting) {
-                        connection,
-                        submitting
-                    ->
-                    connection != null && !submitting
-                }.collect { if (it) balance.refresh() }
+                // Once connected, and after every recorded payment.
+                combine(
+                    nwcWallet.connection.map { it != null },
+                    paymentCoordinator.sessionTransactions.map { it.firstOrNull()?.id }
+                ) { connected, latestTransactionId ->
+                    if (connected) latestTransactionId.orEmpty() else null
+                }.distinctUntilChanged().collect { if (it != null) balance.refresh() }
             }
             scope.launch {
                 // A payment always presents on the Scan tab, wherever it was started from.
@@ -202,7 +211,7 @@ internal class NwcRuntime(
         closed = true
         connectionDraft.clear()
         scope.cancel()
-        onboardingViewModel.clear()
+        if (onboardingViewModelDelegate.isInitialized()) onboardingViewModel.clear()
         if (runtimeStarted) paymentCoordinator.clear()
         bitcoinPriceProvider.close()
         lnurlPayClient.close()

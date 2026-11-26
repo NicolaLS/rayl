@@ -7,6 +7,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -163,6 +164,7 @@ class DefaultWalletAccess(
                 sdk?.disconnect()
                 sdk = null
                 check(discardConnectingSession()) { "The wallet is still connecting" }
+                connectionScope.cancel()
                 closeCompleted = true
             }
         }

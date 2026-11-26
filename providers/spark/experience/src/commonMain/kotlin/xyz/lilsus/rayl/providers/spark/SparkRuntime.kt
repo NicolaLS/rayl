@@ -9,6 +9,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import xyz.lilsus.rayl.providers.spark.application.wallet.WalletAccessState
 import xyz.lilsus.rayl.providers.spark.feature.payment.SparkPaymentSettlement
@@ -91,19 +93,24 @@ internal class SparkRuntime(
             haptics = haptics
         )
 
-    val onboardingViewModel =
+    private val onboardingViewModelDelegate = lazy {
         OnboardingViewModel(
             paymentPreferences = paymentPreferences,
             currencyPreferences = currencyPreferences,
             bitcoinPriceProvider = bitcoinPriceProvider
         )
+    }
+    val onboardingViewModel by onboardingViewModelDelegate
 
     init {
         scope.launch {
-            // Once connected, and after every payment.
-            combine(walletIdentity, paymentCoordinator.isSubmitting) { identity, submitting ->
-                identity != null && !submitting
-            }.collect { if (it) balance.refresh() }
+            // Once connected, and after every recorded payment.
+            combine(
+                walletIdentity,
+                paymentCoordinator.sessionTransactions.map { it.firstOrNull()?.id }
+            ) { identity, latestTransactionId ->
+                if (identity != null) identity to latestTransactionId else null
+            }.distinctUntilChanged().collect { if (it != null) balance.refresh() }
         }
         scope.launch {
             // A payment always presents on the Scan tab, wherever it was started from.
@@ -127,7 +134,7 @@ internal class SparkRuntime(
         scope.cancel()
         walletViewModel.dispose()
         paymentCoordinator.clear()
-        onboardingViewModel.clear()
+        if (onboardingViewModelDelegate.isInitialized()) onboardingViewModel.clear()
         languageRepository.close()
         bitcoinPriceProvider.close()
         lnurlPayClient.close()

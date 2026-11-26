@@ -16,6 +16,7 @@ import javax.crypto.spec.GCMParameterSpec
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
 import xyz.lilsus.rayl.providers.spark.application.AppBootstrapConfig
 import xyz.lilsus.rayl.providers.spark.application.payment.SparkPayments
 import xyz.lilsus.rayl.providers.spark.application.wallet.CredentialDeleteResult
@@ -94,11 +95,11 @@ internal class AndroidCredentialVault(private val context: Context, storageName:
             .encodeToByteArray()
     private val keyAlias = KEY_ALIAS.named(storageName)
 
-    override suspend fun load(): CredentialLoadResult {
-        if (!payloadFile.isFile) return CredentialLoadResult.Absent
-        return try {
+    override suspend fun load(): CredentialLoadResult = withContext(Dispatchers.IO) {
+        if (!payloadFile.isFile) return@withContext CredentialLoadResult.Absent
+        try {
             val payload = payloadFile.readBytes()
-            if (payload.size <= IV_SIZE) return CredentialLoadResult.Corrupt
+            if (payload.size <= IV_SIZE) return@withContext CredentialLoadResult.Corrupt
             val iv = payload.copyOfRange(0, IV_SIZE)
             val ciphertext = payload.copyOfRange(IV_SIZE, payload.size)
             val cipher = Cipher.getInstance(TRANSFORMATION).apply {
@@ -120,45 +121,52 @@ internal class AndroidCredentialVault(private val context: Context, storageName:
         }
     }
 
-    override suspend fun store(credential: WalletCredential): CredentialStoreResult {
-        if (payloadFile.exists()) return CredentialStoreResult.ALREADY_EXISTS
-        return try {
-            val cipher = Cipher.getInstance(TRANSFORMATION).apply {
-                init(Cipher.ENCRYPT_MODE, getOrCreateKey())
-                updateAAD(associatedData)
+    override suspend fun store(credential: WalletCredential): CredentialStoreResult =
+        withContext(Dispatchers.IO) {
+            if (payloadFile.exists()) return@withContext CredentialStoreResult.ALREADY_EXISTS
+            try {
+                val cipher = Cipher.getInstance(TRANSFORMATION).apply {
+                    init(Cipher.ENCRYPT_MODE, getOrCreateKey())
+                    updateAAD(associatedData)
+                }
+                val payload = cipher.iv + cipher.doFinal(credential.encoded().encodeToByteArray())
+                check(cipher.iv.size == IV_SIZE)
+                payloadDirectory.mkdirs()
+                val temporary = File(payloadDirectory, "v1.tmp")
+                FileOutputStream(temporary).use {
+                    it.write(payload)
+                    it.fd.sync()
+                }
+                check(temporary.renameTo(payloadFile))
+                CredentialStoreResult.STORED
+            } catch (_: KeyPermanentlyInvalidatedException) {
+                CredentialStoreResult.INVALIDATED
+            } catch (_: UserNotAuthenticatedException) {
+                CredentialStoreResult.UNAVAILABLE
+            } catch (_: Throwable) {
+                CredentialStoreResult.FAILED
             }
-            val payload = cipher.iv + cipher.doFinal(credential.encoded().encodeToByteArray())
-            check(cipher.iv.size == IV_SIZE)
-            payloadDirectory.mkdirs()
-            val temporary = File(payloadDirectory, "v1.tmp")
-            FileOutputStream(temporary).use {
-                it.write(payload)
-                it.fd.sync()
-            }
-            check(temporary.renameTo(payloadFile))
-            CredentialStoreResult.STORED
-        } catch (_: KeyPermanentlyInvalidatedException) {
-            CredentialStoreResult.INVALIDATED
-        } catch (_: UserNotAuthenticatedException) {
-            CredentialStoreResult.UNAVAILABLE
-        } catch (_: Throwable) {
-            CredentialStoreResult.FAILED
         }
-    }
 
-    override suspend fun delete(): CredentialDeleteResult = try {
-        val existed = payloadFile.exists() || keyStore().containsAlias(keyAlias)
-        payloadDirectory.deleteRecursively()
-        keyStore().deleteEntry(keyAlias)
-        if (payloadFile.exists() || keyStore().containsAlias(keyAlias)) {
+    override suspend fun delete(): CredentialDeleteResult = withContext(Dispatchers.IO) {
+        try {
+            val fileExisted = payloadFile.exists()
+            val store = keyStore()
+            val aliasExisted = store.containsAlias(keyAlias)
+            if (!fileExisted && !aliasExisted) {
+                if (payloadDirectory.exists()) payloadDirectory.deleteRecursively()
+                return@withContext CredentialDeleteResult.ABSENT
+            }
+            if (payloadDirectory.exists()) payloadDirectory.deleteRecursively()
+            if (aliasExisted) store.deleteEntry(keyAlias)
+            if (payloadFile.exists() || store.containsAlias(keyAlias)) {
+                CredentialDeleteResult.FAILED
+            } else {
+                CredentialDeleteResult.DELETED
+            }
+        } catch (_: Throwable) {
             CredentialDeleteResult.FAILED
-        } else if (existed) {
-            CredentialDeleteResult.DELETED
-        } else {
-            CredentialDeleteResult.ABSENT
         }
-    } catch (_: Throwable) {
-        CredentialDeleteResult.FAILED
     }
 
     private fun getOrCreateKey(): SecretKey {

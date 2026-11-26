@@ -199,7 +199,9 @@ sealed interface ConnectNwcWalletEvent {
     data object Cancelled : ConnectNwcWalletEvent
 }
 
-private fun String.toSingleLine(): String = replace(Regex("[\\r\\n]+"), " ")
+private val LINE_BREAK_REGEX = Regex("[\\r\\n]+")
+
+private fun String.toSingleLine(): String = replace(LINE_BREAK_REGEX, " ")
 
 private fun NwcConnectionError.withoutServerDetails(): NwcConnectionError = when (this) {
     is NwcConnectionError.ConnectionFailed -> NwcConnectionError.ConnectionFailed()

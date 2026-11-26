@@ -10,11 +10,16 @@ object RecoveryPhraseWords {
 
     private val words: List<String> = MnemonicCode.englishWordlist
     private val wordSet: Set<String> = words.toSet()
+    private val whitespaceRegex = Regex("\\s+")
 
     fun isWord(value: String): Boolean = value in wordSet
 
     /** Whether some word starts with [value], so typing it can still lead to a valid word. */
-    fun isPrefix(value: String): Boolean = words.any { it.startsWith(value) }
+    fun isPrefix(value: String): Boolean {
+        if (value.isEmpty()) return true
+        val index = lowerBound(value)
+        return index < words.size && words[index].startsWith(value)
+    }
 
     /**
      * The word [value] can only complete to, or null. A complete word is left alone: some words
@@ -22,10 +27,18 @@ object RecoveryPhraseWords {
      */
     fun completion(value: String): String? {
         if (value.isEmpty() || isWord(value)) return null
-        return words.filter { it.startsWith(value) }.singleOrNull()
+        val index = lowerBound(value)
+        if (index >= words.size || !words[index].startsWith(value)) return null
+        if (index + 1 < words.size && words[index + 1].startsWith(value)) return null
+        return words[index]
     }
 
     /** Splits typed or pasted text into normalized words. */
     fun split(text: String): List<String> =
-        text.trim().lowercase().split(Regex("\\s+")).filter(String::isNotEmpty)
+        text.trim().lowercase().split(whitespaceRegex).filter(String::isNotEmpty)
+
+    private fun lowerBound(prefix: String): Int {
+        val raw = words.binarySearch(prefix)
+        return if (raw >= 0) raw else -raw - 1
+    }
 }

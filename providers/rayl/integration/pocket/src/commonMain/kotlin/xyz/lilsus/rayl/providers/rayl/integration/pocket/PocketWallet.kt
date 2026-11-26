@@ -19,6 +19,9 @@ internal interface PocketWallet {
 
     /** The wallet's identity public key, the same in every app that opens this wallet. */
     suspend fun identityPubkey(): String
+
+    /** Reads balance and identity together when the backing SDK supplies both in one call. */
+    suspend fun balanceAndIdentity(): Pair<Long, String> = balanceSats() to identityPubkey()
 }
 
 internal fun interface PocketConnector {

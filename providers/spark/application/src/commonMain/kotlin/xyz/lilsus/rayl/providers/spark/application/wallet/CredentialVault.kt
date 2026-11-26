@@ -13,10 +13,13 @@ class WalletCredential private constructor(val mnemonic: String, val passphrase:
     override fun toString(): String = "WalletCredential(<redacted>)"
 
     companion object {
+        private val WHITESPACE_REGEX = Regex("\\s+")
+        private val VALID_WORD_COUNTS = setOf(12, 15, 18, 21, 24)
+
         /** Throws [IllegalArgumentException] unless [input] is a valid English BIP-39 phrase. */
         fun fromMnemonic(input: String, passphrase: String? = null): WalletCredential {
-            val words = input.trim().lowercase().split(Regex("\\s+")).filter(String::isNotBlank)
-            require(words.size in setOf(12, 15, 18, 21, 24))
+            val words = input.trim().lowercase().split(WHITESPACE_REGEX).filter(String::isNotBlank)
+            require(words.size in VALID_WORD_COUNTS)
             // Unknown words and bad checksums would otherwise reach the SDK and fail as a
             // connection error.
             MnemonicCode.validate(words)
