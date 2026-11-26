@@ -13,6 +13,14 @@ fun CryptoPrimitives.encryptNip04(
     plaintext: String,
     senderPrivateKey: ByteString,
     recipientPublicKey: PublicKey
+): CryptoResult<Nip04CipherText> =
+    ecdhXOnly(senderPrivateKey, recipientPublicKey.bytes).flatMap { sharedSecret ->
+        encryptNip04WithSharedSecret(plaintext, sharedSecret)
+    }
+
+internal fun CryptoPrimitives.encryptNip04WithSharedSecret(
+    plaintext: String,
+    sharedSecret: ByteString
 ): CryptoResult<Nip04CipherText> {
     val plaintextBytes = try {
         plaintext.encodeToByteArray(throwOnInvalidSequence = true).toByteString()
@@ -21,13 +29,11 @@ fun CryptoPrimitives.encryptNip04(
             CryptoError.InvalidInput("plaintext", "valid Unicode", plaintext.length)
         )
     }
-    return ecdhXOnly(senderPrivateKey, recipientPublicKey.bytes).flatMap { sharedSecret ->
-        randomBytes(16).flatMap { iv ->
-            aes256CbcEncrypt(sharedSecret, iv, plaintextBytes).flatMap { cipherBytes ->
-                base64Encode(cipherBytes).flatMap { cipherBase64 ->
-                    base64Encode(iv).map { ivBase64 ->
-                        Nip04CipherText(cipherTextBase64 = cipherBase64, ivBase64 = ivBase64)
-                    }
+    return randomBytes(16).flatMap { iv ->
+        aes256CbcEncrypt(sharedSecret, iv, plaintextBytes).flatMap { cipherBytes ->
+            base64Encode(cipherBytes).flatMap { cipherBase64 ->
+                base64Encode(iv).map { ivBase64 ->
+                    Nip04CipherText(cipherTextBase64 = cipherBase64, ivBase64 = ivBase64)
                 }
             }
         }
@@ -47,26 +53,31 @@ fun CryptoPrimitives.decryptNip04(
     senderPublicKey: PublicKey
 ): CryptoResult<String> =
     ecdhXOnly(receiverPrivateKey, senderPublicKey.bytes).flatMap { sharedSecret ->
-        base64Decode(ciphertext.ivBase64).flatMap { iv ->
-            if (iv.size != 16) {
-                CryptoResult.Err(CryptoError.InvalidInput("iv", "16 bytes", iv.size))
-            } else {
-                base64Decode(ciphertext.cipherTextBase64).flatMap { cipherBytes ->
-                    aes256CbcDecrypt(sharedSecret, iv, cipherBytes).flatMap { plainBytes ->
-                        try {
-                            CryptoResult.Ok(
-                                plainBytes.toByteArray().decodeToString(
-                                    throwOnInvalidSequence = true
-                                )
-                            )
-                        } catch (_: CharacterCodingException) {
-                            CryptoResult.Err(CryptoError.DecryptionFailed("invalid UTF-8"))
-                        }
-                    }
+        decryptNip04WithSharedSecret(ciphertext, sharedSecret)
+    }
+
+internal fun CryptoPrimitives.decryptNip04WithSharedSecret(
+    ciphertext: Nip04CipherText,
+    sharedSecret: ByteString
+): CryptoResult<String> = base64Decode(ciphertext.ivBase64).flatMap { iv ->
+    if (iv.size != 16) {
+        CryptoResult.Err(CryptoError.InvalidInput("iv", "16 bytes", iv.size))
+    } else {
+        base64Decode(ciphertext.cipherTextBase64).flatMap { cipherBytes ->
+            aes256CbcDecrypt(sharedSecret, iv, cipherBytes).flatMap { plainBytes ->
+                try {
+                    CryptoResult.Ok(
+                        plainBytes.toByteArray().decodeToString(
+                            throwOnInvalidSequence = true
+                        )
+                    )
+                } catch (_: CharacterCodingException) {
+                    CryptoResult.Err(CryptoError.DecryptionFailed("invalid UTF-8"))
                 }
             }
         }
     }
+}
 
 fun CryptoPrimitives.decryptNip04Content(
     content: String,

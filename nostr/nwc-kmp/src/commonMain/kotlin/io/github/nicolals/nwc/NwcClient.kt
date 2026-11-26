@@ -14,6 +14,7 @@ import io.github.nicolals.nostr.core.primitives.UnixTimeSeconds
 import io.github.nicolals.nostr.core.runtime.ConnectionStatus
 import io.github.nicolals.nostr.core.runtime.PublishStatus
 import io.github.nicolals.nostr.core.runtime.SessionConfig
+import io.github.nicolals.nostr.core.runtime.SubscriptionStatus
 import io.github.nicolals.nostr.core.transport.RelayTransportFactory
 import io.github.nicolals.nostr.core.transport.RelayUrl
 import io.github.nicolals.nostr.crypto.NostrCrypto
@@ -850,16 +851,32 @@ class NwcClient private constructor(
         val handle = pool.subscribe(listOf(filter))
         try {
             val event = withTimeoutOrNull(5_000L) {
-                var result: Event? = null
-                handle.events.first { event ->
-                    if (event.kind == NwcInfoEvent.KIND && isAuthenticWalletEvent(event)) {
-                        result = event
-                        true
-                    } else {
-                        false
+                val found = CompletableDeferred<Event?>()
+                val eventJob = scope.launch {
+                    handle.events.collect { candidate ->
+                        if (candidate.kind == NwcInfoEvent.KIND &&
+                            isAuthenticWalletEvent(candidate)
+                        ) {
+                            found.complete(candidate)
+                        }
                     }
                 }
-                result
+                // Stop waiting once every relay reaches EOSE/terminal instead of stalling the full
+                // 5 s timeout when the wallet has not published a kind:13194 info event.
+                val eoseJob = scope.launch {
+                    handle.statusFlow.first { statuses ->
+                        statuses.isNotEmpty() &&
+                            statuses.values.all { it == SubscriptionStatus.Live || it.isTerminal }
+                    }
+                    delay(INFO_EOSE_GRACE_MS)
+                    found.complete(null)
+                }
+                try {
+                    found.await()
+                } finally {
+                    eventJob.cancel()
+                    eoseJob.cancel()
+                }
             }
 
             if (event != null) {
@@ -881,7 +898,8 @@ class NwcClient private constructor(
         val filter = Filter(
             kinds = listOf(NwcResponseEvent.KIND),
             authors = listOf(connection.walletPubkey),
-            tagFilters = mapOf("p" to listOf(connection.clientPubkey.hex))
+            tagFilters = mapOf("p" to listOf(connection.clientPubkey.hex)),
+            since = subscriptionSince()
         )
 
         val handle = pool.subscribe(listOf(filter))
@@ -898,13 +916,20 @@ class NwcClient private constructor(
     }
 
     private suspend fun subscribeToNotifications(pool: CoroutinesRelayPool) {
+        val alreadySubscribed = lifecycleMutex.withLock {
+            relayPool !== pool || _state.value == NwcClientState.Closed ||
+                notificationHandle != null
+        }
+        if (alreadySubscribed) return
+
         val nip44Kind = NwcNotificationEvent.KIND
         val nip04Kind = NwcNotificationEvent.LEGACY_KIND
 
         val filter = Filter(
             kinds = listOf(nip44Kind, nip04Kind),
             authors = listOf(connection.walletPubkey),
-            tagFilters = mapOf("p" to listOf(connection.clientPubkey.hex))
+            tagFilters = mapOf("p" to listOf(connection.clientPubkey.hex)),
+            since = subscriptionSince()
         )
 
         val handle = pool.subscribe(listOf(filter))
@@ -921,6 +946,10 @@ class NwcClient private constructor(
             }
         }
     }
+
+    private fun subscriptionSince(): UnixTimeSeconds = UnixTimeSeconds(
+        (UnixTimeSeconds.now().value - SUBSCRIPTION_SINCE_SKEW_SECONDS).coerceAtLeast(0L)
+    )
 
     private suspend fun collectWalletEvents(
         pool: CoroutinesRelayPool,
@@ -950,7 +979,10 @@ class NwcClient private constructor(
         }
     }
 
-    private fun isAuthenticWalletEvent(event: Event, addressedToClient: Boolean = false): Boolean {
+    private fun hasExpectedWalletEnvelope(
+        event: Event,
+        addressedToClient: Boolean = false
+    ): Boolean {
         if (event.pubkey != connection.walletPubkey) return false
         if (addressedToClient &&
             event.tags.filter { it.firstOrNull() == "p" }.singleOrNull()?.getOrNull(1) !=
@@ -958,16 +990,23 @@ class NwcClient private constructor(
         ) {
             return false
         }
-        return verifier.verify(event) is CryptoResult.Ok
+        return true
     }
 
+    private fun isAuthenticWalletEvent(event: Event, addressedToClient: Boolean = false): Boolean =
+        hasExpectedWalletEnvelope(event, addressedToClient) &&
+            verifier.verify(event) is CryptoResult.Ok
+
     private suspend fun handleResponseEvent(event: Event) {
-        if (!isAuthenticWalletEvent(event, addressedToClient = true)) return
+        // Check cheap envelope and pending-request correlation before running signature verification
+        // so unrelated/historical events never pay Schnorr verification cost.
+        if (!hasExpectedWalletEnvelope(event, addressedToClient = true)) return
         val requestId =
             event.tags.filter { it.firstOrNull() == "e" }.singleOrNull()?.getOrNull(1) ?: return
         val expectedEncryption = pendingMutex.withLock {
             pendingRequests[requestId]?.encryption ?: pendingMultiRequests[requestId]?.encryption
         } ?: return
+        if (verifier.verify(event) !is CryptoResult.Ok) return
         val encryptionTags = event.tags.filter { it.firstOrNull() == "encryption" }
         if (encryptionTags.isNotEmpty() &&
             encryptionTags.singleOrNull()?.takeIf { it.size == 2 }?.get(1) != expectedEncryption.tag
@@ -1612,6 +1651,8 @@ class NwcClient private constructor(
 
         /** Interval for WebSocket ping to detect dead connections (10 seconds) */
         private const val PING_INTERVAL_MS = 10_000L
+        private const val INFO_EOSE_GRACE_MS = 50L
+        private const val SUBSCRIPTION_SINCE_SKEW_SECONDS = 60L
 
         /**
          * Creates a new NWC client from a connection URI.

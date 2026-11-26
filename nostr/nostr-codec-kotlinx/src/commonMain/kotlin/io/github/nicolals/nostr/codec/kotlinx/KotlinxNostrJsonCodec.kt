@@ -208,8 +208,24 @@ private fun normalizeTagFilterKey(rawKey: String): String {
 
 private val jsonNumberRegex = Regex("^(-)?(0|[1-9]\\d*)(?:\\.(\\d+))?(?:[eE]([+-]?\\d+))?$")
 
+private fun isPlainJsonInteger(raw: String): Boolean {
+    if (raw.isEmpty()) return false
+    var index = 0
+    if (raw[0] == '-') {
+        if (raw.length == 1) return false
+        index = 1
+    }
+    val firstDigit = raw[index]
+    if (firstDigit == '0') return index == raw.length - 1
+    if (firstDigit !in '1'..'9') return false
+    for (i in (index + 1) until raw.length) {
+        if (raw[i] !in '0'..'9') return false
+    }
+    return true
+}
+
 private fun requireValidJsonNumberLiteral(raw: String): String {
-    if (!jsonNumberRegex.matches(raw)) {
+    if (!isPlainJsonInteger(raw) && !jsonNumberRegex.matches(raw)) {
         throw IllegalArgumentException("Invalid JSON number literal: $raw")
     }
     return raw
@@ -226,6 +242,10 @@ private fun String.toIntStrict(label: String): Int {
 }
 
 private fun parseJsonNumberToLong(raw: String, label: String): Long {
+    if (isPlainJsonInteger(raw)) {
+        return raw.toLongOrNull()
+            ?: throw IllegalArgumentException("Number out of range for $label")
+    }
     val match =
         jsonNumberRegex.matchEntire(raw)
             ?: throw IllegalArgumentException("Expected number for $label")
