@@ -89,6 +89,9 @@ android {
         buildConfig = true
     }
 
+    // Pack startup-prof.txt classes into classes.dex during R8 minification for faster cold launch.
+    experimentalProperties["android.experimental.r8.dex-startup-optimization"] = true
+
     packaging {
         jniLibs {
             excludes += setOf(
@@ -110,6 +113,7 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.profileinstaller)
     "benchmarkImplementation"(project(":core:camera"))
     "benchmarkImplementation"(project(":core:model"))
     "benchmarkImplementation"(project(":core:settings"))
