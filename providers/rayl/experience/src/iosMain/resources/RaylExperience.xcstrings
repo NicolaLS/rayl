@@ -467,19 +467,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Nutzung von Rayl erfolgt auf eigenes Risiko. Dein Rayl-Guthaben ist durch einen Passkey geschützt, den Rayl beim Fortfahren erstellt oder öffnet: Wenn du diesen Passkey löschst, ist das Guthaben verloren. Du bist für das Guthaben und alle Zahlungen voll verantwortlich.\n\nBehalte nur kleine Beträge, die du ausgeben willst."
+            "value" : "Die Nutzung von Rayl erfolgt auf eigenes Risiko. Mit einem Passkey erstellt oder öffnet Rayl beim Fortfahren einen – wenn du diesen Passkey löschst, ist dein Guthaben verloren. Wenn du ohne Passkey fortfährst, wird dein Guthaben nur auf diesem Telefon aufbewahrt. Du bist für das Guthaben und alle Zahlungen voll verantwortlich.\n\nBehalte nur kleine Beträge, die du ausgeben willst."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Using Rayl is at your own risk. Your Rayl balance is protected by a passkey, which Rayl creates or opens when you continue: if you delete that passkey, the balance is lost. You are fully responsible for the funds and any payments made.\n\nKeep only small amounts you plan to spend."
+            "value" : "Using Rayl is at your own risk. With a passkey, Rayl creates or opens one when you continue — if you delete that passkey, your balance is lost. If you continue without a passkey, your balance is kept on this phone only. You are fully responsible for the funds and any payments made.\n\nKeep only small amounts you plan to spend."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Usar Rayl es bajo tu propio riesgo. Tu saldo de Rayl está protegido por una passkey, que Rayl crea o abre al continuar: si borras esa passkey, el saldo se pierde. Eres totalmente responsable de los fondos y de los pagos realizados.\n\nGuarda solo importes pequeños que pienses gastar."
+            "value" : "Usar Rayl es bajo tu propio riesgo. Con una passkey, Rayl crea o abre una al continuar; si borras esa passkey, tu saldo se pierde. Si continúas sin passkey, tu saldo se guarda solo en este teléfono. Eres totalmente responsable de los fondos y de los pagos realizados.\n\nGuarda solo importes pequeños que pienses gastar."
           }
         }
       }
@@ -536,19 +536,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Passkey konnte nicht geöffnet werden. Versuche es erneut."
+            "value" : "Dein Passkey konnte nicht geöffnet werden. Versuche es erneut oder fahre ohne Passkey fort."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't open your passkey. Try again."
+            "value" : "Couldn't open your passkey. Try again, or continue without a passkey."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudo abrir tu passkey. Inténtalo de nuevo."
+            "value" : "No se pudo abrir tu passkey. Inténtalo de nuevo o continúa sin passkey."
           }
         }
       }

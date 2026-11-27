@@ -38,7 +38,8 @@ The Rayl provider is Rayl's built-in wallet rather than a connection: hosts moun
 it whenever no card pays. It also runs on `feature/payment-flow`. Its
 [`integration/pocket`](../rayl/integration/pocket) owns an app-owned Spark wallet
 through the Breez SDK: it derives the pocket key from a passkey with Breez
-passkey login, or generates it where no passkey can, keeps a copy in
+passkey login, or generates it on the device when the user continues without a
+passkey or the device lacks passkey support, keeps a copy in
 device-only platform storage, quotes and pays
 invoices, and creates funding invoices. It shares no code with the Spark provider, and its key outlives the
 provider session as defined by

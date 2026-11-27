@@ -21,7 +21,7 @@ data class RaylNativeOnboardingSnapshot(
     val hasAgreed: Boolean,
     val isWorking: Boolean,
     val message: String?,
-    /** Present once the user may set the wallet up without a passkey. */
+    /** Present when the user may set the wallet up without a passkey. */
     val withoutPasskeyTitle: String?,
     val accountsTitle: String,
     val accountsBody: String,

@@ -57,8 +57,8 @@ interface PocketSetup {
     suspend fun createAccount(): PocketSetupResult
 
     /**
-     * Generates the key on this device, for users whose device or password manager cannot derive
-     * one from a passkey. This device holds its only copy; it never prompts.
+     * Generates the key on this device, for users who continue without a passkey or whose device
+     * cannot use one. This device holds its only copy; it never prompts.
      */
     suspend fun createWithoutPasskey(): PocketSetupResult
 

@@ -17,8 +17,8 @@
     <string name="rayl_leave_failed">Rayl no pudo cerrar la sesión. Reintenta para continuar.</string>
     <string name="rayl_balance_unavailable">Sin conexión. Toca para reintentar.</string>
     <string name="rayl_balance">Saldo</string>
-    <string name="rayl_onboarding_agreement_body">Usar Rayl es bajo tu propio riesgo. Tu saldo de Rayl está protegido por una passkey, que Rayl crea o abre al continuar: si borras esa passkey, el saldo se pierde. Eres totalmente responsable de los fondos y de los pagos realizados.\n\nGuarda solo importes pequeños que pienses gastar.</string>
-    <string name="rayl_passkey_failed">No se pudo abrir tu passkey. Inténtalo de nuevo.</string>
+    <string name="rayl_onboarding_agreement_body">Usar Rayl es bajo tu propio riesgo. Con una passkey, Rayl crea o abre una al continuar; si borras esa passkey, tu saldo se pierde. Si continúas sin passkey, tu saldo se guarda solo en este teléfono. Eres totalmente responsable de los fondos y de los pagos realizados.\n\nGuarda solo importes pequeños que pienses gastar.</string>
+    <string name="rayl_passkey_failed">No se pudo abrir tu passkey. Inténtalo de nuevo o continúa sin passkey.</string>
     <string name="rayl_accounts_title">Elige una cuenta</string>
     <string name="rayl_accounts_body">Tu passkey ya tiene cuentas, quizá de otras apps. Paga con una de ellas o crea una nueva solo para Rayl.</string>
     <string name="rayl_accounts_new">Nueva cuenta de Rayl</string>

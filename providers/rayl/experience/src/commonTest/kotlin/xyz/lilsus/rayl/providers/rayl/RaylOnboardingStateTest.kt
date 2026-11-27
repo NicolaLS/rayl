@@ -59,6 +59,7 @@ class RaylOnboardingStateTest {
         advanceUntilIdle()
         assertEquals(RaylOnboardingStep.Agreement, state.step.value)
         assertEquals(true, state.withoutPasskey.value)
+        assertEquals(false, state.offersWithoutPasskey.value)
 
         state.setAgreement(true)
         state.accept()
@@ -72,16 +73,54 @@ class RaylOnboardingStateTest {
     }
 
     @Test
-    fun aDeviceWithPasskeysNeverSkipsThePasskeyUnasked() = runTest {
-        val setup = FakeSetup(started = PocketSetupResult.Cancelled)
-        val state = agreed(setup)
+    fun aDeviceWithPasskeysOffersContinuingWithoutOneFromTheStart() = runTest {
+        val setup = FakeSetup()
+        val settings = MapSettings()
+        val state = state(settings, setup)
+        advanceUntilIdle()
 
-        // Not offered before a password manager failed: this must do nothing.
+        assertEquals(RaylOnboardingStep.Agreement, state.step.value)
+        assertEquals(true, state.offersWithoutPasskey.value)
+        assertEquals(false, state.withoutPasskey.value)
+
+        // Terms must still be accepted before continuing without a passkey.
+        state.continueWithoutPasskey()
+        advanceUntilIdle()
+        assertEquals(0, setup.createdWithoutPasskey)
+
+        state.setAgreement(true)
         state.continueWithoutPasskey()
         advanceUntilIdle()
 
-        assertEquals(0, setup.createdWithoutPasskey)
-        assertEquals(false, state.withoutPasskey.value)
+        assertEquals(RaylOnboardingStep.Complete, state.step.value)
+        assertEquals(0, setup.starts)
+        assertEquals(1, setup.createdWithoutPasskey)
+        assertEquals(true, state.withoutPasskey.value)
+        assertEquals(true, state(settings).withoutPasskey.value)
+    }
+
+    @Test
+    fun afterAPasskeyFailureOrCancellationTheUserMayContinueWithoutOne() = runTest {
+        val setup = FakeSetup(started = PocketSetupResult.Failed("no provider"))
+        val settings = MapSettings()
+        val state = agreed(setup, settings)
+        assertEquals(RaylSetupActivity.Failed, state.activity.value)
+        assertEquals(true, state.offersWithoutPasskey.value)
+
+        // Dismissing the prompt also keeps the fallback available.
+        setup.started = PocketSetupResult.Cancelled
+        state.accept()
+        advanceUntilIdle()
+        assertEquals(RaylSetupActivity.Idle, state.activity.value)
+        assertEquals(true, state.offersWithoutPasskey.value)
+
+        state.continueWithoutPasskey()
+        advanceUntilIdle()
+
+        assertEquals(RaylOnboardingStep.Complete, state.step.value)
+        assertEquals(2, setup.starts)
+        assertEquals(1, setup.createdWithoutPasskey)
+        assertEquals(true, state(settings).withoutPasskey.value)
     }
 
     @Test
@@ -115,16 +154,23 @@ class RaylOnboardingStateTest {
 
         assertEquals(RaylOnboardingStep.Complete, state.step.value)
         assertEquals(true, state.withoutPasskey.value)
+        assertEquals(false, state.offersWithoutPasskey.value)
         assertEquals(0, setup.createdWithoutPasskey)
     }
 
     @Test
     fun aStoredKeyOnlyNeedsTheTerms() = runTest {
-        val setup = FakeSetup(available = false, hasKey = true)
+        val setup = FakeSetup(available = true, hasKey = true)
         val state = state(setup = setup)
         advanceUntilIdle()
 
+        // An existing key must never offer creating another wallet without a passkey.
+        assertEquals(false, state.offersWithoutPasskey.value)
         state.setAgreement(true)
+        state.continueWithoutPasskey()
+        advanceUntilIdle()
+        assertEquals(0, setup.createdWithoutPasskey)
+
         state.accept()
         advanceUntilIdle()
 

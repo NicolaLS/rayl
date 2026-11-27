@@ -11,15 +11,15 @@ import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketSetup
 import xyz.lilsus.rayl.providers.rayl.integration.pocket.PocketSetupResult
 
 /**
- * What Rayl's wallet needs before its first use: accepting its terms and a passkey that derives
- * its key, or a key generated on this device where no passkey can derive one. Rayl's app
- * onboarding covers everything that is not specific to a wallet.
+ * What Rayl's wallet needs before its first use: accepting its terms and either a passkey that
+ * derives its key or a key generated on this device without a passkey. Rayl's app onboarding
+ * covers everything that is not specific to a wallet.
  */
 internal sealed interface RaylOnboardingStep {
     /** Checking whether this device can use passkeys. */
     data object Checking : RaylOnboardingStep
 
-    /** The terms; continuing opens or creates the passkey, or the key where there are no passkeys. */
+    /** The terms; continuing sets up the passkey, or the key directly where there are no passkeys. */
     data object Agreement : RaylOnboardingStep
 
     /** The passkey already holds [accounts]; the user picks one, or Rayl's own if [canCreate]. */
@@ -77,7 +77,7 @@ internal class RaylOnboardingState(
 
     private val mutableOffersWithoutPasskey = MutableStateFlow(false)
 
-    /** Set once a password manager could not hold Rayl's passkey: the user may skip the passkey. */
+    /** Set when onboarding may also set the wallet up without a passkey alongside passkey setup. */
     val offersWithoutPasskey: StateFlow<Boolean> = mutableOffersWithoutPasskey.asStateFlow()
 
     init {
@@ -95,6 +95,7 @@ internal class RaylOnboardingState(
                 } catch (_: Exception) {
                     // Continuing reports the failure and can retry.
                 }
+                mutableOffersWithoutPasskey.value = !hasKey && !mutableWithoutPasskey.value
                 mutableStep.value = RaylOnboardingStep.Agreement
             }
         }
@@ -113,7 +114,7 @@ internal class RaylOnboardingState(
         }
     }
 
-    /** Sets the wallet up without a passkey, once [offersWithoutPasskey]. */
+    /** Sets the wallet up without a passkey, when [offersWithoutPasskey]. */
     fun continueWithoutPasskey() {
         if (!mutableHasAgreed.value || mutableStep.value != RaylOnboardingStep.Agreement) return
         if (!mutableOffersWithoutPasskey.value) return

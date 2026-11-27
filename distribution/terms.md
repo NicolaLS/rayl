@@ -41,9 +41,9 @@ set it up. Its key is derived from a passkey stored in your password manager.
   it while the wallet holds funds.
 - Anyone who can use your passkey, including through other apps that use Breez
   passkey login, can open the wallet and spend its funds.
-- **Without a passkey, the wallet exists only on your device.** If your device
-  or password manager cannot derive the key from a passkey, Rayl can create
-  the key on the device instead. Rayl does not back this key up. Deleting the
+- **Without a passkey, the wallet exists only on your device.** If you continue
+  without a passkey, or your device cannot use one, Rayl creates the key on the
+  device instead. Rayl does not back this key up. Deleting the
   app, clearing its data, changing phones, or losing the device loses the
   funds for good, unless you have kept the recovery phrase that Rayl's
   Settings show for such a wallet. Anyone who has that phrase can spend the

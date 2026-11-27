@@ -7,8 +7,8 @@ live in `providers/`; only the Rayl provider, Rayl's built-in wallet, needs no
 credentials.
 
 Rayl pays with its built-in wallet, the Rayl provider's pocket, by default: after
-the welcome it mounts and asks only for its terms and, where the device and
-password manager support it, a passkey. Besides the pocket, the user adds cards:
+the welcome it mounts and asks for its terms and, where the device supports one,
+either a passkey or a device-only key without a passkey. Besides the pocket, the user adds cards:
 any number of external wallets, several of one provider included, with no
 release availability gates. Every wallet's Settings start with the shared wallet
 block from `feature/wallet-management`, the same for every wallet: the active

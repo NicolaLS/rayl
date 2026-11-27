@@ -17,8 +17,8 @@
     <string name="rayl_leave_failed">Rayl konnte die Sitzung nicht beenden. Versuche es erneut, um fortzufahren.</string>
     <string name="rayl_balance_unavailable">Nicht verbunden. Tippe, um es erneut zu versuchen.</string>
     <string name="rayl_balance">Guthaben</string>
-    <string name="rayl_onboarding_agreement_body">Die Nutzung von Rayl erfolgt auf eigenes Risiko. Dein Rayl-Guthaben ist durch einen Passkey geschützt, den Rayl beim Fortfahren erstellt oder öffnet: Wenn du diesen Passkey löschst, ist das Guthaben verloren. Du bist für das Guthaben und alle Zahlungen voll verantwortlich.\n\nBehalte nur kleine Beträge, die du ausgeben willst.</string>
-    <string name="rayl_passkey_failed">Dein Passkey konnte nicht geöffnet werden. Versuche es erneut.</string>
+    <string name="rayl_onboarding_agreement_body">Die Nutzung von Rayl erfolgt auf eigenes Risiko. Mit einem Passkey erstellt oder öffnet Rayl beim Fortfahren einen – wenn du diesen Passkey löschst, ist dein Guthaben verloren. Wenn du ohne Passkey fortfährst, wird dein Guthaben nur auf diesem Telefon aufbewahrt. Du bist für das Guthaben und alle Zahlungen voll verantwortlich.\n\nBehalte nur kleine Beträge, die du ausgeben willst.</string>
+    <string name="rayl_passkey_failed">Dein Passkey konnte nicht geöffnet werden. Versuche es erneut oder fahre ohne Passkey fort.</string>
     <string name="rayl_accounts_title">Wähle ein Konto</string>
     <string name="rayl_accounts_body">Dein Passkey hat bereits Konten, vielleicht aus anderen Apps. Zahle mit einem davon oder starte ein neues nur für Rayl.</string>
     <string name="rayl_accounts_new">Neues Rayl-Konto</string>

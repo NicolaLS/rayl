@@ -61,10 +61,11 @@ external wallet. Breez passkey login derives its key from a passkey during
 Rayl's wallet onboarding, so the passkey is the pocket's only backup and that
 key is never entered, shown, or exported.
 
-Only where no passkey can derive a key does Rayl generate one on the device:
-when the device has no passkey support, or by the user's choice after their
-password manager could not derive a key. Onboarding never offers this before a
-passkey attempt has failed that way. The device then holds the only copy of the
+Rayl generates a key on the device instead when the device has no passkey
+support, or whenever the user chooses to continue without a passkey during
+onboarding. Where the device supports passkeys, onboarding offers continuing
+without one alongside passkey setup from the start, including after a passkey
+attempt fails or is cancelled. The device then holds the only copy of the
 key. Rayl neither backs it up nor asks the user to; Settings shows its recovery
 phrase, which a Spark card or any other Spark wallet can import. Onboarding
 only ever creates or opens the pocket: the key is never entered into the
