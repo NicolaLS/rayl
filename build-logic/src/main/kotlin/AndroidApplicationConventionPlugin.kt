@@ -60,6 +60,12 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 androidResources {
                     generateLocaleConfig = true
                 }
+                // Omit Google's encrypted dependency block from APKs and bundles (Obtainium,
+                // Zapstore, WalletScrutiny).
+                dependenciesInfo {
+                    includeInApk = false
+                    includeInBundle = false
+                }
                 // Android Lint (qa/test-plan.md, item 4a): API levels down to minSdk 24, manifest,
                 // resources, security. Library modules run their own (`lintAndroidMain`).
                 lint {
