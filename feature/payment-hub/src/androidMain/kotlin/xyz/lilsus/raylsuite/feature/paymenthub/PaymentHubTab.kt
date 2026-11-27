@@ -125,25 +125,43 @@ fun PaymentHubTab(
 @Composable
 private fun HubEditorSheet(state: WidgetHubState, viewModel: WidgetHubViewModel) {
     val editing = state.screen != HubWidgetScreen.Hub
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var open by remember { mutableStateOf(editing) }
     // What the sheet showed last, so it keeps its content while it slides away.
     var shown by remember { mutableStateOf(state.screen) }
-    if (editing) shown = state.screen
+    if (editing) {
+        open = true
+        shown = state.screen
+    }
+    if (!open) return
+
+    // Fresh SheetState per open: reusing a previously Hidden SheetState across cycles can leave
+    // ModalBottomSheet mounted with only its dismiss scrim visible.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val currentEditing by rememberUpdatedState(editing)
+    var wasClosing by remember { mutableStateOf(false) }
     LaunchedEffect(editing) {
         if (editing) {
-            open = true
-        } else if (open) {
-            sheetState.hide()
-            open = false
+            if (wasClosing) {
+                wasClosing = false
+                sheetState.show()
+            }
+        } else {
+            wasClosing = true
+            try {
+                if (sheetState.isVisible) sheetState.hide()
+            } finally {
+                if (!currentEditing) open = false
+            }
         }
     }
-    if (!open && !editing) return
     // Closing from the first screen leaves the sheet; every other screen steps back.
     val closes = state.screen == HubWidgetScreen.Gallery ||
         (state.screen == HubWidgetScreen.Variants && state.editor?.existingWidgetId != null)
     ModalBottomSheet(
-        onDismissRequest = { if (editing) viewModel.close() },
+        onDismissRequest = {
+            open = false
+            if (editing) viewModel.close()
+        },
         sheetState = sheetState,
         sheetGesturesEnabled = !state.busy,
         // No room for the status bar: the sheet rests just below it, and the padding would make
