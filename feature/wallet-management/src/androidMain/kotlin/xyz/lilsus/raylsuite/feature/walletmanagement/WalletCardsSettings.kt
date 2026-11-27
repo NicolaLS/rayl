@@ -57,6 +57,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationEventHandler
@@ -67,6 +68,8 @@ import xyz.lilsus.raylsuite.core.ui.components.AppSettingsSection
 import xyz.lilsus.raylsuite.core.ui.components.BackIconButton
 import xyz.lilsus.raylsuite.core.ui.components.RaylMark
 import xyz.lilsus.raylsuite.core.ui.format.rememberAmountFormatter
+import xyz.lilsus.raylsuite.core.ui.platform.ScreenCaptureProtection
+import xyz.lilsus.raylsuite.core.ui.platform.secureDialogFlagPolicy
 
 /** The host's marks for each provider (`rayl` for the pocket), by [WalletCard.provider]. */
 val LocalWalletCardIcons = staticCompositionLocalOf<Map<String, Int>> { emptyMap() }
@@ -432,9 +435,11 @@ private fun RenameDialog(name: String, onRename: (String) -> Unit, onDismiss: ()
 /** The words of a wallet whose only backup they are. */
 @Composable
 private fun RecoveryPhraseDialog(phrase: String, onDismiss: () -> Unit) {
+    ScreenCaptureProtection()
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(securePolicy = secureDialogFlagPolicy()),
         title = { Text(stringResource(R.string.wallet_cards_recovery_phrase)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {

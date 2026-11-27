@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import xyz.lilsus.raylsuite.core.ui.R
+import xyz.lilsus.raylsuite.core.ui.platform.ScreenCaptureProtection
 
 /**
  * Shared connection chrome; providers own credentials, validation and connection work. [onBack]
@@ -78,6 +79,7 @@ fun CredentialConnectionScreen(
     termsTitle: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    ScreenCaptureProtection()
     val focusManager = LocalFocusManager.current
     val uriHandler = LocalUriHandler.current
     Scaffold(

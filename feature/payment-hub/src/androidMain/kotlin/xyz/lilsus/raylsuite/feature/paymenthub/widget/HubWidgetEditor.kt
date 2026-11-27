@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import xyz.lilsus.raylsuite.core.model.CurrencyCatalog
+import xyz.lilsus.raylsuite.core.ui.platform.ScreenCaptureProtection
 import xyz.lilsus.raylsuite.feature.paymenthub.HubContact
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetEditor
 import xyz.lilsus.raylsuite.feature.paymenthub.HubWidgetKind
@@ -291,6 +292,7 @@ private fun ApiKeyField(
     viewModel: WidgetHubViewModel,
     enabled: Boolean
 ) {
+    ScreenCaptureProtection()
     EditorSection(stringResource(R.string.hub_ppq_api_key)) {
         OutlinedTextField(
             value = editor.apiKeyInput,

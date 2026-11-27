@@ -10,6 +10,8 @@ import xyz.lilsus.raylsuite.core.camera.TestQrInput
  * - `blinkApiUrl`: the Blink backend, by default the local Blink stack (`tools/blink-stack`).
  */
 class E2eMainActivity : MainActivity() {
+    override val protectSensitiveScreens: Boolean = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         TestQrInput.install(
             intent.getStringExtra(SCAN_EXTRA).takeIf { savedInstanceState == null }
