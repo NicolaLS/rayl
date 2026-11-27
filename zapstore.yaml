@@ -3,7 +3,7 @@
 # body becomes the release notes. Read by `zsp`; unknown fields are errors.
 repository: https://github.com/NicolaLS/rayl
 release_filter: '^v[0-9]+\.[0-9]+\.[0-9]+$'
-match: '^rayl-[0-9]+\.[0-9]+\.[0-9]+\.apk$'
+match: '^rayl-[0-9]+\.[0-9]+\.[0-9]+-zxing\.apk$'
 
 name: Rayl
 summary: A calmer, faster way to pay with Bitcoin.
