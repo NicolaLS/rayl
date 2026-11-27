@@ -74,6 +74,9 @@ jobs:
       - name: Assemble Debug and a release-like build
         run: ./gradlew :app:androidApp:assembleDebug :app:androidApp:assembleE2e
 
+      - name: Verify open-source zxing-cpp scanner build
+        run: ./gradlew :core:camera:ktlintCheck :app:androidApp:assembleE2e -Prayl.scanner=zxing
+
       # Android Lint: errors fail (API levels down to minSdk 24, manifest, security); warnings
       # stay in the reports. Settings in lint.xml.
       - name: Android Lint

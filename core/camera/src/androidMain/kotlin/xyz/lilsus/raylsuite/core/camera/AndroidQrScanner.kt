@@ -2,17 +2,14 @@ package xyz.lilsus.raylsuite.core.camera
 
 import android.Manifest
 import android.content.Context
-import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.util.Range
 import android.util.Size
-import androidx.annotation.OptIn
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.SessionConfig
@@ -26,10 +23,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -102,9 +95,11 @@ private class AndroidQrScannerController(
     /** How often in a row the camera was bound anew because it delivered no frames. */
     private var stallRebinds = 0
 
+    private val decoder = qrFrameDecoder()
+
     init {
         // The reader loads while the camera opens, not on the first frame.
-        QrReader.warmUp()
+        decoder.warmUp()
     }
 
     override fun start(
@@ -184,6 +179,7 @@ private class AndroidQrScannerController(
 
                     if (!isCurrentGeneration(generation)) return@addListener
                     val analyzer = analyzer ?: QrCodeAnalyzer(
+                        decoder = decoder,
                         onQrCodesObserved = { values ->
                             val arrived = qrPresenceGate.observe(values)
                             if (arrived.isNotEmpty()) {
@@ -380,41 +376,6 @@ private class AndroidQrScannerController(
 }
 
 /**
- * ML Kit's QR reader, one for the process. It loads its model when it reads its first image,
- * which takes longer than reading a frame, and unloads it when closed; a reader per scanner start
- * paid that on the first frame after every payment.
- */
-private object QrReader {
-    val scanner by lazy {
-        BarcodeScanning.getClient(
-            BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                .build()
-        )
-    }
-    private val warmedUp = AtomicBoolean(false)
-
-    /** Loads the model by reading an empty image, off the caller's thread; once per process. */
-    fun warmUp() {
-        if (!warmedUp.compareAndSet(false, true)) return
-        try {
-            val blank = Bitmap.createBitmap(
-                WARM_UP_IMAGE_SIZE,
-                WARM_UP_IMAGE_SIZE,
-                Bitmap.Config.ARGB_8888
-            )
-            scanner.process(InputImage.fromBitmap(blank, 0))
-                .addOnFailureListener { Log.w(TAG, "QR reader warm-up failed", it) }
-        } catch (failure: RuntimeException) {
-            // The first frame loads the model then, as it always did.
-            Log.w(TAG, "QR reader warm-up failed", failure)
-        }
-    }
-
-    private const val WARM_UP_IMAGE_SIZE = 64
-}
-
-/**
  * The scanner settings a [CameraVariant] stands for on Android. With [fixedFrameRateUpTo] the
  * camera runs at the highest frame rate up to it that it can hold in any light, which is what
  * limits how long a frame is exposed (see [pickShortExposureFrameRate]); null leaves the camera
@@ -423,7 +384,7 @@ private object QrReader {
 internal class AndroidCameraConfig(val analysisResolution: Size, val fixedFrameRateUpTo: Int?)
 
 internal fun CameraVariant.androidCameraConfig(): AndroidCameraConfig = when (this) {
-    // ML Kit recommends around 1920x1080, which is 16:9. Nothing is shown to the user, so the
+    // Around 1920x1080 is recommended for dense QR codes. Nothing is shown to the user, so the
     // most common native sensor aspect ratio, 4:3, is preferred.
     CameraVariant.Control -> AndroidCameraConfig(
         analysisResolution = Size(1920, 1440),
@@ -463,13 +424,13 @@ private class DroppingExecutor : Executor {
 }
 
 private class QrCodeAnalyzer(
+    private val decoder: QrFrameDecoder,
     private val onQrCodesObserved: (List<String>) -> Unit,
     private val onFirstFrame: () -> Unit,
     private val onFrameAnalyzed: (durationMs: Long, width: Int, height: Int) -> Unit
 ) : ImageAnalysis.Analyzer {
     private val firstFrameReported = AtomicBoolean(false)
 
-    @OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
         val imageClosed = AtomicBoolean(false)
         var analysisTrace: TraceInterval? = null
@@ -480,89 +441,32 @@ private class QrCodeAnalyzer(
         }
 
         try {
-            val mediaImage = image.image
-            if (mediaImage == null) {
-                closeImage()
-                return
-            }
-
             if (firstFrameReported.compareAndSet(false, true)) {
                 onFirstFrame()
             }
             analysisTrace = RaylTrace.begin(TraceSpan.CameraFrameAnalysis)
             val analysisStartedMs = SystemClock.elapsedRealtime()
-            val input = InputImage.fromMediaImage(mediaImage, image.imageInfo.rotationDegrees)
-            QrReader.scanner.process(input)
-                .addOnCompleteListener(DirectExecutor) { task ->
-                    try {
-                        onFrameAnalyzed(
-                            SystemClock.elapsedRealtime() - analysisStartedMs,
-                            image.width,
-                            image.height
-                        )
-                        if (!task.isSuccessful) {
-                            Log.e(TAG, "Barcode scanning failed", task.exception)
-                            return@addOnCompleteListener
-                        }
-                        val rotation = image.imageInfo.rotationDegrees
-                        val frameWidth = if (rotation == 90 || rotation == 270) {
-                            image.height.toFloat()
-                        } else {
-                            image.width.toFloat()
-                        }
-                        val frameHeight = if (rotation == 90 || rotation == 270) {
-                            image.width.toFloat()
-                        } else {
-                            image.height.toFloat()
-                        }
-                        onQrCodesObserved(
-                            rankBarcodeValues(
-                                barcodes = task.result.orEmpty(),
-                                frameWidth = frameWidth,
-                                frameHeight = frameHeight
-                            )
-                        )
-                    } finally {
-                        analysisTrace?.end()
-                        closeImage()
+            decoder.decode(image) { values ->
+                try {
+                    onFrameAnalyzed(
+                        SystemClock.elapsedRealtime() - analysisStartedMs,
+                        image.width,
+                        image.height
+                    )
+                    if (values != null) {
+                        onQrCodesObserved(values)
                     }
+                } finally {
+                    analysisTrace?.end()
+                    closeImage()
                 }
+            }
         } catch (failure: Throwable) {
             analysisTrace?.end()
             closeImage()
             Log.e(TAG, "Unexpected failure while analyzing image", failure)
         }
     }
-
-    private object DirectExecutor : Executor {
-        override fun execute(command: Runnable) {
-            command.run()
-        }
-    }
-}
-
-private fun rankBarcodeValues(
-    barcodes: List<Barcode>,
-    frameWidth: Float,
-    frameHeight: Float
-): List<String> {
-    if (barcodes.isEmpty()) return emptyList()
-    return rankQrValues(
-        candidates = barcodes.mapNotNull { barcode ->
-            val value = barcode.rawValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            // A code without a place in the frame ranks last.
-            val bounds = barcode.boundingBox
-            QrDetectionCandidate(
-                value = value,
-                left = bounds?.left?.toFloat() ?: 0f,
-                top = bounds?.top?.toFloat() ?: 0f,
-                right = bounds?.right?.toFloat() ?: 0f,
-                bottom = bounds?.bottom?.toFloat() ?: 0f
-            )
-        },
-        frameWidth = frameWidth,
-        frameHeight = frameHeight
-    )
 }
 
 private fun isCameraPermissionGranted(context: Context): Boolean =

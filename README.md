@@ -49,6 +49,14 @@ of sending it (`adb logcat -s RaylTelemetry`); E2E and benchmark builds keep not
 ./gradlew check
 ```
 
+Android builds default to Google ML Kit for on-device QR scanning. Pass `-Prayl.scanner=zxing`
+to build with the open-source `zxing-cpp` decoder instead (no ML Kit dependency, used for
+standalone / Zapstore APKs):
+
+```shell
+./gradlew :app:androidApp:assembleRelease -Prayl.scanner=zxing
+```
+
 Run startup and camera benchmarks on a connected Android 10+ device with the
 separate benchmark app. Use a stable physical device for comparable results:
 

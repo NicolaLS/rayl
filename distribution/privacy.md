@@ -175,13 +175,15 @@ under its own terms and privacy policy.
 - **Lightning addresses and LNURL:** Paying a Lightning address or LNURL
   contacts the domain it names to request an invoice, including the amount and
   any comment you enter. Wallet credentials are never sent to these services.
-- **Google ML Kit (Android only):** The Android app uses Google ML Kit for
-  on-device barcode scanning, which sends technical SDK diagnostics (such as
-  device and app metadata, an installation identifier, timings, and error
-  codes) to Google. Camera images and scanned codes stay on your device. See
+- **Google ML Kit (Google Play Android builds only):** The Google Play Android
+  build uses Google ML Kit for on-device barcode scanning, which sends technical
+  SDK diagnostics (such as device and app metadata, an installation identifier,
+  timings, and error codes) to Google. Camera images and scanned codes stay on
+  your device. See
   [ML Kit's data disclosure](https://developers.google.com/ml-kit/android-data-disclosure)
-  and [Google's Privacy Policy](https://policies.google.com/privacy). The iOS
-  app uses Apple's scanner instead.
+  and [Google's Privacy Policy](https://policies.google.com/privacy). Standalone
+  Android APKs built with `-Prayl.scanner=zxing` use the open-source `zxing-cpp`
+  scanner on-device with no Google SDK, and the iOS app uses Apple's scanner.
 - **Invoices you share:** An invoice you create to receive funds contains the
   amount and payment details. Anyone you share it with can read them.
 - **External links:** Links such as wallet dashboards, support pages, or these
